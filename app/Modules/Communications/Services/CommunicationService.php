@@ -128,8 +128,8 @@ class CommunicationService
         $template = file_get_contents(APPPATH . 'Modules/Communications/Views/emails/base.php');
 
         return str_replace(
-            ['{{SUBJECT}}', '{{BODY}}'],
-            [htmlspecialchars($subject, ENT_QUOTES), $this->injectInlineWordBreak($body)],
+            ['{{SUBJECT}}', '{{BODY}}', '{{BASE_URL}}'],
+            [htmlspecialchars($subject, ENT_QUOTES), $this->injectInlineWordBreak($body), base_url()],
             $template
         );
     }

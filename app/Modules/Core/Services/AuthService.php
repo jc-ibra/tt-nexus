@@ -73,7 +73,7 @@ class AuthService
 
         $emailSvc = service('email');
         $emailSvc->setTo($email)
-            ->setSubject('Restablecer contraseña — tt-apps')
+            ->setSubject('Restablecer contraseña — Nexus')
             ->setMessage(
                 "<p>Hola {$user['name']},</p>"
                 . "<p>Haz clic en el enlace para restablecer tu contraseña (válido 1 hora):</p>"

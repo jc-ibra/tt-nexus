@@ -13,7 +13,7 @@
 <div class="card">
   <div class="card-header">
     <h2 class="card-title">Renderizado en cliente de correo</h2>
-    <span class="text-muted text-sm">Vista sandbox — sin acceso a recursos externos</span>
+    <span class="text-muted text-sm">Vista sandbox - sin acceso a recursos externos</span>
   </div>
   <div style="padding: var(--space-4);">
     <iframe

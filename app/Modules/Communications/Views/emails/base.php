@@ -28,6 +28,12 @@
       <table class="main" role="presentation" cellpadding="0" cellspacing="0" width="600"
              style="width:600px;max-width:600px;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);table-layout:fixed">
         <tr>
+          <td align="center" width="600"
+              style="background-color:#ffffff;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+            <img src="{{BASE_URL}}img/tt-logo.png" alt="Trantor Technologies" width="200" style="display:block;height:auto;max-width:200px">
+          </td>
+        </tr>
+        <tr>
           <td class="td-pad" width="600"
               style="background-color:#1773C8;padding:24px 32px">
             <h1 style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:600;margin:0">{{SUBJECT}}</h1>
