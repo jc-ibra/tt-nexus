@@ -48,7 +48,7 @@
         <tr>
           <td class="td-pad" width="600"
               style="background-color:#f4f6f8;padding:20px 32px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb">
-            Comunicado Interno Trantor Technologies.
+            Comunicado Interno - Trantor Technologies.
           </td>
         </tr>
       </table>
