@@ -1,6 +1,16 @@
 /* tt-apps — global JS */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Disable submit buttons on form submit to prevent double-submission
+    document.querySelectorAll('form').forEach((form) => {
+        form.addEventListener('submit', () => {
+            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((btn) => {
+                btn.disabled = true;
+                if (btn.dataset.loadingText) btn.textContent = btn.dataset.loadingText;
+            });
+        });
+    });
+
     // Expandable nav groups
     document.querySelectorAll('[data-nav-toggle]').forEach((btn) => {
         btn.addEventListener('click', () => {

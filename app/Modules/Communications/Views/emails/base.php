@@ -43,7 +43,7 @@
     </tr>
     <tr>
       <td class="footer">
-        Este correo fue enviado como comunicado interno. Si tienes dudas, contacta al administrador.
+        Comunicado Interno Trantor Technologies.
       </td>
     </tr>
   </table>

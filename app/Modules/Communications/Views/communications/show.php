@@ -29,7 +29,7 @@ $st = $statusLabels[$communication['status']] ?? ['label' => $communication['sta
       <form action="<?= route_to('comms.send', $communication['id']) ?>" method="post" style="display:inline;"
             onsubmit="return confirm('¿Confirmas el envío masivo a todas las listas asignadas?')">
         <?= csrf_field() ?>
-        <button type="submit" class="btn btn-primary">Enviar</button>
+        <button type="submit" class="btn btn-primary" data-loading-text="Enviando...">Enviar</button>
       </form>
     <?php endif; ?>
   </div>
@@ -84,7 +84,7 @@ $st = $statusLabels[$communication['status']] ?? ['label' => $communication['sta
             <label class="field-label" for="test-email">Correo de prueba</label>
             <input type="email" id="test-email" name="email" class="input" placeholder="test@empresa.com" required>
           </div>
-          <button type="submit" class="btn btn-secondary">Enviar prueba</button>
+          <button type="submit" class="btn btn-secondary" data-loading-text="Enviando...">Enviar prueba</button>
         </div>
       </form>
     </div>
