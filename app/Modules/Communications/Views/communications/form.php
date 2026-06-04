@@ -94,28 +94,6 @@ $selectedIds = array_map('strval', $selectedIds);
     <!-- Right: body editor -->
     <div class="card" style="height:100%;">
       <div class="card-header"><h2 class="card-title">Cuerpo del correo <span class="required" aria-hidden="true">*</span></h2></div>
-      <div style="border-bottom:1px solid var(--color-neutral-200);">
-        <div id="quill-toolbar">
-          <span class="ql-formats">
-            <select class="ql-header"><option value="1">Encabezado 1</option><option value="2">Encabezado 2</option><option value="">Normal</option></select>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-bold" title="Negrita"></button>
-            <button class="ql-italic" title="Cursiva"></button>
-            <button class="ql-underline" title="Subrayado"></button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-list" value="ordered" title="Lista numerada"></button>
-            <button class="ql-list" value="bullet" title="Lista con viñetas"></button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-link" title="Enlace"></button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-clean" title="Limpiar formato"></button>
-          </span>
-        </div>
-      </div>
       <div id="quill-editor" style="min-height:320px;"><?= $old('body') ?></div>
       <input type="hidden" name="body" id="body-input">
       <?php if (isset($errors['body'])): ?>
@@ -138,7 +116,15 @@ $selectedIds = array_map('strval', $selectedIds);
 <script>
 const quill = new Quill('#quill-editor', {
     theme: 'snow',
-    modules: { toolbar: '#quill-toolbar' },
+    modules: {
+        toolbar: [
+            [{ header: [1, 2, false] }],
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link'],
+            ['clean'],
+        ],
+    },
     placeholder: 'Escribe el contenido del correo…',
 });
 

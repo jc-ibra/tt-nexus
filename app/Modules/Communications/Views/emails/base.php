@@ -29,19 +29,19 @@
              style="width:600px;max-width:600px;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);table-layout:fixed">
         <tr>
           <td class="td-pad" width="600"
-              style="background-color:#1773C8;padding:24px 32px;width:600px">
-            <h1 style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:600;margin:0;word-break:break-word">{{SUBJECT}}</h1>
+              style="background-color:#1773C8;padding:24px 32px">
+            <h1 style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:600;margin:0;word-wrap:break-word;overflow-wrap:break-word">{{SUBJECT}}</h1>
           </td>
         </tr>
         <tr>
           <td class="body td-pad" width="600"
-              style="padding:32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#202223;width:600px;word-break:break-word;overflow-wrap:break-word">
+              style="padding:32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#202223;word-wrap:break-word;overflow-wrap:break-word">
             {{BODY}}
           </td>
         </tr>
         <tr>
           <td class="td-pad" width="600"
-              style="background-color:#f4f6f8;padding:20px 32px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;width:600px">
+              style="background-color:#f4f6f8;padding:20px 32px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb">
             Comunicado Interno Trantor Technologies.
           </td>
         </tr>
