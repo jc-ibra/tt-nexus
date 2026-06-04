@@ -11,9 +11,9 @@
   img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}
   body{height:100% !important;margin:0 !important;padding:0 !important;width:100% !important;background-color:#f4f6f8}
   .body h1,.body h2,.body h3{color:#202223;margin-top:0}
-  .body a{color:#1773C8;text-decoration:underline;word-break:break-all}
   .body p{margin:0 0 16px 0}
   .body ul,.body ol{margin:0 0 16px 0;padding-left:24px}
+  .body a{color:#1773C8;text-decoration:underline;word-break:break-word;overflow-wrap:anywhere}
   @media only screen and (max-width:620px){
     .main{width:100% !important}
     .td-pad{padding:20px !important}
@@ -30,12 +30,12 @@
         <tr>
           <td class="td-pad" width="600"
               style="background-color:#1773C8;padding:24px 32px">
-            <h1 style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:600;margin:0;word-wrap:break-word;overflow-wrap:break-word">{{SUBJECT}}</h1>
+            <h1 style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:600;margin:0">{{SUBJECT}}</h1>
           </td>
         </tr>
         <tr>
           <td class="body td-pad" width="600"
-              style="padding:32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#202223;word-wrap:break-word;overflow-wrap:break-word">
+              style="padding:32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#202223">
             {{BODY}}
           </td>
         </tr>

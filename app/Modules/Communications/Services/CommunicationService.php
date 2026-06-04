@@ -129,9 +129,119 @@ class CommunicationService
 
         return str_replace(
             ['{{SUBJECT}}', '{{BODY}}'],
-            [htmlspecialchars($subject, ENT_QUOTES), $body],
+            [htmlspecialchars($subject, ENT_QUOTES), $this->injectInlineWordBreak($body)],
             $template
         );
+    }
+
+    /**
+     * Prepare the editor HTML so that mid-word breaks cannot happen in any
+     * client. Three independent defenses:
+     *   1) Strip invisible break-opportunity characters (soft hyphen, ZWSP,
+     *      ZWJ, ZWNJ, word-joiner) that get pasted in from Word/PDF sources
+     *      and cause renderers to split words at their position.
+     *   2) Auto-linkify plain-text URLs so URL breaking is handled by <a>
+     *      styling and we never need overflow-wrap:break-word on body text.
+     *   3) Inline word-break:normal + overflow-wrap:normal on every block
+     *      element — survives clients that strip the <style> block.
+     */
+    private function injectInlineWordBreak(string $html): string
+    {
+        // Replace non-breaking spaces with regular spaces so the renderer has
+        // word-break opportunities. Pasted content from Word/Google Docs uses
+        // these everywhere and makes whole sentences appear as one unbreakable
+        // string (causing overflow or mid-word breaks).
+        $html = str_replace(['&nbsp;', '&#160;', '&#xA0;', '&#xa0;'], ' ', $html);
+        $html = preg_replace('/[\x{00A0}\x{2007}\x{202F}]/u', ' ', $html);
+
+        // Strip zero-width characters that create phantom break opportunities
+        // inside words (soft hyphen, ZWSP, ZWJ, ZWNJ, word-joiner, BOM).
+        $html = preg_replace(
+            '/[\x{00AD}\x{200B}\x{200C}\x{200D}\x{2060}\x{FEFF}]/u',
+            '',
+            $html
+        );
+
+        $html = $this->autolinkUrls($html);
+
+        $blockStyle = 'word-break:normal;overflow-wrap:normal;-webkit-hyphens:manual;hyphens:manual';
+        $linkStyle  = 'word-break:break-word;overflow-wrap:anywhere';
+
+        $blockTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'div', 'span', 'strong', 'em', 'b', 'i', 'u'];
+
+        foreach ($blockTags as $tag) {
+            $html = preg_replace_callback(
+                '/<' . $tag . '\b([^>]*)>/i',
+                static function ($m) use ($tag, $blockStyle) {
+                    $attrs = $m[1];
+                    if (preg_match('/\sstyle\s*=\s*(["\'])(.*?)\1/i', $attrs, $sm)) {
+                        $existing = rtrim($sm[2], '; ');
+                        $newAttrs = preg_replace(
+                            '/\sstyle\s*=\s*(["\']).*?\1/i',
+                            ' style="' . $existing . ';' . $blockStyle . '"',
+                            $attrs,
+                            1
+                        );
+                        return '<' . $tag . $newAttrs . '>';
+                    }
+                    return '<' . $tag . $attrs . ' style="' . $blockStyle . '">';
+                },
+                $html
+            );
+        }
+
+        $html = preg_replace_callback(
+            '/<a\b([^>]*)>/i',
+            static function ($m) use ($linkStyle) {
+                $attrs = $m[1];
+                if (preg_match('/\sstyle\s*=\s*(["\'])(.*?)\1/i', $attrs, $sm)) {
+                    $existing = rtrim($sm[2], '; ');
+                    $newAttrs = preg_replace(
+                        '/\sstyle\s*=\s*(["\']).*?\1/i',
+                        ' style="' . $existing . ';' . $linkStyle . '"',
+                        $attrs,
+                        1
+                    );
+                    return '<a' . $newAttrs . '>';
+                }
+                return '<a' . $attrs . ' style="' . $linkStyle . '">';
+            },
+            $html
+        );
+
+        return $html;
+    }
+
+    /**
+     * Wrap bare URLs (not already inside an <a> tag) with proper anchors so
+     * the <a> styling handles their wrapping. Skips content inside existing
+     * <a>...</a> blocks and inside attributes.
+     */
+    private function autolinkUrls(string $html): string
+    {
+        $parts  = preg_split('/(<a\b[^>]*>.*?<\/a>|<[^>]+>)/is', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $result = '';
+        foreach ($parts as $part) {
+            if ($part === '' || $part === null) {
+                continue;
+            }
+            if ($part[0] === '<') {
+                $result .= $part;
+                continue;
+            }
+            $result .= preg_replace_callback(
+                '/(https?:\/\/[^\s<>"\']+)/i',
+                static function ($m) {
+                    $url = $m[1];
+                    $url = rtrim($url, '.,;:!?)');
+                    $trail = substr($m[1], strlen($url));
+                    return '<a href="' . htmlspecialchars($url, ENT_QUOTES) . '" target="_blank" rel="noopener">'
+                        . htmlspecialchars($url) . '</a>' . htmlspecialchars($trail);
+                },
+                $part
+            );
+        }
+        return $result;
     }
 
     public function getLogs(int $id, int $perPage = 50): array
