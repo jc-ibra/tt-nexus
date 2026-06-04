@@ -12,6 +12,7 @@ class CommunicationModel extends Model
 
     protected $allowedFields = [
         'subject', 'body', 'from_name', 'from_email',
+        'priority', 'request_read_receipt',
         'status', 'scheduled_at', 'sent_at', 'created_by',
     ];
 

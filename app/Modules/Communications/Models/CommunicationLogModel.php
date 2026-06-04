@@ -12,7 +12,7 @@ class CommunicationLogModel extends Model
 
     protected $allowedFields = [
         'communication_id', 'recipient_id', 'email', 'name',
-        'status', 'error_message', 'sent_at',
+        'status', 'error_message', 'sent_at', 'tracking_token', 'opened_at',
     ];
 
     protected $useTimestamps = true;
@@ -32,15 +32,16 @@ class CommunicationLogModel extends Model
                 SUM(status = 'sent') AS sent,
                 SUM(status = 'failed') AS failed,
                 SUM(status = 'queued') AS queued,
-                SUM(status = 'bounced') AS bounced
+                SUM(status = 'bounced') AS bounced,
+                SUM(opened_at IS NOT NULL) AS opened
             FROM communication_logs
             WHERE communication_id = ?
         ", [$communicationId])->getRowArray();
 
-        return $result ?? ['total' => 0, 'sent' => 0, 'failed' => 0, 'queued' => 0, 'bounced' => 0];
+        return $result ?? ['total' => 0, 'sent' => 0, 'failed' => 0, 'queued' => 0, 'bounced' => 0, 'opened' => 0];
     }
 
-    public function bulkInsertForCommunication(int $communicationId, array $recipients): int
+    public function bulkInsertForCommunication(int $communicationId, array $recipients, bool $withTracking = false): int
     {
         if (empty($recipients)) {
             return 0;
@@ -50,7 +51,7 @@ class CommunicationLogModel extends Model
         $rows = [];
 
         foreach ($recipients as $r) {
-            $rows[] = [
+            $row = [
                 'communication_id' => $communicationId,
                 'recipient_id'     => $r['id'] ?? null,
                 'email'            => $r['email'],
@@ -59,10 +60,26 @@ class CommunicationLogModel extends Model
                 'created_at'       => $now,
                 'updated_at'       => $now,
             ];
+
+            if ($withTracking) {
+                $row['tracking_token'] = bin2hex(random_bytes(32));
+            }
+
+            $rows[] = $row;
         }
 
         $this->db->table($this->table)->insertBatch($rows);
 
         return count($rows);
+    }
+
+    public function findByToken(string $token): ?array
+    {
+        return $this->where('tracking_token', $token)->first();
+    }
+
+    public function markOpened(int $logId): void
+    {
+        $this->update($logId, ['opened_at' => date('Y-m-d H:i:s')]);
     }
 }

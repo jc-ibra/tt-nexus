@@ -89,6 +89,29 @@ $selectedIds = array_map('strval', $selectedIds);
         <?php endif; ?>
       </div>
 
+      <!-- Sending options -->
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Opciones de envío</h2></div>
+        <div style="padding: var(--space-3) var(--space-4); display:flex; flex-direction:column; gap:var(--space-2);">
+          <label class="field-check">
+            <input type="checkbox" name="priority" value="1"
+                   <?= $old('priority', 3) == 1 ? 'checked' : '' ?>>
+            <span>
+              <span class="font-medium">Marcar como prioridad alta</span>
+              <span class="text-muted text-sm"> — Agrega cabeceras de alta prioridad al correo</span>
+            </span>
+          </label>
+          <label class="field-check">
+            <input type="checkbox" name="request_read_receipt" value="1"
+                   <?= $old('request_read_receipt', 0) == 1 ? 'checked' : '' ?>>
+            <span>
+              <span class="font-medium">Solicitar confirmación de apertura</span>
+              <span class="text-muted text-sm"> — Inserta un píxel de rastreo en el correo</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
     </div>
 
     <!-- Right: body editor -->

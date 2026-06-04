@@ -37,8 +37,10 @@ class CommunicationService
         $listIds = array_map('intval', (array) ($data['list_ids'] ?? []));
         unset($data['list_ids']);
 
-        $data['created_by'] = session()->get('user_id');
-        $data['status']     = 'draft';
+        $data['priority']             = isset($data['priority']) ? 1 : 3;
+        $data['request_read_receipt'] = isset($data['request_read_receipt']) ? 1 : 0;
+        $data['created_by']           = session()->get('user_id');
+        $data['status']               = 'draft';
 
         $this->model->skipValidation(false);
 
@@ -65,6 +67,9 @@ class CommunicationService
 
         $listIds = array_map('intval', (array) ($data['list_ids'] ?? []));
         unset($data['list_ids']);
+
+        $data['priority']             = isset($data['priority']) ? 1 : 3;
+        $data['request_read_receipt'] = isset($data['request_read_receipt']) ? 1 : 0;
 
         $this->model->skipValidation(false);
 
@@ -123,15 +128,23 @@ class CommunicationService
         return ServiceResult::ok(['html' => $html]);
     }
 
-    public function buildEmailHtml(string $subject, string $body): string
+    public function buildEmailHtml(string $subject, string $body, string $trackingToken = ''): string
     {
         $template = file_get_contents(APPPATH . 'Modules/Communications/Views/emails/base.php');
 
-        return str_replace(
+        $html = str_replace(
             ['{{SUBJECT}}', '{{BODY}}', '{{BASE_URL}}'],
             [htmlspecialchars($subject, ENT_QUOTES), $this->injectInlineWordBreak($body), base_url()],
             $template
         );
+
+        if ($trackingToken !== '') {
+            $pixelUrl = base_url('comms/track/' . $trackingToken . '/open.gif');
+            $pixel    = '<img src="' . $pixelUrl . '" width="1" height="1" style="display:none" alt="" />';
+            $html     = str_replace('</body>', $pixel . '</body>', $html);
+        }
+
+        return $html;
     }
 
     /**
@@ -292,7 +305,8 @@ class CommunicationService
         // Delete any existing queued logs for a clean re-queue on retry
         $this->logModel->where('communication_id', $id)->where('status', 'queued')->delete();
 
-        $count = $this->logModel->bulkInsertForCommunication($id, $recipients);
+        $withTracking = (bool) ($comm['request_read_receipt'] ?? false);
+        $count        = $this->logModel->bulkInsertForCommunication($id, $recipients, $withTracking);
 
         $this->model->skipValidation(true)->update($id, ['status' => 'queued']);
 

@@ -48,6 +48,20 @@ $st = $statusLabels[$communication['status']] ?? ['label' => $communication['sta
         <dt class="text-muted text-sm">Remitente</dt>
         <dd class="text-sm"><?= esc($communication['from_name']) ?><br><span class="text-muted"><?= esc($communication['from_email']) ?></span></dd>
 
+        <dt class="text-muted text-sm">Prioridad</dt>
+        <dd class="text-sm">
+          <?= ($communication['priority'] ?? 3) == 1
+              ? '<span class="badge badge-warning">Alta</span>'
+              : '<span class="text-muted">Normal</span>' ?>
+        </dd>
+
+        <dt class="text-muted text-sm">Rastreo de apertura</dt>
+        <dd class="text-sm">
+          <?= ($communication['request_read_receipt'] ?? 0)
+              ? '<span class="badge badge-info">Activado</span>'
+              : '<span class="text-muted">No</span>' ?>
+        </dd>
+
         <dt class="text-muted text-sm">Listas</dt>
         <dd>
           <?php if (empty($communication['lists'])): ?>

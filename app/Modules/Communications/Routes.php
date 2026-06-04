@@ -5,6 +5,15 @@ use CodeIgniter\Router\RouteCollection;
 /** @var RouteCollection $routes */
 
 // -----------------------------------------------------------------------
+// Open Tracking (public — no auth, no module filter)
+// -----------------------------------------------------------------------
+$routes->get(
+    'comms/track/(:segment)/open.gif',
+    'App\Modules\Communications\Controllers\TrackingController::open/$1',
+    ['as' => 'comms.track.open', 'namespace' => '']
+);
+
+// -----------------------------------------------------------------------
 // Communications web (protected + module access)
 // -----------------------------------------------------------------------
 $routes->group('comms', [

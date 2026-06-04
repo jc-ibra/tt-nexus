@@ -18,8 +18,16 @@ class MailerService
      *
      * @return array{success: bool, error: string}
      */
-    public function sendSingle(string $toEmail, string $toName, string $fromEmail, string $fromName, string $subject, string $htmlBody): array
-    {
+    public function sendSingle(
+        string $toEmail,
+        string $toName,
+        string $fromEmail,
+        string $fromName,
+        string $subject,
+        string $htmlBody,
+        int $priority = 3,
+        bool $requestReadReceipt = false
+    ): array {
         try {
             $this->mailer->clear();
             $this->mailer->setFrom($fromEmail, $fromName);
@@ -27,6 +35,17 @@ class MailerService
             $this->mailer->setSubject($subject);
             $this->mailer->setMessage($htmlBody);
             $this->mailer->setMailType('html');
+
+            if ($priority === 1) {
+                $this->mailer->setPriority(1);
+                $this->mailer->setHeader('X-Priority', '1');
+                $this->mailer->setHeader('X-MSMail-Priority', 'High');
+                $this->mailer->setHeader('Importance', 'High');
+            }
+
+            if ($requestReadReceipt) {
+                $this->mailer->setHeader('Disposition-Notification-To', $fromEmail);
+            }
 
             if ($this->mailer->send(false)) {
                 return ['success' => true, 'error' => ''];

@@ -35,7 +35,7 @@ class Communications extends BaseController
     public function store()
     {
         $svc  = service('communicationService');
-        $data = $this->request->getPost(['subject', 'body', 'from_name', 'from_email', 'list_ids']);
+        $data = $this->request->getPost(['subject', 'body', 'from_name', 'from_email', 'list_ids', 'priority', 'request_read_receipt']);
 
         $result = $svc->create($data);
 
@@ -82,7 +82,7 @@ class Communications extends BaseController
     public function update(int $id)
     {
         $svc  = service('communicationService');
-        $data = $this->request->getPost(['subject', 'body', 'from_name', 'from_email', 'list_ids']);
+        $data = $this->request->getPost(['subject', 'body', 'from_name', 'from_email', 'list_ids', 'priority', 'request_read_receipt']);
 
         $result = $svc->update($id, $data);
 

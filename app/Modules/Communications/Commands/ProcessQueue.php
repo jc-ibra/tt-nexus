@@ -65,10 +65,12 @@ class ProcessQueue extends BaseCommand
         // Mark as sending
         $commModel->skipValidation(true)->update($commId, ['status' => 'sending']);
 
-        $htmlBody = $svc->buildEmailHtml($comm['subject'], $comm['body']);
-        $offset   = 0;
-        $sent     = 0;
-        $failed   = 0;
+        $priority     = (int) ($comm['priority'] ?? 3);
+        $withTracking = (bool) ($comm['request_read_receipt'] ?? false);
+        $baseHtml     = $svc->buildEmailHtml($comm['subject'], $comm['body']);
+        $offset       = 0;
+        $sent         = 0;
+        $failed       = 0;
 
         while (true) {
             $logs = $logModel
@@ -82,13 +84,19 @@ class ProcessQueue extends BaseCommand
             }
 
             foreach ($logs as $log) {
+                $htmlBody = $withTracking
+                    ? $svc->buildEmailHtml($comm['subject'], $comm['body'], $log['tracking_token'] ?? '')
+                    : $baseHtml;
+
                 $result = $mailer->sendSingle(
                     $log['email'],
                     $log['name'],
                     $comm['from_email'],
                     $comm['from_name'],
                     $comm['subject'],
-                    $htmlBody
+                    $htmlBody,
+                    $priority,
+                    $withTracking
                 );
 
                 $now = date('Y-m-d H:i:s');
