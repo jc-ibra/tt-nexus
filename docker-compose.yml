@@ -1,0 +1,39 @@
+services:
+
+  app:
+    build: .
+    container_name: tt-apps
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    environment:
+      CI_ENVIRONMENT: development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: tt-apps-db
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tt_apps
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  vendor_data:

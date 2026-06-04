@@ -1,0 +1,74 @@
+<?= $this->extend('App\Modules\Core\Views\layouts\main') ?>
+<?= $this->section('content') ?>
+
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">Importar destinatarios</h1>
+    <p class="page-subtitle">Carga masiva desde un archivo CSV</p>
+  </div>
+  <div class="page-actions">
+    <a href="<?= route_to('comms.recipients.index') ?>" class="btn btn-secondary">Cancelar</a>
+  </div>
+</div>
+
+<div class="grid-2" style="align-items: start;">
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Subir archivo</h2>
+    </div>
+    <div class="card-body">
+      <form action="<?= route_to('comms.recipients.import.post') ?>" method="post" enctype="multipart/form-data">
+        <?= csrf_field() ?>
+        <div class="form-group">
+
+          <div class="field">
+            <label class="field-label" for="file">Archivo CSV <span class="required" aria-hidden="true">*</span></label>
+            <input type="file" id="file" name="file" class="input" accept=".csv,text/csv" required>
+            <p class="field-help">Máximo 5 MB. Columnas requeridas: <code>name</code>, <code>email</code>. Opcional: <code>area</code>.</p>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="list_id">Agregar a lista (opcional)</label>
+            <select id="list_id" name="list_id" class="select">
+              <option value="">— Sin asignar a lista —</option>
+              <?php
+              $lists = (new \App\Modules\Communications\Models\RecipientListModel())->getAll();
+              foreach ($lists as $list):
+              ?>
+                <option value="<?= $list['id'] ?>"><?= esc($list['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Importar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Formato esperado</h2>
+    </div>
+    <div class="card-body">
+      <p class="text-muted text-sm" style="margin-bottom: var(--space-3);">La primera fila debe ser el encabezado. Las columnas <code>name</code> y <code>email</code> son obligatorias.</p>
+      <div style="background: var(--bg-surface-alt); border-radius: var(--radius-sm); padding: var(--space-3); font-family: var(--font-mono); font-size: var(--text-xs); overflow-x: auto;">
+        <pre>name,email,area
+Juan Pérez,juan@empresa.com,Recursos Humanos
+Ana García,ana@empresa.com,Tecnología
+Carlos López,carlos@empresa.com,</pre>
+      </div>
+      <div class="divider"></div>
+      <ul style="list-style: disc; padding-left: var(--space-5); font-size: var(--text-sm); color: var(--text-secondary); display: flex; flex-direction: column; gap: var(--space-2);">
+        <li>Los correos duplicados serán omitidos automáticamente.</li>
+        <li>El campo <code>area</code> es opcional y puede dejarse vacío.</li>
+        <li>El archivo debe estar codificado en UTF-8.</li>
+        <li>Todos los destinatarios importados quedan con estado <strong>Activo</strong>.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<?= $this->endSection() ?>

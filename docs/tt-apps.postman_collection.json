@@ -1,0 +1,487 @@
+{
+  "info": {
+    "name": "tt-apps API",
+    "description": "Internal platform API — ibrastudio. Base URL: {{base_url}}/api/v1\n\nAuthentication: Bearer token. Obtain via POST /auth/login, then set {{api_token}} environment variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "api_token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"securepassword123\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"token\": \"<bearer_token>\",\n    \"expires_at\": \"2024-12-31T23:59:59Z\",\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Administrator\",\n      \"email\": \"admin@example.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid credentials\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/auth/logout", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "logout"] }
+          },
+          "response": [
+            {
+              "name": "204 No Content",
+              "status": "No Content",
+              "code": 204,
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Core — Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users?page=1&per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"id\": 1, \"name\": \"Administrator\", \"email\": \"admin@example.com\", \"status\": \"active\" }\n  ],\n  \"meta\": { \"total\": 1, \"page\": 1, \"per_page\": 20, \"last_page\": 1 }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/users/1", "host": ["{{base_url}}"], "path": ["api", "v1", "users", "1"] }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"name\": \"Administrator\", \"email\": \"admin@example.com\", \"status\": \"active\", \"roles\": [\"SuperAdmin\"] }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/users", "host": ["{{base_url}}"], "path": ["api", "v1", "users"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@ibrastudio.com\",\n  \"password\": \"password123\",\n  \"role_ids\": [1]\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 2, \"name\": \"Jane Doe\", \"email\": \"jane@ibrastudio.com\", \"status\": \"active\" }\n}"
+            },
+            {
+              "name": "422 Validation Error",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"errors\": { \"email\": \"The email field must be unique.\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/users/2", "host": ["{{base_url}}"], "path": ["api", "v1", "users", "2"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Jane Smith\",\n  \"status\": \"inactive\"\n}" }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 2, \"name\": \"Jane Smith\", \"status\": \"inactive\" }\n}" }
+          ]
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/users/2", "host": ["{{base_url}}"], "path": ["api", "v1", "users", "2"] }
+          },
+          "response": [
+            { "name": "204 No Content", "status": "No Content", "code": 204, "body": "" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Core — Roles",
+      "item": [
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/roles", "host": ["{{base_url}}"], "path": ["api", "v1", "roles"] }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [{ \"id\": 1, \"name\": \"SuperAdmin\", \"description\": \"Full access\", \"status\": \"active\" }]\n}" }
+          ]
+        },
+        {
+          "name": "Get Role",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/roles/1", "host": ["{{base_url}}"], "path": ["api", "v1", "roles", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/roles", "host": ["{{base_url}}"], "path": ["api", "v1", "roles"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Editor\",\n  \"description\": \"Can manage communications\",\n  \"module_ids\": [1]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/roles/2", "host": ["{{base_url}}"], "path": ["api", "v1", "roles", "2"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Editor\",\n  \"module_ids\": [1, 2]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/roles/2", "host": ["{{base_url}}"], "path": ["api", "v1", "roles", "2"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Communications — Recipients",
+      "item": [
+        {
+          "name": "List Recipients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/comms/recipients?page=1&per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "comms", "recipients"],
+              "query": [{ "key": "page", "value": "1" }, { "key": "per_page", "value": "20" }]
+            }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [{ \"id\": 1, \"name\": \"John Doe\", \"email\": \"john@company.com\", \"area\": \"Engineering\", \"status\": \"active\" }],\n  \"meta\": { \"total\": 1, \"page\": 1, \"per_page\": 20, \"last_page\": 1 }\n}" }
+          ]
+        },
+        {
+          "name": "Get Recipient",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/recipients/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "recipients", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Recipient",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/comms/recipients", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "recipients"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@company.com\",\n  \"area\": \"Engineering\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Recipient",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/comms/recipients/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "recipients", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"area\": \"Design\",\n  \"status\": \"inactive\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Recipient",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/recipients/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "recipients", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Import Recipients (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/recipients/import", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "recipients", "import"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "description": "CSV with columns: name, email, area" }]
+            }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"imported\": 95, \"skipped\": 3, \"errors\": [{ \"row\": 12, \"reason\": \"Duplicate email\" }] }\n}" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Communications — Lists",
+      "item": [
+        {
+          "name": "List Recipient Lists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/lists", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "lists"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create List",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/comms/lists", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "lists"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"All Staff\",\n  \"description\": \"Everyone in the organization\",\n  \"recipient_ids\": [1, 2, 3]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update List",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/comms/lists/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "lists", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"All Staff Q2\",\n  \"recipient_ids\": [1, 2, 3, 4]\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete List",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/lists/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "lists", "1"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Communications — Campaigns",
+      "item": [
+        {
+          "name": "List Communications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/comms/communications?page=1&per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "comms", "communications"],
+              "query": [{ "key": "page", "value": "1" }, { "key": "per_page", "value": "20" }]
+            }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [{\n    \"id\": 1,\n    \"title\": \"Q2 Newsletter\",\n    \"subject\": \"Updates from the team\",\n    \"status\": \"sent\",\n    \"total_recipients\": 98,\n    \"sent_count\": 95,\n    \"failed_count\": 3,\n    \"sent_at\": \"2024-06-01T10:00:00Z\"\n  }]\n}" }
+          ]
+        },
+        {
+          "name": "Get Communication",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Communication (Draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Q2 Newsletter", "type": "text" },
+                { "key": "subject", "value": "Updates from the team", "type": "text" },
+                { "key": "body_html", "value": "<h1>Hello</h1><p>Team update...</p>", "type": "text" },
+                { "key": "list_ids[]", "value": "1", "type": "text" },
+                { "key": "image", "type": "file", "description": "Optional banner image (JPEG/PNG/GIF, max 5MB)" }
+              ]
+            }
+          },
+          "response": [
+            { "name": "201 Created", "status": "Created", "code": 201, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"title\": \"Q2 Newsletter\", \"status\": \"draft\" }\n}" }
+          ]
+        },
+        {
+          "name": "Update Communication",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications", "1"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "_method", "value": "PUT", "type": "text" },
+                { "key": "subject", "value": "Updated subject", "type": "text" },
+                { "key": "body_html", "value": "<h1>Updated content</h1>", "type": "text" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Preview Communication",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications/1/preview", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications", "1", "preview"] }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"html\": \"<html>...full rendered email...</html>\" }\n}" }
+          ]
+        },
+        {
+          "name": "Send Test Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications/1/send-test", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications", "1", "send-test"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\"\n}" }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"message\": \"Test email sent to test@example.com\" }\n}" }
+          ]
+        },
+        {
+          "name": "Queue Communication for Sending",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications/1/send", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications", "1", "send"] },
+            "description": "Queues a draft communication for sending. Collects all active recipients from assigned lists (deduplicated), creates log entries with status=queued, and sets communication status=queued. Actual delivery happens via `php spark comms:process-queue`."
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"queued\": 87 },\n  \"message\": \"87 destinatario(s) añadidos a la cola.\"\n}" },
+            { "name": "422 Unprocessable", "status": "Unprocessable Entity", "code": 422, "body": "{\n  \"status\": \"error\",\n  \"message\": \"El comunicado no tiene listas asignadas.\"\n}" }
+          ]
+        },
+        {
+          "name": "Get Send Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/comms/communications/1/logs?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "comms", "communications", "1", "logs"],
+              "query": [{ "key": "page", "value": "1" }]
+            }
+          },
+          "response": [
+            { "name": "200 OK", "status": "OK", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"recipient_email\": \"john@company.com\", \"status\": \"sent\", \"sent_at\": \"2024-06-01T10:05:00Z\", \"error\": null },\n    { \"recipient_email\": \"jane@company.com\", \"status\": \"failed\", \"sent_at\": null, \"error\": \"SMTP timeout\" }\n  ],\n  \"meta\": { \"total\": 98, \"page\": 1, \"per_page\": 20, \"last_page\": 5 }\n}" }
+          ]
+        },
+        {
+          "name": "Delete Communication",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{api_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/comms/communications/1", "host": ["{{base_url}}"], "path": ["api", "v1", "comms", "communications", "1"] }
+          },
+          "response": [
+            { "name": "204 No Content", "status": "No Content", "code": 204, "body": "" }
+          ]
+        }
+      ]
+    }
+  ]
+}

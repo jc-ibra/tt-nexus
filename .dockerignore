@@ -1,0 +1,9 @@
+.git
+.env
+vendor/
+writable/logs/
+writable/cache/
+writable/session/
+writable/debugbar/
+*.log
+docker-compose.override.yml
