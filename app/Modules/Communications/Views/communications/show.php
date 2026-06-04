@@ -95,9 +95,20 @@ $st = $statusLabels[$communication['status']] ?? ['label' => $communication['sta
 <!-- Body preview -->
 <div class="card" style="margin-top:var(--space-4);">
   <div class="card-header"><h2 class="card-title">Cuerpo del correo</h2></div>
-  <div class="card-body" style="border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-4); background:var(--bg-surface-alt);">
-    <?= $communication['body'] ?>
+  <div class="card-body" style="border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-6); background:var(--bg-surface-alt);">
+    <div class="email-body-preview">
+      <?= $communication['body'] ?>
+    </div>
   </div>
+  <style>
+    .email-body-preview p  { margin: 0 0 var(--space-3); line-height: 1.6; }
+    .email-body-preview ul,
+    .email-body-preview ol  { margin: 0 0 var(--space-3); padding-left: var(--space-5); line-height: 1.6; }
+    .email-body-preview li  { margin-bottom: var(--space-1); }
+    .email-body-preview strong { font-weight: 600; }
+    .email-body-preview a   { color: var(--color-primary-500); }
+    .email-body-preview > *:last-child { margin-bottom: 0; }
+  </style>
 </div>
 
 <?= $this->endSection() ?>
