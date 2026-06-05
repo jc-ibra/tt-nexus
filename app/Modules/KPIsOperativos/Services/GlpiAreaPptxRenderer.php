@@ -97,7 +97,12 @@ class GlpiAreaPptxRenderer extends GlpiPptxRenderer
                 $this->slide4Territorial($pres->createSlide(), $kpi);
             }
 
-            $this->slide7IdcTop($pres->createSlide(), $kpi);
+            // Ranking IDC sólo para Operaciones. En Administración las
+            // sub-categorías (envíos / almacén) no operan con IDC útil,
+            // así que el slide aporta poco y se omite.
+            if ($areaKey !== GlpiSchema::AREA_ADMIN) {
+                $this->slide7IdcTop($pres->createSlide(), $kpi);
+            }
 
             // Envíos sólo dentro de Admin (su sub-categoría natural)
             if ($areaKey === GlpiSchema::AREA_ADMIN && (int) ($kpi['env_total'] ?? 0) > 0) {
@@ -131,6 +136,47 @@ class GlpiAreaPptxRenderer extends GlpiPptxRenderer
             $subtitle = mb_strtoupper($this->areaLabel, 'UTF-8') . ' · ' . $subtitle;
         }
         parent::slideHeader($slide, $title, $subtitle);
+    }
+
+    /**
+     * Override de slide2Resumen para que en áreas donde "Control de
+     * Envíos" no aplica (env_total = 0) se omita esa tarjeta. El resto
+     * de la composición sigue siendo grid 3×2 — con 5 tarjetas la celda
+     * (col 3, fila 2) queda vacía.
+     *
+     * @param array<string, mixed> $kpi
+     */
+    protected function slide2Resumen(Slide $slide, array $kpi): void
+    {
+        $this->bg($slide, self::C_NAVY);
+        $this->slideHeader($slide, 'RESUMEN EJECUTIVO', 'Indicadores principales del período');
+
+        $cards = [
+            ['v' => (string) ($kpi['total']    ?? 0),                                    'l' => 'TOTAL TICKETS',    'sub' => 'Período analizado',                                                          'c' => self::C_CYAN],
+            ['v' => (string) ($kpi['en_curso'] ?? 0),                                    'l' => 'EN CURSO',         'sub' => number_format(100 - (float) ($kpi['tasa_cierre'] ?? 0), 2) . '% del total',  'c' => self::C_GOLD],
+            ['v' => (string) ($kpi['cerrados'] ?? 0),                                    'l' => 'CERRADOS',         'sub' => number_format((float) ($kpi['tasa_cierre'] ?? 0), 2) . '% tasa cierre',     'c' => self::C_GREEN],
+            ['v' => number_format((float) ($kpi['sla_pct'] ?? 0), 2) . '%',              'l' => 'SLA < 24H',        'sub' => 'Tickets resueltos a tiempo',                                                 'c' => self::C_VIOLET],
+            ['v' => (string) ($kpi['prom_h'] ?? 0) . 'h',                                'l' => 'TIEMPO PROMEDIO',  'sub' => 'Resolución de tickets',                                                      'c' => self::C_MINT],
+        ];
+
+        if ((int) ($kpi['env_total'] ?? 0) > 0) {
+            $cards[] = [
+                'v'   => (string) ($kpi['env_total'] ?? 0),
+                'l'   => 'CONTROL ENVÍOS',
+                'sub' => ((int) ($kpi['env_pend'] ?? 0)) . ' pendientes',
+                'c'   => self::C_RED,
+            ];
+        }
+
+        // Grid 3×2 (5 o 6 cards; con 5 la celda 6 queda vacía)
+        $cardW = 290; $cardH = 170; $gapX = 12; $gapY = 14;
+        $startX = 30; $startY = 110;
+        foreach ($cards as $i => $card) {
+            $col = $i % 3; $row = (int) ($i / 3);
+            $x = $startX + $col * ($cardW + $gapX);
+            $y = $startY + $row * ($cardH + $gapY);
+            $this->kpiCard($slide, $x, $y, $cardW, $cardH, $card['v'], $card['l'], $card['sub'], $card['c']);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
