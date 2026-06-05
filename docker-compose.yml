@@ -34,6 +34,22 @@ services:
       retries: 12
     restart: unless-stopped
 
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: tt-apps-pma
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 100M
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   db_data:
   vendor_data:

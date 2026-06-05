@@ -20,14 +20,32 @@ class KPIsOperativos extends BaseController
             ->where('status', 'ready')
             ->countAllResults();
 
+        $glpiTotalTickets = (int) ($db->table('glpi_reports')
+            ->selectSum('total_tickets')
+            ->where('status', 'ready')
+            ->get()
+            ->getRow()->total_tickets ?? 0);
+
+        $glpiLatest = $db->table('glpi_reports')
+            ->select('name, created_at')
+            ->where('status', 'ready')
+            ->orderBy('created_at', 'DESC')
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
         $sources = [
             [
-                'key'         => 'glpi',
-                'name'        => 'GLPI Tickets',
-                'description' => 'KPIs del Service Desk a partir de exports de GLPI.',
-                'url'         => route_to('kpi.glpi.index'),
-                'available'   => true,
-                'badge'       => $glpiReportsCount . ' ' . ($glpiReportsCount === 1 ? 'reporte' : 'reportes'),
+                'key'           => 'glpi',
+                'name'          => 'GLPI Tickets',
+                'description'   => 'KPIs del Service Desk a partir de exports de GLPI.',
+                'url'           => route_to('kpi.glpi.index'),
+                'available'     => true,
+                'accent'        => 'blue',
+                'icon'          => 'ticket',
+                'reports_count' => $glpiReportsCount,
+                'total_tickets' => $glpiTotalTickets,
+                'latest'        => $glpiLatest,
             ],
         ];
 
