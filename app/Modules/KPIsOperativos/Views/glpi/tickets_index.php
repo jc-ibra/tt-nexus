@@ -10,6 +10,7 @@ $filterLabels = [
     'categoria'  => 'Categoría',
     'proyecto'   => 'Proyecto',
     'envios'     => 'Sub-pipeline',
+    'sin_idc'    => 'Sin IDC',
 ];
 
 function ticketsUrlWithout(int $reportId, array $filters, string $removeKey): string {
@@ -50,7 +51,11 @@ function paginationUrl(int $reportId, array $filters, int $page, int $perPage): 
       <?php foreach ($filters as $key => $val): ?>
         <?php
           $label = $filterLabels[$key] ?? $key;
-          $display = $key === 'envios' ? 'Categoría contiene "ENVI"' : $val;
+          $display = match ($key) {
+              'envios'  => 'Categoría contiene "ENVI"',
+              'sin_idc' => 'Sin IDC asignado',
+              default   => $val,
+          };
         ?>
         <a href="<?= ticketsUrlWithout($report['id'], $filters, $key) ?>"
            class="badge badge-info"
@@ -100,7 +105,7 @@ function paginationUrl(int $reportId, array $filters, int $page, int $perPage): 
       <tbody>
         <?php foreach ($tickets as $t): ?>
           <tr>
-            <td class="text-muted text-sm"><?= esc($t['glpi_id'] ?? '—') ?></td>
+            <td class="text-muted text-sm"><?= esc($t['glpi_id'] ?? '-') ?></td>
             <td class="text-sm" style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                 title="<?= esc($t['titulo'] ?? '') ?>">
               <?= esc(mb_substr((string) ($t['titulo'] ?? ''), 0, 70)) ?>
@@ -115,17 +120,17 @@ function paginationUrl(int $reportId, array $filters, int $page, int $perPage): 
                     default                                       => 'badge-neutral',
                 };
               ?>
-              <span class="badge <?= $cls ?>"><?= esc($st ?: '—') ?></span>
+              <span class="badge <?= $cls ?>"><?= esc($st ?: '-') ?></span>
             </td>
-            <td class="text-sm"><?= esc($t['regional'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-            <td class="text-sm"><?= esc($t['estado_geo'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-            <td class="text-sm"><?= esc($t['categoria'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-            <td class="text-sm"><?= esc($t['idc'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
+            <td class="text-sm"><?= esc($t['regional'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+            <td class="text-sm"><?= esc($t['estado_geo'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+            <td class="text-sm"><?= esc($t['categoria'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+            <td class="text-sm"><?= esc($t['idc'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
             <td class="text-muted text-sm">
-              <?= $t['fecha_apertura'] ? date('d/m/y H:i', strtotime((string) $t['fecha_apertura'])) : '—' ?>
+              <?= $t['fecha_apertura'] ? date('d/m/y H:i', strtotime((string) $t['fecha_apertura'])) : '-' ?>
             </td>
             <td class="text-sm" style="text-align:right;">
-              <?= $t['horas_resolucion'] !== null ? esc((string) $t['horas_resolucion']) : '<span class="text-muted">—</span>' ?>
+              <?= $t['horas_resolucion'] !== null ? esc((string) $t['horas_resolucion']) : '<span class="text-muted">-</span>' ?>
             </td>
           </tr>
         <?php endforeach; ?>

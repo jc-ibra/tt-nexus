@@ -21,6 +21,7 @@ $routes->group('kpi', [
     $routes->get('glpi/(:num)',             'GlpiTickets::show/$1',   ['as' => 'kpi.glpi.show']);
     $routes->post('glpi/(:num)/delete',     'GlpiTickets::destroy/$1', ['as' => 'kpi.glpi.destroy']);
     $routes->get('glpi/(:num)/pptx',        'GlpiTickets::pptx/$1',   ['as' => 'kpi.glpi.pptx']);
+    $routes->get('glpi/(:num)/pptx-areas',  'GlpiTickets::pptxAreas/$1', ['as' => 'kpi.glpi.pptx.areas']);
     $routes->get('glpi/(:num)/tickets',     'GlpiTickets::tickets/$1', ['as' => 'kpi.glpi.tickets']);
 
     // ── Catálogo canónico de IDCs (homologación fuzzy) ────────────────

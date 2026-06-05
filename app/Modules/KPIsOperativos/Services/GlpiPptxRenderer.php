@@ -34,34 +34,34 @@ use RuntimeException;
  *
  * Compensamos con composición de rectángulos planos y diseño en bloque.
  */
-final class GlpiPptxRenderer
+class GlpiPptxRenderer
 {
-    private const OUTPUT_DIR = WRITEPATH . 'kpi/uploads';
+    protected const OUTPUT_DIR = WRITEPATH . 'kpi/uploads';
 
     // ── Paleta "Midnight Executive" (ARGB: "FF" + RRGGBB) ────────────────
-    private const C_NAVY      = 'FF0F1C3F';
-    private const C_NAVY_MID  = 'FF1A2E5A';
-    private const C_NAVY_LT   = 'FF1E3A6E';
-    private const C_CYAN      = 'FF00C8E0';
-    private const C_VIOLET    = 'FF7B61FF';
-    private const C_MINT      = 'FF2DD4BF';
-    private const C_GOLD      = 'FFF59E0B';
-    private const C_RED       = 'FFEF4444';
-    private const C_GREEN     = 'FF22C55E';
-    private const C_WHITE     = 'FFFFFFFF';
-    private const C_OFFWHITE  = 'FFE2E8F0';
-    private const C_GRAY      = 'FF94A3B8';
-    private const C_GRAY_DK   = 'FF334155';
+    protected const C_NAVY      = 'FF0F1C3F';
+    protected const C_NAVY_MID  = 'FF1A2E5A';
+    protected const C_NAVY_LT   = 'FF1E3A6E';
+    protected const C_CYAN      = 'FF00C8E0';
+    protected const C_VIOLET    = 'FF7B61FF';
+    protected const C_MINT      = 'FF2DD4BF';
+    protected const C_GOLD      = 'FFF59E0B';
+    protected const C_RED       = 'FFEF4444';
+    protected const C_GREEN     = 'FF22C55E';
+    protected const C_WHITE     = 'FFFFFFFF';
+    protected const C_OFFWHITE  = 'FFE2E8F0';
+    protected const C_GRAY      = 'FF94A3B8';
+    protected const C_GRAY_DK   = 'FF334155';
 
     // Paleta para series multi-color en charts
-    private const CHART_COLORS = [
+    protected const CHART_COLORS = [
         'FF00C8E0', 'FF7B61FF', 'FF2DD4BF', 'FFF59E0B',
         'FFEF4444', 'FF22C55E', 'FFF97316', 'FFEC4899',
     ];
 
     // Dimensiones del slide (16:9 a 96dpi)
-    private const SLIDE_W = 960;
-    private const SLIDE_H = 540;
+    protected const SLIDE_W = 960;
+    protected const SLIDE_H = 540;
 
     /**
      * Genera el .pptx para un reporte. Devuelve la ruta absoluta del archivo.
@@ -78,11 +78,11 @@ final class GlpiPptxRenderer
         $pres = new PhpPresentation();
         $pres->getLayout()->setDocumentLayout(DocumentLayout::LAYOUT_SCREEN_16X9);
         $pres->getDocumentProperties()
-            ->setTitle('Dashboard KPI — Service Desk')
+            ->setTitle('Dashboard KPI - Service Desk')
             ->setCreator('Nexus / Trantor Technologies')
             ->setSubject($reportName);
 
-        // El primer slide ya existe — lo usamos para la portada.
+        // El primer slide ya existe - lo usamos para la portada.
         $this->slide1Portada($pres->getActiveSlide(), $kpi);
         $this->slide2Resumen($pres->createSlide(), $kpi);
         $this->slide3Estados($pres->createSlide(), $kpi);
@@ -106,11 +106,11 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 1 — PORTADA
+    // SLIDE 1 - PORTADA
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide1Portada(Slide $slide, array $kpi): void
+    protected function slide1Portada(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
 
@@ -136,10 +136,10 @@ final class GlpiPptxRenderer
 
         // 4 stat boxes inferiores
         $stats = [
-            ['v' => (string) ($kpi['total'] ?? 0),                'l' => 'Tickets Totales'],
-            ['v' => (int) ($kpi['tasa_cierre'] ?? 0) . '%',       'l' => 'Tasa de Cierre'],
-            ['v' => (int) ($kpi['sla_pct'] ?? 0) . '%',           'l' => 'SLA < 24h'],
-            ['v' => (string) ($kpi['env_total'] ?? 0),            'l' => 'Control Envíos'],
+            ['v' => (string) ($kpi['total'] ?? 0),                                  'l' => 'Tickets Totales'],
+            ['v' => number_format((float) ($kpi['tasa_cierre'] ?? 0), 2) . '%',     'l' => 'Tasa de Cierre'],
+            ['v' => number_format((float) ($kpi['sla_pct']     ?? 0), 2) . '%',     'l' => 'SLA < 24h'],
+            ['v' => (string) ($kpi['env_total'] ?? 0),                              'l' => 'Control Envíos'],
         ];
 
         $boxW = 195; $boxH = 95; $gap = 14; $startX = 55; $y = 400;
@@ -162,20 +162,20 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 2 — RESUMEN EJECUTIVO
+    // SLIDE 2 - RESUMEN EJECUTIVO
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide2Resumen(Slide $slide, array $kpi): void
+    protected function slide2Resumen(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader($slide, 'RESUMEN EJECUTIVO', 'Indicadores principales del período');
 
         $cards = [
             ['v' => (string) ($kpi['total'] ?? 0),                                    'l' => 'TOTAL TICKETS',    'sub' => 'Período analizado',                        'c' => self::C_CYAN],
-            ['v' => (string) ($kpi['en_curso'] ?? 0),                                 'l' => 'EN CURSO',         'sub' => (100 - (int) ($kpi['tasa_cierre'] ?? 0)) . '% del total', 'c' => self::C_GOLD],
-            ['v' => (string) ($kpi['cerrados'] ?? 0),                                 'l' => 'CERRADOS',         'sub' => (int) ($kpi['tasa_cierre'] ?? 0) . '% tasa cierre', 'c' => self::C_GREEN],
-            ['v' => (int) ($kpi['sla_pct'] ?? 0) . '%',                               'l' => 'SLA < 24H',        'sub' => 'Tickets resueltos a tiempo',                'c' => self::C_VIOLET],
+            ['v' => (string) ($kpi['en_curso'] ?? 0),                                 'l' => 'EN CURSO',         'sub' => number_format(100 - (float) ($kpi['tasa_cierre'] ?? 0), 2) . '% del total', 'c' => self::C_GOLD],
+            ['v' => (string) ($kpi['cerrados'] ?? 0),                                 'l' => 'CERRADOS',         'sub' => number_format((float) ($kpi['tasa_cierre'] ?? 0), 2) . '% tasa cierre', 'c' => self::C_GREEN],
+            ['v' => number_format((float) ($kpi['sla_pct'] ?? 0), 2) . '%',           'l' => 'SLA < 24H',        'sub' => 'Tickets resueltos a tiempo',                'c' => self::C_VIOLET],
             ['v' => (string) ($kpi['prom_h'] ?? 0) . 'h',                             'l' => 'TIEMPO PROMEDIO',  'sub' => 'Resolución de tickets',                     'c' => self::C_MINT],
             ['v' => (string) ($kpi['env_total'] ?? 0),                                'l' => 'CONTROL ENVÍOS',   'sub' => ((int) ($kpi['env_pend'] ?? 0)) . ' pendientes', 'c' => self::C_RED],
         ];
@@ -193,11 +193,11 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 3 — ESTADO DE TICKETS (donut + lista)
+    // SLIDE 3 - ESTADO DE TICKETS (donut + lista)
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide3Estados(Slide $slide, array $kpi): void
+    protected function slide3Estados(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader($slide, 'ESTADO DE TICKETS', 'Distribución por estado de atención');
@@ -217,7 +217,7 @@ final class GlpiPptxRenderer
 
         $this->donutChart($slide, 30, 110, 430, 380, $values, 'Tickets');
 
-        // Lista lateral (right) — 5 filas máximo, con bullet de color
+        // Lista lateral (right) - 5 filas máximo, con bullet de color
         $stateColors = [self::C_GOLD, self::C_GREEN, self::C_CYAN, self::C_VIOLET, self::C_RED, self::C_GRAY];
         $total = (int) ($kpi['total'] ?? 0);
 
@@ -229,7 +229,7 @@ final class GlpiPptxRenderer
 
             $label = (string) $row[0];
             $cnt   = (int) $row[1];
-            $pct   = $total > 0 ? round($cnt / $total * 100) : 0;
+            $pct   = $total > 0 ? round($cnt / $total * 100, 2) : 0.0;
             $color = $stateColors[$i] ?? self::C_GRAY;
 
             $rx = 490; $ry = $rowY + $count * $rowH;
@@ -239,7 +239,7 @@ final class GlpiPptxRenderer
             $this->text($slide, $label, $rx + 16, $ry + 5, 290, 20, [
                 'size' => 11, 'bold' => true, 'color' => self::C_WHITE,
             ]);
-            $this->text($slide, $pct . '% del total', $rx + 16, $ry + 26, 290, 18, [
+            $this->text($slide, number_format($pct, 2) . '% del total', $rx + 16, $ry + 26, 290, 18, [
                 'size' => 9, 'color' => self::C_GRAY,
             ]);
             $this->text($slide, (string) $cnt, $rx + 360, $ry + 12, 70, 24, [
@@ -251,69 +251,86 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 4 — DIVISIÓN TERRITORIAL
+    // SLIDE 4 - DIVISIÓN TERRITORIAL
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide4Territorial(Slide $slide, array $kpi): void
+    protected function slide4Territorial(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
-        $this->slideHeader($slide, 'DIVISIÓN TERRITORIAL — POR REGIONAL', 'Volumen de tickets por zona geográfica');
+        $this->slideHeader($slide, 'DIVISIÓN TERRITORIAL - POR REGIONAL', 'Volumen de tickets por zona geográfica');
 
         $values = $this->tuplesToMap($kpi['reg_top'] ?? []);
         $this->horizontalBarChart($slide, 30, 110, 600, 410, $values, self::C_CYAN, true);
 
-        // Alerta + Top 3 (right)
-        $total  = (int) ($kpi['total'] ?? 0);
-        $sinReg = (int) ($kpi['sin_reg'] ?? 0);
-        $pctAlert = $total > 0 ? round($sinReg / $total * 100) : 0;
+        // Alerta + Top 3 (right). Denominador = universo de tickets donde
+        // la regional aplica (excluye envíos y laboratorio). La alerta
+        // sólo se dibuja si hay tickets sin regional - si son 0 corremos
+        // el Top hacia arriba para no dejar un hueco.
+        $total    = (int) ($kpi['total']        ?? 0);
+        $sinReg   = (int) ($kpi['sin_reg']      ?? 0);
+        $baseReg  = (int) ($kpi['reg_universe'] ?? 0);
+        $pctAlert = $baseReg > 0 ? round($sinReg / $baseReg * 100, 2) : 0.0;
 
         $ax = 655; $ay = 110; $aw = 275;
-        $this->rect($slide, $ax, $ay, $aw, 110, self::C_NAVY_MID, self::C_RED);
-        $this->rect($slide, $ax, $ay, $aw, 6, self::C_RED);
-        $this->text($slide, '⚠  ALERTA', $ax + 10, $ay + 12, $aw - 20, 20, [
-            'size' => 9, 'bold' => true, 'color' => self::C_RED,
-        ]);
-        $this->text($slide, $sinReg . ' tickets', $ax + 10, $ay + 32, $aw - 20, 32, [
-            'size' => 22, 'bold' => true, 'color' => self::C_WHITE,
-        ]);
-        $this->text($slide, 'Sin regional asignada', $ax + 10, $ay + 68, $aw - 20, 18, [
-            'size' => 9, 'color' => self::C_GRAY,
-        ]);
-        $this->text($slide, $pctAlert . '% del total', $ax + 10, $ay + 86, $aw - 20, 18, [
-            'size' => 9, 'color' => self::C_GOLD,
-        ]);
+
+        if ($sinReg > 0) {
+            $this->rect($slide, $ax, $ay, $aw, 110, self::C_NAVY_MID, self::C_RED);
+            $this->rect($slide, $ax, $ay, $aw, 6, self::C_RED);
+            $this->text($slide, '⚠  ALERTA', $ax + 10, $ay + 12, $aw - 20, 20, [
+                'size' => 9, 'bold' => true, 'color' => self::C_RED,
+            ]);
+            $this->text($slide, $sinReg . ' tickets', $ax + 10, $ay + 32, $aw - 20, 32, [
+                'size' => 22, 'bold' => true, 'color' => self::C_WHITE,
+            ]);
+            $this->text($slide, 'Sin regional asignada', $ax + 10, $ay + 68, $aw - 20, 18, [
+                'size' => 9, 'color' => self::C_GRAY,
+            ]);
+            $this->text($slide, number_format($pctAlert, 2) . '% del total', $ax + 10, $ay + 86, $aw - 20, 18, [
+                'size' => 9, 'color' => self::C_GOLD,
+            ]);
+            $topY = $ay + 130;
+        } else {
+            $topY = $ay;
+        }
 
         // Top Regionales label
-        $this->text($slide, 'TOP REGIONALES', $ax, $ay + 130, $aw, 20, [
+        $this->text($slide, 'TOP REGIONALES', $ax, $topY, $aw, 20, [
             'size' => 8, 'bold' => true, 'color' => self::C_CYAN, 'spacing' => 2,
         ]);
 
-        // Top 3
-        $regTop = array_slice($kpi['reg_top'] ?? [], 0, 3);
+        // Top regionales: hasta 6 cards, excluyendo EDIFICIOS (es un
+        // contenedor administrativo, no una zona operativa).
+        $regFiltered = array_values(array_filter($kpi['reg_top'] ?? [],
+            static fn($r) => is_array($r) && count($r) >= 2
+                && mb_strtoupper(trim((string) $r[0]), 'UTF-8') !== 'EDIFICIOS'
+        ));
+        $regTop = array_slice($regFiltered, 0, 6);
+
+        // Cards compactas (alto 38, stride 44) - caben 6 incluso con el
+        // banner de alerta visible.
         foreach ($regTop as $i => $row) {
-            if (! is_array($row) || count($row) < 2) continue;
             $reg = (string) $row[0]; $cnt = (int) $row[1];
-            $pct = $total > 0 ? round($cnt / $total * 100) : 0;
+            $pct = $total > 0 ? round($cnt / $total * 100, 2) : 0.0;
             $color = self::CHART_COLORS[$i] ?? self::C_CYAN;
 
-            $ry = $ay + 158 + $i * 70;
-            $this->rect($slide, $ax, $ry, $aw, 58, self::C_NAVY_MID, $color);
-            $this->text($slide, "#" . ($i + 1) . "  " . $reg, $ax + 10, $ry + 8, $aw - 20, 18, [
+            $ry = $topY + 28 + $i * 44;
+            $this->rect($slide, $ax, $ry, $aw, 38, self::C_NAVY_MID, $color);
+            $this->text($slide, "#" . ($i + 1) . "  " . $reg, $ax + 10, $ry + 4, $aw - 20, 16, [
                 'size' => 9, 'bold' => true, 'color' => self::C_WHITE,
             ]);
-            $this->text($slide, $cnt . ' tickets · ' . $pct . '%', $ax + 10, $ry + 30, $aw - 20, 18, [
-                'size' => 9, 'color' => self::C_GRAY,
+            $this->text($slide, $cnt . ' tickets · ' . number_format($pct, 2) . '%', $ax + 10, $ry + 20, $aw - 20, 14, [
+                'size' => 8, 'color' => self::C_GRAY,
             ]);
         }
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 5 — DISTRIBUCIÓN POR COORDINACIÓN
+    // SLIDE 5 - DISTRIBUCIÓN POR COORDINACIÓN
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide5Coordinacion(Slide $slide, array $kpi): void
+    protected function slide5Coordinacion(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader($slide, 'DISTRIBUCIÓN POR COORDINACIÓN', 'Tickets asignados por coordinador y gerencia');
@@ -327,7 +344,7 @@ final class GlpiPptxRenderer
             $coordTickets = [];
         }
 
-        // Bar chart (left) — usar nombres de coordinador como labels
+        // Bar chart (left) - usar nombres de coordinador como labels
         $chartValues = [];
         foreach ($coordTickets as $zone => $cnt) {
             $name = $coordInfo[$zone]['coord'] ?? $zone;
@@ -348,7 +365,7 @@ final class GlpiPptxRenderer
 
             $color = self::CHART_COLORS[$idx % count(self::CHART_COLORS)];
             $coord = $coordInfo[$zone]['coord'] ?? $zone;
-            $gte   = $coordInfo[$zone]['gte']   ?? '—';
+            $gte   = $coordInfo[$zone]['gte']   ?? '-';
 
             $this->rect($slide, $x, $y, $cardW, $cardH, self::C_NAVY_MID, $color);
             $this->rect($slide, $x, $y, $cardW, 4, $color);
@@ -370,11 +387,11 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 6 — ESTADO GEOGRÁFICO (single vert bar chart)
+    // SLIDE 6 - ESTADO GEOGRÁFICO (single vert bar chart)
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide6EstadoGeo(Slide $slide, array $kpi): void
+    protected function slide6EstadoGeo(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader($slide, 'TICKETS POR ESTADO GEOGRÁFICO', 'Top 8 estados con mayor volumen');
@@ -384,31 +401,31 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 7 — IDC TOP 6
+    // SLIDE 7 - IDC TOP 6
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide7IdcTop(Slide $slide, array $kpi): void
+    protected function slide7IdcTop(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
-        $this->slideHeader($slide, 'RANKING IDC — MAYOR CARGA', 'Top 6 técnicos con más tickets asignados');
+        $this->slideHeader($slide, 'RANKING IDC - MAYOR CARGA', 'Top 10 técnicos con más tickets asignados');
 
         $values = $this->tuplesToMap($kpi['idc_top'] ?? []);
         $this->horizontalBarChart($slide, 30, 110, 900, 410, $values, self::C_GREEN, true);
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 8 — IDC BOTTOM 6
+    // SLIDE 8 - IDC BOTTOM 6
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide8IdcBottom(Slide $slide, array $kpi): void
+    protected function slide8IdcBottom(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader(
             $slide,
-            'RANKING IDC — MENOR CARGA',
-            'Bottom 6 técnicos · sin IDC asignado: ' . (int) ($kpi['sin_idc'] ?? 0)
+            'RANKING IDC - MENOR CARGA',
+            'Bottom 10 técnicos · sin IDC asignado: ' . (int) ($kpi['sin_idc'] ?? 0)
         );
 
         $values = $this->tuplesToMap($kpi['idc_bottom'] ?? []);
@@ -416,11 +433,11 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 9 — CATEGORÍAS Y PROYECTOS
+    // SLIDE 9 - CATEGORÍAS Y PROYECTOS
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide9CategoriasProyectos(Slide $slide, array $kpi): void
+    protected function slide9CategoriasProyectos(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader($slide, 'CATEGORÍAS Y PROYECTOS', 'Top categorías y tipos de proyecto');
@@ -441,11 +458,11 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 10 — CONTROL DE ENVÍOS
+    // SLIDE 10 - CONTROL DE ENVÍOS
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide10Envios(Slide $slide, array $kpi): void
+    protected function slide10Envios(Slide $slide, array $kpi): void
     {
         $this->bg($slide, self::C_NAVY);
         $this->slideHeader($slide, 'CONTROL DE ENVÍOS', 'Sub-pipeline: tickets con categoría "Envíos"');
@@ -464,7 +481,7 @@ final class GlpiPptxRenderer
             ['v' => (string) ($kpi['env_total'] ?? 0), 'l' => 'TOTAL ENVÍOS',    'sub' => 'En el período',  'c' => self::C_CYAN],
             ['v' => (string) $cerr,                    'l' => 'CERRADOS',        'sub' => 'Resueltos',      'c' => self::C_GREEN],
             ['v' => (string) $pend,                    'l' => 'PENDIENTES',      'sub' => 'Por atender',    'c' => self::C_RED],
-            ['v' => (int) ($kpi['env_pct'] ?? 0) . '%','l' => '% DE CIERRE',     'sub' => 'Avance',         'c' => self::C_VIOLET],
+            ['v' => number_format((float) ($kpi['env_pct'] ?? 0), 2) . '%','l' => '% DE CIERRE',     'sub' => 'Avance',         'c' => self::C_VIOLET],
         ];
 
         $startX = 480; $startY = 130;
@@ -478,11 +495,11 @@ final class GlpiPptxRenderer
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SLIDE 11 — CONCLUSIONES OPERATIVAS
+    // SLIDE 11 - CONCLUSIONES OPERATIVAS
     // ═══════════════════════════════════════════════════════════════════
 
     /** @param array<string, mixed> $kpi */
-    private function slide11Conclusiones(Slide $slide, array $kpi): void
+    protected function slide11Conclusiones(Slide $slide, array $kpi): void
     {
         // Fondo más claro que el resto de los slides (navy mid) para diferenciarlo
         $this->bg($slide, self::C_NAVY_MID);
@@ -504,19 +521,23 @@ final class GlpiPptxRenderer
         // Bullets dinámicos basados en KPIs
         $total      = (int)   ($kpi['total']       ?? 0);
         $cerrados   = (int)   ($kpi['cerrados']    ?? 0);
-        $tasa       = (int)   ($kpi['tasa_cierre'] ?? 0);
-        $sla        = (int)   ($kpi['sla_pct']     ?? 0);
+        $tasa       = (float) ($kpi['tasa_cierre'] ?? 0);
+        $sla        = (float) ($kpi['sla_pct']     ?? 0);
         $prom       = (float) ($kpi['prom_h']      ?? 0.0);
         $sinReg     = (int)   ($kpi['sin_reg']     ?? 0);
         $sinIdc     = (int)   ($kpi['sin_idc']     ?? 0);
         $envPend    = (int)   ($kpi['env_pend']    ?? 0);
-        $envPct     = (int)   ($kpi['env_pct']     ?? 0);
+        $envPct     = (float) ($kpi['env_pct']     ?? 0);
+
+        $tasaStr     = number_format($tasa, 2);
+        $slaStr      = number_format($sla, 2);
+        $pendPctStr  = number_format(100 - $envPct, 2);
 
         $puntos = [
-            "▸  {$tasa}% de tasa de cierre — {$cerrados} tickets resueltos de {$total}",
-            "▸  SLA {$sla}% dentro de 24h · Tiempo promedio: {$prom} h",
-            "▸  {$sinReg} tickets sin regional y {$sinIdc} sin IDC asignado — requieren acción",
-            "▸  Control de Envíos: {$envPend} pendientes (" . (100 - $envPct) . '%) — prioridad alta',
+            "▸  {$tasaStr}% de tasa de cierre - {$cerrados} tickets resueltos de {$total}",
+            "▸  SLA {$slaStr}% dentro de 24h · Tiempo promedio: {$prom} h",
+            "▸  {$sinReg} tickets sin regional y {$sinIdc} sin IDC asignado - requieren acción",
+            "▸  Control de Envíos: {$envPend} pendientes ({$pendPctStr}%) - prioridad alta",
         ];
 
         $startY = 270; $rowH = 58;
@@ -539,14 +560,14 @@ final class GlpiPptxRenderer
     // HELPERS
     // ═══════════════════════════════════════════════════════════════════
 
-    private function bg(Slide $slide, string $argbColor): void
+    protected function bg(Slide $slide, string $argbColor): void
     {
         $bg = new BgColor();
         $bg->setColor(new Color($argbColor));
         $slide->setBackground($bg);
     }
 
-    private function slideHeader(Slide $slide, string $title, string $subtitle): void
+    protected function slideHeader(Slide $slide, string $title, string $subtitle): void
     {
         $this->text($slide, $title, 30, 30, 900, 35, [
             'size' => 18, 'bold' => true, 'color' => self::C_CYAN, 'spacing' => 2,
@@ -558,7 +579,7 @@ final class GlpiPptxRenderer
         $this->rect($slide, 30, 92, 900, 2, self::C_CYAN);
     }
 
-    private function rect(
+    protected function rect(
         Slide $slide,
         int $x, int $y, int $w, int $h,
         string $fillColor,
@@ -581,7 +602,7 @@ final class GlpiPptxRenderer
     /**
      * @param array{size?: int, bold?: bool, color?: string, align?: string, spacing?: int} $opts
      */
-    private function text(
+    protected function text(
         Slide $slide,
         string $content,
         int $x, int $y, int $w, int $h,
@@ -615,7 +636,7 @@ final class GlpiPptxRenderer
      *   - vacía los "Axis Title" auto-generados
      *   - fuerza fuentes blancas en tick labels y leyenda (legibles sobre fondo oscuro)
      */
-    private function styleChart(\PhpOffice\PhpPresentation\Shape\Chart $chart, bool $hasAxes): void
+    protected function styleChart(\PhpOffice\PhpPresentation\Shape\Chart $chart, bool $hasAxes): void
     {
         // Quitar "Chart Title"
         $chart->getTitle()->setVisible(false);
@@ -644,7 +665,7 @@ final class GlpiPptxRenderer
      *
      * @param array<string, int> $values Label → count
      */
-    private function horizontalBarChart(
+    protected function horizontalBarChart(
         Slide $slide,
         int $x, int $y, int $w, int $h,
         array $values,
@@ -691,7 +712,7 @@ final class GlpiPptxRenderer
      *
      * @param array<string, int> $values
      */
-    private function verticalBarChart(
+    protected function verticalBarChart(
         Slide $slide,
         int $x, int $y, int $w, int $h,
         array $values,
@@ -728,7 +749,7 @@ final class GlpiPptxRenderer
      *
      * @param array<string, int> $values
      */
-    private function donutChart(
+    protected function donutChart(
         Slide $slide,
         int $x, int $y, int $w, int $h,
         array $values,
@@ -771,7 +792,7 @@ final class GlpiPptxRenderer
     /**
      * Tarjeta KPI: rect navy + barra de acento arriba + valor + label + sub.
      */
-    private function kpiCard(
+    protected function kpiCard(
         Slide $slide,
         int $x, int $y, int $w, int $h,
         string $value, string $label, string $sub, string $accentColor
@@ -803,7 +824,7 @@ final class GlpiPptxRenderer
      * @param array<int, array<int, mixed>> $tuples
      * @return array<string, int>
      */
-    private function tuplesToMap(array $tuples): array
+    protected function tuplesToMap(array $tuples): array
     {
         $out = [];
         foreach ($tuples as $t) {

@@ -64,9 +64,9 @@ function kpiStatusBadge(string $status): string {
             </td>
             <td class="text-muted text-sm">
               <?php if ($r['period_start'] || $r['period_end']): ?>
-                <?= esc($r['period_start'] ?? '—') ?> → <?= esc($r['period_end'] ?? '—') ?>
+                <?= esc($r['period_start'] ?? '-') ?> → <?= esc($r['period_end'] ?? '-') ?>
               <?php else: ?>
-                —
+                -
               <?php endif; ?>
             </td>
             <td><span class="badge badge-info"><?= (int) $r['total_tickets'] ?></span></td>

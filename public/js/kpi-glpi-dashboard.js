@@ -5,15 +5,15 @@
  * construye las 7 visualizaciones con Chart.js.
  *
  * Charts:
- *   chart-estados       (doughnut)  — estados_ticket
- *   chart-regionales    (bar horiz) — reg_top
- *   chart-coordinacion  (bar horiz) — coord_tickets sorted desc
- *   chart-estado-geo    (bar vert)  — est_top (top 8)
- *   chart-idc-top       (bar horiz) — idc_top
- *   chart-idc-bottom    (bar horiz) — idc_bottom
- *   chart-categorias    (bar horiz) — cat_top
- *   chart-proyectos     (bar horiz) — proy_top
- *   chart-envios        (doughnut)  — env_cerr vs env_pend
+ *   chart-estados       (doughnut)  - estados_ticket
+ *   chart-regionales    (bar horiz) - reg_top
+ *   chart-coordinacion  (bar horiz) - coord_tickets sorted desc
+ *   chart-estado-geo    (bar vert)  - est_top (top 8)
+ *   chart-idc-top       (bar horiz) - idc_top
+ *   chart-idc-bottom    (bar horiz) - idc_bottom
+ *   chart-categorias    (bar horiz) - cat_top
+ *   chart-proyectos     (bar horiz) - proy_top
+ *   chart-envios        (doughnut)  - env_cerr vs env_pend
  */
 (function () {
   'use strict';
@@ -74,12 +74,12 @@
 
     // Paleta inspirada en Polaris (consistente con el resto del sistema)
     const PALETTE = [
-      '#1773C8', // blue 500 — primario
-      '#7B61FF', // violeta — secundario
-      '#00A39E', // teal — terciario
-      '#B98900', // amber — alerta
-      '#D72C0D', // rojo — crítico
-      '#008060', // verde — éxito
+      '#1773C8', // blue 500 - primario
+      '#7B61FF', // violeta - secundario
+      '#00A39E', // teal - terciario
+      '#B98900', // amber - alerta
+      '#D72C0D', // rojo - crítico
+      '#008060', // verde - éxito
       '#F97316', // naranja
       '#EC4899', // rosa
     ];
@@ -206,7 +206,7 @@
               callbacks: {
                 label: function (ctx) {
                   const sum = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
-                  const pct = sum > 0 ? Math.round(ctx.parsed / sum * 100) : 0;
+                  const pct = sum > 0 ? (ctx.parsed / sum * 100).toFixed(2) : '0.00';
                   return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
                 },
               },
@@ -286,13 +286,13 @@
       mkChart('chart-estado-geo', makeChartClickable('chart-estado-geo', verticalBarConfig(labels, values)));
     }
 
-    // ── 5. IDC Top 6 (bar horiz, blue) ───────────────────────────────────
+    // ── 5. IDC Top 10 (bar horiz, blue) ───────────────────────────────────
     {
       const { labels, values } = tupleSplit(kpi.idc_top);
       mkChart('chart-idc-top', makeChartClickable('chart-idc-top', horizontalBarConfig(labels, values, 'single')));
     }
 
-    // ── 6. IDC Bottom 6 (bar horiz, warning amber) ───────────────────────
+    // ── 6. IDC Bottom 10 (bar horiz, warning amber) ───────────────────────
     {
       const { labels, values } = tupleSplit(kpi.idc_bottom);
       const cfg = horizontalBarConfig(labels, values, 'single');
@@ -312,7 +312,7 @@
       mkChart('chart-proyectos', makeChartClickable('chart-proyectos', horizontalBarConfig(labels, values, 'multi')));
     }
 
-    // ── 9. Envíos (doughnut) — no clickeable: el sub-pipeline ya tiene su CTA ─
+    // ── 9. Envíos (doughnut) - no clickeable: el sub-pipeline ya tiene su CTA ─
     {
       const cerr = Number(kpi.env_cerr || 0);
       const pend = Number(kpi.env_pend || 0);

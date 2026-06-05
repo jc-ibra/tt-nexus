@@ -6,19 +6,17 @@ namespace App\Modules\KPIsOperativos\Services;
 
 use App\Modules\KPIsOperativos\Config\GlpiSchema;
 use App\Modules\KPIsOperativos\Models\GlpiCoordinatorModel;
-use App\Modules\KPIsOperativos\Models\GlpiReportModel;
 use CodeIgniter\Database\BaseConnection;
-use RuntimeException;
 
 /**
- * Calcula el snapshot KPI de un reporte ya ingerido.
+ * Variante de GlpiKpiCalculator que computa el snapshot KPI restringido a
+ * una de las áreas del árbol de decisión (admin / ops_lab / ops_other).
  *
- * Espejo PHP de extraer_kpis() en _reference/generar_pptx.py. La salida
- * cumple el contrato de kpi_data.example.json (21 campos top-level).
- *
- * Trabaja sobre la BD: queries con GROUP BY contra el report dado.
+ * No persiste nada en kpi_json — su salida alimenta sólo al
+ * GlpiAreaPptxRenderer, que es lo único nuevo en este flujo. El dashboard
+ * y el PPTX existentes quedan intactos.
  */
-final class GlpiKpiCalculator
+final class GlpiAreaKpiCalculator
 {
     private BaseConnection $db;
     private string $table = 'glpi_tickets';
@@ -29,21 +27,26 @@ final class GlpiKpiCalculator
     }
 
     /**
-     * Calcula el snapshot completo y lo retorna como array.
+     * Computa el snapshot para una sola área. Forma idéntica a
+     * GlpiKpiCalculator::compute() — los renderers de slides la consumen
+     * sin distinguir si es global o por área.
      *
      * @return array<string, mixed>
      */
-    public function compute(int $reportId): array
+    public function compute(int $reportId, string $area): array
     {
+        $areaSql = GlpiSchema::areaSqlCondition($area);
+
         $total = (int) $this->db->table($this->table)
             ->where('report_id', $reportId)
+            ->where($areaSql, null, false)
             ->countAllResults();
 
         if ($total === 0) {
             return $this->emptySnapshot();
         }
 
-        $estadosTicket = $this->ranking('estado', $reportId, null);
+        $estadosTicket = $this->ranking('estado', $reportId, $areaSql, null);
 
         $cerrados = 0;
         foreach ($estadosTicket as [$label, $count]) {
@@ -54,8 +57,6 @@ final class GlpiKpiCalculator
         $enCurso    = $total - $cerrados;
         $tasaCierre = $total > 0 ? round($cerrados / $total * 100, 2) : 0.0;
 
-        // SLA & prom_h: solo cerrados con horas_resolucion no nula (parser ya
-        // descartó casos con fc < fa o fechas inválidas)
         $sla = $this->db->query("
             SELECT
                 COUNT(*)                                                AS n_valid,
@@ -65,25 +66,28 @@ final class GlpiKpiCalculator
             WHERE report_id = ?
               AND estado IN ('Cerrado', 'Resuelto')
               AND horas_resolucion IS NOT NULL
+              AND {$areaSql}
         ", [$reportId])->getRow();
 
         $promH  = $sla && $sla->n_valid > 0 ? (float) $sla->prom_h  : 0.0;
         $slaPct = $sla && $sla->n_valid > 0 ? (float) $sla->sla_pct : 0.0;
 
-        // Faltantes — reglas de exclusión por categoría:
-        //   • Regional: excluye envíos y laboratorio (no operan con regional).
-        //   • IDC: excluye sólo envíos (laboratorio sí tiene IDC asignado).
+        // Reglas de exclusión por categoría:
+        //   • Regional: excluye envíos y laboratorio.
+        //   • IDC: excluye sólo envíos.
         $notEnvios   = GlpiSchema::notEnviosSqlCondition();
         $regAppliesC = GlpiSchema::notRegionalApplicableSqlCondition();
 
         $sinReg = (int) $this->db->table($this->table)
             ->where('report_id', $reportId)
             ->where('regional', null)
+            ->where($areaSql, null, false)
             ->where($regAppliesC, null, false)
             ->countAllResults();
 
         $sinIdc = (int) $this->db->table($this->table)
             ->where('report_id', $reportId)
+            ->where($areaSql, null, false)
             ->where($notEnvios, null, false)
             ->groupStart()
                 ->where('idc', null)
@@ -91,23 +95,22 @@ final class GlpiKpiCalculator
             ->groupEnd()
             ->countAllResults();
 
-        // Universo de tickets donde la regional aplica — sirve de
-        // denominador para porcentajes de cobertura (banner % sin regional).
+        // Denominador para porcentajes de cobertura regional dentro del área.
         $regUniverse = (int) $this->db->table($this->table)
             ->where('report_id', $reportId)
+            ->where($areaSql, null, false)
             ->where($regAppliesC, null, false)
             ->countAllResults();
 
-        // Rankings — regional usa la condición específica; estado_geo,
-        // categoría y proyecto siguen abarcando el universo completo.
-        $regTop  = $this->rankingRegionalApplicable('regional', $reportId, 8);
-        $estTop  = $this->ranking('estado_geo', $reportId, 8);
-        $catTop  = $this->ranking('categoria',  $reportId, 7);
-        $proyTop = $this->ranking('proyecto',   $reportId, 5);
+        // Rankings: regional usa la condición específica; el resto usa
+        // el universo del área.
+        $regTop  = $this->ranking('regional',   $reportId, $areaSql, 8, regionalScope: true);
+        $estTop  = $this->ranking('estado_geo', $reportId, $areaSql, 8);
+        $catTop  = $this->ranking('categoria',  $reportId, $areaSql, 7);
+        $proyTop = $this->ranking('proyecto',   $reportId, $areaSql, 5);
 
-        // IDC: ahora agrupa por el canonical_name (homologación fuzzy),
-        // con fallback al raw `idc` cuando el ticket no tiene canonical_id
-        // (tickets antiguos pre-homologación). Excluye envíos.
+        // IDC: agrupado por canonical_name con fallback al raw `idc`.
+        // Excluye envíos.
         $idcAll = $this->db->query("
             SELECT
                 COALESCE(c.canonical_name, t.idc) AS label,
@@ -117,6 +120,7 @@ final class GlpiKpiCalculator
             WHERE t.report_id = ?
               AND t.idc IS NOT NULL
               AND t.idc <> ?
+              AND {$areaSql}
               AND " . GlpiSchema::notEnviosSqlCondition('t.categoria') . "
             GROUP BY label
             ORDER BY n DESC, label ASC
@@ -124,9 +128,6 @@ final class GlpiKpiCalculator
 
         $idcTop = array_map(fn($r) => [$r['label'], (int) $r['n']], array_slice($idcAll, 0, 10));
 
-        // Bottom 10: los 10 técnicos con menor carga.
-        // Cuando hay decenas empatados en n=1, el orden exacto es arbitrario -
-        // ordenamos por n ASC y luego label ASC para determinismo.
         $idcAsc = $idcAll;
         usort($idcAsc, function ($a, $b) {
             $diff = $a['n'] <=> $b['n'];
@@ -134,35 +135,40 @@ final class GlpiKpiCalculator
         });
         $idcBottom = array_map(fn($r) => [$r['label'], (int) $r['n']], array_slice($idcAsc, 0, 10));
 
-        // Envíos (sub-pipeline): substring "ENVI" case-insensitive
-        $envSubs = GlpiSchema::ENVIOS_CATEGORY_SUBSTRING;
-        $envRow = $this->db->query("
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN estado IN ('Cerrado', 'Resuelto') THEN 1 ELSE 0 END) AS cerrados
-            FROM {$this->table}
-            WHERE report_id = ?
-              AND UPPER(categoria) LIKE CONCAT('%', UPPER(?), '%')
-        ", [$reportId, $envSubs])->getRow();
+        // Envíos sólo tiene sentido dentro de Admin (es la sub-categoría
+        // ‘Control de Envíos’). Para Ops devolvemos cero para que la slide
+        // correspondiente no muestre números falsos.
+        if ($area === GlpiSchema::AREA_ADMIN) {
+            $envSubs = GlpiSchema::ENVIOS_CATEGORY_SUBSTRING;
+            $envRow = $this->db->query("
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN estado IN ('Cerrado', 'Resuelto') THEN 1 ELSE 0 END) AS cerrados
+                FROM {$this->table}
+                WHERE report_id = ?
+                  AND UPPER(categoria) LIKE CONCAT('%', UPPER(?), '%')
+            ", [$reportId, $envSubs])->getRow();
 
-        $envTotal = (int) ($envRow->total    ?? 0);
-        $envCerr  = (int) ($envRow->cerrados ?? 0);
-        $envPend  = $envTotal - $envCerr;
-        $envPct   = $envTotal > 0 ? round($envCerr / $envTotal * 100, 2) : 0.0;
+            $envTotal = (int) ($envRow->total    ?? 0);
+            $envCerr  = (int) ($envRow->cerrados ?? 0);
+        } else {
+            $envTotal = 0;
+            $envCerr  = 0;
+        }
+        $envPend = $envTotal - $envCerr;
+        $envPct  = $envTotal > 0 ? round($envCerr / $envTotal * 100, 2) : 0.0;
 
-        // Coordinación: conteo por regional + cruce con glpi_coordinators
+        // Coordinación: reusamos la misma lógica del calculator global,
+        // pero restringida al área.
         $coordTickets = [];
         foreach ($regTop as $row) {
-            // regTop ya viene ordenado y limitado a 8 — incluyente para el dict
             $coordTickets[$row[0]] = $row[1];
         }
 
-        // Si hay más regionales (rare beyond top 8), las agregamos.
-        // Excluye envíos y laboratorio (no operan con regional asignada).
         $regAll = $this->db->query("
             SELECT regional AS label, COUNT(*) AS n
             FROM {$this->table}
-            WHERE report_id = ? AND regional IS NOT NULL
+            WHERE report_id = ? AND regional IS NOT NULL AND {$areaSql}
               AND " . GlpiSchema::notRegionalApplicableSqlCondition() . "
             GROUP BY regional
             ORDER BY n DESC, regional ASC
@@ -174,7 +180,7 @@ final class GlpiKpiCalculator
         $coordMap  = (new GlpiCoordinatorModel())->getNormalizedMap();
         $coordInfo = [];
         foreach ($coordTickets as $zone => $_count) {
-            $key = GlpiCoordinatorModel::normalizeZone($zone);
+            $key = GlpiCoordinatorModel::normalizeZone((string) $zone);
             if (isset($coordMap[$key])) {
                 $coordInfo[$zone] = [
                     'coord' => $coordMap[$key]['coord'],
@@ -212,60 +218,40 @@ final class GlpiKpiCalculator
     }
 
     /**
-     * Calcula el snapshot y lo persiste en glpi_reports.kpi_json.
+     * Computa los snapshots de las 3 áreas en paralelo. Devuelve un mapa
+     * `area_key => snapshot` listo para alimentar al PPTX renderer.
      *
-     * @return array<string, mixed>
+     * @return array<string, array<string, mixed>>
      */
-    public function computeAndSave(int $reportId): array
+    public function computeAll(int $reportId): array
     {
-        $kpis = $this->compute($reportId);
-
-        $ok = (new GlpiReportModel())->update($reportId, [
-            'kpi_json' => json_encode($kpis, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        ]);
-
-        if (! $ok) {
-            throw new RuntimeException("No se pudo guardar el snapshot KPI del reporte {$reportId}.");
-        }
-
-        return $kpis;
+        return [
+            GlpiSchema::AREA_ADMIN     => $this->compute($reportId, GlpiSchema::AREA_ADMIN),
+            GlpiSchema::AREA_OPS_LAB   => $this->compute($reportId, GlpiSchema::AREA_OPS_LAB),
+            GlpiSchema::AREA_OPS_OTHER => $this->compute($reportId, GlpiSchema::AREA_OPS_OTHER),
+        ];
     }
 
     /**
-     * Ranking por una columna; excluye NULL. Si $limit es null, devuelve todo.
-     *
      * @return list<array{0: string, 1: int}>
      */
-    private function ranking(string $column, int $reportId, ?int $limit): array
-    {
+    private function ranking(
+        string $column,
+        int $reportId,
+        string $areaSql,
+        ?int $limit,
+        bool $regionalScope = false
+    ): array {
+        $extraFilter = $regionalScope
+            ? ' AND ' . GlpiSchema::notRegionalApplicableSqlCondition()
+            : '';
+
         $sql = "SELECT {$column} AS label, COUNT(*) AS n
                 FROM {$this->table}
                 WHERE report_id = ?
                   AND {$column} IS NOT NULL
-                GROUP BY {$column}
-                ORDER BY n DESC, {$column} ASC";
-
-        if ($limit !== null) {
-            $sql .= " LIMIT {$limit}";
-        }
-
-        $rows = $this->db->query($sql, [$reportId])->getResultArray();
-        return array_map(static fn($r) => [(string) $r['label'], (int) $r['n']], $rows);
-    }
-
-    /**
-     * Variante de ranking() para métricas de regional: excluye envíos y
-     * laboratorio (ninguna de las dos opera con regional asignada).
-     *
-     * @return list<array{0: string, 1: int}>
-     */
-    private function rankingRegionalApplicable(string $column, int $reportId, ?int $limit): array
-    {
-        $sql = "SELECT {$column} AS label, COUNT(*) AS n
-                FROM {$this->table}
-                WHERE report_id = ?
-                  AND {$column} IS NOT NULL
-                  AND " . GlpiSchema::notRegionalApplicableSqlCondition() . "
+                  AND {$areaSql}
+                  {$extraFilter}
                 GROUP BY {$column}
                 ORDER BY n DESC, {$column} ASC";
 
@@ -289,8 +275,8 @@ final class GlpiKpiCalculator
             'reg_top' => [], 'est_top' => [], 'idc_top' => [], 'idc_bottom' => [],
             'cat_top' => [], 'proy_top' => [], 'estados_ticket' => [],
             'env_total' => 0, 'env_cerr' => 0, 'env_pend' => 0, 'env_pct' => 0.0,
-            'coord_tickets' => new \stdClass(),
-            'coord_info'    => new \stdClass(),
+            'coord_tickets' => [],
+            'coord_info'    => [],
         ];
     }
 }

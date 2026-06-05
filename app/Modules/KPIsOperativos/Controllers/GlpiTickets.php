@@ -7,6 +7,9 @@ namespace App\Modules\KPIsOperativos\Controllers;
 use App\Controllers\BaseController;
 use App\Modules\KPIsOperativos\Models\GlpiReportModel;
 use App\Modules\KPIsOperativos\Models\GlpiTicketModel;
+use App\Modules\KPIsOperativos\Config\GlpiSchema;
+use App\Modules\KPIsOperativos\Services\GlpiAreaKpiCalculator;
+use App\Modules\KPIsOperativos\Services\GlpiAreaPptxRenderer;
 use App\Modules\KPIsOperativos\Services\GlpiPptxRenderer;
 use App\Modules\KPIsOperativos\Services\GlpiReportService;
 
@@ -170,6 +173,44 @@ class GlpiTickets extends BaseController
             ->setFileName("kpi_glpi_{$safeName}.pptx");
     }
 
+    public function pptxAreas(int $id)
+    {
+        $report = (new GlpiReportModel())->find($id);
+        if (! $report) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        if ($report['status'] !== 'ready' || empty($report['kpi_json'])) {
+            session()->setFlashdata('errors', ['El reporte aún no está listo o no tiene snapshot KPI.']);
+            return redirect()->to(route_to('kpi.glpi.show', $id));
+        }
+
+        $kpiGlobal = json_decode($report['kpi_json'], true);
+        if (! is_array($kpiGlobal)) {
+            session()->setFlashdata('errors', ['Snapshot KPI inválido. Recalcula con kpi:recompute.']);
+            return redirect()->to(route_to('kpi.glpi.show', $id));
+        }
+
+        try {
+            $kpiByArea = (new GlpiAreaKpiCalculator())->computeAll((int) $id);
+            $path = (new GlpiAreaPptxRenderer())
+                ->renderByArea((int) $id, $kpiByArea, $kpiGlobal, (string) $report['name']);
+        } catch (\Throwable $e) {
+            log_message('error', '[GlpiAreaPptxRenderer] ' . $e->getMessage());
+            session()->setFlashdata('errors', ['Error al generar PPTX por área: ' . $e->getMessage()]);
+            return redirect()->to(route_to('kpi.glpi.show', $id));
+        }
+
+        if (! is_file($path)) {
+            session()->setFlashdata('errors', ['El archivo no se pudo escribir en disco.']);
+            return redirect()->to(route_to('kpi.glpi.show', $id));
+        }
+
+        $safeName = preg_replace('/[^A-Za-z0-9._-]+/', '_', $report['name']) ?? 'reporte';
+        return $this->response->download($path, null)
+            ->setFileName("kpi_glpi_{$safeName}_por_area.pptx");
+    }
+
     public function tickets(int $id): string
     {
         $report = (new GlpiReportModel())->find($id);
@@ -193,6 +234,13 @@ class GlpiTickets extends BaseController
             $filters['envios'] = '1';
         }
 
+        // Pseudo-filtro: ?sin_idc=1 → tickets sin IDC asignado
+        // (idc IS NULL o "SIN ASIGNAR"), excluyendo Control de Envíos.
+        $sinIdc = (string) ($this->request->getGet('sin_idc') ?? '');
+        if ($sinIdc === '1') {
+            $filters['sin_idc'] = '1';
+        }
+
         $perPage = max(10, min(200, (int) ($this->request->getGet('per_page') ?? 50)));
         $page    = max(1, (int) ($this->request->getGet('page') ?? 1));
 
@@ -200,6 +248,14 @@ class GlpiTickets extends BaseController
         foreach ($filters as $key => $val) {
             if ($key === 'envios') {
                 $builder->like('categoria', 'ENVI', 'both', null, true);
+                continue;
+            }
+            if ($key === 'sin_idc') {
+                $builder->groupStart()
+                    ->where('idc', null)
+                    ->orWhere('idc', GlpiSchema::IDC_UNASSIGNED)
+                ->groupEnd()
+                ->where(GlpiSchema::notEnviosSqlCondition(), null, false);
                 continue;
             }
             $builder->where($key, $val);

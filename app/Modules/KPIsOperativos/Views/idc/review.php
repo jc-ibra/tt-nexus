@@ -5,7 +5,7 @@
   <div class="page-header-content">
     <h1 class="page-title">Aliases por revisar</h1>
     <p class="page-subtitle">
-      Coincidencias 80-92% — el sistema linkeó pero pide confirmación humana
+      Coincidencias 80-92% - el sistema linkeó pero pide confirmación humana
     </p>
   </div>
   <div class="page-actions">
@@ -57,7 +57,7 @@
                     style="display: flex; gap: var(--space-1);">
                 <?= csrf_field() ?>
                 <select name="target_canonical_id" class="input" style="min-width: 200px;">
-                  <option value="">— mover a otro canonical —</option>
+                  <option value="">- mover a otro canonical -</option>
                   <?php foreach ($canonicals as $c): ?>
                     <?php if ((int) $c['id'] !== (int) $a['canonical_id']): ?>
                       <option value="<?= (int) $c['id'] ?>"><?= esc($c['canonical_name']) ?></option>

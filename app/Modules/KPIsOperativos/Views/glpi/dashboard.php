@@ -67,6 +67,18 @@
     .clickable-card:hover {
       transform: translateY(-1px);
       box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08));
+      text-decoration: none;
+      color: inherit;
+    }
+    .clickable-card,
+    .clickable-card:hover,
+    .clickable-card:focus,
+    .clickable-card:active {
+      text-decoration: none;
+    }
+    .clickable-card *,
+    .clickable-card:hover * {
+      text-decoration: none;
     }
 
     .state-row {
@@ -112,7 +124,7 @@ $statusBadge = match ($report['status']) {
     <p class="page-subtitle">
       <?= $statusBadge ?>
       <?php if ($report['period_start'] || $report['period_end']): ?>
-        &nbsp; Período: <?= esc($report['period_start'] ?? '—') ?> → <?= esc($report['period_end'] ?? '—') ?>
+        &nbsp; Período: <?= esc($report['period_start'] ?? '-') ?> → <?= esc($report['period_end'] ?? '-') ?>
       <?php endif; ?>
       &nbsp; · <?= number_format((int) $report['total_tickets']) ?> tickets
       &nbsp; · Subido el <?= date('d/m/Y H:i', strtotime($report['created_at'])) ?>
@@ -120,6 +132,7 @@ $statusBadge = match ($report['status']) {
   </div>
   <div class="page-actions">
     <a href="<?= route_to('kpi.glpi.pptx', $report['id']) ?>" class="btn btn-secondary">Descargar PPTX</a>
+    <a href="<?= route_to('kpi.glpi.pptx.areas', $report['id']) ?>" class="btn btn-secondary" title="PPTX dividido por área: Administración / Operaciones (Laboratorio / Zonas Técnicas y Clientes)">Descargar PPTX por Área</a>
     <a href="<?= route_to('kpi.glpi.index') ?>" class="btn btn-tertiary">Volver</a>
   </div>
 </div>
@@ -144,7 +157,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
 <div class="kpi-dashboard">
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 1 — RESUMEN EJECUTIVO
+       SECCIÓN 1 - RESUMEN EJECUTIVO
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <h2 class="kpi-section-title">Resumen Ejecutivo</h2>
@@ -160,17 +173,17 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
          class="kpi-card accent-warning clickable-card" title="Ver tickets en curso">
         <p class="kpi-card-label">En curso</p>
         <p class="kpi-card-value"><?= number_format((int) $kpi['en_curso']) ?></p>
-        <p class="kpi-card-sub"><?= 100 - (int) $kpi['tasa_cierre'] ?>% del total</p>
+        <p class="kpi-card-sub"><?= number_format(100 - (float) $kpi['tasa_cierre'], 2) ?>% del total</p>
       </a>
       <a href="<?= esc(ticketsLink($ticketsBase, 'estado', 'Cerrado')) ?>"
          class="kpi-card accent-success clickable-card" title="Ver tickets cerrados">
         <p class="kpi-card-label">Cerrados</p>
         <p class="kpi-card-value"><?= number_format((int) $kpi['cerrados']) ?></p>
-        <p class="kpi-card-sub"><?= (int) $kpi['tasa_cierre'] ?>% tasa de cierre</p>
+        <p class="kpi-card-sub"><?= number_format((float) $kpi['tasa_cierre'], 2) ?>% tasa de cierre</p>
       </a>
       <div class="kpi-card accent-purple">
         <p class="kpi-card-label">SLA &lt; 24h</p>
-        <p class="kpi-card-value"><?= (int) $kpi['sla_pct'] ?>%</p>
+        <p class="kpi-card-value"><?= number_format((float) $kpi['sla_pct'], 2) ?>%</p>
         <p class="kpi-card-sub">Tickets resueltos a tiempo</p>
       </div>
       <div class="kpi-card accent-teal">
@@ -188,7 +201,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 2 — ESTADO DE TICKETS
+       SECCIÓN 2 - ESTADO DE TICKETS
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
@@ -201,14 +214,14 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
           <div class="chart-wrap is-clickable" data-filter="estado"><canvas id="chart-estados"></canvas></div>
           <div>
             <?php foreach ($kpi['estados_ticket'] as $i => [$estado, $cnt]):
-              $pct = $kpi['total'] > 0 ? round($cnt / $kpi['total'] * 100) : 0;
+              $pct = $kpi['total'] > 0 ? round($cnt / $kpi['total'] * 100, 2) : 0.0;
             ?>
               <a href="<?= esc(ticketsLink($ticketsBase, 'estado', $estado)) ?>"
                  class="state-row clickable-card"
                  style="border-left-color: var(--state-color-<?= $i ?>, var(--color-blue-500));">
                 <div>
                   <div class="label"><?= esc($estado) ?></div>
-                  <div class="pct"><?= $pct ?>% del total</div>
+                  <div class="pct"><?= number_format($pct, 2) ?>% del total</div>
                 </div>
                 <div class="count"><?= number_format($cnt) ?></div>
               </a>
@@ -220,38 +233,46 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 3 — DIVISIÓN TERRITORIAL POR REGIONAL
+       SECCIÓN 3 - DIVISIÓN TERRITORIAL POR REGIONAL
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
       <div class="card-header">
-        <h2 class="card-title">División Territorial — Por Regional</h2>
+        <h2 class="card-title">División Territorial - Por Regional</h2>
         <span class="text-muted text-sm">Volumen de tickets por zona geográfica</span>
       </div>
       <div class="card-body">
         <div class="grid-2" style="gap: var(--space-5);">
           <div class="chart-wrap h-400 is-clickable" data-filter="regional"><canvas id="chart-regionales"></canvas></div>
           <div>
-            <?php $sinRegPct = $kpi['total'] > 0 ? round($kpi['sin_reg'] / $kpi['total'] * 100) : 0; ?>
-            <div class="banner banner-warning" style="margin-bottom: var(--space-4);">
-              <div class="banner-body">
-                <div class="banner-title">⚠️ <?= number_format((int) $kpi['sin_reg']) ?> tickets sin regional</div>
-                <div class="banner-message"><?= $sinRegPct ?>% del total — afecta el ranking territorial</div>
-              </div>
-            </div>
-
-            <p class="kpi-card-label" style="margin-bottom: var(--space-2);">Top regionales</p>
-            <?php foreach (array_slice($kpi['reg_top'], 0, 3) as $i => [$reg, $cnt]):
-              $pct = $kpi['total'] > 0 ? round($cnt / $kpi['total'] * 100) : 0;
+            <?php
+              // Denominador = universo de tickets donde la regional aplica
+              // (excluye envíos y laboratorio).
+              $baseRegTotal = (int) ($kpi['reg_universe'] ?? 0);
+              $sinRegPct    = $baseRegTotal > 0 ? round($kpi['sin_reg'] / $baseRegTotal * 100, 2) : 0.0;
             ?>
-              <a href="<?= esc(ticketsLink($ticketsBase, 'regional', $reg)) ?>"
-                 class="coord-card clickable-card"
-                 style="margin-bottom: var(--space-2);">
-                <div class="zone">#<?= $i + 1 ?></div>
-                <div class="coord"><?= esc($reg) ?></div>
-                <div class="gte"><?= number_format($cnt) ?> tickets · <?= $pct ?>%</div>
-              </a>
-            <?php endforeach; ?>
+            <?php if ((int) $kpi['sin_reg'] > 0): ?>
+              <div class="banner banner-warning" style="margin-bottom: var(--space-4);">
+                <div class="banner-body">
+                  <div class="banner-title">⚠️ <?= number_format((int) $kpi['sin_reg']) ?> tickets sin regional</div>
+                  <div class="banner-message"><?= number_format($sinRegPct, 2) ?>% del total - afecta el ranking territorial</div>
+                </div>
+              </div>
+            <?php endif; ?>
+
+            <p class="kpi-card-label" style="margin-bottom: var(--space-2);">Regionales</p>
+            <div class="grid-2" style="gap: var(--space-2);">
+              <?php foreach ($kpi['reg_top'] as $i => [$reg, $cnt]):
+                $pct = $kpi['total'] > 0 ? round($cnt / $kpi['total'] * 100, 2) : 0.0;
+              ?>
+                <a href="<?= esc(ticketsLink($ticketsBase, 'regional', $reg)) ?>"
+                   class="coord-card clickable-card">
+                  <div class="zone">#<?= $i + 1 ?></div>
+                  <div class="coord"><?= esc($reg) ?></div>
+                  <div class="gte"><?= number_format($cnt) ?> tickets · <?= number_format($pct, 2) ?>%</div>
+                </a>
+              <?php endforeach; ?>
+            </div>
           </div>
         </div>
       </div>
@@ -259,7 +280,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 4 — DISTRIBUCIÓN POR COORDINACIÓN
+       SECCIÓN 4 - DISTRIBUCIÓN POR COORDINACIÓN
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
@@ -282,7 +303,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
             ?>
             <div class="grid-2" style="gap: var(--space-2);">
               <?php foreach ($coordSorted as $zone => $cnt):
-                $info = $kpi['coord_info'][$zone] ?? ['coord' => $zone, 'gte' => '—'];
+                $info = $kpi['coord_info'][$zone] ?? ['coord' => $zone, 'gte' => '-'];
               ?>
                 <a href="<?= esc(ticketsLink($ticketsBase, 'regional', (string) $zone)) ?>"
                    class="coord-card clickable-card">
@@ -300,7 +321,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 5 — TICKETS POR ESTADO GEOGRÁFICO
+       SECCIÓN 5 - TICKETS POR ESTADO GEOGRÁFICO
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
@@ -315,37 +336,48 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 6 — RANKING IDC — TOP 6
+       SECCIÓN 6 - RANKING IDC - TOP 6
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
       <div class="card-header">
-        <h2 class="card-title">Ranking IDC — Mayor carga</h2>
-        <span class="text-muted text-sm">Top 6 técnicos con más tickets asignados</span>
+        <h2 class="card-title">Ranking IDC - Mayor carga</h2>
+        <span class="text-muted text-sm">Top 10 técnicos con más tickets asignados</span>
       </div>
       <div class="card-body">
-        <div class="chart-wrap h-260 is-clickable" data-filter="idc"><canvas id="chart-idc-top"></canvas></div>
+        <div class="chart-wrap h-400 is-clickable" data-filter="idc"><canvas id="chart-idc-top"></canvas></div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 7 — RANKING IDC — BOTTOM 6
+       SECCIÓN 7 - RANKING IDC - BOTTOM 6
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
       <div class="card-header">
-        <h2 class="card-title">Ranking IDC — Menor carga</h2>
-        <span class="text-muted text-sm">Bottom 6 técnicos con menos tickets — sin_idc: <?= number_format((int) $kpi['sin_idc']) ?></span>
+        <h2 class="card-title">Ranking IDC - Menor carga</h2>
+        <span class="text-muted text-sm">Bottom 10 técnicos con menos tickets asignados</span>
       </div>
       <div class="card-body">
-        <div class="chart-wrap h-260 is-clickable" data-filter="idc"><canvas id="chart-idc-bottom"></canvas></div>
+        <?php if ((int) $kpi['sin_idc'] > 0): ?>
+          <a href="<?= esc($ticketsBase . '?sin_idc=1') ?>"
+             class="banner banner-warning clickable-card"
+             title="Ver los tickets sin IDC asignado"
+             style="margin-bottom: var(--space-4); display:block;">
+            <div class="banner-body">
+              <div class="banner-title">⚠️ <?= number_format((int) $kpi['sin_idc']) ?> tickets sin IDC asignado</div>
+              <div class="banner-message">Requieren acción - clic para ver el detalle</div>
+            </div>
+          </a>
+        <?php endif; ?>
+        <div class="chart-wrap h-400 is-clickable" data-filter="idc"><canvas id="chart-idc-bottom"></canvas></div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 8 — CATEGORÍAS Y PROYECTOS
+       SECCIÓN 8 - CATEGORÍAS Y PROYECTOS
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="grid-2" style="gap: var(--space-4);">
@@ -371,7 +403,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECCIÓN 9 — CONTROL DE ENVÍOS
+       SECCIÓN 9 - CONTROL DE ENVÍOS
        ════════════════════════════════════════════════════════════════════ -->
   <section>
     <div class="card">
@@ -397,7 +429,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
             </div>
             <div class="kpi-card accent-purple">
               <p class="kpi-card-label">% de cierre</p>
-              <p class="kpi-card-value"><?= (int) $kpi['env_pct'] ?>%</p>
+              <p class="kpi-card-value"><?= number_format((float) $kpi['env_pct'], 2) ?>%</p>
             </div>
           </div>
         </div>

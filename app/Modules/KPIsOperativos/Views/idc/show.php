@@ -98,7 +98,7 @@
           <?= csrf_field() ?>
           <div class="field">
             <select name="target_id" class="input" required>
-              <option value="">— elegir destino —</option>
+              <option value="">- elegir destino -</option>
               <?php foreach ($allCanonicals as $c): ?>
                 <option value="<?= (int) $c['id'] ?>"><?= esc($c['canonical_name']) ?></option>
               <?php endforeach; ?>

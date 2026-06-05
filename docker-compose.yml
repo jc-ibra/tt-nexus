@@ -7,7 +7,6 @@ services:
       - "8080:80"
     volumes:
       - .:/var/www/html
-      
       - vendor_data:/var/www/html/vendor
     environment:
       CI_ENVIRONMENT: development

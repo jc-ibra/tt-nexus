@@ -58,6 +58,130 @@ final class GlpiSchema
     public const ENVIOS_CATEGORY_SUBSTRING = 'ENVI';
 
     /**
+     * Substrings (case-insensitive) que mandan un ticket al área de
+     * Administración. Espejo de ADMIN_SUBCATS en la lógica original.
+     *
+     * @var list<string>
+     */
+    public const ADMIN_SUBCATS = ['Control de Envios', 'Almacén'];
+
+    /**
+     * Substring (case-insensitive) que dentro de Operaciones identifica
+     * la sub-área de Laboratorio.
+     */
+    public const LAB_SUBCAT = 'Laboratorio';
+
+    /**
+     * Claves canónicas de área. Se exponen como constantes para evitar
+     * literales sueltos en services/renderers.
+     */
+    public const AREA_ADMIN     = 'admin';
+    public const AREA_OPS_LAB   = 'ops_lab';
+    public const AREA_OPS_OTHER = 'ops_other';
+
+    /**
+     * Etiqueta legible (UI / PPTX) para cada área.
+     *
+     * @var array<string, string>
+     */
+    public const AREA_LABELS = [
+        self::AREA_ADMIN     => 'Administración',
+        self::AREA_OPS_LAB   => 'Operaciones · Laboratorio',
+        self::AREA_OPS_OTHER => 'Operaciones · Zonas Técnicas/Clientes',
+    ];
+
+    /**
+     * Clasifica una categoría en una de las áreas del árbol de decisión:
+     *
+     *   ADMIN_SUBCATS contenido  → admin
+     *   LAB_SUBCAT  contenido    → ops_lab
+     *   resto                    → ops_other
+     *
+     * La comparación es case-insensitive y por substring (cualquier
+     * categoría que contenga la cadena cuenta).
+     */
+    public static function classifyArea(?string $categoria): string
+    {
+        $cat = mb_strtoupper((string) $categoria, 'UTF-8');
+
+        foreach (self::ADMIN_SUBCATS as $needle) {
+            if ($cat !== '' && mb_strpos($cat, mb_strtoupper($needle, 'UTF-8')) !== false) {
+                return self::AREA_ADMIN;
+            }
+        }
+
+        if ($cat !== '' && mb_strpos($cat, mb_strtoupper(self::LAB_SUBCAT, 'UTF-8')) !== false) {
+            return self::AREA_OPS_LAB;
+        }
+
+        return self::AREA_OPS_OTHER;
+    }
+
+    /**
+     * Fragmento SQL que excluye los tickets de la sub-categoría
+     * "Control de Envíos" (substring ENVI). Los tickets de envíos no
+     * tienen IDC asignado por diseño, así que no deben contabilizar
+     * en métricas de cobertura IDC (sin_idc, idc_top, idc_bottom).
+     *
+     * Para regional, usar notRegionalApplicableSqlCondition() — además
+     * de envíos también excluye Laboratorio.
+     *
+     * Conserva los tickets con categoria NULL.
+     */
+    public static function notEnviosSqlCondition(string $column = 'categoria'): string
+    {
+        $needle = str_replace("'", "''", mb_strtoupper(self::ENVIOS_CATEGORY_SUBSTRING, 'UTF-8'));
+        return "(UPPER({$column}) NOT LIKE '%{$needle}%' OR {$column} IS NULL)";
+    }
+
+    /**
+     * Fragmento SQL para métricas de regional: excluye Control de Envíos
+     * y Laboratorio (ninguna de las dos sub-categorías opera con
+     * regional asignada por diseño).
+     *
+     * Se aplica a sin_reg, reg_top y al regAll que alimenta coord_tickets.
+     * Conserva los tickets con categoria NULL.
+     */
+    public static function notRegionalApplicableSqlCondition(string $column = 'categoria'): string
+    {
+        $env = str_replace("'", "''", mb_strtoupper(self::ENVIOS_CATEGORY_SUBSTRING, 'UTF-8'));
+        $lab = str_replace("'", "''", mb_strtoupper(self::LAB_SUBCAT, 'UTF-8'));
+        return "({$column} IS NULL OR ("
+            . "UPPER({$column}) NOT LIKE '%{$env}%' "
+            . "AND UPPER({$column}) NOT LIKE '%{$lab}%'))";
+    }
+
+    /**
+     * Devuelve un fragmento SQL que evalúa la clasificación de área
+     * sobre la columna `categoria`, replicando classifyArea() pero en
+     * el motor de BD (case-insensitive con UPPER + LIKE).
+     *
+     * Útil para usar como predicado WHERE/CASE en queries del calculator.
+     *
+     * Ej.: "(UPPER(categoria) LIKE '%CONTROL DE ENVIOS%' OR UPPER(categoria) LIKE '%ALMACÉN%')"
+     */
+    public static function areaSqlCondition(string $area, string $column = 'categoria'): string
+    {
+        $likeOr = function (array $needles) use ($column): string {
+            $parts = array_map(
+                fn($n) => "UPPER({$column}) LIKE '%" . str_replace("'", "''", mb_strtoupper($n, 'UTF-8')) . "%'",
+                $needles
+            );
+            return '(' . implode(' OR ', $parts) . ')';
+        };
+
+        $admin = $likeOr(self::ADMIN_SUBCATS);
+        $lab   = $likeOr([self::LAB_SUBCAT]);
+
+        return match ($area) {
+            self::AREA_ADMIN     => $admin,
+            self::AREA_OPS_LAB   => "(NOT {$admin} AND {$lab})",
+            self::AREA_OPS_OTHER => "(NOT {$admin} AND NOT {$lab})",
+            default              => '1=1',
+        };
+    }
+
+    /**
      * Formatos de fecha aceptados, en orden de preferencia.
      * Si ninguno parsea, se intenta strtotime() como fallback.
      *

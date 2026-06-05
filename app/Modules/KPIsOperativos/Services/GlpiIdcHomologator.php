@@ -207,9 +207,18 @@ final class GlpiIdcHomologator
         if ($this->indexLoaded) {
             return;
         }
-        $this->canonicalIndex = $this->canonicals
+        $rows = $this->canonicals
             ->select('id, normalized_form, canonical_name')
             ->findAll();
+
+        // El driver puede devolver columnas como strings — normalizamos
+        // el id a int para no romper la firma de insertAlias().
+        $this->canonicalIndex = array_map(static fn($r) => [
+            'id'              => (int) $r['id'],
+            'normalized_form' => (string) $r['normalized_form'],
+            'canonical_name'  => (string) $r['canonical_name'],
+        ], $rows);
+
         $this->indexLoaded = true;
     }
 

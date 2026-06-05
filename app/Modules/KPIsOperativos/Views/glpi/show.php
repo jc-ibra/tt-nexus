@@ -17,7 +17,7 @@ $statusBadge = match ($report['status']) {
       <?= $statusBadge ?>
       &nbsp;
       <?php if ($report['period_start'] || $report['period_end']): ?>
-        Período: <?= esc($report['period_start'] ?? '—') ?> → <?= esc($report['period_end'] ?? '—') ?> ·
+        Período: <?= esc($report['period_start'] ?? '-') ?> → <?= esc($report['period_end'] ?? '-') ?> ·
       <?php endif; ?>
       <?= (int) $report['total_tickets'] ?> tickets ·
       Subido el <?= date('d/m/Y H:i', strtotime($report['created_at'])) ?>
@@ -45,7 +45,7 @@ $statusBadge = match ($report['status']) {
       <div>
         <p class="text-muted text-sm" style="margin:0;">Archivo origen</p>
         <p style="margin: var(--space-1) 0 0 0;">
-          <?= esc($report['source_filename'] ?? '—') ?>
+          <?= esc($report['source_filename'] ?? '-') ?>
           <span class="text-muted text-sm">(<?= esc(strtoupper((string) $report['source_type'])) ?>)</span>
         </p>
       </div>
@@ -67,14 +67,14 @@ $kpi = ! empty($report['kpi_json']) ? json_decode($report['kpi_json'], true) : n
   <div class="card" style="margin-bottom: var(--space-4);">
     <div class="card-header">
       <h2 class="card-title">Snapshot KPI</h2>
-      <span class="text-muted text-sm">Vista resumida — dashboard completo llega en la fase 4</span>
+      <span class="text-muted text-sm">Vista resumida - dashboard completo llega en la fase 4</span>
     </div>
     <div class="card-body">
       <div class="grid-2" style="gap: var(--space-4);">
         <div>
           <p class="text-muted text-sm" style="margin:0;">Tasa de cierre</p>
           <p style="margin: var(--space-1) 0 0 0; font-size: var(--text-xl); font-weight: 600;">
-            <?= (int) ($kpi['tasa_cierre'] ?? 0) ?>%
+            <?= number_format((float) ($kpi['tasa_cierre'] ?? 0), 2) ?>%
           </p>
           <p class="text-muted text-sm" style="margin: var(--space-1) 0 0 0;">
             <?= (int) ($kpi['cerrados'] ?? 0) ?> cerrados · <?= (int) ($kpi['en_curso'] ?? 0) ?> en curso
@@ -83,7 +83,7 @@ $kpi = ! empty($report['kpi_json']) ? json_decode($report['kpi_json'], true) : n
         <div>
           <p class="text-muted text-sm" style="margin:0;">SLA &lt; 24h</p>
           <p style="margin: var(--space-1) 0 0 0; font-size: var(--text-xl); font-weight: 600;">
-            <?= (int) ($kpi['sla_pct'] ?? 0) ?>%
+            <?= number_format((float) ($kpi['sla_pct'] ?? 0), 2) ?>%
           </p>
           <p class="text-muted text-sm" style="margin: var(--space-1) 0 0 0;">
             Promedio de resolución: <?= esc((string) ($kpi['prom_h'] ?? 0)) ?> h
@@ -97,7 +97,7 @@ $kpi = ! empty($report['kpi_json']) ? json_decode($report['kpi_json'], true) : n
           <p class="text-muted text-sm" style="margin: var(--space-1) 0 0 0;">
             <?= (int) ($kpi['env_cerr'] ?? 0) ?> cerrados ·
             <?= (int) ($kpi['env_pend'] ?? 0) ?> pendientes ·
-            <?= (int) ($kpi['env_pct'] ?? 0) ?>%
+            <?= number_format((float) ($kpi['env_pct'] ?? 0), 2) ?>%
           </p>
         </div>
         <div>
@@ -145,14 +145,14 @@ $kpi = ! empty($report['kpi_json']) ? json_decode($report['kpi_json'], true) : n
         <tbody>
           <?php foreach ($sampleTickets as $t): ?>
             <tr>
-              <td class="text-muted text-sm"><?= esc($t['glpi_id'] ?? '—') ?></td>
-              <td><?= esc($t['estado'] ?? '—') ?></td>
-              <td class="text-sm"><?= esc($t['regional'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-              <td class="text-sm"><?= esc($t['estado_geo'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-              <td class="text-sm"><?= esc($t['categoria'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-              <td class="text-sm"><?= esc($t['idc'] ?? '') ?: '<span class="text-muted">—</span>' ?></td>
-              <td class="text-muted text-sm"><?= $t['fecha_apertura'] ? date('d/m/y H:i', strtotime($t['fecha_apertura'])) : '—' ?></td>
-              <td class="text-sm"><?= $t['horas_resolucion'] !== null ? esc((string) $t['horas_resolucion']) : '<span class="text-muted">—</span>' ?></td>
+              <td class="text-muted text-sm"><?= esc($t['glpi_id'] ?? '-') ?></td>
+              <td><?= esc($t['estado'] ?? '-') ?></td>
+              <td class="text-sm"><?= esc($t['regional'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+              <td class="text-sm"><?= esc($t['estado_geo'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+              <td class="text-sm"><?= esc($t['categoria'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+              <td class="text-sm"><?= esc($t['idc'] ?? '') ?: '<span class="text-muted">-</span>' ?></td>
+              <td class="text-muted text-sm"><?= $t['fecha_apertura'] ? date('d/m/y H:i', strtotime($t['fecha_apertura'])) : '-' ?></td>
+              <td class="text-sm"><?= $t['horas_resolucion'] !== null ? esc((string) $t['horas_resolucion']) : '<span class="text-muted">-</span>' ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>

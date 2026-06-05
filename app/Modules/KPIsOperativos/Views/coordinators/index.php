@@ -41,7 +41,7 @@
           <tr>
             <td class="font-medium"><?= esc($c['zone']) ?></td>
             <td><?= esc($c['coord_name']) ?></td>
-            <td><?= esc($c['gte_name']) ?: '<span class="text-muted">—</span>' ?></td>
+            <td><?= esc($c['gte_name']) ?: '<span class="text-muted">-</span>' ?></td>
             <td>
               <?php if ((int) $c['is_active'] === 1): ?>
                 <span class="badge badge-success">Activa</span>
