@@ -41,6 +41,7 @@ class Autoload extends AutoloadConfig
         APP_NAMESPACE                  => APPPATH,
         'App\Modules\Core'             => APPPATH . 'Modules/Core',
         'App\Modules\Communications'   => APPPATH . 'Modules/Communications',
+        'App\Modules\KPIsOperativos'   => APPPATH . 'Modules/KPIsOperativos',
     ];
 
     /**

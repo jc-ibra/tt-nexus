@@ -6,8 +6,12 @@ RUN apt-get update && apt-get install -y \
         libonig-dev \
         libxml2-dev \
         libzip-dev \
+        libfreetype-dev \
+        libjpeg62-turbo-dev \
+        libpng-dev \
         unzip \
         git \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         intl \
         mbstring \
@@ -15,6 +19,7 @@ RUN apt-get update && apt-get install -y \
         pdo_mysql \
         xml \
         zip \
+        gd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

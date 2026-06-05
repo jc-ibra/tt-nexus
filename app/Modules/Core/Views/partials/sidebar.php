@@ -4,6 +4,7 @@ $modules     = service('access')->getAccessibleModules();
 
 $moduleIcons = [
     'communications' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+    'kpis_operativos' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -25,6 +26,23 @@ $moduleSubnav = [
             'label'  => 'Listas',
             'url'    => base_url('comms/lists'),
             'active' => str_starts_with($currentPath, '/comms/lists'),
+        ],
+    ],
+    'kpis_operativos' => [
+        [
+            'label'  => 'Resumen',
+            'url'    => base_url('kpi'),
+            'active' => $currentPath === '/kpi',
+        ],
+        [
+            'label'  => 'GLPI Tickets',
+            'url'    => base_url('kpi/glpi'),
+            'active' => str_starts_with($currentPath, '/kpi/glpi'),
+        ],
+        [
+            'label'  => 'Coordinadores',
+            'url'    => base_url('kpi/coordinators'),
+            'active' => str_starts_with($currentPath, '/kpi/coordinators'),
         ],
     ],
 ];

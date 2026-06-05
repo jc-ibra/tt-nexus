@@ -1,0 +1,4 @@
+# Reference files are tracked (guía de implementación), pero los CSV samples no
+_reference/samples/*.csv
+_reference/samples/*.xlsx
+!_reference/samples/.gitkeep

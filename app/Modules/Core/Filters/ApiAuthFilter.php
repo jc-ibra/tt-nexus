@@ -31,8 +31,8 @@ class ApiAuthFilter implements FilterInterface
                 ->setJSON(['status' => 'error', 'message' => 'Invalid or expired token']);
         }
 
-        $tokenModel->touchLastUsed($record['id']);
-        session()->set('user_id', $record['user_id']);
+        $tokenModel->touchLastUsed((int) $record['id']);
+        session()->set('user_id', (int) $record['user_id']);
         session()->set('api_request', true);
 
         return null;

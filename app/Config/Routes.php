@@ -12,3 +12,4 @@ $routes->setAutoRoute(false);
 // -----------------------------------------------------------------------
 require APPPATH . 'Modules/Core/Routes.php';
 require APPPATH . 'Modules/Communications/Routes.php';
+require APPPATH . 'Modules/KPIsOperativos/Routes.php';

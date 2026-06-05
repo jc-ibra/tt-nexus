@@ -1,0 +1,252 @@
+{
+  "total": 4166,
+  "cerrados": 4028,
+  "en_curso": 138,
+  "tasa_cierre": 97,
+  "sla_pct": 64,
+  "prom_h": 40.4,
+  "sin_reg": 528,
+  "sin_idc": 613,
+  "reg_top": [
+    [
+      "DTN - ZONA 1",
+      1670
+    ],
+    [
+      "DTN - ZONA 2",
+      623
+    ],
+    [
+      "DTN - ZONA 3",
+      581
+    ],
+    [
+      "DTS - ZONA 2",
+      266
+    ],
+    [
+      "DTS - ZONA 3",
+      263
+    ],
+    [
+      "DTS - ZONA 1",
+      168
+    ],
+    [
+      "EDIFICIOS",
+      48
+    ],
+    [
+      "METROPOLITANA",
+      19
+    ]
+  ],
+  "est_top": [
+    [
+      "NUEVO LEON",
+      1758
+    ],
+    [
+      "CIUDAD DE MEXICO",
+      306
+    ],
+    [
+      "COAHUILA",
+      224
+    ],
+    [
+      "CHIHUAHUA",
+      185
+    ],
+    [
+      "BAJA CALIFORNIA",
+      180
+    ],
+    [
+      "SINALOA",
+      166
+    ],
+    [
+      "TAMAULIPAS",
+      142
+    ],
+    [
+      "BAJA CALIFORNIA SUR",
+      119
+    ]
+  ],
+  "idc_top": [
+    [
+      "REYES LOPEZ JOSE ERICK",
+      153
+    ],
+    [
+      "BALDERAS TORRES CRISTIAN STEVEN",
+      148
+    ],
+    [
+      "GUEVARA SANCHEZ ERIK JAVIER",
+      118
+    ],
+    [
+      "PEREZ RODRIGUEZ EDSON YAIR",
+      115
+    ],
+    [
+      "CERDA MEDINA ARELY BRISEIDY",
+      108
+    ],
+    [
+      "MEDINA SALAS DAVID RODOLFO",
+      97
+    ]
+  ],
+  "idc_bottom": [
+    [
+      "GONZALEZ EQUIVEL JORGE",
+      1
+    ],
+    [
+      "HERNANDEZ GARCIA PEDRO NOE",
+      1
+    ],
+    [
+      "SANCHEZ GARATE ARMANDO",
+      1
+    ],
+    [
+      "JOSE LUIS ALBERTO MARTINEZ PEREZ",
+      1
+    ],
+    [
+      "PADILLA GARCIA GUSTAVO ADOLFO",
+      1
+    ],
+    [
+      "SANTOS PACHECO JORGE",
+      1
+    ]
+  ],
+  "cat_top": [
+    [
+      "Afirme",
+      2029
+    ],
+    [
+      "Sellcom BBVA",
+      1101
+    ],
+    [
+      "Control de Envios",
+      360
+    ],
+    [
+      "Actinver",
+      211
+    ],
+    [
+      "Receptores Symetry",
+      182
+    ],
+    [
+      "Laboratorio",
+      165
+    ],
+    [
+      "Pop Media",
+      61
+    ]
+  ],
+  "proy_top": [
+    [
+      "Edificios",
+      1598
+    ],
+    [
+      "Mantenimiento Preventivo",
+      566
+    ],
+    [
+      "ATM",
+      323
+    ],
+    [
+      "Mantenimiento Correctivo",
+      286
+    ],
+    [
+      "Plan inmobiliario",
+      279
+    ]
+  ],
+  "estados_ticket": [
+    [
+      "Cerrado",
+      3884
+    ],
+    [
+      "Resuelto",
+      144
+    ],
+    [
+      "En curso (asignada)",
+      132
+    ],
+    [
+      "En curso (planificada)",
+      3
+    ],
+    [
+      "En espera",
+      3
+    ]
+  ],
+  "env_total": 360,
+  "env_cerr": 226,
+  "env_pend": 134,
+  "env_pct": 63,
+  "coord_tickets": {
+    "DTN - ZONA 2": 623,
+    "DTN - ZONA 1": 1670,
+    "DTN - ZONA 3": 581,
+    "DTS - ZONA 1": 168,
+    "DTS - ZONA 2": 266,
+    "DTS - ZONA 3": 263,
+    "METROPOLITANA": 19,
+    "EDIFICIOS": 48
+  },
+  "coord_info": {
+    "DTN - ZONA 2": {
+      "coord": "Alejo Vaquero",
+      "gte": "Luis E. Hernández"
+    },
+    "DTN - ZONA 1": {
+      "coord": "Emmanuel Ocampo",
+      "gte": "Luis E. Hernández"
+    },
+    "DTN - ZONA 3": {
+      "coord": "Itzel Espinoza",
+      "gte": "Luis E. Hernández"
+    },
+    "DTS - ZONA 1": {
+      "coord": "Jesús Chulín",
+      "gte": "Sócrates Hernández"
+    },
+    "DTS - ZONA 2": {
+      "coord": "Jorge González",
+      "gte": "Sócrates Hernández"
+    },
+    "DTS - ZONA 3": {
+      "coord": "Erick Sandoval",
+      "gte": "Sócrates Hernández"
+    },
+    "METROPOLITANA": {
+      "coord": "METROPOLITANA",
+      "gte": "—"
+    },
+    "EDIFICIOS": {
+      "coord": "EDIFICIOS",
+      "gte": "—"
+    }
+  }
+}
