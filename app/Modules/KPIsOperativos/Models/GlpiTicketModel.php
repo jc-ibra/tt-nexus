@@ -27,6 +27,7 @@ class GlpiTicketModel extends Model
         'categoria',
         'solicitud',
         'idc',
+        'idc_canonical_id',
         'urgencia',
         'impacto',
         'sucursal',

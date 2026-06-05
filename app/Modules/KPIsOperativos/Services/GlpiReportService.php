@@ -7,6 +7,7 @@ namespace App\Modules\KPIsOperativos\Services;
 use App\Modules\KPIsOperativos\Config\GlpiSchema;
 use App\Modules\KPIsOperativos\Models\GlpiReportModel;
 use App\Modules\KPIsOperativos\Models\GlpiTicketModel;
+use App\Modules\KPIsOperativos\Services\GlpiIdcHomologator;
 use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\HTTP\Files\UploadedFile;
 use DateTime;
@@ -31,12 +32,14 @@ final class GlpiReportService
     private BaseConnection $db;
     private GlpiReportModel $reports;
     private GlpiTicketModel $tickets;
+    private GlpiIdcHomologator $homologator;
 
     public function __construct()
     {
-        $this->db      = db_connect();
-        $this->reports = new GlpiReportModel();
-        $this->tickets = new GlpiTicketModel();
+        $this->db          = db_connect();
+        $this->reports     = new GlpiReportModel();
+        $this->tickets     = new GlpiTicketModel();
+        $this->homologator = new GlpiIdcHomologator();
     }
 
     /**
@@ -135,7 +138,10 @@ final class GlpiReportService
         $now   = date('Y-m-d H:i:s');
 
         foreach ($source->tickets() as $t) {
-            $batch[] = $this->ticketToRow($reportId, $t, $now);
+            $rawIdc      = trim((string) ($t['idc'] ?? ''));
+            $canonicalId = $rawIdc === '' ? null : $this->homologator->resolve($rawIdc, $reportId);
+
+            $batch[] = $this->ticketToRow($reportId, $t, $now, $canonicalId);
 
             if (count($batch) >= self::INSERT_BATCH) {
                 $this->tickets->insertBatchSafe($batch);
@@ -158,7 +164,7 @@ final class GlpiReportService
      * @param array<string, mixed> $t
      * @return array<string, mixed>
      */
-    private function ticketToRow(int $reportId, array $t, string $now): array
+    private function ticketToRow(int $reportId, array $t, string $now, ?int $idcCanonicalId = null): array
     {
         $fa = $t['fecha_apertura'] instanceof DateTimeInterface ? $t['fecha_apertura']->format('Y-m-d H:i:s') : null;
         $fc = $t['fecha_cierre']   instanceof DateTimeInterface ? $t['fecha_cierre']->format('Y-m-d H:i:s') : null;
@@ -185,6 +191,7 @@ final class GlpiReportService
             'categoria'        => $this->trimToLength((string) ($t['categoria'] ?? ''), 160),
             'solicitud'        => $this->trimToLength((string) ($t['solicitud'] ?? ''), 120),
             'idc'              => $this->trimToLength((string) ($t['idc'] ?? ''), 160),
+            'idc_canonical_id' => $idcCanonicalId,
             'urgencia'         => $this->trimToLength((string) ($t['urgencia'] ?? ''), 40),
             'impacto'          => $this->trimToLength((string) ($t['impacto'] ?? ''), 40),
             'sucursal'         => $this->trimToLength((string) ($t['sucursal'] ?? ''), 255),

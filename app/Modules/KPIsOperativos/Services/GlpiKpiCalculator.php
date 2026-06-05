@@ -90,15 +90,20 @@ final class GlpiKpiCalculator
         $catTop = $this->ranking('categoria',  $reportId, 7);
         $proyTop = $this->ranking('proyecto',  $reportId, 5);
 
-        // IDC: excluye nulos y "SIN ASIGNAR"
+        // IDC: ahora agrupa por el canonical_name (homologación fuzzy),
+        // con fallback al raw `idc` cuando el ticket no tiene canonical_id
+        // (tickets antiguos pre-homologación).
         $idcAll = $this->db->query("
-            SELECT idc AS label, COUNT(*) AS n
-            FROM {$this->table}
-            WHERE report_id = ?
-              AND idc IS NOT NULL
-              AND idc <> ?
-            GROUP BY idc
-            ORDER BY n DESC, idc ASC
+            SELECT
+                COALESCE(c.canonical_name, t.idc) AS label,
+                COUNT(*)                          AS n
+            FROM {$this->table} t
+            LEFT JOIN glpi_idc_canonical c ON c.id = t.idc_canonical_id
+            WHERE t.report_id = ?
+              AND t.idc IS NOT NULL
+              AND t.idc <> ?
+            GROUP BY label
+            ORDER BY n DESC, label ASC
         ", [$reportId, GlpiSchema::IDC_UNASSIGNED])->getResultArray();
 
         $idcTop = array_map(fn($r) => [$r['label'], (int) $r['n']], array_slice($idcAll, 0, 6));

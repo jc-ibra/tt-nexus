@@ -44,6 +44,11 @@ $moduleSubnav = [
             'url'    => base_url('kpi/coordinators'),
             'active' => str_starts_with($currentPath, '/kpi/coordinators'),
         ],
+        [
+            'label'  => 'Catálogo IDC',
+            'url'    => base_url('kpi/idc-canonical'),
+            'active' => str_starts_with($currentPath, '/kpi/idc'),
+        ],
     ],
 ];
 ?>

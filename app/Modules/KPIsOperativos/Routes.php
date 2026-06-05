@@ -23,6 +23,17 @@ $routes->group('kpi', [
     $routes->get('glpi/(:num)/pptx',        'GlpiTickets::pptx/$1',   ['as' => 'kpi.glpi.pptx']);
     $routes->get('glpi/(:num)/tickets',     'GlpiTickets::tickets/$1', ['as' => 'kpi.glpi.tickets']);
 
+    // ── Catálogo canónico de IDCs (homologación fuzzy) ────────────────
+    $routes->get('idc-canonical',                   'IdcCanonical::index',           ['as' => 'kpi.idc.index']);
+    $routes->get('idc-canonical/review',            'IdcCanonical::review',          ['as' => 'kpi.idc.review']);
+    $routes->get('idc-canonical/(:num)',            'IdcCanonical::show/$1',         ['as' => 'kpi.idc.show']);
+    $routes->post('idc-canonical/(:num)/verify',    'IdcCanonical::verify/$1',       ['as' => 'kpi.idc.verify']);
+    $routes->post('idc-canonical/(:num)/rename',    'IdcCanonical::rename/$1',       ['as' => 'kpi.idc.rename']);
+    $routes->post('idc-canonical/(:num)/merge',     'IdcCanonical::merge/$1',        ['as' => 'kpi.idc.merge']);
+    $routes->post('idc-canonical/(:num)/delete',    'IdcCanonical::destroy/$1',      ['as' => 'kpi.idc.destroy']);
+    $routes->post('idc-aliases/(:num)/confirm',     'IdcCanonical::confirmAlias/$1', ['as' => 'kpi.idc.alias.confirm']);
+    $routes->post('idc-aliases/(:num)/reassign',    'IdcCanonical::reassignAlias/$1', ['as' => 'kpi.idc.alias.reassign']);
+
     // ── Catálogo de coordinadores ─────────────────────────────────────
     $routes->get('coordinators',                 'Coordinators::index',   ['as' => 'kpi.coordinators.index']);
     $routes->get('coordinators/new',             'Coordinators::new',     ['as' => 'kpi.coordinators.new']);

@@ -7,6 +7,7 @@ namespace App\Modules\KPIsOperativos\Commands;
 use App\Modules\KPIsOperativos\Models\GlpiReportModel;
 use App\Modules\KPIsOperativos\Models\GlpiTicketModel;
 use App\Modules\KPIsOperativos\Services\GlpiCsvSource;
+use App\Modules\KPIsOperativos\Services\GlpiIdcHomologator;
 use App\Modules\KPIsOperativos\Services\GlpiKpiCalculator;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
@@ -77,6 +78,7 @@ class IngestCsv extends BaseCommand
         try {
             $source = new GlpiCsvSource($path);
             $source->setDateRange($from, $to);
+            $homologator = new GlpiIdcHomologator();
 
             $batch     = [];
             $batchSize = 500;
@@ -110,6 +112,7 @@ class IngestCsv extends BaseCommand
                     'categoria'        => mb_substr((string) $t['categoria'], 0, 160) ?: null,
                     'solicitud'        => mb_substr((string) $t['solicitud'], 0, 120) ?: null,
                     'idc'              => mb_substr((string) $t['idc'], 0, 160) ?: null,
+                    'idc_canonical_id' => trim((string) $t['idc']) !== '' ? $homologator->resolve((string) $t['idc'], (int) $reportId) : null,
                     'urgencia'         => mb_substr((string) $t['urgencia'], 0, 40) ?: null,
                     'impacto'          => mb_substr((string) $t['impacto'], 0, 40) ?: null,
                     'sucursal'         => mb_substr((string) $t['sucursal'], 0, 255) ?: null,
