@@ -2,6 +2,8 @@
 
 namespace Config;
 
+use App\Modules\Buzones\Models\BuzonesSettingsModel;
+use App\Modules\Buzones\Services\BuzonesService;
 use App\Modules\Communications\Models\CommunicationLogModel;
 use App\Modules\Communications\Models\CommunicationModel;
 use App\Modules\Communications\Models\RecipientListModel;
@@ -87,6 +89,15 @@ class Services extends BaseService
             new CommunicationLogModel(),
             new RecipientListModel(),
         );
+    }
+
+    public static function buzonesService(bool $getShared = true): BuzonesService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('buzonesService');
+        }
+
+        return new BuzonesService(new BuzonesSettingsModel());
     }
 
     public static function mailerService(bool $getShared = true): MailerService

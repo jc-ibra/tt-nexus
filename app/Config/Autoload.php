@@ -42,6 +42,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\Core'             => APPPATH . 'Modules/Core',
         'App\Modules\Communications'   => APPPATH . 'Modules/Communications',
         'App\Modules\KPIsOperativos'   => APPPATH . 'Modules/KPIsOperativos',
+        'App\Modules\Buzones'          => APPPATH . 'Modules/Buzones',
     ];
 
     /**
