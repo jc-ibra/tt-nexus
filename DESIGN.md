@@ -11,6 +11,7 @@
 - **Predecibilidad.** Mismo componente, mismo comportamiento, siempre.
 - **Accesibilidad primero.** WCAG AA como mínimo. Los estados de foco son visibles y nunca se ocultan.
 - **Sistema, no colección.** Los tokens son la fuente de verdad. No uses valores hardcoded.
+- **Tipografía deterministe.** El frontend no usa em-dashes (`—`) ni emojis: rompen la consistencia visual y dependen de fuentes externas no controladas. Ver §12 para alternativas (`:`, `·`, `-`, íconos SVG).
 
 ---
 
@@ -623,6 +624,35 @@ Todas las animaciones sirven un propósito funcional. No hay animaciones decorat
 - **Sin jerga técnica** en mensajes de usuario. Los logs técnicos van en consola, no en UI.
 - **Mayúsculas de título** solo en navegación principal y headings de página. El resto en sentence case.
 
+### Caracteres prohibidos en el frontend
+
+Las siguientes reglas aplican a **todo texto renderizado al usuario** (views PHP, plantillas de email, atributos `alt`/`title`/`aria-label`, strings de JS expuestas en la UI, mensajes flash, banners, etc.). NO aplican a comentarios de código ni a logs técnicos.
+
+| Carácter | Code point | Estado | Reemplazo recomendado |
+|----------|------------|--------|------------------------|
+| `—` em-dash (guion largo) | U+2014 | **Prohibido** | Reescribir la frase, o usar `:` (dos puntos), `·` (middle dot U+00B7), `-` (hyphen-minus) según contexto |
+| Emojis (🎉 ✅ ⚠️ ❌ etc.) | varios | **Prohibido** | Usar íconos SVG del sistema (Lucide/Heroicons) con `aria-label` o `aria-hidden` según semántica |
+
+**Por qué:**
+- El em-dash es ambiguo, no se puede teclear consistentemente y rompe con el tono claro y directo del copy. Si necesitas una pausa fuerte, usa dos oraciones cortas.
+- Los emojis varían según sistema operativo, fuente y versión de Unicode. Rompen la consistencia visual del design system y dependen de fuentes externas no controladas. Los íconos SVG son escalables, accesibles, color-token-friendly y deterministas.
+
+**Reglas de aplicación:**
+- Para valores vacíos en tablas (placeholder de "sin dato"), usar `-` (hyphen-minus) o dejar la celda vacía con estilo `text-muted`. Nunca `—`.
+- Para separadores decorativos entre nombre y descripción en labels/listas, usar `·` (middle dot) o reestructurar con `<span>` y CSS spacing. Nunca `—`.
+- Para indicadores de estado (éxito, error, advertencia), usar componentes `badge` o `banner` con el ícono SVG correspondiente. Nunca emoji.
+- En select options, evitar adornos textuales (`— Sin asignar —`). Escribir el texto plano: `Sin asignar`.
+
+**Cómo verificar antes de hacer merge:**
+
+```bash
+# Detecta em-dashes en views (debe regresar 0 líneas)
+grep -rn "—" app/Modules/*/Views/
+
+# Detecta emojis comunes en views (debe regresar 0 líneas)
+grep -rnE "[😀-🙏✅❌⚠️🎉]" app/Modules/*/Views/
+```
+
 ---
 
 ## 13. Variables CSS — referencia completa
@@ -749,13 +779,15 @@ Todas las animaciones sirven un propósito funcional. No hay animaciones decorat
 
 ## 14. Qué NO hacer
 
-- ❌ Valores hardcoded en CSS. Siempre tokens.
-- ❌ Más de 1 botón `primary` por vista.
-- ❌ `outline: none` sin `box-shadow` de reemplazo.
-- ❌ Sombras decorativas donde el borde es suficiente.
-- ❌ Gradientes en fondos de página o cards.
-- ❌ Paleta de colores que no proviene de los tokens.
-- ❌ Font-size menor de 12px en interfaz real.
-- ❌ Animaciones en `prefers-reduced-motion`.
-- ❌ Cards sin suficiente breathing room — mínimo `--space-4` de padding.
-- ❌ Texto de error en color rojo puro (`#FF0000`) — usa `--color-critical-default`.
+- Valores hardcoded en CSS. Siempre tokens.
+- Más de 1 botón `primary` por vista.
+- `outline: none` sin `box-shadow` de reemplazo.
+- Sombras decorativas donde el borde es suficiente.
+- Gradientes en fondos de página o cards.
+- Paleta de colores que no proviene de los tokens.
+- Font-size menor de 12px en interfaz real.
+- Animaciones en `prefers-reduced-motion`.
+- Cards sin suficiente breathing room: mínimo `--space-4` de padding.
+- Texto de error en color rojo puro (`#FF0000`): usa `--color-critical-default`.
+- **Em-dashes (`—`) en cualquier texto renderizado al usuario.** Reescribir la frase o usar `:`, `·`, `-` (ver §12).
+- **Emojis en la interfaz.** Usar íconos SVG (ver §7 y §12).

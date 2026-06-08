@@ -58,7 +58,7 @@ $old    = fn(string $key, mixed $default = '') => old($key, $isEdit ? ($role[$ke
                   <?= in_array((string) $module['id'], array_map('strval', $selectedModuleIds), true) ? 'checked' : '' ?>>
                 <span class="font-medium"><?= esc($module['name']) ?></span>
                 <?php if ($module['description']): ?>
-                  <span class="text-muted text-sm">— <?= esc($module['description']) ?></span>
+                  <span class="text-muted text-sm">· <?= esc($module['description']) ?></span>
                 <?php endif; ?>
               </label>
             <?php endforeach; ?>

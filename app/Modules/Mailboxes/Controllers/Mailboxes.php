@@ -2,30 +2,30 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Buzones\Controllers;
+namespace App\Modules\Mailboxes\Controllers;
 
 use App\Controllers\BaseController;
 
-class Buzones extends BaseController
+class Mailboxes extends BaseController
 {
-    private function svc(): \App\Modules\Buzones\Services\BuzonesService
+    private function svc(): \App\Modules\Mailboxes\Services\MailboxesService
     {
-        return service('buzonesService');
+        return service('mailboxesService');
     }
 
     // -----------------------------------------------------------------------
-    // Index — HTML shell; data loaded via AJAX
+    // Index: HTML shell, data loaded via AJAX
     // -----------------------------------------------------------------------
 
     public function index(): string
     {
-        return view('App\Modules\Buzones\Views\buzones\index', [
+        return view('App\Modules\Mailboxes\Views\mailboxes\index', [
             'pageTitle' => 'Buzones de correo',
         ]);
     }
 
     // -----------------------------------------------------------------------
-    // AJAX — data endpoints (return JSON)
+    // AJAX data endpoints (return JSON)
     // -----------------------------------------------------------------------
 
     public function getData(): \CodeIgniter\HTTP\ResponseInterface
@@ -57,7 +57,7 @@ class Buzones extends BaseController
     }
 
     // -----------------------------------------------------------------------
-    // AJAX — mutations (return JSON)
+    // AJAX mutations (return JSON)
     // -----------------------------------------------------------------------
 
     public function create(): \CodeIgniter\HTTP\ResponseInterface
@@ -148,11 +148,11 @@ class Buzones extends BaseController
 
         if (! $result->success) {
             session()->setFlashdata('error', $result->message);
-            return redirect()->to(route_to('buzones.index'));
+            return redirect()->to(route_to('mailboxes.index'));
         }
 
         $csv      = $this->svc()->exportCsv($result->data);
-        $filename = 'buzones_' . date('Y-m-d_His') . '.csv';
+        $filename = 'mailboxes_' . date('Y-m-d_His') . '.csv';
 
         return $this->response
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
@@ -166,8 +166,8 @@ class Buzones extends BaseController
 
     public function settings(): string
     {
-        return view('App\Modules\Buzones\Views\buzones\settings', [
-            'pageTitle' => 'Buzones — Configuración',
+        return view('App\Modules\Mailboxes\Views\mailboxes\settings', [
+            'pageTitle' => 'Configuración de buzones',
             'settings'  => $this->svc()->getSettings(),
         ]);
     }
@@ -175,7 +175,7 @@ class Buzones extends BaseController
     public function saveSettings(): \CodeIgniter\HTTP\ResponseInterface
     {
         if (! $this->request->is('post')) {
-            return redirect()->to(route_to('buzones.settings'));
+            return redirect()->to(route_to('mailboxes.settings'));
         }
 
         $data   = $this->request->getPost();
@@ -187,7 +187,7 @@ class Buzones extends BaseController
             session()->setFlashdata('error', $result->message);
         }
 
-        return redirect()->to(route_to('buzones.settings'));
+        return redirect()->to(route_to('mailboxes.settings'));
     }
 
     public function testConnection(): \CodeIgniter\HTTP\ResponseInterface

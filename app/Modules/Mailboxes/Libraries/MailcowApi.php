@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Buzones\Libraries;
+namespace App\Modules\Mailboxes\Libraries;
 
 class MailcowApi
 {

@@ -7,17 +7,18 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
 
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title">Buzones — Configuración</h1>
+    <h1 class="page-title">Configuración de buzones</h1>
     <p class="page-subtitle">Conexión con la instancia Mailcow</p>
   </div>
   <div class="page-actions">
-    <a href="<?= route_to('buzones.index') ?>" class="btn btn-secondary">← Volver a buzones</a>
+    <a href="<?= route_to('mailboxes.index') ?>" class="btn btn-secondary">← Volver a buzones</a>
   </div>
 </div>
 
-<div style="max-width:640px; display:flex; flex-direction:column; gap:var(--space-4);">
+<div style="max-width:640px; display:flex; flex-direction:column; gap:var(--space-6);">
 
-  <form action="<?= route_to('buzones.save-settings') ?>" method="post" id="settings-form">
+  <form action="<?= route_to('mailboxes.save-settings') ?>" method="post" id="settings-form"
+        style="display:flex; flex-direction:column; gap:var(--space-4);">
     <?= csrf_field() ?>
 
     <!-- Connection -->
@@ -55,7 +56,7 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
                      <?= ($settings['mailcow_verify_ssl'] ?? '1') === '1' ? 'checked' : '' ?>>
               <span>
                 <span class="font-medium">Verificar certificado SSL</span>
-                <span class="text-muted text-sm"> — Desactivar solo si usas certificado autofirmado</span>
+                <span class="text-muted text-sm">. Desactivar solo si usas certificado autofirmado.</span>
               </span>
             </label>
           </div>
@@ -81,7 +82,7 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
     </div>
 
     <div style="display:flex; justify-content:flex-end; gap:var(--space-2);">
-      <a href="<?= route_to('buzones.index') ?>" class="btn btn-secondary">Cancelar</a>
+      <a href="<?= route_to('mailboxes.index') ?>" class="btn btn-secondary">Cancelar</a>
       <button type="submit" class="btn btn-primary" data-loading-text="Guardando…">Guardar configuración</button>
     </div>
   </form>
@@ -123,7 +124,7 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
     result.style.display = 'none';
 
     try {
-      const res = await fetch('<?= base_url('buzones/test-connection') ?>', {
+      const res = await fetch('<?= base_url('mailboxes/test-connection') ?>', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

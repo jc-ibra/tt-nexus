@@ -66,7 +66,7 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
                 <?= in_array((string) $role['id'], array_map('strval', $selectedRoleIds), true) ? 'checked' : '' ?>>
               <span><?= esc($role['name']) ?></span>
               <?php if ($role['description']): ?>
-                <span class="text-muted text-sm">— <?= esc($role['description']) ?></span>
+                <span class="text-muted text-sm">· <?= esc($role['description']) ?></span>
               <?php endif; ?>
             </label>
           <?php endforeach; ?>

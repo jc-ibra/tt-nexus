@@ -74,7 +74,7 @@ $selectedIds = array_map('strval', $selectedIds);
                 <span>
                   <span class="font-medium"><?= esc($list['name']) ?></span>
                   <?php if ($list['description']): ?>
-                    <span class="text-muted text-sm"> — <?= esc($list['description']) ?></span>
+                    <span class="text-muted text-sm"> · <?= esc($list['description']) ?></span>
                   <?php endif; ?>
                 </span>
               </label>
@@ -98,7 +98,7 @@ $selectedIds = array_map('strval', $selectedIds);
                    <?= $old('priority', 3) == 1 ? 'checked' : '' ?>>
             <span>
               <span class="font-medium">Marcar como prioridad alta</span>
-              <span class="text-muted text-sm"> — Agrega cabeceras de alta prioridad al correo</span>
+              <span class="text-muted text-sm"> · Agrega cabeceras de alta prioridad al correo</span>
             </span>
           </label>
           <label class="field-check">
@@ -106,7 +106,7 @@ $selectedIds = array_map('strval', $selectedIds);
                    <?= $old('request_read_receipt', 0) == 1 ? 'checked' : '' ?>>
             <span>
               <span class="font-medium">Solicitar confirmación de apertura</span>
-              <span class="text-muted text-sm"> — Inserta un píxel de rastreo en el correo</span>
+              <span class="text-muted text-sm"> · Inserta un píxel de rastreo en el correo</span>
             </span>
           </label>
         </div>

@@ -11,15 +11,15 @@
 <div class="grid-3">
   <div class="stat-card">
     <p class="stat-label">Módulos activos</p>
-    <p class="stat-value">—</p>
+    <p class="stat-value">-</p>
   </div>
   <div class="stat-card">
     <p class="stat-label">Usuarios</p>
-    <p class="stat-value">—</p>
+    <p class="stat-value">-</p>
   </div>
   <div class="stat-card">
     <p class="stat-label">Comunicados enviados</p>
-    <p class="stat-value">—</p>
+    <p class="stat-value">-</p>
   </div>
 </div>
 

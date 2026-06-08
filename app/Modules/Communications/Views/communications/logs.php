@@ -76,11 +76,11 @@
             }; ?>
           </td>
           <td class="text-muted text-sm">
-            <?= $log['sent_at'] ? date('d/m/Y H:i', strtotime($log['sent_at'])) : '—' ?>
+            <?= $log['sent_at'] ? date('d/m/Y H:i', strtotime($log['sent_at'])) : '-' ?>
           </td>
           <?php if ($communication['request_read_receipt'] ?? 0): ?>
           <td class="text-muted text-sm">
-            <?= $log['opened_at'] ? date('d/m/Y H:i', strtotime($log['opened_at'])) : '—' ?>
+            <?= $log['opened_at'] ? date('d/m/Y H:i', strtotime($log['opened_at'])) : '-' ?>
           </td>
           <?php endif; ?>
           <td class="text-sm" style="color:var(--color-critical-default)">

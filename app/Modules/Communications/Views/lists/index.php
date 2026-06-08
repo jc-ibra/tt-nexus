@@ -41,7 +41,7 @@
         <?php foreach ($lists as $list): ?>
         <tr>
           <td class="font-medium"><?= esc($list['name']) ?></td>
-          <td class="text-muted"><?= esc($list['description'] ?? '—') ?></td>
+          <td class="text-muted"><?= esc($list['description'] ?? '-') ?></td>
           <td>
             <span class="badge badge-info"><?= (int) $list['recipient_count'] ?></span>
           </td>

@@ -33,27 +33,60 @@ Each module is a self-contained unit under `app/Modules/`. A module owns:
 
 ```
 app/Modules/ModuleName/
-  Config/          ← module-level config (optional)
-  Controllers/     ← HTTP controllers + API controllers
+  Config/          (module-level config, optional)
+  Controllers/     (HTTP controllers + API controllers in Api/)
   Database/
-    Migrations/    ← timestamped migration files
-    Seeders/       ← initial/reference data
-  Models/          ← CI4 Model subclasses
-  Services/        ← business logic classes
-  Commands/        ← spark CLI commands (if needed)
-  Views/           ← server-rendered PHP templates
-  Routes.php       ← route declarations for this module
+    Migrations/    (timestamped migration files)
+    Seeders/       (initial/reference data + module registration)
+  Libraries/       (third-party API clients, integrations, optional)
+  Models/          (CI4 Model subclasses)
+  Services/        (business logic classes)
+  Commands/        (spark CLI commands, optional)
+  Views/           (server-rendered PHP templates, in a subfolder matching module key)
+  Routes.php       (route declarations for this module)
 ```
 
-Module namespace registered in `app/Config/Autoload.php`:
-```php
-'App\Modules\ModuleName' => APPPATH . 'Modules/ModuleName',
-```
+### Naming (load-bearing)
 
-Routes loaded in `app/Config/Routes.php`:
-```php
-require APPPATH . 'Modules/ModuleName/Routes.php';
-```
+**All module identifiers are in English and must be homologous across the platform.** See `CONVENTIONS.md §2.1` for the full table mapping folder, namespace, key, URL prefix, controller, service, model, DB table, and sidebar key. Spanish (or any localized) text appears only in the `modules.name` display column and user-facing copy, never in code, URLs, or schema.
+
+### Wiring a new module
+
+A module is wired into the platform through five touch points. All five must use the same identifier (see CONVENTIONS.md §2.1 for the full table).
+
+1. **Autoload** (`app/Config/Autoload.php`): register the namespace.
+   ```php
+   'App\Modules\Mailboxes' => APPPATH . 'Modules/Mailboxes',
+   ```
+
+2. **Routes** (`app/Config/Routes.php`): require the module's `Routes.php`.
+   ```php
+   require APPPATH . 'Modules/Mailboxes/Routes.php';
+   ```
+
+3. **Services** (`app/Config/Services.php`): register the module's primary service for DI via `service('<name>Service')`.
+   ```php
+   public static function mailboxesService(bool $getShared = true): MailboxesService { ... }
+   ```
+
+4. **Module registration** (module seeder): insert the module into the `modules` table and grant SuperAdmin access via `role_module`. The seeder lives at `app/Modules/<Folder>/Database/Seeders/<Folder>ModuleSeeder.php` and runs via `php spark db:seed App\Modules\<Folder>\Database\Seeders\<Folder>ModuleSeeder`.
+
+5. **Sidebar** (`app/Modules/Core/Views/partials/sidebar.php`): add an entry to `$moduleIcons` and (optionally) `$moduleSubnav` keyed by the module key.
+
+### Module checklist (PR review)
+
+When reviewing a new module PR, verify:
+
+- [ ] Folder name is `PascalCase` English plural noun.
+- [ ] All PHP files declare the matching `namespace App\Modules\<Folder>\...`.
+- [ ] `modules.key`, `route_base`, URL prefix, filter argument, and view folder all use the same lowercase English string.
+- [ ] `Routes.php` applies both `auth` and `module_access:<key>` filters to every web route group.
+- [ ] Every web action has a mirrored API endpoint under `/api/v1/<key>/...`.
+- [ ] Migrations live under `app/Modules/<Folder>/Database/Migrations/` and use timestamped filenames.
+- [ ] A `<Folder>ModuleSeeder.php` registers the module and links it to SuperAdmin.
+- [ ] Autoload, Services container, Routes loader, and sidebar all reference the module.
+- [ ] Postman collection updated with the new endpoints (see §7).
+- [ ] No `buzones`-style mismatch: a single `grep -rni "<key>" app/` returns every file that should reference it.
 
 ---
 

@@ -70,7 +70,7 @@ $selectedIds     = array_map('strval', $selectedIds);
                      <?= in_array((string) $r['id'], $selectedIds, true) ? 'checked' : '' ?>>
               <span>
                 <span class="font-medium"><?= esc($r['name']) ?></span>
-                <span class="text-muted text-sm"> — <?= esc($r['email']) ?></span>
+                <span class="text-muted text-sm"> · <?= esc($r['email']) ?></span>
                 <?php if ($r['area']): ?><span class="badge badge-neutral" style="margin-left:var(--space-1)"><?= esc($r['area']) ?></span><?php endif; ?>
               </span>
             </label>

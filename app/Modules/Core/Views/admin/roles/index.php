@@ -40,7 +40,7 @@
         <?php foreach ($roles as $role): ?>
         <tr>
           <td class="font-medium"><?= esc($role['name']) ?></td>
-          <td class="text-muted"><?= esc($role['description'] ?? '—') ?></td>
+          <td class="text-muted"><?= esc($role['description'] ?? '-') ?></td>
           <td>
             <?php if ($role['status'] === 'active'): ?>
               <span class="badge badge-success">Activo</span>

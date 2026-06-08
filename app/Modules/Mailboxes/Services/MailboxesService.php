@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Buzones\Services;
+namespace App\Modules\Mailboxes\Services;
 
-use App\Modules\Buzones\Libraries\MailcowApi;
-use App\Modules\Buzones\Models\BuzonesSettingsModel;
+use App\Modules\Mailboxes\Libraries\MailcowApi;
+use App\Modules\Mailboxes\Models\MailboxesSettingsModel;
 use App\Modules\Core\Services\ServiceResult;
 
-class BuzonesService
+class MailboxesService
 {
-    private BuzonesSettingsModel $settings;
+    private MailboxesSettingsModel $settings;
     private ?MailcowApi $api = null;
 
-    public function __construct(BuzonesSettingsModel $settings)
+    public function __construct(MailboxesSettingsModel $settings)
     {
         $this->settings = $settings;
     }
@@ -56,7 +56,7 @@ class BuzonesService
         $this->settings->setMany($clean);
         $this->api = null; // reset cached instance
 
-        log_message('info', '[Buzones] Settings updated by user_id=' . session()->get('user_id'));
+        log_message('info', '[Mailboxes] Settings updated by user_id=' . session()->get('user_id'));
 
         return ServiceResult::ok(null, 'Configuración guardada correctamente.');
     }
@@ -121,7 +121,7 @@ class BuzonesService
 
         $domains = is_array($result['data']) ? $result['data'] : [];
         return ServiceResult::ok(array_map(fn($d) => [
-            'domain'      => $d['domain'] ?? '',
+            'domain'      => $d['domain_name'] ?? $d['domain'] ?? '',
             'description' => $d['description'] ?? '',
             'mailboxes'   => $d['mboxes_in_domain'] ?? 0,
         ], $domains));
@@ -151,7 +151,7 @@ class BuzonesService
         }
 
         $email = $payload['local_part'] . '@' . $payload['domain'];
-        log_message('info', "[Buzones] Mailbox created: {$email} by user_id=" . session()->get('user_id'));
+        log_message('info', "[Mailboxes] Mailbox created: {$email} by user_id=" . session()->get('user_id'));
 
         return ServiceResult::ok(null, "Buzón {$email} creado correctamente.");
     }
@@ -187,7 +187,7 @@ class BuzonesService
             return ServiceResult::fail($result['error']);
         }
 
-        log_message('info', "[Buzones] Mailbox edited: {$email} by user_id=" . session()->get('user_id'));
+        log_message('info', "[Mailboxes] Mailbox edited: {$email} by user_id=" . session()->get('user_id'));
 
         return ServiceResult::ok(null, "Buzón {$email} actualizado correctamente.");
     }
@@ -205,7 +205,7 @@ class BuzonesService
         }
 
         $count = count($emails);
-        log_message('info', "[Buzones] Deleted {$count} mailbox(es): " . implode(', ', $emails) . ' by user_id=' . session()->get('user_id'));
+        log_message('info', "[Mailboxes] Deleted {$count} mailbox(es): " . implode(', ', $emails) . ' by user_id=' . session()->get('user_id'));
 
         return ServiceResult::ok(null, "{$count} buzón(es) eliminado(s) correctamente.");
     }
@@ -219,7 +219,7 @@ class BuzonesService
         }
 
         $state = $active ? 'activado' : 'desactivado';
-        log_message('info', "[Buzones] Mailbox {$state}: {$email} by user_id=" . session()->get('user_id'));
+        log_message('info', "[Mailboxes] Mailbox {$state}: {$email} by user_id=" . session()->get('user_id'));
 
         return ServiceResult::ok(['active' => $active], "Buzón {$email} {$state}.");
     }

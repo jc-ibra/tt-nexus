@@ -1,4 +1,6 @@
-# Módulo Buzones — Integración Mailcow
+# Módulo Mailboxes (Buzones): integración Mailcow
+
+> **Nota de naming.** El módulo se llama `Mailboxes` en código (folder, namespace, URL, key y tabla DB). El nombre **Buzones** es solo el display en UI (sidebar y headings). Ver `CONVENTIONS.md §2.1`.
 
 ## Configuración de la API Key en Mailcow
 
@@ -46,25 +48,32 @@ Base URL: `{MAILCOW_URL}/api/v1/`
 
 ## Permisos de acceso en tt-nexus
 
-El módulo `buzones` requiere que el rol del usuario esté vinculado al módulo en la tabla `role_module`. Por defecto, solo **SuperAdmin** tiene acceso tras ejecutar el seeder.
+El módulo `mailboxes` requiere que el rol del usuario esté vinculado al módulo en la tabla `role_module`. Por defecto, solo **SuperAdmin** tiene acceso tras ejecutar el seeder.
 
 Para dar acceso a otro rol:
 ```sql
 INSERT INTO role_module (role_id, module_id)
 SELECT r.id, m.id
 FROM roles r, modules m
-WHERE r.name = 'NombreRol' AND m.key = 'buzones';
+WHERE r.name = 'NombreRol' AND m.key = 'mailboxes';
 ```
 
 ## Ejecutar migración y seeder
 
 ```bash
-# Migración (crea tabla buzones_settings)
-php spark migrate -n "App\Modules\Buzones"
+# Migración (crea tabla mailboxes_settings)
+php spark migrate -n "App\Modules\Mailboxes"
 
 # Seeder (registra el módulo y otorga acceso a SuperAdmin)
-php spark db:seed App\Modules\Buzones\Database\Seeders\BuzonesModuleSeeder
+php spark db:seed App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder
 ```
+
+> Si ya habías corrido la migración anterior con el nombre `buzones_settings`, primero debes:
+> ```sql
+> DROP TABLE IF EXISTS buzones_settings;
+> DELETE FROM modules WHERE `key` = 'buzones';
+> ```
+> Luego vuelve a correr `php spark migrate` y el seeder `MailboxesModuleSeeder`.
 
 ## Troubleshooting
 
@@ -80,11 +89,11 @@ php spark db:seed App\Modules\Buzones\Database\Seeders\BuzonesModuleSeeder
 - Si usas HTTPS con certificado autofirmado, desactiva "Verificar certificado SSL" en la configuración.
 - Revisa los logs de la aplicación: `tail -f writable/logs/log-*.log`
 
-### La tabla buzones_settings no existe
-- Ejecuta la migración: `php spark migrate -n "App\Modules\Buzones"`
+### La tabla mailboxes_settings no existe
+- Ejecuta la migración: `php spark migrate -n "App\Modules\Mailboxes"`
 
 ### El módulo no aparece en el menú
-- Ejecuta el seeder: `php spark db:seed App\Modules\Buzones\Database\Seeders\BuzonesModuleSeeder`
+- Ejecuta el seeder: `php spark db:seed App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder`
 - Verifica que el usuario tenga un rol con acceso al módulo (tabla `role_module`).
 
 ### Las operaciones de escritura fallan pero el listado funciona

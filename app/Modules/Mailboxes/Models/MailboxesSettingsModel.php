@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Buzones\Models;
+namespace App\Modules\Mailboxes\Models;
 
 use CodeIgniter\Database\BaseConnection;
 
-class BuzonesSettingsModel
+class MailboxesSettingsModel
 {
     private BaseConnection $db;
 
@@ -17,13 +17,13 @@ class BuzonesSettingsModel
 
     public function get(string $key, string $default = ''): string
     {
-        $row = $this->db->table('buzones_settings')->where('key', $key)->get()->getRow();
+        $row = $this->db->table('mailboxes_settings')->where('key', $key)->get()->getRow();
         return $row ? (string) $row->value : $default;
     }
 
     public function getAll(): array
     {
-        $rows = $this->db->table('buzones_settings')->get()->getResultArray();
+        $rows = $this->db->table('mailboxes_settings')->get()->getResultArray();
         $out  = [];
         foreach ($rows as $row) {
             $out[$row['key']] = $row['value'];
@@ -34,15 +34,15 @@ class BuzonesSettingsModel
     public function set(string $key, string $value): void
     {
         $now      = date('Y-m-d H:i:s');
-        $existing = $this->db->table('buzones_settings')->where('key', $key)->countAllResults();
+        $existing = $this->db->table('mailboxes_settings')->where('key', $key)->countAllResults();
 
         if ($existing) {
-            $this->db->table('buzones_settings')->where('key', $key)->update([
+            $this->db->table('mailboxes_settings')->where('key', $key)->update([
                 'value'      => $value,
                 'updated_at' => $now,
             ]);
         } else {
-            $this->db->table('buzones_settings')->insert([
+            $this->db->table('mailboxes_settings')->insert([
                 'key'        => $key,
                 'value'      => $value,
                 'updated_at' => $now,

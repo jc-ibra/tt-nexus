@@ -31,7 +31,7 @@
           <div class="field">
             <label class="field-label" for="list_id">Agregar a lista (opcional)</label>
             <select id="list_id" name="list_id" class="select">
-              <option value="">— Sin asignar a lista —</option>
+              <option value="">Sin asignar a lista</option>
               <?php
               $lists = (new \App\Modules\Communications\Models\RecipientListModel())->getAll();
               foreach ($lists as $list):

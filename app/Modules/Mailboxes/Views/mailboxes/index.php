@@ -7,11 +7,11 @@
     <p class="page-subtitle">Administración de buzones vía Mailcow</p>
   </div>
   <div class="page-actions">
-    <a href="<?= route_to('buzones.settings') ?>" class="btn btn-secondary">
+    <a href="<?= route_to('mailboxes.settings') ?>" class="btn btn-secondary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
       Ajustes
     </a>
-    <a href="<?= route_to('buzones.export') ?>" class="btn btn-secondary" id="btn-export">
+    <a href="<?= route_to('mailboxes.export') ?>" class="btn btn-secondary" id="btn-export">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Exportar CSV
     </a>
@@ -338,7 +338,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
     hideError();
 
     try {
-      const data = await apiFetch('buzones/data');
+      const data = await apiFetch('mailboxes/data');
       if (! data.success) {
         showError(data.error || 'Error al cargar los buzones.');
         showLoader(false);
@@ -353,19 +353,31 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   }
 
   async function loadDomains(selectEl) {
+    selectEl.innerHTML = '<option value="">Cargando…</option>';
     try {
-      const data = await apiFetch('buzones/domains');
-      if (data.success && data.data.length) {
-        selectEl.innerHTML = data.data.map(d =>
-          `<option value="${escHtml(d.domain)}">${escHtml(d.domain)}</option>`
-        ).join('');
-
-        // Also update the domain filter dropdown
-        const filterDomain = document.getElementById('filter-domain');
-        filterDomain.innerHTML = '<option value="">Todos los dominios</option>' +
-          data.data.map(d => `<option value="${escHtml(d.domain)}">${escHtml(d.domain)}</option>`).join('');
+      const data = await apiFetch('mailboxes/domains');
+      if (! data.success) {
+        selectEl.innerHTML = '<option value="">Error al cargar dominios</option>';
+        toast(data.error || 'No se pudieron cargar los dominios.', 'error');
+        return;
       }
-    } catch (e) { /* ignore */ }
+      const domains = (data.data || []).filter(d => d.domain);
+      if (! domains.length) {
+        selectEl.innerHTML = '<option value="">Sin dominios disponibles</option>';
+        return;
+      }
+      selectEl.innerHTML = domains.map(d =>
+        `<option value="${escHtml(d.domain)}">${escHtml(d.domain)}</option>`
+      ).join('');
+
+      // Also update the domain filter dropdown
+      const filterDomain = document.getElementById('filter-domain');
+      filterDomain.innerHTML = '<option value="">Todos los dominios</option>' +
+        domains.map(d => `<option value="${escHtml(d.domain)}">${escHtml(d.domain)}</option>`).join('');
+    } catch (e) {
+      selectEl.innerHTML = '<option value="">Error al cargar dominios</option>';
+      toast('No se pudo conectar para obtener los dominios.', 'error');
+    }
   }
 
   // ----------------------------------------------------------------
@@ -447,7 +459,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
     const barClass  = pct >= 90 ? 'critical' : pct >= 75 ? 'warning' : 'ok';
     const lastLogin = m.last_imap_login
       ? new Date(m.last_imap_login * 1000).toLocaleDateString('es-MX', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
-      : '—';
+      : '-';
     const checked   = selectedEmails.has(m.username) ? 'checked' : '';
 
     return `<tr>
@@ -571,7 +583,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
     const active = e.target.checked;
     e.target.disabled = true;
 
-    const res = await postJSON('buzones/toggle', { email, active });
+    const res = await postJSON('mailboxes/toggle', { email, active });
     e.target.disabled = false;
 
     if (res.success) {
@@ -590,7 +602,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   document.getElementById('btn-bulk-activate').addEventListener('click', async () => {
     const emails = [...selectedEmails];
     for (const email of emails) {
-      await postJSON('buzones/toggle', { email, active: true });
+      await postJSON('mailboxes/toggle', { email, active: true });
     }
     emails.forEach(e => { const m = allMailboxes.find(x => x.username === e); if (m) m.active = true; });
     selectedEmails.clear();
@@ -601,7 +613,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   document.getElementById('btn-bulk-deactivate').addEventListener('click', async () => {
     const emails = [...selectedEmails];
     for (const email of emails) {
-      await postJSON('buzones/toggle', { email, active: false });
+      await postJSON('mailboxes/toggle', { email, active: false });
     }
     emails.forEach(e => { const m = allMailboxes.find(x => x.username === e); if (m) m.active = false; });
     selectedEmails.clear();
@@ -650,7 +662,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
       active:     fd.get('active') ? 1 : 0,
     };
 
-    const res = await postJSON('buzones/create', body);
+    const res = await postJSON('mailboxes/create', body);
     btn.disabled = false;
 
     if (res.success) {
@@ -700,7 +712,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
       active:    fd.get('active') ? 1 : 0,
     };
 
-    const res = await postJSON('buzones/edit', body);
+    const res = await postJSON('mailboxes/edit', body);
     btn.disabled = false;
 
     if (res.success) {
@@ -731,7 +743,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
     const btn = document.getElementById('btn-delete-confirm');
     btn.disabled = true;
 
-    const res = await postJSON('buzones/delete', { emails: deleteTargets });
+    const res = await postJSON('mailboxes/delete', { emails: deleteTargets });
     btn.disabled = false;
 
     closeModal('modal-delete');

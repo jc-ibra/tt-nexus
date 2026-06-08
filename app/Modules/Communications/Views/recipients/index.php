@@ -66,7 +66,7 @@
         <tr>
           <td class="font-medium"><?= esc($r['name']) ?></td>
           <td class="text-muted"><?= esc($r['email']) ?></td>
-          <td><?= esc($r['area'] ?? '—') ?></td>
+          <td><?= esc($r['area'] ?? '-') ?></td>
           <td>
             <?php if ($r['status'] === 'active'): ?>
               <span class="badge badge-success">Activo</span>

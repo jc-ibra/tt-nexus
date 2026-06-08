@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Buzones\Controllers\Api;
+namespace App\Modules\Mailboxes\Controllers\Api;
 
 use App\Modules\Core\Controllers\Api\BaseApiController;
 
-class BuzonesApiController extends BaseApiController
+class MailboxesApiController extends BaseApiController
 {
-    private function svc(): \App\Modules\Buzones\Services\BuzonesService
+    private function svc(): \App\Modules\Mailboxes\Services\MailboxesService
     {
-        return service('buzonesService');
+        return service('mailboxesService');
     }
 
-    // GET /api/v1/buzones/mailboxes
+    // GET /api/v1/mailboxes/mailboxes
     public function index(): \CodeIgniter\HTTP\ResponseInterface
     {
         $result = $this->svc()->listMailboxes();
@@ -25,7 +25,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success($result->data);
     }
 
-    // GET /api/v1/buzones/mailboxes/{email}
+    // GET /api/v1/mailboxes/mailboxes/{email}
     public function show($email = null): \CodeIgniter\HTTP\ResponseInterface
     {
         if (empty($email)) {
@@ -41,7 +41,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success($result->data);
     }
 
-    // POST /api/v1/buzones/mailboxes
+    // POST /api/v1/mailboxes/mailboxes
     public function create(): \CodeIgniter\HTTP\ResponseInterface
     {
         $data   = (array) $this->request->getJSON(true);
@@ -54,7 +54,7 @@ class BuzonesApiController extends BaseApiController
         return $this->successCreated(['message' => $result->message]);
     }
 
-    // POST /api/v1/buzones/mailboxes/edit
+    // POST /api/v1/mailboxes/mailboxes/edit
     public function editMailbox(): \CodeIgniter\HTTP\ResponseInterface
     {
         $data  = (array) $this->request->getJSON(true);
@@ -73,7 +73,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success(['message' => $result->message]);
     }
 
-    // POST /api/v1/buzones/mailboxes/delete
+    // POST /api/v1/mailboxes/mailboxes/delete
     public function deleteMailboxes(): \CodeIgniter\HTTP\ResponseInterface
     {
         $data   = (array) $this->request->getJSON(true);
@@ -88,7 +88,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success(['message' => $result->message]);
     }
 
-    // POST /api/v1/buzones/mailboxes/toggle
+    // POST /api/v1/mailboxes/mailboxes/toggle
     public function toggleMailbox(): \CodeIgniter\HTTP\ResponseInterface
     {
         $data   = (array) $this->request->getJSON(true);
@@ -108,7 +108,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success(['message' => $result->message]);
     }
 
-    // GET /api/v1/buzones/domains
+    // GET /api/v1/mailboxes/domains
     public function domains(): \CodeIgniter\HTTP\ResponseInterface
     {
         $result = $this->svc()->getDomains();
@@ -120,7 +120,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success($result->data);
     }
 
-    // GET /api/v1/buzones/settings
+    // GET /api/v1/mailboxes/settings
     public function getSettings(): \CodeIgniter\HTTP\ResponseInterface
     {
         $settings = $this->svc()->getSettings();
@@ -131,7 +131,7 @@ class BuzonesApiController extends BaseApiController
         return $this->success($settings);
     }
 
-    // POST /api/v1/buzones/settings
+    // POST /api/v1/mailboxes/settings
     public function saveSettings(): \CodeIgniter\HTTP\ResponseInterface
     {
         $data   = (array) $this->request->getJSON(true);
