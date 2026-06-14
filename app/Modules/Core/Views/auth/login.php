@@ -15,7 +15,7 @@
         name="email"
         class="input <?= session()->getFlashdata('errors') ? 'is-error' : '' ?>"
         value="<?= esc(old('email')) ?>"
-        placeholder="correo@ibrastudio.com"
+        placeholder="Correo electrónico"
         autocomplete="email"
         required
       >
@@ -28,6 +28,7 @@
         id="password"
         name="password"
         class="input"
+        placeholder="Contraseña"
         autocomplete="current-password"
         required
       >

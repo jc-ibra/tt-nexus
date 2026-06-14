@@ -10,8 +10,9 @@
 <body>
 <div class="auth-shell">
   <div class="auth-card">
-    <div class="auth-logo">
-      <img src="<?= base_url('img/tt-icon.png') ?>" alt="tt-apps" style="width: 64px; height: 64px;">
+    <div class="auth-logo" style="background: #111827; border-radius: 12px 12px 0 0; margin: calc(-1 * var(--space-8)) calc(-1 * var(--space-8)) var(--space-6); padding: var(--space-6) var(--space-8); display: flex; align-items: center; justify-content: center; gap: var(--space-3);">
+      <img src="<?= base_url('img/tt-icon.png') ?>" alt="tt-apps" style="width: 52px; height: 52px;">
+      <span style="font-size: var(--text-2xl); font-weight: 700; color: #ffffff; letter-spacing: -0.01em;">Nexus</span>
     </div>
     <?= $this->include('App\Modules\Core\Views\partials\flash') ?>
     <?= $this->renderSection('content') ?>

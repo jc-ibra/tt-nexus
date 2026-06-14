@@ -11,7 +11,7 @@
   <div class="form-group">
     <div class="field">
       <label class="field-label" for="email">Correo electrónico <span class="required" aria-hidden="true">*</span></label>
-      <input type="email" id="email" name="email" class="input" placeholder="correo@ibrastudio.com" autocomplete="email" required>
+      <input type="email" id="email" name="email" class="input" placeholder="Correo electrónico" autocomplete="email" required>
     </div>
     <button type="submit" class="btn btn-primary w-full">Enviar enlace</button>
   </div>
