@@ -20,6 +20,16 @@ $routes->group('', ['namespace' => 'App\Modules\Core\Controllers'], function (Ro
 });
 
 // -----------------------------------------------------------------------
+// MFA (requires user_id in session but NOT mfa_verified)
+// -----------------------------------------------------------------------
+$routes->group('mfa', ['namespace' => 'App\Modules\Core\Controllers'], function (RouteCollection $routes): void {
+    $routes->get('setup',  'Mfa::setup',    ['as' => 'mfa.setup']);
+    $routes->post('setup', 'Mfa::activate', ['as' => 'mfa.activate']);
+    $routes->get('verify', 'Mfa::verify',   ['as' => 'mfa.verify']);
+    $routes->post('verify','Mfa::check',    ['as' => 'mfa.check']);
+});
+
+// -----------------------------------------------------------------------
 // Admin — Core (protected)
 // -----------------------------------------------------------------------
 $routes->group('admin', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => 'auth'], function (RouteCollection $routes): void {

@@ -12,8 +12,16 @@ class AuthFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null): mixed
     {
-        if (! session()->get('user_id')) {
+        $session = session();
+
+        if (! $session->get('user_id')) {
             return redirect()->to(site_url('login'))->with('error', 'Por favor inicia sesión.');
+        }
+
+        if (! $session->get('mfa_verified')) {
+            return $session->get('mfa_enabled')
+                ? redirect()->to(site_url('mfa/verify'))
+                : redirect()->to(site_url('mfa/setup'));
         }
 
         return null;

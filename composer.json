@@ -11,6 +11,7 @@
     },
     "require": {
         "php": "^8.2",
+        "chillerlan/php-qrcode": "^6.0",
         "codeigniter4/framework": "^4.7",
         "phpoffice/phppresentation": "^1.2",
         "phpoffice/phpspreadsheet": "^3.10"

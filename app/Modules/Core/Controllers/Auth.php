@@ -17,8 +17,15 @@ class Auth extends BaseController
 
     public function login(): string|\CodeIgniter\HTTP\RedirectResponse
     {
-        if (session()->get('user_id')) {
-            return redirect()->to(route_to('dashboard'));
+        $session = session();
+
+        if ($session->get('user_id')) {
+            if ($session->get('mfa_verified')) {
+                return redirect()->to(route_to('dashboard'));
+            }
+            return $session->get('mfa_enabled')
+                ? redirect()->to(site_url('mfa/verify'))
+                : redirect()->to(site_url('mfa/setup'));
         }
 
         return view('App\Modules\Core\Views\auth\login', ['pageTitle' => 'Iniciar sesión']);
@@ -39,7 +46,9 @@ class Auth extends BaseController
             return redirect()->back()->withInput()->with('errors', [$result->message]);
         }
 
-        return redirect()->to(route_to('dashboard'));
+        return $result->data['mfa_enabled']
+            ? redirect()->to(site_url('mfa/verify'))
+            : redirect()->to(site_url('mfa/setup'));
     }
 
     public function logout(): \CodeIgniter\HTTP\RedirectResponse

@@ -17,5 +17,6 @@
     <?= $this->renderSection('content') ?>
   </div>
 </div>
+<?= $this->renderSection('scripts') ?>
 </body>
 </html>

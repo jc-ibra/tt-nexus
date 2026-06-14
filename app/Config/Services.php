@@ -20,6 +20,12 @@ use App\Modules\Core\Services\AccessService;
 use App\Modules\Core\Services\AuthService;
 use App\Modules\Core\Services\RoleService;
 use App\Modules\Core\Services\UserService;
+use App\Modules\Employees\Models\EmployeeAreaModel;
+use App\Modules\Employees\Models\EmployeeDepartmentModel;
+use App\Modules\Employees\Models\EmployeeModel;
+use App\Modules\Employees\Models\EmployeePositionModel;
+use App\Modules\Employees\Services\EmployeeCatalogService;
+use App\Modules\Employees\Services\EmployeeService;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -107,5 +113,33 @@ class Services extends BaseService
         }
 
         return new MailerService();
+    }
+
+    public static function employeeService(bool $getShared = true): EmployeeService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('employeeService');
+        }
+
+        return new EmployeeService(
+            new EmployeeModel(),
+            new EmployeeAreaModel(),
+            new EmployeeDepartmentModel(),
+            new EmployeePositionModel(),
+            self::mailboxesService(),
+        );
+    }
+
+    public static function employeeCatalogService(bool $getShared = true): EmployeeCatalogService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('employeeCatalogService');
+        }
+
+        return new EmployeeCatalogService(
+            new EmployeeAreaModel(),
+            new EmployeeDepartmentModel(),
+            new EmployeePositionModel(),
+        );
     }
 }

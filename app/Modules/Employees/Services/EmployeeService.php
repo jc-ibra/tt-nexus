@@ -1,0 +1,278 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Employees\Services;
+
+use App\Modules\Core\Services\ServiceResult;
+use App\Modules\Employees\Models\EmployeeAreaModel;
+use App\Modules\Employees\Models\EmployeeDepartmentModel;
+use App\Modules\Employees\Models\EmployeeModel;
+use App\Modules\Employees\Models\EmployeePositionModel;
+use App\Modules\Mailboxes\Services\MailboxesService;
+use CodeIgniter\HTTP\Files\UploadedFile;
+
+class EmployeeService
+{
+    public function __construct(
+        private EmployeeModel           $model,
+        private EmployeeAreaModel       $areaModel,
+        private EmployeeDepartmentModel $departmentModel,
+        private EmployeePositionModel   $positionModel,
+        private MailboxesService        $mailboxesService,
+    ) {}
+
+    public function paginate(array $filters, int $perPage = 20, int $page = 1): array
+    {
+        return $this->model->paginateWithFilters($filters, $perPage, $page);
+    }
+
+    public function total(array $filters = []): int
+    {
+        return $this->model->countWithFilters($filters);
+    }
+
+    public function findById(int $id): ?array
+    {
+        return $this->model->findWithRelations($id);
+    }
+
+    public function findByEmail(string $email): ?array
+    {
+        return $this->model->findByEmail($email);
+    }
+
+    public function create(array $data): ServiceResult
+    {
+        $clean = $this->normalize($data);
+
+        $this->model->skipValidation(false);
+
+        if (! $this->model->insert($clean)) {
+            return ServiceResult::fail($this->model->errors());
+        }
+
+        $id       = (int) $this->model->getInsertID();
+        $employee = $this->findById($id);
+
+        $this->afterCreate($employee);
+
+        return ServiceResult::ok($employee, 'Empleado creado correctamente.');
+    }
+
+    public function update(int $id, array $data): ServiceResult
+    {
+        $current = $this->model->find($id);
+        if (! $current) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        $clean = $this->normalize($data, $current);
+
+        $this->model->skipValidation(false);
+
+        if (! $this->model->update($id, $clean)) {
+            return ServiceResult::fail($this->model->errors());
+        }
+
+        $employee = $this->findById($id);
+
+        $becameInactive  = (int) ($current['active'] ?? 1) === 1 && isset($clean['active']) && (int) $clean['active'] === 0;
+        $gotDischargeNow = empty($current['date_discharge']) && ! empty($clean['date_discharge']);
+
+        if ($becameInactive || $gotDischargeNow) {
+            $this->afterDeactivate($employee);
+        }
+
+        return ServiceResult::ok($employee, 'Empleado actualizado correctamente.');
+    }
+
+    public function destroy(int $id): ServiceResult
+    {
+        $employee = $this->model->find($id);
+        if (! $employee) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        $this->model->delete($id);
+
+        return ServiceResult::ok(null, 'Empleado eliminado correctamente.');
+    }
+
+    public function search(string $term, int $limit = 20, ?int $excludeId = null): array
+    {
+        return $this->model->search($term, $limit, $excludeId);
+    }
+
+    public function searchMailboxes(string $term, int $limit = 20): array
+    {
+        $result = $this->mailboxesService->listMailboxes();
+        if (! $result->success) {
+            return [];
+        }
+
+        $term     = strtolower(trim($term));
+        $matches  = [];
+        $rows     = is_array($result->data) ? $result->data : [];
+
+        foreach ($rows as $box) {
+            $username = strtolower((string) ($box['username'] ?? ''));
+            $name     = strtolower((string) ($box['name'] ?? ''));
+
+            if ($term === '' || str_contains($username, $term) || str_contains($name, $term)) {
+                $matches[] = [
+                    'username' => $box['username'] ?? '',
+                    'name'     => $box['name'] ?? '',
+                    'domain'   => $box['domain'] ?? '',
+                    'active'   => (bool) ($box['active'] ?? false),
+                ];
+            }
+
+            if (count($matches) >= $limit) {
+                break;
+            }
+        }
+
+        return $matches;
+    }
+
+    public function saveUploadedPhoto(int $id, UploadedFile $file): ServiceResult
+    {
+        $employee = $this->model->find($id);
+        if (! $employee) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        if (! $file->isValid() || $file->hasMoved()) {
+            return ServiceResult::fail('El archivo no es válido.');
+        }
+
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (! in_array($file->getMimeType(), $allowedMimes, true)) {
+            return ServiceResult::fail('Formato no permitido. Usa JPG, PNG o WEBP.');
+        }
+
+        if ($file->getSize() > 2 * 1024 * 1024) {
+            return ServiceResult::fail('El archivo excede el tamaño máximo de 2 MB.');
+        }
+
+        $dir = WRITEPATH . 'uploads/employees/' . $id;
+        if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
+            return ServiceResult::fail('No se pudo crear el directorio de subidas.');
+        }
+
+        // Remove previous photo if any
+        if (! empty($employee['photo'])) {
+            $previous = WRITEPATH . 'uploads/employees/' . $id . '/' . $employee['photo'];
+            if (is_file($previous)) {
+                @unlink($previous);
+            }
+        }
+
+        $ext      = $file->getExtension() ?: $file->guessExtension();
+        $filename = 'photo.' . $ext;
+
+        if (! $file->move($dir, $filename, true)) {
+            return ServiceResult::fail('No se pudo guardar la foto.');
+        }
+
+        $this->model->skipValidation(true)->update($id, ['photo' => $filename]);
+
+        return ServiceResult::ok(['photo' => $filename], 'Foto actualizada.');
+    }
+
+    public function getPhotoPath(int $id): ?string
+    {
+        $employee = $this->model->find($id);
+        if (! $employee || empty($employee['photo'])) {
+            return null;
+        }
+
+        $path = WRITEPATH . 'uploads/employees/' . $id . '/' . $employee['photo'];
+
+        return is_file($path) ? $path : null;
+    }
+
+    public function directReports(int $employeeId): array
+    {
+        return $this->model->directReports($employeeId);
+    }
+
+    /**
+     * Normalize incoming form/JSON data:
+     *   - cast numeric IDs to int or null
+     *   - cast checkboxes to 0/1
+     *   - strip empty optional strings to null
+     *   - resolve `has_mailbox` based on the explicit flag from the form
+     */
+    private function normalize(array $data, ?array $current = null): array
+    {
+        $clean = [];
+
+        $textFields = ['employee_number', 'name', 'lastname', 'email', 'email_secondary', 'telephone', 'cellphone', 'ext'];
+        foreach ($textFields as $f) {
+            if (array_key_exists($f, $data)) {
+                $value     = trim((string) ($data[$f] ?? ''));
+                $clean[$f] = $value === '' ? null : $value;
+            }
+        }
+
+        if (isset($clean['name']) && $clean['name'] === null) {
+            unset($clean['name']);
+        }
+
+        $intFields = ['position_id', 'department_id', 'area_id', 'parent_id'];
+        foreach ($intFields as $f) {
+            if (array_key_exists($f, $data)) {
+                $value = $data[$f];
+                $clean[$f] = ($value === '' || $value === null) ? null : (int) $value;
+            }
+        }
+
+        $dateFields = ['date_entry', 'date_discharge'];
+        foreach ($dateFields as $f) {
+            if (array_key_exists($f, $data)) {
+                $value = trim((string) ($data[$f] ?? ''));
+                $clean[$f] = $value === '' ? null : $value;
+            }
+        }
+
+        $boolFields = ['hide_emails', 'show_in_directory', 'active', 'has_mailbox'];
+        foreach ($boolFields as $f) {
+            if (array_key_exists($f, $data)) {
+                $clean[$f] = empty($data[$f]) ? 0 : 1;
+            }
+        }
+
+        return $clean;
+    }
+
+    // -----------------------------------------------------------------------
+    // Extension points for future Mailcow synchronization.
+    //
+    // These hooks are intentionally empty in this iteration. The intent is to
+    // give a single, well-known place where the mailbox provisioning and
+    // deactivation will be wired once we decide on the policy:
+    //
+    //   - afterCreate:    when a new employee whose email matches a mailbox
+    //                     (has_mailbox=1) is created, we may want to ensure
+    //                     the mailbox exists or refresh its name/quota.
+    //   - afterDeactivate: when an employee transitions to active=0 or a
+    //                     date_discharge is set, deactivate the associated
+    //                     Mailcow mailbox via MailboxesService::toggleMailbox()
+    //                     (NOT delete — that decision belongs to the policy).
+    //
+    // Do not call MailboxesService from here today; the user explicitly asked
+    // to leave this for a follow-up iteration.
+    // -----------------------------------------------------------------------
+
+    private function afterCreate(?array $employee): void
+    {
+        // TODO: future Mailcow sync — provision/refresh mailbox here.
+    }
+
+    private function afterDeactivate(?array $employee): void
+    {
+        // TODO: future Mailcow sync — deactivate mailbox here.
+    }
+}

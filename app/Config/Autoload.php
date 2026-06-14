@@ -43,6 +43,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\Communications'   => APPPATH . 'Modules/Communications',
         'App\Modules\KPIsOperativos'   => APPPATH . 'Modules/KPIsOperativos',
         'App\Modules\Mailboxes'        => APPPATH . 'Modules/Mailboxes',
+        'App\Modules\Employees'        => APPPATH . 'Modules/Employees',
     ];
 
     /**

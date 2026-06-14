@@ -43,12 +43,13 @@ class AuthService
 
         $throttler->remove($key);
 
-        session()->set([
-            'user_id'    => $user['id'],
-            'user_name'  => $user['name'],
-            'user_email' => $user['email'],
-        ]);
         session()->regenerate(true);
+        session()->set([
+            'user_id'     => $user['id'],
+            'user_name'   => $user['name'],
+            'user_email'  => $user['email'],
+            'mfa_enabled' => (bool) ($user['mfa_enabled'] ?? false),
+        ]);
 
         return ServiceResult::ok($user);
     }
@@ -85,6 +86,114 @@ class AuthService
         $emailSvc->send(false); // false = don't throw on failure in production
 
         return ServiceResult::ok(null, 'Si el correo existe, recibirás un enlace en breve.');
+    }
+
+    // -----------------------------------------------------------------------
+    // MFA / TOTP
+    // -----------------------------------------------------------------------
+
+    public function generateMfaSecret(): string
+    {
+        return $this->base32Encode(random_bytes(20));
+    }
+
+    public function getMfaOtpauthUrl(string $email, string $secret): string
+    {
+        $label  = rawurlencode('TT Nexus:' . $email);
+        $issuer = rawurlencode('TT Nexus');
+        return "otpauth://totp/{$label}?secret={$secret}&issuer={$issuer}&algorithm=SHA1&digits=6&period=30";
+    }
+
+    public function getMfaQrCodeDataUri(string $email, string $secret): string
+    {
+        $url     = $this->getMfaOtpauthUrl($email, $secret);
+        $options = new \chillerlan\QRCode\QROptions([
+            'outputType' => \chillerlan\QRCode\Output\QRMarkupSVG::class,
+            'imageBase64' => true,
+        ]);
+        return (new \chillerlan\QRCode\QRCode($options))->render($url);
+    }
+
+    public function verifyTotp(string $secret, string $code, int $discrepancy = 1): bool
+    {
+        $code    = str_pad(preg_replace('/\D/', '', $code), 6, '0', STR_PAD_LEFT);
+        $counter = (int) floor(time() / 30);
+        for ($i = -$discrepancy; $i <= $discrepancy; $i++) {
+            if (hash_equals($this->computeTotp($secret, $counter + $i), $code)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function enableMfa(int $userId, string $secret): void
+    {
+        $this->userModel->update($userId, [
+            'mfa_secret'  => $secret,
+            'mfa_enabled' => 1,
+        ]);
+    }
+
+    public function completeMfa(): void
+    {
+        session()->set('mfa_verified', true);
+    }
+
+    private function computeTotp(string $secret, int $counter): string
+    {
+        $key    = $this->base32Decode($secret);
+        $msg    = pack('N', 0) . pack('N', $counter);
+        $hash   = hash_hmac('sha1', $msg, $key, true);
+        $offset = ord($hash[19]) & 0x0f;
+        $code   = (
+            ((ord($hash[$offset])     & 0x7f) << 24) |
+            ((ord($hash[$offset + 1]) & 0xff) << 16) |
+            ((ord($hash[$offset + 2]) & 0xff) << 8)  |
+            (ord($hash[$offset + 3])  & 0xff)
+        ) % 1000000;
+        return str_pad((string) $code, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function base32Encode(string $bytes): string
+    {
+        $chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $output = '';
+        $buf    = 0;
+        $bits   = 0;
+        foreach (str_split($bytes) as $byte) {
+            $buf  = ($buf << 8) | ord($byte);
+            $bits += 8;
+            while ($bits >= 5) {
+                $bits   -= 5;
+                $output .= $chars[($buf >> $bits) & 31];
+            }
+        }
+        if ($bits > 0) {
+            $output .= $chars[($buf << (5 - $bits)) & 31];
+        }
+        return $output;
+    }
+
+    private function base32Decode(string $base32): string
+    {
+        $chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $base32 = strtoupper(preg_replace('/[^A-Z2-7]/', '', $base32));
+        $output = '';
+        $buf    = 0;
+        $bits   = 0;
+        foreach (str_split($base32) as $char) {
+            $val = strpos($chars, $char);
+            if ($val === false) {
+                continue;
+            }
+            $buf  = ($buf << 5) | $val;
+            $bits += 5;
+            if ($bits >= 8) {
+                $bits   -= 8;
+                $output .= chr(($buf >> $bits) & 0xff);
+            }
+        }
+        return $output;
     }
 
     public function resetPassword(string $token, string $password, string $passwordConfirm): ServiceResult
