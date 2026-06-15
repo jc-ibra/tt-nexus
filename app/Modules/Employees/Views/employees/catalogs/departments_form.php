@@ -49,12 +49,11 @@ $action = $isEdit ? route_to('employees.departments.update', $department['id']) 
           </select>
         </div>
       </div>
-
-      <div style="display:flex; gap:var(--space-2); justify-content:flex-end;">
-        <a href="<?= route_to('employees.departments.index') ?>" class="btn btn-secondary">Cancelar</a>
-        <button type="submit" class="btn btn-primary"><?= $isEdit ? 'Guardar cambios' : 'Crear departamento' ?></button>
-      </div>
     </form>
+  </div>
+  <div class="card-footer">
+    <a href="<?= route_to('employees.departments.index') ?>" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" form="" onclick="this.closest('.card').querySelector('form').submit()" class="btn btn-primary"><?= $isEdit ? 'Guardar cambios' : 'Crear departamento' ?></button>
   </div>
 </div>
 

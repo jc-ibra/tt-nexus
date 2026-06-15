@@ -1,0 +1,180 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Provisioning\Controllers;
+
+use App\Controllers\BaseController;
+use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
+use App\Modules\Provisioning\Models\ProvisioningLogModel;
+use App\Modules\Provisioning\Models\ProvisioningRetryQueueModel;
+use App\Modules\Provisioning\Models\ProvisioningSystemModel;
+use CodeIgniter\HTTP\ResponseInterface;
+
+class Provisioning extends BaseController
+{
+    public function index(): string
+    {
+        $systems  = (new ProvisioningSystemModel())->listAll();
+        $logModel = new ProvisioningLogModel();
+        $retries  = (new ProvisioningRetryQueueModel())
+            ->where('status', 'pending')
+            ->countAllResults();
+
+        $stats = [
+            'systems_total'  => count($systems),
+            'systems_active' => count(array_filter($systems, fn($s) => (int) $s['is_active'] === 1)),
+            'retries'        => $retries,
+            'last_errors'    => $logModel->where('status', 'error')->orderBy('created_at', 'DESC')->findAll(10),
+        ];
+
+        return view('App\Modules\Provisioning\Views\dashboard\index', [
+            'pageTitle' => 'Aprovisionamiento',
+            'systems'   => $systems,
+            'stats'     => $stats,
+        ]);
+    }
+
+    public function log(): string
+    {
+        $logModel = new ProvisioningLogModel();
+        $page     = max(1, (int) ($this->request->getGet('page') ?? 1));
+
+        $filters = [
+            'operation'   => $this->request->getGet('operation'),
+            'status'      => $this->request->getGet('status'),
+            'system_id'   => $this->request->getGet('system_id'),
+            'employee_id' => $this->request->getGet('employee_id'),
+        ];
+
+        return view('App\Modules\Provisioning\Views\log\index', [
+            'pageTitle' => 'Bitácora de aprovisionamiento',
+            'rows'      => $logModel->listRecent($filters, 50, $page),
+            'pager'     => $logModel->pager,
+            'filters'   => $filters,
+            'systems'   => (new ProvisioningSystemModel())->listAll(),
+        ]);
+    }
+
+    public function retries(): string
+    {
+        $retries = (new ProvisioningRetryQueueModel())->listAll();
+
+        return view('App\Modules\Provisioning\Views\log\retries', [
+            'pageTitle' => 'Cola de reintentos',
+            'rows'      => $retries,
+        ]);
+    }
+
+    public function runRetries(): ResponseInterface
+    {
+        $orch  = service('provisioningOrchestrator');
+        $stats = $orch->processDueRetries(50);
+
+        session()->setFlashdata('success', sprintf(
+            'Reintentos procesados: %d (éxito: %d, fallidos: %d, abandonados: %d).',
+            $stats['processed'], $stats['success'], $stats['failed'], $stats['abandoned'],
+        ));
+
+        return redirect()->to(route_to('provisioning.retries'));
+    }
+
+    public function retryOne(int $retryId): ResponseInterface
+    {
+        $orch   = service('provisioningOrchestrator');
+        $result = $orch->retryOne($retryId);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(route_to('provisioning.retries'));
+    }
+
+    // -----------------------------------------------------------------------
+    // Operations triggered from the employee detail page
+    // -----------------------------------------------------------------------
+
+    public function provisionEmployee(int $employeeId): ResponseInterface
+    {
+        $orch     = service('provisioningOrchestrator');
+        $password = (string) ($this->request->getPost('password') ?? '');
+        $result   = $orch->provisionEmployee($employeeId, $password !== '' ? $password : null);
+
+        $this->flashWithTemporaryPassword($result, 'Alta lanzada.');
+        return redirect()->to(base_url('empleados/' . $employeeId));
+    }
+
+    public function deprovisionEmployee(int $employeeId): ResponseInterface
+    {
+        $orch   = service('provisioningOrchestrator');
+        $result = $orch->deprovisionEmployee($employeeId);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(base_url('empleados/' . $employeeId));
+    }
+
+    public function changePasswordEmployee(int $employeeId): ResponseInterface
+    {
+        $password = (string) ($this->request->getPost('password') ?? '');
+        if ($password === '') {
+            session()->setFlashdata('error', 'Debes capturar la nueva contraseña.');
+            return redirect()->to(base_url('empleados/' . $employeeId));
+        }
+
+        $orch   = service('provisioningOrchestrator');
+        $result = $orch->changePassword($employeeId, $password);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(base_url('empleados/' . $employeeId));
+    }
+
+    public function provisionEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
+    {
+        $orch     = service('provisioningOrchestrator');
+        $password = (string) ($this->request->getPost('password') ?? '');
+        $result   = $orch->provisionOnSystem($employeeId, $systemId, $password !== '' ? $password : null);
+
+        $this->flashWithTemporaryPassword($result, 'Operación ejecutada.');
+        return redirect()->to(base_url('empleados/' . $employeeId));
+    }
+
+    public function deprovisionEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
+    {
+        $orch   = service('provisioningOrchestrator');
+        $result = $orch->deprovisionOnSystem($employeeId, $systemId);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(base_url('empleados/' . $employeeId));
+    }
+
+    /**
+     * On successful provision/password, the temporary password is shown ONCE so the operator
+     * can hand it to the employee. It is not persisted anywhere reachable from the UI.
+     */
+    private function flashWithTemporaryPassword(\App\Modules\Core\Services\ServiceResult $result, string $okMessage): void
+    {
+        $tmp = is_array($result->data) ? ($result->data['temporary_password'] ?? null) : null;
+        if ($result->success) {
+            $msg = $result->message ?: $okMessage;
+            if ($tmp) {
+                $msg .= ' Contraseña temporal generada: ' . $tmp . ' — anótala ahora, no se mostrará de nuevo.';
+            }
+            session()->setFlashdata('success', $msg);
+        } else {
+            session()->setFlashdata('error', $result->message);
+            if ($tmp) {
+                session()->setFlashdata('warning', 'Contraseña temporal usada: ' . $tmp . ' — algunos sistemas la aceptaron, otros no. Revisa la bitácora.');
+            }
+        }
+    }
+}

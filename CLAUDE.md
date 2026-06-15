@@ -26,7 +26,6 @@ The platform enforces a strict modular architecture where each module encapsulat
 | `docs/CONVENTIONS.md` | PHP/CI4 coding conventions: PSR-12, naming, routes, migrations, security, git commits |
 | `docs/tt-apps.postman_collection.json` | Postman collection — import to test all API endpoints |
 | `DESIGN.md` | UI/UX design system — all CSS tokens, components, accessibility rules |
-| `BRIEF.md` | Original functional spec — acceptance criteria and full feature list |
 
 ---
 
@@ -467,4 +466,3 @@ The platform is designed to easily add modules. Core patterns:
 - **Queue system extensible:** Can be reused for other async tasks beyond email
 - **Email templates:** Currently inline HTML; can migrate to dedicated template system
 - **Logging & analytics:** Communication logs are a foundation for tracking metrics and delivery reports
-

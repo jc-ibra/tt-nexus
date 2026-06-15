@@ -26,6 +26,15 @@ use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Employees\Services\EmployeeCatalogService;
 use App\Modules\Employees\Services\EmployeeService;
+use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
+use App\Modules\Provisioning\Models\ProvisioningLogModel;
+use App\Modules\Provisioning\Models\ProvisioningRetryQueueModel;
+use App\Modules\Provisioning\Models\ProvisioningSystemCredentialModel;
+use App\Modules\Provisioning\Models\ProvisioningSystemModel;
+use App\Modules\Provisioning\Services\AccessOrchestrator;
+use App\Modules\Provisioning\Services\ConnectorFactory;
+use App\Modules\Provisioning\Services\CredentialCipher;
+use App\Modules\Provisioning\Services\SystemAdminService;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -140,6 +149,57 @@ class Services extends BaseService
             new EmployeeAreaModel(),
             new EmployeeDepartmentModel(),
             new EmployeePositionModel(),
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Provisioning module
+    // -----------------------------------------------------------------------
+
+    public static function credentialCipher(bool $getShared = true): CredentialCipher
+    {
+        if ($getShared) {
+            return static::getSharedInstance('credentialCipher');
+        }
+        return new CredentialCipher();
+    }
+
+    public static function connectorFactory(bool $getShared = true): ConnectorFactory
+    {
+        if ($getShared) {
+            return static::getSharedInstance('connectorFactory');
+        }
+        return new ConnectorFactory(
+            new ProvisioningSystemModel(),
+            new ProvisioningSystemCredentialModel(),
+            self::credentialCipher(),
+        );
+    }
+
+    public static function provisioningOrchestrator(bool $getShared = true): AccessOrchestrator
+    {
+        if ($getShared) {
+            return static::getSharedInstance('provisioningOrchestrator');
+        }
+        return new AccessOrchestrator(
+            new EmployeeModel(),
+            new ProvisioningSystemModel(),
+            new ProvisioningExternalAccountModel(),
+            new ProvisioningLogModel(),
+            new ProvisioningRetryQueueModel(),
+            self::connectorFactory(),
+        );
+    }
+
+    public static function provisioningSystemAdmin(bool $getShared = true): SystemAdminService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('provisioningSystemAdmin');
+        }
+        return new SystemAdminService(
+            new ProvisioningSystemModel(),
+            new ProvisioningSystemCredentialModel(),
+            self::credentialCipher(),
         );
     }
 }
