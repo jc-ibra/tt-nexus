@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class EmployeePositionModel extends Model
 {
-    protected $table         = 'employee_positions';
+    protected $table         = 'employees_positions';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = true;
@@ -16,7 +16,7 @@ class EmployeePositionModel extends Model
     protected $allowedFields = ['name', 'status'];
 
     protected $validationRules = [
-        'name'   => 'required|max_length[120]|is_unique[employee_positions.name,id,{id}]',
+        'name'   => 'required|max_length[120]|is_unique[employees_positions.name,id,{id}]',
         'status' => 'in_list[active,inactive]',
     ];
 
@@ -35,7 +35,7 @@ class EmployeePositionModel extends Model
 
     public function countEmployees(int $id): int
     {
-        return $this->db->table('employees')
+        return $this->db->table('employees_employees')
             ->where('position_id', $id)
             ->where('deleted_at', null)
             ->countAllResults();

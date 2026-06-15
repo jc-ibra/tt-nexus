@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class RecipientListModel extends Model
 {
-    protected $table         = 'recipient_lists';
+    protected $table         = 'comms_recipient_lists';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['name', 'description', 'created_by'];
     protected $useTimestamps  = true;
@@ -16,9 +16,9 @@ class RecipientListModel extends Model
 
     public function withCounts(): array
     {
-        return $this->db->table('recipient_lists rl')
+        return $this->db->table('comms_recipient_lists rl')
             ->select('rl.*, COUNT(lr.recipient_id) as recipient_count')
-            ->join('list_recipient lr', 'lr.list_id = rl.id', 'left')
+            ->join('comms_list_recipients lr', 'lr.list_id = rl.id', 'left')
             ->groupBy('rl.id')
             ->orderBy('rl.name')
             ->get()->getResultArray();
@@ -29,9 +29,9 @@ class RecipientListModel extends Model
         $page   = (int) ($this->request->getGet('page') ?? 1);
         $offset = ($page - 1) * $perPage;
 
-        return $this->db->table('recipient_lists rl')
+        return $this->db->table('comms_recipient_lists rl')
             ->select('rl.*, COUNT(lr.recipient_id) as recipient_count')
-            ->join('list_recipient lr', 'lr.list_id = rl.id', 'left')
+            ->join('comms_list_recipients lr', 'lr.list_id = rl.id', 'left')
             ->groupBy('rl.id')
             ->orderBy('rl.name')
             ->limit($perPage, $offset)
@@ -46,7 +46,7 @@ class RecipientListModel extends Model
             return null;
         }
 
-        $list['recipient_count'] = $this->db->table('list_recipient')
+        $list['recipient_count'] = $this->db->table('comms_list_recipients')
             ->where('list_id', $id)
             ->countAllResults();
 
@@ -55,9 +55,9 @@ class RecipientListModel extends Model
 
     public function getRecipients(int $listId): array
     {
-        return $this->db->table('list_recipient lr')
+        return $this->db->table('comms_list_recipients lr')
             ->select('r.*')
-            ->join('recipients r', 'r.id = lr.recipient_id')
+            ->join('comms_recipients r', 'r.id = lr.recipient_id')
             ->where('lr.list_id', $listId)
             ->orderBy('r.name')
             ->get()->getResultArray();
@@ -65,10 +65,10 @@ class RecipientListModel extends Model
 
     public function syncRecipients(int $listId, array $recipientIds): void
     {
-        $this->db->table('list_recipient')->where('list_id', $listId)->delete();
+        $this->db->table('comms_list_recipients')->where('list_id', $listId)->delete();
 
         foreach (array_unique($recipientIds) as $recipientId) {
-            $this->db->table('list_recipient')->insert([
+            $this->db->table('comms_list_recipients')->insert([
                 'list_id'      => $listId,
                 'recipient_id' => (int) $recipientId,
             ]);
@@ -80,13 +80,13 @@ class RecipientListModel extends Model
         $added = 0;
 
         foreach (array_unique($recipientIds) as $recipientId) {
-            $exists = $this->db->table('list_recipient')
+            $exists = $this->db->table('comms_list_recipients')
                 ->where('list_id', $listId)
                 ->where('recipient_id', $recipientId)
                 ->countAllResults();
 
             if ($exists === 0) {
-                $this->db->table('list_recipient')->insert([
+                $this->db->table('comms_list_recipients')->insert([
                     'list_id'      => $listId,
                     'recipient_id' => (int) $recipientId,
                 ]);

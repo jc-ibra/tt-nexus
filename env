@@ -67,3 +67,14 @@
 #--------------------------------------------------------------------
 
 # logger.threshold = 4
+
+#--------------------------------------------------------------------
+# Sensitive Field Encryption Keys
+# Each module that stores credentials uses a dedicated AES-256 key.
+# Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+#--------------------------------------------------------------------
+
+# MAILBOXES_ENCRYPTION_KEY = <generate-a-64-char-hex-string>
+
+# APP_SETTINGS_ENCRYPTION_KEY: encryption for SMTP credentials and core app settings.
+# APP_SETTINGS_ENCRYPTION_KEY = <generate-a-64-char-hex-string>

@@ -10,6 +10,31 @@ use App\Modules\Core\Models\UserRoleModel;
 class AccessService
 {
     private ?array $userModuleKeys = null;
+    private ?bool  $isSuperAdmin   = null;
+
+    public function isSuperAdmin(): bool
+    {
+        if ($this->isSuperAdmin !== null) {
+            return $this->isSuperAdmin;
+        }
+
+        $userId = session()->get('user_id');
+
+        if (! $userId) {
+            return $this->isSuperAdmin = false;
+        }
+
+        $userRoleModel = new UserRoleModel();
+        $roles = $userRoleModel->getRolesForUser((int) $userId);
+
+        foreach ($roles as $role) {
+            if (strtolower($role['name']) === 'superadmin') {
+                return $this->isSuperAdmin = true;
+            }
+        }
+
+        return $this->isSuperAdmin = false;
+    }
 
     public function canAccessModule(string $moduleKey): bool
     {

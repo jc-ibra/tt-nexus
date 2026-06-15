@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\Mailboxes\Models;
+namespace App\Modules\Core\Models;
 
 use CodeIgniter\Database\BaseConnection;
 
 /**
- * Manages the mailboxes_settings key-value table.
+ * Manages the app_settings key-value table.
  *
  * ENCRYPTED_KEYS are stored as AES-256-CBC ciphertext (base64-encoded).
- * The encryption key comes from env('MAILBOXES_ENCRYPTION_KEY') — a 64-char
+ * The encryption key comes from env('APP_SETTINGS_ENCRYPTION_KEY') — a 64-char
  * hex string (32 bytes). Never store these values in plaintext.
  */
-class MailboxesSettingsModel
+class AppSettingsModel
 {
-    private const ENCRYPTED_KEYS = ['mailcow_url', 'mailcow_api_key'];
+    private const ENCRYPTED_KEYS = ['smtp_user', 'smtp_password'];
 
     private BaseConnection $db;
 
@@ -26,7 +26,7 @@ class MailboxesSettingsModel
 
     public function get(string $key, string $default = ''): string
     {
-        $row = $this->db->table('mailboxes_settings')->where('key', $key)->get()->getRow();
+        $row = $this->db->table('core_app_settings')->where('key', $key)->get()->getRow();
         $val = $row ? (string) $row->value : $default;
 
         if ($val !== '' && in_array($key, self::ENCRYPTED_KEYS, true)) {
@@ -38,7 +38,7 @@ class MailboxesSettingsModel
 
     public function getAll(): array
     {
-        $rows = $this->db->table('mailboxes_settings')->get()->getResultArray();
+        $rows = $this->db->table('core_app_settings')->get()->getResultArray();
         $out  = [];
 
         foreach ($rows as $row) {
@@ -62,15 +62,15 @@ class MailboxesSettingsModel
         }
 
         $now      = date('Y-m-d H:i:s');
-        $existing = $this->db->table('mailboxes_settings')->where('key', $key)->countAllResults();
+        $existing = $this->db->table('core_app_settings')->where('key', $key)->countAllResults();
 
         if ($existing) {
-            $this->db->table('mailboxes_settings')->where('key', $key)->update([
+            $this->db->table('core_app_settings')->where('key', $key)->update([
                 'value'      => $value,
                 'updated_at' => $now,
             ]);
         } else {
-            $this->db->table('mailboxes_settings')->insert([
+            $this->db->table('core_app_settings')->insert([
                 'key'        => $key,
                 'value'      => $value,
                 'updated_at' => $now,
@@ -91,11 +91,11 @@ class MailboxesSettingsModel
 
     private function encryptionKey(): string
     {
-        $hex = (string) env('MAILBOXES_ENCRYPTION_KEY', '');
+        $hex = (string) env('APP_SETTINGS_ENCRYPTION_KEY', '');
 
         if (strlen($hex) !== 64 || ! ctype_xdigit($hex)) {
             throw new \RuntimeException(
-                'MAILBOXES_ENCRYPTION_KEY must be a 64-character hex string in .env. ' .
+                'APP_SETTINGS_ENCRYPTION_KEY must be a 64-character hex string in .env. ' .
                 'Generate one with: python3 -c "import secrets; print(secrets.token_hex(32))"'
             );
         }
@@ -110,7 +110,7 @@ class MailboxesSettingsModel
         $cipher = openssl_encrypt($plaintext, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
 
         if ($cipher === false) {
-            throw new \RuntimeException('MailboxesSettingsModel: openssl_encrypt failed.');
+            throw new \RuntimeException('AppSettingsModel: openssl_encrypt failed.');
         }
 
         return base64_encode($iv . $cipher);
@@ -121,7 +121,7 @@ class MailboxesSettingsModel
         $decoded = base64_decode($ciphertext, true);
 
         if ($decoded === false || strlen($decoded) <= 16) {
-            log_message('warning', '[MailboxesSettings] Stored value is not valid ciphertext — returning empty. Re-save the setting.');
+            log_message('warning', '[AppSettings] Stored value is not valid ciphertext — returning empty. Re-save the setting.');
             return '';
         }
 
@@ -131,7 +131,7 @@ class MailboxesSettingsModel
         $plain     = openssl_decrypt($encrypted, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
 
         if ($plain === false) {
-            log_message('error', '[MailboxesSettings] Decryption failed — returning empty. Check MAILBOXES_ENCRYPTION_KEY in .env.');
+            log_message('error', '[AppSettings] Decryption failed — returning empty. Check APP_SETTINGS_ENCRYPTION_KEY in .env.');
             return '';
         }
 

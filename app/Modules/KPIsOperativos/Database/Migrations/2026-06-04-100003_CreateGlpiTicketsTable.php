@@ -39,12 +39,12 @@ class CreateGlpiTicketsTable extends Migration
         $this->forge->addKey(['report_id', 'idc']);
         $this->forge->addKey(['report_id', 'categoria']);
         $this->forge->addKey(['report_id', 'proyecto']);
-        $this->forge->addForeignKey('report_id', 'glpi_reports', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('glpi_tickets');
+        $this->forge->addForeignKey('report_id', 'kpi_glpi_reports', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('kpi_glpi_tickets');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('glpi_tickets', true);
+        $this->forge->dropTable('kpi_glpi_tickets', true);
     }
 }

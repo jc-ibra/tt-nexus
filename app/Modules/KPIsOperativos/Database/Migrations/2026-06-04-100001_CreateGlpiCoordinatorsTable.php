@@ -21,11 +21,11 @@ class CreateGlpiCoordinatorsTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('zone');
-        $this->forge->createTable('glpi_coordinators');
+        $this->forge->createTable('kpi_glpi_coordinators');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('glpi_coordinators', true);
+        $this->forge->dropTable('kpi_glpi_coordinators', true);
     }
 }

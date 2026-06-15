@@ -17,13 +17,13 @@ class CreateRoleModuleTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['role_id', 'module_id']);
-        $this->forge->addForeignKey('role_id',   'roles',   'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('module_id', 'modules', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('role_module');
+        $this->forge->addForeignKey('role_id',   'core_roles',   'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('module_id', 'core_modules', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('core_role_modules');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('role_module', true);
+        $this->forge->dropTable('core_role_modules', true);
     }
 }

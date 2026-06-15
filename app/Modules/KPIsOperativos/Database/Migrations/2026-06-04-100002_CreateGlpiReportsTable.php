@@ -30,12 +30,12 @@ class CreateGlpiReportsTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('status');
         $this->forge->addKey(['period_start', 'period_end']);
-        $this->forge->addForeignKey('uploaded_by', 'users', 'id', 'SET NULL', 'CASCADE');
-        $this->forge->createTable('glpi_reports');
+        $this->forge->addForeignKey('uploaded_by', 'core_users', 'id', 'SET NULL', 'CASCADE');
+        $this->forge->createTable('kpi_glpi_reports');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('glpi_reports', true);
+        $this->forge->dropTable('kpi_glpi_reports', true);
     }
 }

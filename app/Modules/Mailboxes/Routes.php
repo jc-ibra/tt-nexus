@@ -12,22 +12,29 @@ $routes->group('mailboxes', [
     'filter'    => ['auth', 'module_access:mailboxes'],
 ], function (RouteCollection $routes): void {
     // Main view (HTML shell)
-    $routes->get('/',           'Mailboxes::index',         ['as' => 'mailboxes.index']);
+    $routes->get('/',      'Mailboxes::index',      ['as' => 'mailboxes.index']);
 
     // AJAX read
-    $routes->get('data',        'Mailboxes::getData',       ['as' => 'mailboxes.data']);
-    $routes->get('domains',     'Mailboxes::getDomains',    ['as' => 'mailboxes.domains']);
-    $routes->get('export',      'Mailboxes::export',        ['as' => 'mailboxes.export']);
+    $routes->get('data',   'Mailboxes::getData',    ['as' => 'mailboxes.data']);
+    $routes->get('domains','Mailboxes::getDomains', ['as' => 'mailboxes.domains']);
+    $routes->get('export', 'Mailboxes::export',     ['as' => 'mailboxes.export']);
 
     // AJAX write
-    $routes->post('create',     'Mailboxes::create',        ['as' => 'mailboxes.create']);
-    $routes->post('edit',       'Mailboxes::edit',          ['as' => 'mailboxes.edit']);
-    $routes->post('delete',     'Mailboxes::delete',        ['as' => 'mailboxes.delete']);
-    $routes->post('toggle',     'Mailboxes::toggle',        ['as' => 'mailboxes.toggle']);
+    $routes->post('create', 'Mailboxes::create',    ['as' => 'mailboxes.create']);
+    $routes->post('edit',   'Mailboxes::edit',      ['as' => 'mailboxes.edit']);
+    $routes->post('delete', 'Mailboxes::delete',    ['as' => 'mailboxes.delete']);
+    $routes->post('toggle', 'Mailboxes::toggle',    ['as' => 'mailboxes.toggle']);
+});
 
-    // Settings
-    $routes->get('settings',    'Mailboxes::settings',      ['as' => 'mailboxes.settings']);
-    $routes->post('settings',   'Mailboxes::saveSettings',  ['as' => 'mailboxes.save-settings']);
+// -----------------------------------------------------------------------
+// Mailboxes settings — SuperAdmin only, under /admin
+// -----------------------------------------------------------------------
+$routes->group('admin/mailboxes', [
+    'namespace' => 'App\Modules\Mailboxes\Controllers',
+    'filter'    => ['auth', 'super_admin'],
+], function (RouteCollection $routes): void {
+    $routes->get('settings',         'Mailboxes::settings',       ['as' => 'mailboxes.settings']);
+    $routes->post('settings',        'Mailboxes::saveSettings',   ['as' => 'mailboxes.save-settings']);
     $routes->post('test-connection', 'Mailboxes::testConnection', ['as' => 'mailboxes.test-connection']);
 });
 

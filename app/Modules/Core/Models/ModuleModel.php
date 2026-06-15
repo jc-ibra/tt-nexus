@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class ModuleModel extends Model
 {
-    protected $table         = 'modules';
+    protected $table         = 'core_modules';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['key', 'name', 'description', 'route_base', 'icon', 'is_active'];
     protected $useTimestamps  = true;

@@ -102,7 +102,7 @@ class Provisioning extends BaseController
         $result   = $orch->provisionEmployee($employeeId, $password !== '' ? $password : null);
 
         $this->flashWithTemporaryPassword($result, 'Alta lanzada.');
-        return redirect()->to(base_url('empleados/' . $employeeId));
+        return redirect()->to(route_to('employees.show', $employeeId));
     }
 
     public function deprovisionEmployee(int $employeeId): ResponseInterface
@@ -114,7 +114,7 @@ class Provisioning extends BaseController
             ? session()->setFlashdata('success', $result->message)
             : session()->setFlashdata('error', $result->message);
 
-        return redirect()->to(base_url('empleados/' . $employeeId));
+        return redirect()->to(route_to('employees.show', $employeeId));
     }
 
     public function changePasswordEmployee(int $employeeId): ResponseInterface
@@ -122,7 +122,7 @@ class Provisioning extends BaseController
         $password = (string) ($this->request->getPost('password') ?? '');
         if ($password === '') {
             session()->setFlashdata('error', 'Debes capturar la nueva contraseña.');
-            return redirect()->to(base_url('empleados/' . $employeeId));
+            return redirect()->to(route_to('employees.show', $employeeId));
         }
 
         $orch   = service('provisioningOrchestrator');
@@ -132,7 +132,7 @@ class Provisioning extends BaseController
             ? session()->setFlashdata('success', $result->message)
             : session()->setFlashdata('error', $result->message);
 
-        return redirect()->to(base_url('empleados/' . $employeeId));
+        return redirect()->to(route_to('employees.show', $employeeId));
     }
 
     public function provisionEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
@@ -142,7 +142,7 @@ class Provisioning extends BaseController
         $result   = $orch->provisionOnSystem($employeeId, $systemId, $password !== '' ? $password : null);
 
         $this->flashWithTemporaryPassword($result, 'Operación ejecutada.');
-        return redirect()->to(base_url('empleados/' . $employeeId));
+        return redirect()->to(route_to('employees.show', $employeeId));
     }
 
     public function deprovisionEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
@@ -154,7 +154,7 @@ class Provisioning extends BaseController
             ? session()->setFlashdata('success', $result->message)
             : session()->setFlashdata('error', $result->message);
 
-        return redirect()->to(base_url('empleados/' . $employeeId));
+        return redirect()->to(route_to('employees.show', $employeeId));
     }
 
     /**

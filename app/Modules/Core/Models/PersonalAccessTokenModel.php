@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class PersonalAccessTokenModel extends Model
 {
-    protected $table         = 'personal_access_tokens';
+    protected $table         = 'core_personal_access_tokens';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['user_id', 'token_hash', 'name', 'last_used_at', 'expires_at'];
     protected $useTimestamps  = true;

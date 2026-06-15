@@ -36,7 +36,7 @@ class UserService
     {
         $rules = [
             'name'     => 'required|max_length[120]',
-            'email'    => 'required|valid_email|is_unique[users.email]',
+            'email'    => 'required|valid_email|is_unique[core_users.email]',
             'password' => 'required|min_length[8]',
             'role_ids' => 'required',
         ];
@@ -74,7 +74,7 @@ class UserService
 
         $rules = [
             'name'  => 'required|max_length[120]',
-            'email' => "required|valid_email|is_unique[users.email,id,{$id}]",
+            'email' => "required|valid_email|is_unique[core_users.email,id,{$id}]",
         ];
 
         if (! empty($data['password'])) {

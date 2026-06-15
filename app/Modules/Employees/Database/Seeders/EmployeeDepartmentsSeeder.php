@@ -15,12 +15,12 @@ class EmployeeDepartmentsSeeder extends Seeder
 
         $inserted = 0;
         foreach ($names as $name) {
-            $exists = $this->db->table('employee_departments')->where('name', $name)->get()->getRow();
+            $exists = $this->db->table('employees_departments')->where('name', $name)->get()->getRow();
             if ($exists) {
                 continue;
             }
 
-            $this->db->table('employee_departments')->insert([
+            $this->db->table('employees_departments')->insert([
                 'name'       => $name,
                 'status'     => 'active',
                 'created_at' => $now,

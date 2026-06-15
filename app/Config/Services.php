@@ -16,6 +16,8 @@ use App\Modules\Core\Models\PasswordResetModel;
 use App\Modules\Core\Models\RoleModel;
 use App\Modules\Core\Models\UserModel;
 use App\Modules\Core\Models\UserRoleModel;
+use App\Modules\Core\Models\AppSettingsModel;
+use App\Modules\Core\Services\AppSettingsService;
 use App\Modules\Core\Services\AccessService;
 use App\Modules\Core\Services\AuthService;
 use App\Modules\Core\Services\RoleService;
@@ -39,6 +41,15 @@ use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
 {
+    public static function appSettings(bool $getShared = true): AppSettingsService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('appSettings');
+        }
+
+        return new AppSettingsService(new AppSettingsModel());
+    }
+
     public static function access(bool $getShared = true): AccessService
     {
         if ($getShared) {

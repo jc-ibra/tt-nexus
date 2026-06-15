@@ -29,7 +29,7 @@ class CreateProvisioningRetryQueueTable extends Migration
         $this->forge->addKey('status');
         $this->forge->addKey('next_attempt_at');
         $this->forge->addForeignKey('log_id', 'provisioning_log', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('employee_id', 'employees', 'id', 'CASCADE', 'SET NULL');
+        $this->forge->addForeignKey('employee_id', 'employees_employees', 'id', 'CASCADE', 'SET NULL');
         $this->forge->addForeignKey('system_id', 'provisioning_systems', 'id', 'CASCADE', 'SET NULL');
         $this->forge->createTable('provisioning_retry_queue');
     }

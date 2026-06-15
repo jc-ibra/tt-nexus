@@ -23,6 +23,20 @@ use CodeIgniter\HotReloader\HotReloader;
  *      Events::on('create', [$myInstance, 'myMethod']);
  */
 
+/*
+ * Release the PHP session lock as soon as the controller finishes.
+ * This prevents session-file / DB-row lock contention when the browser
+ * makes several concurrent requests (assets, debug toolbar, etc.).
+ * After this point session data is still readable in memory; it just
+ * won't be written again — which is correct because all flash/auth
+ * writes happen inside the controller, before this fires.
+ */
+Events::on('post_controller', static function (): void {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+});
+
 Events::on('pre_system', static function (): void {
     if (ENVIRONMENT !== 'testing') {
         $value = ini_get('zlib.output_compression');

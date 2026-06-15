@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class EmployeeModel extends Model
 {
-    protected $table            = 'employees';
+    protected $table            = 'employees_employees';
     protected $primaryKey       = 'id';
     protected $returnType       = 'array';
     protected $useTimestamps    = true;
@@ -26,7 +26,7 @@ class EmployeeModel extends Model
     protected $validationRules = [
         'name'            => 'required|max_length[180]',
         'lastname'        => 'permit_empty|max_length[255]',
-        'email'           => 'required|valid_email|max_length[191]|is_unique[employees.email,id,{id}]',
+        'email'           => 'required|valid_email|max_length[191]|is_unique[employees_employees.email,id,{id}]',
         'email_secondary' => 'permit_empty|valid_email|max_length[255]',
         'employee_number' => 'permit_empty|max_length[20]',
         'telephone'       => 'permit_empty|max_length[15]',
@@ -55,12 +55,12 @@ class EmployeeModel extends Model
 
     public function findWithRelations(int $id): ?array
     {
-        $row = $this->db->table('employees e')
+        $row = $this->db->table('employees_employees e')
             ->select('e.*, a.name AS area_name, d.name AS department_name, p.name AS position_name, parent.name AS parent_name, parent.lastname AS parent_lastname')
-            ->join('employee_areas a',       'a.id = e.area_id',       'left')
-            ->join('employee_departments d', 'd.id = e.department_id', 'left')
-            ->join('employee_positions p',   'p.id = e.position_id',   'left')
-            ->join('employees parent',       'parent.id = e.parent_id', 'left')
+            ->join('employees_areas a',       'a.id = e.area_id',       'left')
+            ->join('employees_departments d', 'd.id = e.department_id', 'left')
+            ->join('employees_positions p',   'p.id = e.position_id',   'left')
+            ->join('employees_employees parent',       'parent.id = e.parent_id', 'left')
             ->where('e.id', $id)
             ->where('e.deleted_at', null)
             ->get()->getRowArray();
@@ -71,11 +71,11 @@ class EmployeeModel extends Model
     public function paginateWithFilters(array $filters, int $perPage = 20, int $page = 1): array
     {
         $offset  = ($page - 1) * $perPage;
-        $builder = $this->db->table('employees e')
+        $builder = $this->db->table('employees_employees e')
             ->select('e.id, e.employee_number, e.name, e.lastname, e.email, e.has_mailbox, e.photo, e.active, e.date_entry, a.name AS area_name, d.name AS department_name, p.name AS position_name')
-            ->join('employee_areas a',       'a.id = e.area_id',       'left')
-            ->join('employee_departments d', 'd.id = e.department_id', 'left')
-            ->join('employee_positions p',   'p.id = e.position_id',   'left')
+            ->join('employees_areas a',       'a.id = e.area_id',       'left')
+            ->join('employees_departments d', 'd.id = e.department_id', 'left')
+            ->join('employees_positions p',   'p.id = e.position_id',   'left')
             ->where('e.deleted_at', null);
 
         $this->applyFilters($builder, $filters);
@@ -89,7 +89,7 @@ class EmployeeModel extends Model
 
     public function countWithFilters(array $filters): int
     {
-        $builder = $this->db->table('employees e')
+        $builder = $this->db->table('employees_employees e')
             ->where('e.deleted_at', null);
 
         $this->applyFilters($builder, $filters);
@@ -141,7 +141,7 @@ class EmployeeModel extends Model
 
     public function search(string $term, int $limit = 20, ?int $excludeId = null): array
     {
-        $builder = $this->db->table('employees')
+        $builder = $this->db->table('employees_employees')
             ->select('id, name, lastname, email, employee_number')
             ->where('deleted_at', null)
             ->groupStart()

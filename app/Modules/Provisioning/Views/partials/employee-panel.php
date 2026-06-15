@@ -71,20 +71,20 @@ foreach ($accounts as $a) {
             <td style="text-align:right;">
               <?php if (! $account || empty($account['external_id'])): ?>
                 <?php if ($isActiveSystem): ?>
-                  <form method="post" action="<?= route_to('provisioning.employee.system.alta', $employeeId, $sysId) ?>" style="display:inline;">
+                  <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>" style="display:inline;">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm" title="Crear cuenta en <?= esc($s['name']) ?>">Crear</button>
                   </form>
                 <?php endif; ?>
               <?php else: ?>
                 <?php if ($status !== 'disabled'): ?>
-                  <form method="post" action="<?= route_to('provisioning.employee.system.baja', $employeeId, $sysId) ?>" style="display:inline;" onsubmit="return confirm('¿Desactivar la cuenta en <?= esc($s['name']) ?>?');">
+                  <form method="post" action="<?= route_to('provisioning.employee.system.deprovision', $employeeId, $sysId) ?>" style="display:inline;" onsubmit="return confirm('¿Desactivar la cuenta en <?= esc($s['name']) ?>?');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Desactivar</button>
                   </form>
                 <?php endif; ?>
                 <?php if ($status === 'error'): ?>
-                  <form method="post" action="<?= route_to('provisioning.employee.system.alta', $employeeId, $sysId) ?>" style="display:inline;">
+                  <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>" style="display:inline;">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Reintentar alta</button>
                   </form>
@@ -99,11 +99,11 @@ foreach ($accounts as $a) {
 
   <div class="card-footer" style="display:flex; gap:var(--space-2); flex-wrap:wrap; justify-content:space-between; align-items:center;">
     <div style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
-      <form method="post" action="<?= route_to('provisioning.employee.alta', $employeeId) ?>" style="display:inline;" onsubmit="return confirm('¿Lanzar alta en todos los sistemas activos?');">
+      <form method="post" action="<?= route_to('provisioning.employee.provision', $employeeId) ?>" style="display:inline;" onsubmit="return confirm('¿Lanzar alta en todos los sistemas activos?');">
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-primary btn-sm">Alta en todos</button>
       </form>
-      <form method="post" action="<?= route_to('provisioning.employee.baja', $employeeId) ?>" style="display:inline;" onsubmit="return confirm('¿Lanzar baja en todos los sistemas? El empleado quedará marcado como inactivo en Nexus.');">
+      <form method="post" action="<?= route_to('provisioning.employee.deprovision', $employeeId) ?>" style="display:inline;" onsubmit="return confirm('¿Lanzar baja en todos los sistemas? El empleado quedará marcado como inactivo en Nexus.');">
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--color-critical-default);">Baja en todos</button>
       </form>

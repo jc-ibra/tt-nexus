@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Communications\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
@@ -13,16 +15,15 @@ class CreateCommunicationListTable extends Migration
             'communication_id' => ['type' => 'INT', 'unsigned' => true],
             'list_id'          => ['type' => 'INT', 'unsigned' => true],
         ]);
-
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['communication_id', 'list_id']);
-        $this->forge->addForeignKey('communication_id', 'communications', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('list_id', 'recipient_lists', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('communication_list');
+        $this->forge->addForeignKey('communication_id', 'comms_communications', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('list_id',          'comms_recipient_lists', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('comms_communication_lists');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('communication_list', true);
+        $this->forge->dropTable('comms_communication_lists', true);
     }
 }

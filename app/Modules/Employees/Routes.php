@@ -7,7 +7,7 @@ use CodeIgniter\Router\RouteCollection;
 // -----------------------------------------------------------------------
 // Employees web (protected + module access)
 // -----------------------------------------------------------------------
-$routes->group('empleados', [
+$routes->group('employees', [
     'namespace' => 'App\Modules\Employees\Controllers',
     'filter'    => ['auth', 'module_access:employees'],
 ], function (RouteCollection $routes): void {
@@ -16,44 +16,44 @@ $routes->group('empleados', [
     $routes->get('mailboxes-search',  'Employees::mailboxesSearch',  ['as' => 'employees.mailboxes-search']);
     $routes->get('employees-search',  'Employees::searchEmployees',  ['as' => 'employees.search']);
 
-    // Catalogs (kept above /(:num) so /empleados/catalogos is not consumed by show).
-    $routes->group('catalogos', function (RouteCollection $routes): void {
+    // Catalogs (kept above /(:num) so /employees/catalogs is not consumed by show).
+    $routes->group('catalogs', function (RouteCollection $routes): void {
 
         // Areas
-        $routes->get('areas',                'EmployeeAreas::index',   ['as' => 'employees.areas.index']);
-        $routes->get('areas/new',            'EmployeeAreas::new',     ['as' => 'employees.areas.new']);
-        $routes->post('areas',               'EmployeeAreas::store',   ['as' => 'employees.areas.store']);
-        $routes->get('areas/(:num)/edit',    'EmployeeAreas::edit/$1', ['as' => 'employees.areas.edit']);
+        $routes->get('areas',                'EmployeeAreas::index',     ['as' => 'employees.areas.index']);
+        $routes->get('areas/new',            'EmployeeAreas::new',       ['as' => 'employees.areas.new']);
+        $routes->post('areas',               'EmployeeAreas::store',     ['as' => 'employees.areas.store']);
+        $routes->get('areas/(:num)/edit',    'EmployeeAreas::edit/$1',   ['as' => 'employees.areas.edit']);
         $routes->post('areas/(:num)',        'EmployeeAreas::update/$1', ['as' => 'employees.areas.update']);
         $routes->post('areas/(:num)/delete', 'EmployeeAreas::destroy/$1', ['as' => 'employees.areas.destroy']);
 
         // Departments
-        $routes->get('departamentos',                'EmployeeDepartments::index',   ['as' => 'employees.departments.index']);
-        $routes->get('departamentos/new',            'EmployeeDepartments::new',     ['as' => 'employees.departments.new']);
-        $routes->post('departamentos',               'EmployeeDepartments::store',   ['as' => 'employees.departments.store']);
-        $routes->get('departamentos/(:num)/edit',    'EmployeeDepartments::edit/$1', ['as' => 'employees.departments.edit']);
-        $routes->post('departamentos/(:num)',        'EmployeeDepartments::update/$1', ['as' => 'employees.departments.update']);
-        $routes->post('departamentos/(:num)/delete', 'EmployeeDepartments::destroy/$1', ['as' => 'employees.departments.destroy']);
+        $routes->get('departments',                'EmployeeDepartments::index',     ['as' => 'employees.departments.index']);
+        $routes->get('departments/new',            'EmployeeDepartments::new',       ['as' => 'employees.departments.new']);
+        $routes->post('departments',               'EmployeeDepartments::store',     ['as' => 'employees.departments.store']);
+        $routes->get('departments/(:num)/edit',    'EmployeeDepartments::edit/$1',   ['as' => 'employees.departments.edit']);
+        $routes->post('departments/(:num)',        'EmployeeDepartments::update/$1', ['as' => 'employees.departments.update']);
+        $routes->post('departments/(:num)/delete', 'EmployeeDepartments::destroy/$1', ['as' => 'employees.departments.destroy']);
 
         // Positions
-        $routes->get('puestos',                'EmployeePositions::index',   ['as' => 'employees.positions.index']);
-        $routes->get('puestos/new',            'EmployeePositions::new',     ['as' => 'employees.positions.new']);
-        $routes->post('puestos',               'EmployeePositions::store',   ['as' => 'employees.positions.store']);
-        $routes->get('puestos/(:num)/edit',    'EmployeePositions::edit/$1', ['as' => 'employees.positions.edit']);
-        $routes->post('puestos/(:num)',        'EmployeePositions::update/$1', ['as' => 'employees.positions.update']);
-        $routes->post('puestos/(:num)/delete', 'EmployeePositions::destroy/$1', ['as' => 'employees.positions.destroy']);
+        $routes->get('positions',                'EmployeePositions::index',     ['as' => 'employees.positions.index']);
+        $routes->get('positions/new',            'EmployeePositions::new',       ['as' => 'employees.positions.new']);
+        $routes->post('positions',               'EmployeePositions::store',     ['as' => 'employees.positions.store']);
+        $routes->get('positions/(:num)/edit',    'EmployeePositions::edit/$1',   ['as' => 'employees.positions.edit']);
+        $routes->post('positions/(:num)',        'EmployeePositions::update/$1', ['as' => 'employees.positions.update']);
+        $routes->post('positions/(:num)/delete', 'EmployeePositions::destroy/$1', ['as' => 'employees.positions.destroy']);
     });
 
     // Employees CRUD
-    $routes->get('/',                    'Employees::index',         ['as' => 'employees.index']);
-    $routes->get('new',                  'Employees::new',           ['as' => 'employees.new']);
-    $routes->post('store',               'Employees::store',         ['as' => 'employees.store']);
-    $routes->get('(:num)',               'Employees::show/$1',       ['as' => 'employees.show']);
-    $routes->get('(:num)/edit',          'Employees::edit/$1',       ['as' => 'employees.edit']);
-    $routes->post('(:num)/update',       'Employees::update/$1',     ['as' => 'employees.update']);
-    $routes->post('(:num)/delete',       'Employees::destroy/$1',    ['as' => 'employees.destroy']);
+    $routes->get('/',                    'Employees::index',          ['as' => 'employees.index']);
+    $routes->get('new',                  'Employees::new',            ['as' => 'employees.new']);
+    $routes->post('store',               'Employees::store',          ['as' => 'employees.store']);
+    $routes->get('(:num)',               'Employees::show/$1',        ['as' => 'employees.show']);
+    $routes->get('(:num)/edit',          'Employees::edit/$1',        ['as' => 'employees.edit']);
+    $routes->post('(:num)/update',       'Employees::update/$1',      ['as' => 'employees.update']);
+    $routes->post('(:num)/delete',       'Employees::destroy/$1',     ['as' => 'employees.destroy']);
     $routes->post('(:num)/photo',        'Employees::uploadPhoto/$1', ['as' => 'employees.photo.upload']);
-    $routes->get('(:num)/photo',         'Employees::servePhoto/$1', ['as' => 'employees.photo.serve']);
+    $routes->get('(:num)/photo',         'Employees::servePhoto/$1',  ['as' => 'employees.photo.serve']);
 });
 
 // -----------------------------------------------------------------------

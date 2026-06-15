@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class GlpiReportModel extends Model
 {
-    protected $table         = 'glpi_reports';
+    protected $table         = 'kpi_glpi_reports';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = true;

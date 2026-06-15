@@ -10,7 +10,7 @@ class MailerService
 
     public function __construct()
     {
-        $this->mailer = \Config\Services::email(null, false);
+        $this->mailer = $this->buildMailer();
     }
 
     /**
@@ -54,6 +54,39 @@ class MailerService
             return ['success' => false, 'error' => $this->extractError()];
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // SMTP configuration — reads from app_settings DB table (SuperAdmin),
+    // falls back to Config/Email.php (.env values) if not configured.
+    // -----------------------------------------------------------------------
+
+    private function buildMailer(): Email
+    {
+        try {
+            $svc = service('appSettings');
+
+            if (! $svc->isSmtpConfigured()) {
+                return \Config\Services::email(null, false);
+            }
+
+            $smtp = $svc->getSmtp();
+
+            $config             = new \Config\Email();
+            $config->protocol   = 'smtp';
+            $config->SMTPHost   = $smtp['smtp_host'];
+            $config->SMTPUser   = $smtp['smtp_user'];
+            $config->SMTPPass   = $smtp['smtp_password'];
+            $config->SMTPPort   = (int) ($smtp['smtp_port'] ?: 587);
+            $config->SMTPCrypto = $smtp['smtp_crypto'] ?: 'tls';
+            $config->fromEmail  = $smtp['smtp_from_email'];
+            $config->fromName   = $smtp['smtp_from_name'];
+
+            return \Config\Services::email($config, false);
+        } catch (\Throwable $e) {
+            log_message('error', '[MailerService] Could not load SMTP from DB, falling back to .env: ' . $e->getMessage());
+            return \Config\Services::email(null, false);
         }
     }
 

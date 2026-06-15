@@ -25,13 +25,13 @@ class CreateGlpiIdcAliasesTable extends Migration
         $this->forge->addUniqueKey('alias_normalized');
         $this->forge->addKey('canonical_id');
         $this->forge->addKey('needs_review');
-        $this->forge->addForeignKey('canonical_id', 'glpi_idc_canonical', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('source_report_id', 'glpi_reports', 'id', 'SET NULL', 'CASCADE');
-        $this->forge->createTable('glpi_idc_aliases');
+        $this->forge->addForeignKey('canonical_id', 'kpi_glpi_idc_canonical', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('source_report_id', 'kpi_glpi_reports', 'id', 'SET NULL', 'CASCADE');
+        $this->forge->createTable('kpi_glpi_idc_aliases');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('glpi_idc_aliases', true);
+        $this->forge->dropTable('kpi_glpi_idc_aliases', true);
     }
 }

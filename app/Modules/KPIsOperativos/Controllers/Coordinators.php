@@ -15,7 +15,7 @@ class Coordinators extends BaseController
     public function index(): string
     {
         $db = db_connect();
-        $rows = $db->table('glpi_coordinators')->orderBy('zone', 'ASC')->get()->getResultArray();
+        $rows = $db->table('kpi_glpi_coordinators')->orderBy('zone', 'ASC')->get()->getResultArray();
 
         return view('App\Modules\KPIsOperativos\Views\coordinators\index', [
             'pageTitle'    => 'Coordinadores GLPI',
@@ -41,14 +41,14 @@ class Coordinators extends BaseController
         }
 
         $db = db_connect();
-        $exists = $db->table('glpi_coordinators')->where('zone', $data['zone'])->countAllResults();
+        $exists = $db->table('kpi_glpi_coordinators')->where('zone', $data['zone'])->countAllResults();
         if ($exists > 0) {
             session()->setFlashdata('errors', ['Ya existe una zona con ese nombre.']);
             return redirect()->back()->withInput();
         }
 
         $now = date('Y-m-d H:i:s');
-        $db->table('glpi_coordinators')->insert([
+        $db->table('kpi_glpi_coordinators')->insert([
             'zone'       => trim((string) $data['zone']),
             'coord_name' => trim((string) $data['coord_name']),
             'gte_name'   => trim((string) ($data['gte_name'] ?? '')),
@@ -64,7 +64,7 @@ class Coordinators extends BaseController
     public function edit(int $id): string
     {
         $db  = db_connect();
-        $row = $db->table('glpi_coordinators')->where('id', $id)->get()->getRowArray();
+        $row = $db->table('kpi_glpi_coordinators')->where('id', $id)->get()->getRowArray();
         if (! $row) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
@@ -78,7 +78,7 @@ class Coordinators extends BaseController
     public function update(int $id)
     {
         $db  = db_connect();
-        $row = $db->table('glpi_coordinators')->where('id', $id)->get()->getRowArray();
+        $row = $db->table('kpi_glpi_coordinators')->where('id', $id)->get()->getRowArray();
         if (! $row) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
@@ -90,7 +90,7 @@ class Coordinators extends BaseController
             return redirect()->back()->withInput();
         }
 
-        $db->table('glpi_coordinators')->where('id', $id)->update([
+        $db->table('kpi_glpi_coordinators')->where('id', $id)->update([
             'zone'       => trim((string) $data['zone']),
             'coord_name' => trim((string) $data['coord_name']),
             'gte_name'   => trim((string) ($data['gte_name'] ?? '')),
@@ -105,12 +105,12 @@ class Coordinators extends BaseController
     public function destroy(int $id)
     {
         $db  = db_connect();
-        $row = $db->table('glpi_coordinators')->where('id', $id)->get()->getRowArray();
+        $row = $db->table('kpi_glpi_coordinators')->where('id', $id)->get()->getRowArray();
         if (! $row) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        $db->table('glpi_coordinators')->where('id', $id)->delete();
+        $db->table('kpi_glpi_coordinators')->where('id', $id)->delete();
         session()->setFlashdata('success', "Zona «{$row['zone']}» eliminada.");
         return redirect()->to(route_to('kpi.coordinators.index'));
     }

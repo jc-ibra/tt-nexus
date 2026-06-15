@@ -184,15 +184,15 @@ final class GlpiIdcHomologator
         $db = db_connect();
         $db->transStart();
 
-        $db->table('glpi_idc_aliases')
+        $db->table('kpi_glpi_idc_aliases')
             ->where('canonical_id', $sourceId)
             ->update(['canonical_id' => $targetId, 'needs_review' => 0]);
 
-        $db->table('glpi_tickets')
+        $db->table('kpi_glpi_tickets')
             ->where('idc_canonical_id', $sourceId)
             ->update(['idc_canonical_id' => $targetId]);
 
-        $db->table('glpi_idc_canonical')->where('id', $sourceId)->delete();
+        $db->table('kpi_glpi_idc_canonical')->where('id', $sourceId)->delete();
 
         $db->transComplete();
 

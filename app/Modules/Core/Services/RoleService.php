@@ -25,7 +25,7 @@ class RoleService
 
     public function create(array $data): ServiceResult
     {
-        $rules = ['name' => 'required|max_length[80]|is_unique[roles.name]'];
+        $rules = ['name' => 'required|max_length[80]|is_unique[core_roles.name]'];
         $validation = service('validation')->setRules($rules);
 
         if (! $validation->run($data)) {
@@ -57,7 +57,7 @@ class RoleService
             return ServiceResult::fail('Rol no encontrado.');
         }
 
-        $rules = ['name' => "required|max_length[80]|is_unique[roles.name,id,{$id}]"];
+        $rules = ['name' => "required|max_length[80]|is_unique[core_roles.name,id,{$id}]"];
         $validation = service('validation')->setRules($rules);
 
         if (! $validation->run($data)) {
@@ -83,7 +83,7 @@ class RoleService
         }
 
         // Check if any users have this role
-        $count = db_connect()->table('user_roles')->where('role_id', $id)->countAllResults();
+        $count = db_connect()->table('core_user_roles')->where('role_id', $id)->countAllResults();
 
         if ($count > 0) {
             return ServiceResult::fail("No se puede eliminar: {$count} usuario(s) tienen este rol asignado.");

@@ -30,7 +30,7 @@ class CreateProvisioningLogTable extends Migration
         $this->forge->addKey('status');
         $this->forge->addKey(['operation', 'status']);
         $this->forge->addKey('created_at');
-        $this->forge->addForeignKey('employee_id', 'employees', 'id', 'CASCADE', 'SET NULL');
+        $this->forge->addForeignKey('employee_id', 'employees_employees', 'id', 'CASCADE', 'SET NULL');
         $this->forge->addForeignKey('system_id', 'provisioning_systems', 'id', 'CASCADE', 'SET NULL');
         $this->forge->createTable('provisioning_log');
     }

@@ -124,7 +124,7 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
     result.style.display = 'none';
 
     try {
-      const res = await fetch('<?= base_url('mailboxes/test-connection') ?>', {
+      const res = await fetch('<?= route_to('mailboxes.test-connection') ?>', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

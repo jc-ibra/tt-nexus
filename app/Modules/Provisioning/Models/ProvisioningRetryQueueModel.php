@@ -51,7 +51,7 @@ class ProvisioningRetryQueueModel extends Model
     {
         return $this->select('provisioning_retry_queue.*, s.name AS system_name, e.name AS employee_name, e.lastname AS employee_lastname')
             ->join('provisioning_systems s', 's.id = provisioning_retry_queue.system_id', 'left')
-            ->join('employees e',            'e.id = provisioning_retry_queue.employee_id', 'left')
+            ->join('employees_employees e',            'e.id = provisioning_retry_queue.employee_id', 'left')
             ->orderBy('provisioning_retry_queue.created_at', 'DESC')
             ->limit($limit)
             ->findAll();

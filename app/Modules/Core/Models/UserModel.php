@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class UserModel extends Model
 {
-    protected $table         = 'users';
+    protected $table         = 'core_users';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['name', 'email', 'password', 'status', 'mfa_secret', 'mfa_enabled'];
     protected $useTimestamps  = true;
@@ -16,7 +16,7 @@ class UserModel extends Model
 
     protected $validationRules = [
         'name'  => 'required|max_length[120]',
-        'email' => 'required|valid_email|max_length[191]|is_unique[users.email,id,{id}]',
+        'email' => 'required|valid_email|max_length[191]|is_unique[core_users.email,id,{id}]',
     ];
 
     public function findByEmail(string $email): ?array
@@ -32,9 +32,9 @@ class UserModel extends Model
             return null;
         }
 
-        $roles = $this->db->table('user_roles ur')
+        $roles = $this->db->table('core_user_roles ur')
             ->select('r.id, r.name')
-            ->join('roles r', 'r.id = ur.role_id')
+            ->join('core_roles r', 'r.id = ur.role_id')
             ->where('ur.user_id', $id)
             ->get()->getResultArray();
 
@@ -49,9 +49,9 @@ class UserModel extends Model
         $users = $this->paginate($perPage);
 
         foreach ($users as &$user) {
-            $user['roles'] = $this->db->table('user_roles ur')
+            $user['roles'] = $this->db->table('core_user_roles ur')
                 ->select('r.name')
-                ->join('roles r', 'r.id = ur.role_id')
+                ->join('core_roles r', 'r.id = ur.role_id')
                 ->where('ur.user_id', $user['id'])
                 ->get()->getResultArray();
         }

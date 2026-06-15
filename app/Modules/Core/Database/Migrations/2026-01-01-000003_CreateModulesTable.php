@@ -23,11 +23,11 @@ class CreateModulesTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('key');
-        $this->forge->createTable('modules');
+        $this->forge->createTable('core_modules');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('modules', true);
+        $this->forge->dropTable('core_modules', true);
     }
 }

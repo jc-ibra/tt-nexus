@@ -22,12 +22,12 @@ class GlpiCoordinatorsSeeder extends Seeder
         ];
 
         foreach ($rows as $row) {
-            $exists = $this->db->table('glpi_coordinators')->where('zone', $row['zone'])->get()->getRow();
+            $exists = $this->db->table('kpi_glpi_coordinators')->where('zone', $row['zone'])->get()->getRow();
             if ($exists) {
                 continue;
             }
 
-            $this->db->table('glpi_coordinators')->insert([
+            $this->db->table('kpi_glpi_coordinators')->insert([
                 'zone'       => $row['zone'],
                 'coord_name' => $row['coord_name'],
                 'gte_name'   => $row['gte_name'],

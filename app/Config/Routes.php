@@ -15,3 +15,4 @@ require APPPATH . 'Modules/Communications/Routes.php';
 require APPPATH . 'Modules/KPIsOperativos/Routes.php';
 require APPPATH . 'Modules/Mailboxes/Routes.php';
 require APPPATH . 'Modules/Employees/Routes.php';
+require APPPATH . 'Modules/Provisioning/Routes.php';

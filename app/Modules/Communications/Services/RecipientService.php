@@ -37,7 +37,7 @@ class RecipientService
     {
         $rules = [
             'name'  => 'required|max_length[120]',
-            'email' => 'required|valid_email|is_unique[recipients.email]',
+            'email' => 'required|valid_email|is_unique[comms_recipients.email]',
         ];
 
         $validation = service('validation')->setRules($rules);
@@ -68,7 +68,7 @@ class RecipientService
 
         $rules = [
             'name'  => 'required|max_length[120]',
-            'email' => "required|valid_email|is_unique[recipients.email,id,{$id}]",
+            'email' => "required|valid_email|is_unique[comms_recipients.email,id,{$id}]",
         ];
 
         $validation = service('validation')->setRules($rules);

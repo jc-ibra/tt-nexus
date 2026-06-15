@@ -47,7 +47,7 @@ class IdcCanonical extends BaseController
         $allCanonicals = (new GlpiIdcCanonicalModel())->where('id !=', $id)->orderBy('canonical_name', 'ASC')->findAll();
 
         $db = db_connect();
-        $ticketsCount = (int) $db->table('glpi_tickets')->where('idc_canonical_id', $id)->countAllResults();
+        $ticketsCount = (int) $db->table('kpi_glpi_tickets')->where('idc_canonical_id', $id)->countAllResults();
 
         return view('App\Modules\KPIsOperativos\Views\idc\show', [
             'pageTitle'      => $canon['canonical_name'],
@@ -138,7 +138,7 @@ class IdcCanonical extends BaseController
 
         // Solo se permite borrar si no tiene tickets asociados
         $db = db_connect();
-        $tickets = (int) $db->table('glpi_tickets')->where('idc_canonical_id', $id)->countAllResults();
+        $tickets = (int) $db->table('kpi_glpi_tickets')->where('idc_canonical_id', $id)->countAllResults();
         if ($tickets > 0) {
             session()->setFlashdata('errors', ['No se puede borrar: ' . $tickets . ' tickets aún apuntan a este canonical. Usa "mergear" en su lugar.']);
             return redirect()->to(route_to('kpi.idc.show', $id));
@@ -190,7 +190,7 @@ class IdcCanonical extends BaseController
                 ], true);
 
                 // También mueve los tickets que tenían este raw exacto al nuevo canonical
-                db_connect()->table('glpi_tickets')
+                db_connect()->table('kpi_glpi_tickets')
                     ->where('idc', $alias['alias_raw'])
                     ->where('idc_canonical_id', (int) $alias['canonical_id'])
                     ->update(['idc_canonical_id' => $newCanonicalId]);
@@ -214,7 +214,7 @@ class IdcCanonical extends BaseController
         $oldCanonicalId = (int) $alias['canonical_id'];
 
         // Mover tickets que tenían este raw exacto
-        db_connect()->table('glpi_tickets')
+        db_connect()->table('kpi_glpi_tickets')
             ->where('idc', $alias['alias_raw'])
             ->where('idc_canonical_id', $oldCanonicalId)
             ->update(['idc_canonical_id' => $targetId]);
@@ -234,7 +234,7 @@ class IdcCanonical extends BaseController
     private function recomputeAffectedReports(int $canonicalId): void
     {
         $db = db_connect();
-        $reportIds = $db->table('glpi_tickets')
+        $reportIds = $db->table('kpi_glpi_tickets')
             ->select('report_id')
             ->distinct()
             ->where('idc_canonical_id', $canonicalId)

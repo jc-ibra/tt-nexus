@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class RecipientModel extends Model
 {
-    protected $table         = 'recipients';
+    protected $table         = 'comms_recipients';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['name', 'email', 'area', 'status'];
     protected $useTimestamps  = true;
@@ -29,7 +29,7 @@ class RecipientModel extends Model
         return $this->where('status', 'active')
             ->whereNotIn('id', function ($builder) use ($listId) {
                 $builder->select('recipient_id')
-                    ->from('list_recipient')
+                    ->from('comms_list_recipients')
                     ->where('list_id', $listId);
             })
             ->orderBy('name')

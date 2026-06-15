@@ -23,12 +23,12 @@ class CreateCommunicationsTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
-        $this->forge->addForeignKey('created_by', 'users', 'id', 'SET NULL', 'CASCADE');
-        $this->forge->createTable('communications');
+        $this->forge->addForeignKey('created_by', 'core_users', 'id', 'SET NULL', 'CASCADE');
+        $this->forge->createTable('comms_communications');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('communications', true);
+        $this->forge->dropTable('comms_communications', true);
     }
 }

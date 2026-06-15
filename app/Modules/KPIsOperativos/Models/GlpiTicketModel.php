@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class GlpiTicketModel extends Model
 {
-    protected $table         = 'glpi_tickets';
+    protected $table         = 'kpi_glpi_tickets';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = false;

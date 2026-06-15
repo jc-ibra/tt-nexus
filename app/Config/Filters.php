@@ -5,6 +5,7 @@ namespace Config;
 use App\Modules\Core\Filters\AuthFilter;
 use App\Modules\Core\Filters\ApiAuthFilter;
 use App\Modules\Core\Filters\ModuleAccessFilter;
+use App\Modules\Core\Filters\SuperAdminFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
 use CodeIgniter\Filters\CSRF;
@@ -40,6 +41,7 @@ class Filters extends BaseFilters
         'auth'          => AuthFilter::class,
         'api_auth'      => ApiAuthFilter::class,
         'module_access' => ModuleAccessFilter::class,
+        'super_admin'   => SuperAdminFilter::class,
     ];
 
     /**
@@ -63,7 +65,7 @@ class Filters extends BaseFilters
         'after' => [
             'pagecache',   // Web Page Caching
             'performance', // Performance Metrics
-            'toolbar',     // Debug Toolbar
+            // 'toolbar' disabled — causes 2 extra PHP requests per page via /?debugbar
         ],
     ];
 

@@ -21,7 +21,7 @@ use RuntimeException;
 final class GlpiKpiCalculator
 {
     private BaseConnection $db;
-    private string $table = 'glpi_tickets';
+    private string $table = 'kpi_glpi_tickets';
 
     public function __construct()
     {

@@ -8,7 +8,7 @@ class AddPriorityToCommunicationsTable extends Migration
 {
     public function up(): void
     {
-        $this->forge->addColumn('communications', [
+        $this->forge->addColumn('comms_communications', [
             'priority' => [
                 'type'       => 'TINYINT',
                 'constraint' => 1,
@@ -29,6 +29,6 @@ class AddPriorityToCommunicationsTable extends Migration
 
     public function down(): void
     {
-        $this->forge->dropColumn('communications', ['priority', 'request_read_receipt']);
+        $this->forge->dropColumn('comms_communications', ['priority', 'request_read_receipt']);
     }
 }

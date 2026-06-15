@@ -46,18 +46,18 @@ class CreateEmployeesTable extends Migration
         $this->forge->addKey('parent_id');
 
         // CI4 signature: addForeignKey($fieldName, $tableName, $tableField, $onUpdate, $onDelete)
-        $this->forge->addForeignKey('position_id', 'employee_positions', 'id', 'CASCADE', 'SET NULL');
-        $this->forge->addForeignKey('department_id', 'employee_departments', 'id', 'CASCADE', 'SET NULL');
-        $this->forge->addForeignKey('area_id', 'employee_areas', 'id', 'CASCADE', 'SET NULL');
+        $this->forge->addForeignKey('position_id', 'employees_positions', 'id', 'CASCADE', 'SET NULL');
+        $this->forge->addForeignKey('department_id', 'employees_departments', 'id', 'CASCADE', 'SET NULL');
+        $this->forge->addForeignKey('area_id', 'employees_areas', 'id', 'CASCADE', 'SET NULL');
 
-        $this->forge->createTable('employees');
+        $this->forge->createTable('employees_employees');
 
         // Self-referential FK added after the table exists.
-        $this->db->query('ALTER TABLE `employees` ADD CONSTRAINT `employees_parent_id_fk` FOREIGN KEY (`parent_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL ON UPDATE CASCADE');
+        $this->db->query('ALTER TABLE `employees_employees` ADD CONSTRAINT `employees_parent_id_fk` FOREIGN KEY (`parent_id`) REFERENCES `employees_employees` (`id`) ON DELETE SET NULL ON UPDATE CASCADE');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('employees', true);
+        $this->forge->dropTable('employees_employees', true);
     }
 }

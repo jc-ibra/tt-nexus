@@ -19,11 +19,11 @@ class CreatePasswordResetsTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('email');
-        $this->forge->createTable('password_resets');
+        $this->forge->createTable('core_password_resets');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('password_resets', true);
+        $this->forge->dropTable('core_password_resets', true);
     }
 }

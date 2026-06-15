@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class GlpiIdcAliasModel extends Model
 {
-    protected $table         = 'glpi_idc_aliases';
+    protected $table         = 'kpi_glpi_idc_aliases';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = false;

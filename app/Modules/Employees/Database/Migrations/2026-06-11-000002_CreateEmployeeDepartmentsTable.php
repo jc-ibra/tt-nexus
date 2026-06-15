@@ -21,11 +21,11 @@ class CreateEmployeeDepartmentsTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('name');
         $this->forge->addKey('status');
-        $this->forge->createTable('employee_departments');
+        $this->forge->createTable('employees_departments');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('employee_departments', true);
+        $this->forge->dropTable('employees_departments', true);
     }
 }

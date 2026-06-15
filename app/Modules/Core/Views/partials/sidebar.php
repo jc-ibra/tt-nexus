@@ -57,58 +57,48 @@ $moduleSubnav = [
         [
             'label'  => 'Buzones',
             'url'    => base_url('mailboxes'),
-            'active' => $currentPath === '/mailboxes' || (str_starts_with($currentPath, '/mailboxes') && ! str_starts_with($currentPath, '/mailboxes/settings')),
-        ],
-        [
-            'label'  => 'Configuración',
-            'url'    => base_url('mailboxes/settings'),
-            'active' => str_starts_with($currentPath, '/mailboxes/settings'),
+            'active' => str_starts_with($currentPath, '/mailboxes'),
         ],
     ],
     'employees' => [
         [
             'label'  => 'Empleados',
-            'url'    => base_url('empleados'),
-            'active' => $currentPath === '/empleados'
-                || (str_starts_with($currentPath, '/empleados')
-                    && ! str_starts_with($currentPath, '/empleados/catalogos')),
+            'url'    => base_url('employees'),
+            'active' => $currentPath === '/employees'
+                || (str_starts_with($currentPath, '/employees')
+                    && ! str_starts_with($currentPath, '/employees/catalogs')),
         ],
         [
             'label'  => 'Áreas',
-            'url'    => base_url('empleados/catalogos/areas'),
-            'active' => str_starts_with($currentPath, '/empleados/catalogos/areas'),
+            'url'    => base_url('employees/catalogs/areas'),
+            'active' => str_starts_with($currentPath, '/employees/catalogs/areas'),
         ],
         [
             'label'  => 'Departamentos',
-            'url'    => base_url('empleados/catalogos/departamentos'),
-            'active' => str_starts_with($currentPath, '/empleados/catalogos/departamentos'),
+            'url'    => base_url('employees/catalogs/departments'),
+            'active' => str_starts_with($currentPath, '/employees/catalogs/departments'),
         ],
         [
             'label'  => 'Puestos',
-            'url'    => base_url('empleados/catalogos/puestos'),
-            'active' => str_starts_with($currentPath, '/empleados/catalogos/puestos'),
+            'url'    => base_url('employees/catalogs/positions'),
+            'active' => str_starts_with($currentPath, '/employees/catalogs/positions'),
         ],
     ],
     'provisioning' => [
         [
             'label'  => 'Resumen',
-            'url'    => base_url('aprovisionamiento'),
-            'active' => $currentPath === '/aprovisionamiento',
-        ],
-        [
-            'label'  => 'Sistemas destino',
-            'url'    => base_url('aprovisionamiento/sistemas'),
-            'active' => str_starts_with($currentPath, '/aprovisionamiento/sistemas'),
+            'url'    => base_url('provisioning'),
+            'active' => $currentPath === '/provisioning',
         ],
         [
             'label'  => 'Bitácora',
-            'url'    => base_url('aprovisionamiento/bitacora'),
-            'active' => str_starts_with($currentPath, '/aprovisionamiento/bitacora'),
+            'url'    => base_url('provisioning/log'),
+            'active' => str_starts_with($currentPath, '/provisioning/log'),
         ],
         [
             'label'  => 'Reintentos',
-            'url'    => base_url('aprovisionamiento/reintentos'),
-            'active' => str_starts_with($currentPath, '/aprovisionamiento/reintentos'),
+            'url'    => base_url('provisioning/retries'),
+            'active' => str_starts_with($currentPath, '/provisioning/retries'),
         ],
     ],
 ];
@@ -126,6 +116,7 @@ $moduleSubnav = [
     Dashboard
   </a>
 
+  <?php if (service('access')->isSuperAdmin()): ?>
   <a href="<?= route_to('admin.users.index') ?>"
      class="nav-item <?= str_starts_with($currentPath, '/admin/users') ? 'is-active' : '' ?>">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -142,6 +133,35 @@ $moduleSubnav = [
     </svg>
     Roles
   </a>
+  <?php endif; ?>
+
+  <?php if (service('access')->isSuperAdmin()): ?>
+    <p class="nav-section-label" style="margin-top: var(--space-4);">Configuración</p>
+
+    <a href="<?= route_to('admin.settings.smtp') ?>"
+       class="nav-item <?= str_starts_with($currentPath, '/admin/settings/smtp') ? 'is-active' : '' ?>">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+      </svg>
+      SMTP
+    </a>
+
+    <a href="<?= route_to('mailboxes.settings') ?>"
+       class="nav-item <?= str_starts_with($currentPath, '/admin/mailboxes') ? 'is-active' : '' ?>">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+      </svg>
+      Buzones API
+    </a>
+
+    <a href="<?= route_to('provisioning.systems.index') ?>"
+       class="nav-item <?= str_starts_with($currentPath, '/admin/provisioning') ? 'is-active' : '' ?>">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      Sistemas
+    </a>
+  <?php endif; ?>
 
   <?php if (! empty($modules)): ?>
     <p class="nav-section-label" style="margin-top: var(--space-4);">Módulos</p>

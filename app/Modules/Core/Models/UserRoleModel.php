@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class UserRoleModel extends Model
 {
-    protected $table         = 'user_roles';
+    protected $table         = 'core_user_roles';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['user_id', 'role_id'];
     protected $useTimestamps  = false;
@@ -16,9 +16,9 @@ class UserRoleModel extends Model
 
     public function getRolesForUser(int $userId): array
     {
-        return $this->db->table('user_roles ur')
+        return $this->db->table('core_user_roles ur')
             ->select('r.*')
-            ->join('roles r', 'r.id = ur.role_id')
+            ->join('core_roles r', 'r.id = ur.role_id')
             ->where('ur.user_id', $userId)
             ->where('r.status', 'active')
             ->get()->getResultArray();
@@ -26,10 +26,10 @@ class UserRoleModel extends Model
 
     public function getModuleKeysForUser(int $userId): array
     {
-        $rows = $this->db->table('user_roles ur')
+        $rows = $this->db->table('core_user_roles ur')
             ->select('m.key')
-            ->join('role_module rm', 'rm.role_id = ur.role_id')
-            ->join('modules m', 'm.id = rm.module_id')
+            ->join('core_role_modules rm', 'rm.role_id = ur.role_id')
+            ->join('core_modules m', 'm.id = rm.module_id')
             ->where('ur.user_id', $userId)
             ->where('m.is_active', 1)
             ->get()->getResultArray();

@@ -10,7 +10,7 @@ class AddMfaColumnsToUsers extends Migration
 {
     public function up(): void
     {
-        $this->forge->addColumn('users', [
+        $this->forge->addColumn('core_users', [
             'mfa_secret' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 64,
@@ -30,6 +30,6 @@ class AddMfaColumnsToUsers extends Migration
 
     public function down(): void
     {
-        $this->forge->dropColumn('users', ['mfa_secret', 'mfa_enabled']);
+        $this->forge->dropColumn('core_users', ['mfa_secret', 'mfa_enabled']);
     }
 }

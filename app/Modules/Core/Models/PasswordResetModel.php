@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class PasswordResetModel extends Model
 {
-    protected $table         = 'password_resets';
+    protected $table         = 'core_password_resets';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['email', 'token_hash', 'expires_at'];
     protected $useTimestamps  = true;

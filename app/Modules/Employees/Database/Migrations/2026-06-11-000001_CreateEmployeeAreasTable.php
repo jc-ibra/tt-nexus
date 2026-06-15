@@ -21,11 +21,11 @@ class CreateEmployeeAreasTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('name');
         $this->forge->addKey('status');
-        $this->forge->createTable('employee_areas');
+        $this->forge->createTable('employees_areas');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('employee_areas', true);
+        $this->forge->dropTable('employees_areas', true);
     }
 }

@@ -18,7 +18,7 @@ class ListService
 
         // Enrich with recipient counts
         foreach ($lists as &$list) {
-            $list['recipient_count'] = db_connect()->table('list_recipient')
+            $list['recipient_count'] = db_connect()->table('comms_list_recipients')
                 ->where('list_id', $list['id'])
                 ->countAllResults();
         }
@@ -109,7 +109,7 @@ class ListService
         }
 
         // Check if used in a communication
-        $inUse = db_connect()->table('communication_list')
+        $inUse = db_connect()->table('comms_communication_lists')
             ->where('list_id', $id)
             ->countAllResults();
 

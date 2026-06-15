@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class RoleModel extends Model
 {
-    protected $table         = 'roles';
+    protected $table         = 'core_roles';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['name', 'description', 'status'];
     protected $useTimestamps  = true;
@@ -27,9 +27,9 @@ class RoleModel extends Model
             return null;
         }
 
-        $modules = $this->db->table('role_module rm')
+        $modules = $this->db->table('core_role_modules rm')
             ->select('m.id, m.key, m.name')
-            ->join('modules m', 'm.id = rm.module_id')
+            ->join('core_modules m', 'm.id = rm.module_id')
             ->where('rm.role_id', $id)
             ->get()->getResultArray();
 
@@ -41,10 +41,10 @@ class RoleModel extends Model
 
     public function syncModules(int $roleId, array $moduleIds): void
     {
-        $this->db->table('role_module')->where('role_id', $roleId)->delete();
+        $this->db->table('core_role_modules')->where('role_id', $roleId)->delete();
 
         foreach ($moduleIds as $moduleId) {
-            $this->db->table('role_module')->insert([
+            $this->db->table('core_role_modules')->insert([
                 'role_id'   => $roleId,
                 'module_id' => (int) $moduleId,
             ]);

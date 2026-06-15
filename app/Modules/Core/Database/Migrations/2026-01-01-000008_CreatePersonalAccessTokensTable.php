@@ -22,12 +22,12 @@ class CreatePersonalAccessTokensTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('token_hash');
-        $this->forge->addForeignKey('user_id', 'users', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('personal_access_tokens');
+        $this->forge->addForeignKey('user_id', 'core_users', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('core_personal_access_tokens');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('personal_access_tokens', true);
+        $this->forge->dropTable('core_personal_access_tokens', true);
     }
 }

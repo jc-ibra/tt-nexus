@@ -49,7 +49,7 @@
             <td>#<?= (int) $r['id'] ?></td>
             <td class="text-sm">
               <?php if (! empty($r['employee_id'])): ?>
-                <a href="<?= base_url('empleados/' . (int) $r['employee_id']) ?>"><?= esc(trim(($r['employee_name'] ?? '') . ' ' . ($r['employee_lastname'] ?? ''))) ?></a>
+                <a href="<?= route_to('employees.show', (int) $r['employee_id']) ?>"><?= esc(trim(($r['employee_name'] ?? '') . ' ' . ($r['employee_lastname'] ?? ''))) ?></a>
               <?php else: ?>-<?php endif; ?>
             </td>
             <td class="text-sm"><?= esc($r['system_name'] ?: '-') ?></td>

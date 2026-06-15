@@ -21,11 +21,11 @@ class CreateUsersTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('email');
-        $this->forge->createTable('users');
+        $this->forge->createTable('core_users');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('users', true);
+        $this->forge->dropTable('core_users', true);
     }
 }

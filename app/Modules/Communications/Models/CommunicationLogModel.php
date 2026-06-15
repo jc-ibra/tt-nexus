@@ -6,7 +6,7 @@ use CodeIgniter\Model;
 
 class CommunicationLogModel extends Model
 {
-    protected $table      = 'communication_logs';
+    protected $table      = 'comms_communication_logs';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
 

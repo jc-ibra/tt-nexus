@@ -59,7 +59,7 @@
             <td class="text-sm"><?= esc(date('d/m/Y H:i', strtotime($r['created_at']))) ?></td>
             <td class="text-sm">
               <?php if (! empty($r['employee_id'])): ?>
-                <a href="<?= base_url('empleados/' . (int) $r['employee_id']) ?>"><?= esc(trim(($r['employee_name'] ?? '') . ' ' . ($r['employee_lastname'] ?? ''))) ?></a>
+                <a href="<?= route_to('employees.show', (int) $r['employee_id']) ?>"><?= esc(trim(($r['employee_name'] ?? '') . ' ' . ($r['employee_lastname'] ?? ''))) ?></a>
                 <?php if (! empty($r['employee_number'])): ?><span class="text-muted">#<?= esc($r['employee_number']) ?></span><?php endif; ?>
               <?php else: ?>
                 -

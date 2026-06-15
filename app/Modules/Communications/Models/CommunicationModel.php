@@ -6,7 +6,7 @@ use CodeIgniter\Model;
 
 class CommunicationModel extends Model
 {
-    protected $table      = 'communications';
+    protected $table      = 'comms_communications';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
 
@@ -36,9 +36,9 @@ class CommunicationModel extends Model
     {
         return $this->db->query("
             SELECT c.*,
-                   (SELECT COUNT(*) FROM communication_list cl WHERE cl.communication_id = c.id) AS list_count,
-                   (SELECT COUNT(*) FROM communication_logs clog WHERE clog.communication_id = c.id) AS sent_count
-            FROM communications c
+                   (SELECT COUNT(*) FROM comms_communication_lists cl WHERE cl.communication_id = c.id) AS list_count,
+                   (SELECT COUNT(*) FROM comms_communication_logs clog WHERE clog.communication_id = c.id) AS sent_count
+            FROM comms_communications c
             ORDER BY c.created_at DESC
         ")->getResultArray();
     }
@@ -50,9 +50,9 @@ class CommunicationModel extends Model
             return null;
         }
 
-        $comm['lists'] = $this->db->table('communication_list cl')
+        $comm['lists'] = $this->db->table('comms_communication_lists cl')
             ->select('rl.id, rl.name, rl.description')
-            ->join('recipient_lists rl', 'rl.id = cl.list_id')
+            ->join('comms_recipient_lists rl', 'rl.id = cl.list_id')
             ->where('cl.communication_id', $id)
             ->get()->getResultArray();
 
@@ -63,7 +63,7 @@ class CommunicationModel extends Model
 
     public function syncLists(int $communicationId, array $listIds): void
     {
-        $this->db->table('communication_list')->where('communication_id', $communicationId)->delete();
+        $this->db->table('comms_communication_lists')->where('communication_id', $communicationId)->delete();
 
         if (empty($listIds)) {
             return;
@@ -74,7 +74,7 @@ class CommunicationModel extends Model
             $listIds
         );
 
-        $this->db->table('communication_list')->insertBatch($rows);
+        $this->db->table('comms_communication_lists')->insertBatch($rows);
     }
 
     public function paginateWithCounts(int $perPage = 20, int $page = 1): array
@@ -83,9 +83,9 @@ class CommunicationModel extends Model
 
         return $this->db->query("
             SELECT c.*,
-                   (SELECT COUNT(*) FROM communication_list cl WHERE cl.communication_id = c.id) AS list_count,
-                   (SELECT COUNT(*) FROM communication_logs clog WHERE clog.communication_id = c.id) AS log_count
-            FROM communications c
+                   (SELECT COUNT(*) FROM comms_communication_lists cl WHERE cl.communication_id = c.id) AS list_count,
+                   (SELECT COUNT(*) FROM comms_communication_logs clog WHERE clog.communication_id = c.id) AS log_count
+            FROM comms_communications c
             ORDER BY c.created_at DESC
             LIMIT ? OFFSET ?
         ", [$perPage, $offset])->getResultArray();

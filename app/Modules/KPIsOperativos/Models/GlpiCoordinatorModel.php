@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class GlpiCoordinatorModel extends Model
 {
-    protected $table         = 'glpi_coordinators';
+    protected $table         = 'kpi_glpi_coordinators';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = true;

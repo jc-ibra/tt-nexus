@@ -17,13 +17,13 @@ class CreateListRecipientTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['list_id', 'recipient_id']);
-        $this->forge->addForeignKey('list_id',      'recipient_lists', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('recipient_id', 'recipients',      'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('list_recipient');
+        $this->forge->addForeignKey('list_id',      'comms_recipient_lists', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('recipient_id', 'comms_recipients',      'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('comms_list_recipients');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('list_recipient', true);
+        $this->forge->dropTable('comms_list_recipients', true);
     }
 }

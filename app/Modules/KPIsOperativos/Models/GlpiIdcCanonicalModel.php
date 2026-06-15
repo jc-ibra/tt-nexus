@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class GlpiIdcCanonicalModel extends Model
 {
-    protected $table         = 'glpi_idc_canonical';
+    protected $table         = 'kpi_glpi_idc_canonical';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = true;
@@ -43,10 +43,10 @@ class GlpiIdcCanonicalModel extends Model
         return $this->db->query("
             SELECT
                 c.*,
-                (SELECT COUNT(*) FROM glpi_idc_aliases a WHERE a.canonical_id = c.id) AS aliases_count,
-                (SELECT COUNT(*) FROM glpi_idc_aliases a WHERE a.canonical_id = c.id AND a.needs_review = 1) AS aliases_review,
-                (SELECT COUNT(*) FROM glpi_tickets t WHERE t.idc_canonical_id = c.id) AS tickets_count
-            FROM glpi_idc_canonical c
+                (SELECT COUNT(*) FROM kpi_glpi_idc_aliases a WHERE a.canonical_id = c.id) AS aliases_count,
+                (SELECT COUNT(*) FROM kpi_glpi_idc_aliases a WHERE a.canonical_id = c.id AND a.needs_review = 1) AS aliases_review,
+                (SELECT COUNT(*) FROM kpi_glpi_tickets t WHERE t.idc_canonical_id = c.id) AS tickets_count
+            FROM kpi_glpi_idc_canonical c
             ORDER BY tickets_count DESC, c.canonical_name ASC
         ")->getResultArray();
     }

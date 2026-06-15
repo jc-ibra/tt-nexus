@@ -17,13 +17,13 @@ class CreateUserRolesTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['user_id', 'role_id']);
-        $this->forge->addForeignKey('user_id', 'users', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('role_id', 'roles', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('user_roles');
+        $this->forge->addForeignKey('user_id', 'core_users', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('role_id', 'core_roles', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('core_user_roles');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('user_roles', true);
+        $this->forge->dropTable('core_user_roles', true);
     }
 }

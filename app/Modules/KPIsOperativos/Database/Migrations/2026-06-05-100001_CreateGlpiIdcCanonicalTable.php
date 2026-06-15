@@ -22,11 +22,11 @@ class CreateGlpiIdcCanonicalTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('normalized_form');
         $this->forge->addKey('is_verified');
-        $this->forge->createTable('glpi_idc_canonical');
+        $this->forge->createTable('kpi_glpi_idc_canonical');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('glpi_idc_canonical', true);
+        $this->forge->dropTable('kpi_glpi_idc_canonical', true);
     }
 }

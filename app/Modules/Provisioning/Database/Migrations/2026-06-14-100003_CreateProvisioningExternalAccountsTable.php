@@ -24,7 +24,7 @@ class CreateProvisioningExternalAccountsTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['employee_id', 'system_id']);
         $this->forge->addKey('status');
-        $this->forge->addForeignKey('employee_id', 'employees', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('employee_id', 'employees_employees', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addForeignKey('system_id',   'provisioning_systems', 'id', 'CASCADE', 'CASCADE');
         $this->forge->createTable('provisioning_external_accounts');
     }

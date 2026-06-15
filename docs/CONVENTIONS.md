@@ -108,6 +108,32 @@ Translate the domain noun directly to English plural. Prefer the literal transla
 
 Short URL prefixes (`/comms`, `/kpi`) are acceptable when the long form would be noisy, but the **folder name and namespace must always be the full English noun**. The module key in the DB must match the URL prefix exactly.
 
+### No Spanish (or any non-English) in URLs — ever
+
+**This is a hard rule with no exceptions.**
+
+URL path segments, route group prefixes, named route identifiers, and `route_base` values in the `modules` table must **always be in English**. Spanish (or any other natural language) belongs only in user-facing display copy: page titles, button labels, empty-state messages, and the `name` column of the `modules` table.
+
+| Context | Allowed | Forbidden |
+|---------|---------|-----------|
+| Route group prefix | `employees`, `provisioning` | `empleados`, `aprovisionamiento` |
+| Sub-path segment | `catalogs`, `departments`, `positions`, `log`, `retries`, `systems` | `catalogos`, `departamentos`, `puestos`, `bitacora`, `reintentos`, `sistemas` |
+| `route_base` in DB | `employees` | `empleados` |
+| Sidebar `base_url()` call | `base_url('employees/catalogs/areas')` | `base_url('empleados/catalogos/areas')` |
+| JS hardcoded fetch paths | `BASE + 'employees/mailboxes-search'` | `BASE + 'empleados/mailboxes-search'` |
+
+**Where to check every time you add or review a route:**
+1. `app/Modules/{Module}/Routes.php` — group prefix and every sub-path
+2. `app/Config/Routes.php` — confirm the module `require` is present
+3. `app/Modules/Core/Views/partials/sidebar.php` — `$moduleSubnav` `url` values and `str_starts_with` checks
+4. Any view or controller with a hardcoded `base_url('...')` path string
+5. The `modules.route_base` column in the database
+
+Run this grep before every merge to confirm zero leftovers:
+```bash
+grep -rni "base_url('[a-záéíóúñ]\|str_starts_with.*'/[a-záéíóúñ]" app/ --include="*.php"
+```
+
 ### What to do if you find a mismatched module
 
 Open a single PR that renames every identifier in lockstep (folder, namespace, key, URLs, filter args, view folder, DB table, sidebar). Half-migrations break route resolution and access control. Use `grep -rni "<old-name>" app/ docs/` to confirm zero leftovers before merging.
@@ -167,6 +193,44 @@ return false;
 - `$returnType = 'array'` by default (not objects) for consistency with view data.
 - Custom query methods go in the model. Complex multi-join queries are acceptable in the model if they're reused in 2+ places; single-use queries stay in the Service.
 - Use `$useTimestamps = true`. Never manage `created_at`/`updated_at` manually.
+
+---
+
+## 5.1 Database Table Naming Prefixes
+
+Every table in the database must carry a prefix that identifies which layer owns it. This makes it instantly obvious — from any DB client — whether a table belongs to the system core or to a specific module.
+
+### Prefix rules
+
+| Owner | Prefix | Example tables |
+|-------|--------|----------------|
+| System core (auth, roles, modules, settings) | `core_` | `core_users`, `core_roles`, `core_modules`, `core_app_settings` |
+| Module — use the module's **`route_base`** (URL prefix) | `{route_base}_` | `comms_communications`, `kpi_glpi_tickets`, `employees_employees` |
+
+### Module prefix reference
+
+| Module | `route_base` | Table prefix | Example |
+|--------|-------------|--------------|---------|
+| Communications | `comms` | `comms_` | `comms_communications`, `comms_recipients` |
+| KPIs Operativos | `kpi` | `kpi_` | `kpi_glpi_tickets`, `kpi_glpi_reports` |
+| Mailboxes | `mailboxes` | `mailboxes_` | `mailboxes_settings` |
+| Employees | `employees` | `employees_` | `employees_employees`, `employees_areas` |
+| Provisioning | `provisioning` | `provisioning_` | `provisioning_systems`, `provisioning_log` |
+
+### Rules
+
+- **No exceptions.** Every table — including pivot tables and log tables — carries the prefix.
+- The prefix equals the `route_base` stored in `core_modules.route_base`, not the PHP namespace or folder name.
+- When the main entity table and the prefix share the same word (e.g., `employees_employees`), the repetition is intentional and required for consistency.
+- CI4's internal `migrations` table is exempt — do not prefix framework-owned tables.
+- When adding a new module, choose its `route_base` first, then derive the table prefix. They must match.
+
+### Checklist for new tables
+
+1. Determine if the table belongs to Core or a module.
+2. Use `core_` or `{route_base}_` accordingly.
+3. Name the rest of the table in `snake_case` English plural.
+4. Add `{route_base}_ENCRYPTION_KEY` to `.env` if the table stores sensitive data.
 
 ---
 
@@ -344,3 +408,90 @@ docs(api): update postman collection with send endpoint
 - One logical change per commit.
 - Never commit `.env` or files with secrets.
 - Migration files are immutable once merged to main.
+
+---
+
+## 13. Sensitive Field Storage
+
+**Rule:** Never store credentials, API keys, secrets, or tokens in plaintext in the database. This applies to every module — no exceptions.
+
+### What counts as sensitive
+
+| Sensitive (must encrypt) | Not sensitive (plaintext OK) |
+|--------------------------|------------------------------|
+| API keys and secrets | Feature flags (`is_active`, booleans) |
+| Passwords and tokens | Numeric config values (`quota_mb`, timeouts) |
+| URLs that reveal internal infrastructure | Display names, descriptions |
+| Webhook secrets | Public identifiers |
+| Any value exploitable if the DB is leaked | |
+
+### Pattern: encrypted settings model
+
+Mark sensitive fields with a `ENCRYPTED_KEYS` class constant. The model handles encryption/decryption transparently so callers (Services, Controllers) work with plaintext strings — they never touch ciphertext.
+
+**Encryption spec:**
+- Algorithm: `AES-256-CBC`
+- Key length: 256-bit (32 bytes), stored as a 64-char hex string in `.env`
+- IV: random 16 bytes, generated fresh per write
+- Storage format: `base64( iv[16 bytes] || ciphertext )` in a `TEXT` column
+- Key source: dedicated env variable per module (see below)
+
+```php
+class MailboxesSettingsModel
+{
+    // Declare which keys are always stored encrypted.
+    private const ENCRYPTED_KEYS = ['mailcow_url', 'mailcow_api_key'];
+
+    public function get(string $key, string $default = ''): string
+    {
+        $val = /* fetch from db */;
+        if ($val !== '' && in_array($key, self::ENCRYPTED_KEYS, true)) {
+            return $this->decryptValue($val);  // transparent
+        }
+        return $val;
+    }
+
+    public function set(string $key, string $value): void
+    {
+        if ($value !== '' && in_array($key, self::ENCRYPTED_KEYS, true)) {
+            $value = $this->encryptValue($value);  // transparent
+        }
+        /* persist to db */
+    }
+}
+```
+
+**Reference implementation:** `app/Modules/Mailboxes/Models/MailboxesSettingsModel.php`
+
+### Encryption key naming and storage
+
+One dedicated key per module that owns sensitive data:
+
+| Module | Env variable | Scope |
+|--------|-------------|-------|
+| Mailboxes | `MAILBOXES_ENCRYPTION_KEY` | Mailcow credentials |
+| _(next module)_ | `{MODULE_KEY}_ENCRYPTION_KEY` | _(its credentials)_ |
+
+Rules:
+- Never reuse an encryption key across modules — keys are scoped to one module's data
+- Generate with: `python3 -c "import secrets; print(secrets.token_hex(32))"`
+- Add to `.env` (gitignored): `MAILBOXES_ENCRYPTION_KEY = <64-hex-chars>`
+- Add a placeholder to the `env` template so new developers know the key is required
+- Never commit the actual key value — it lives only in `.env` and in secure secrets storage
+
+### Checklist for new modules with sensitive settings
+
+1. Define `ENCRYPTED_KEYS` in the settings model
+2. Add `encryptValue()` / `decryptValue()` private methods (copy from `MailboxesSettingsModel`)
+3. Generate a dedicated key and add `{MODULE_KEY}_ENCRYPTION_KEY` to `.env`
+4. Add the placeholder to the `env` template
+5. Write a migration that **clears** any pre-existing plaintext values — never try to encrypt existing rows inline inside a migration (the key may not be loaded yet in all environments)
+6. Document which fields are encrypted in the model's docblock
+
+### Never
+
+- Log a sensitive field value, even in encrypted form, at any log level
+- Store the encryption key in the database or in committed code
+- Use the same key for multiple unrelated modules
+- Treat `type="password"` HTML inputs as a substitute for database encryption
+- Skip the migration step when retrofitting encryption onto existing data

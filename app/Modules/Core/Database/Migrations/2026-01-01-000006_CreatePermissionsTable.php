@@ -19,12 +19,12 @@ class CreatePermissionsTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['module_id', 'key']);
-        $this->forge->addForeignKey('module_id', 'modules', 'id', 'CASCADE', 'CASCADE');
-        $this->forge->createTable('permissions');
+        $this->forge->addForeignKey('module_id', 'core_modules', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->createTable('core_permissions');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('permissions', true);
+        $this->forge->dropTable('core_permissions', true);
     }
 }

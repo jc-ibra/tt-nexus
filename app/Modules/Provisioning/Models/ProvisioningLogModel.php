@@ -34,7 +34,7 @@ class ProvisioningLogModel extends Model
     {
         return $this->select('provisioning_log.*, s.name AS system_name, s.key AS system_key, u.name AS executor_name')
             ->join('provisioning_systems s', 's.id = provisioning_log.system_id', 'left')
-            ->join('users u', 'u.id = provisioning_log.executor_user_id', 'left')
+            ->join('core_users u', 'u.id = provisioning_log.executor_user_id', 'left')
             ->where('employee_id', $employeeId)
             ->orderBy('provisioning_log.created_at', 'DESC')
             ->limit($limit)
@@ -45,8 +45,8 @@ class ProvisioningLogModel extends Model
     {
         $builder = $this->select('provisioning_log.*, s.name AS system_name, s.key AS system_key, e.name AS employee_name, e.lastname AS employee_lastname, e.employee_number, u.name AS executor_name')
             ->join('provisioning_systems s', 's.id = provisioning_log.system_id', 'left')
-            ->join('employees e',            'e.id = provisioning_log.employee_id', 'left')
-            ->join('users u',                'u.id = provisioning_log.executor_user_id', 'left');
+            ->join('employees_employees e',            'e.id = provisioning_log.employee_id', 'left')
+            ->join('core_users u',                'u.id = provisioning_log.executor_user_id', 'left');
 
         if (! empty($filters['operation'])) {
             $builder->where('provisioning_log.operation', $filters['operation']);

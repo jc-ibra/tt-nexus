@@ -15,9 +15,9 @@ class CoreSeeder extends Seeder
         // ----------------------------------------------------------------
         // Roles
         // ----------------------------------------------------------------
-        $existingRole = $this->db->table('roles')->where('name', 'SuperAdmin')->get()->getRow();
+        $existingRole = $this->db->table('core_roles')->where('name', 'SuperAdmin')->get()->getRow();
         if (! $existingRole) {
-            $this->db->table('roles')->insert([
+            $this->db->table('core_roles')->insert([
                 'name'        => 'SuperAdmin',
                 'description' => 'Acceso completo a todos los módulos',
                 'status'      => 'active',
@@ -44,9 +44,9 @@ class CoreSeeder extends Seeder
             );
         }
 
-        $existingUser = $this->db->table('users')->where('email', $email)->get()->getRow();
+        $existingUser = $this->db->table('core_users')->where('email', $email)->get()->getRow();
         if (! $existingUser) {
-            $this->db->table('users')->insert([
+            $this->db->table('core_users')->insert([
                 'name'       => $name,
                 'email'      => $email,
                 'password'   => password_hash($password, PASSWORD_DEFAULT),
@@ -56,7 +56,7 @@ class CoreSeeder extends Seeder
             ]);
             $adminUserId = $this->db->insertID();
 
-            $this->db->table('user_roles')->insert([
+            $this->db->table('core_user_roles')->insert([
                 'user_id' => $adminUserId,
                 'role_id' => $superAdminRoleId,
             ]);
@@ -68,9 +68,9 @@ class CoreSeeder extends Seeder
         // ----------------------------------------------------------------
         // Modules registry
         // ----------------------------------------------------------------
-        $existingModule = $this->db->table('modules')->where('key', 'communications')->get()->getRow();
+        $existingModule = $this->db->table('core_modules')->where('key', 'communications')->get()->getRow();
         if (! $existingModule) {
-            $this->db->table('modules')->insert([
+            $this->db->table('core_modules')->insert([
                 'key'         => 'communications',
                 'name'        => 'Comunicaciones',
                 'description' => 'Envío masivo de comunicados internos por correo',
@@ -90,13 +90,13 @@ class CoreSeeder extends Seeder
         // ----------------------------------------------------------------
         // Grant SuperAdmin access to Communications module
         // ----------------------------------------------------------------
-        $existingLink = $this->db->table('role_module')
+        $existingLink = $this->db->table('core_role_modules')
             ->where('role_id', $superAdminRoleId)
             ->where('module_id', $commsModuleId)
             ->get()->getRow();
 
         if (! $existingLink) {
-            $this->db->table('role_module')->insert([
+            $this->db->table('core_role_modules')->insert([
                 'role_id'   => $superAdminRoleId,
                 'module_id' => $commsModuleId,
             ]);

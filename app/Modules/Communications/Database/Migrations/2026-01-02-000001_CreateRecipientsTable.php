@@ -22,11 +22,11 @@ class CreateRecipientsTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('email');
         $this->forge->addKey('status');
-        $this->forge->createTable('recipients');
+        $this->forge->createTable('comms_recipients');
     }
 
     public function down(): void
     {
-        $this->forge->dropTable('recipients', true);
+        $this->forge->dropTable('comms_recipients', true);
     }
 }

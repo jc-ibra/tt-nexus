@@ -35,23 +35,32 @@ $routes->group('mfa', ['namespace' => 'App\Modules\Core\Controllers'], function 
 $routes->group('admin', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => 'auth'], function (RouteCollection $routes): void {
     $routes->get('dashboard', 'Dashboard::index', ['as' => 'dashboard']);
 
-    // Users
-    $routes->get('users',              'Users::index',         ['as' => 'admin.users.index']);
-    $routes->get('users/new',          'Users::new',           ['as' => 'admin.users.new']);
-    $routes->post('users',             'Users::store',         ['as' => 'admin.users.store']);
-    $routes->get('users/(:num)',       'Users::show/$1',       ['as' => 'admin.users.show']);
-    $routes->get('users/(:num)/edit',  'Users::edit/$1',       ['as' => 'admin.users.edit']);
-    $routes->post('users/(:num)',      'Users::update/$1',     ['as' => 'admin.users.update']);
-    $routes->post('users/(:num)/delete', 'Users::destroy/$1', ['as' => 'admin.users.destroy']);
+    // Users — SuperAdmin only
+    $routes->get('users',                'Users::index',      ['as' => 'admin.users.index',    'filter' => 'super_admin']);
+    $routes->get('users/new',            'Users::new',        ['as' => 'admin.users.new',      'filter' => 'super_admin']);
+    $routes->post('users',               'Users::store',      ['as' => 'admin.users.store',    'filter' => 'super_admin']);
+    $routes->get('users/(:num)',         'Users::show/$1',    ['as' => 'admin.users.show',     'filter' => 'super_admin']);
+    $routes->get('users/(:num)/edit',    'Users::edit/$1',    ['as' => 'admin.users.edit',     'filter' => 'super_admin']);
+    $routes->post('users/(:num)',        'Users::update/$1',  ['as' => 'admin.users.update',   'filter' => 'super_admin']);
+    $routes->post('users/(:num)/delete', 'Users::destroy/$1', ['as' => 'admin.users.destroy',  'filter' => 'super_admin']);
 
-    // Roles
-    $routes->get('roles',              'Roles::index',         ['as' => 'admin.roles.index']);
-    $routes->get('roles/new',          'Roles::new',           ['as' => 'admin.roles.new']);
-    $routes->post('roles',             'Roles::store',         ['as' => 'admin.roles.store']);
-    $routes->get('roles/(:num)',       'Roles::show/$1',       ['as' => 'admin.roles.show']);
-    $routes->get('roles/(:num)/edit',  'Roles::edit/$1',       ['as' => 'admin.roles.edit']);
-    $routes->post('roles/(:num)',      'Roles::update/$1',     ['as' => 'admin.roles.update']);
-    $routes->post('roles/(:num)/delete', 'Roles::destroy/$1', ['as' => 'admin.roles.destroy']);
+    // Roles — SuperAdmin only
+    $routes->get('roles',                'Roles::index',      ['as' => 'admin.roles.index',    'filter' => 'super_admin']);
+    $routes->get('roles/new',            'Roles::new',        ['as' => 'admin.roles.new',      'filter' => 'super_admin']);
+    $routes->post('roles',               'Roles::store',      ['as' => 'admin.roles.store',    'filter' => 'super_admin']);
+    $routes->get('roles/(:num)',         'Roles::show/$1',    ['as' => 'admin.roles.show',     'filter' => 'super_admin']);
+    $routes->get('roles/(:num)/edit',    'Roles::edit/$1',    ['as' => 'admin.roles.edit',     'filter' => 'super_admin']);
+    $routes->post('roles/(:num)',        'Roles::update/$1',  ['as' => 'admin.roles.update',   'filter' => 'super_admin']);
+    $routes->post('roles/(:num)/delete', 'Roles::destroy/$1', ['as' => 'admin.roles.destroy',  'filter' => 'super_admin']);
+});
+
+// -----------------------------------------------------------------------
+// Admin — Settings (SuperAdmin only)
+// -----------------------------------------------------------------------
+$routes->group('admin/settings', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => ['auth', 'super_admin']], function (RouteCollection $routes): void {
+    $routes->get('smtp',       'Settings::smtp',      ['as' => 'admin.settings.smtp']);
+    $routes->post('smtp',      'Settings::saveSMTP',  ['as' => 'admin.settings.smtp.save']);
+    $routes->post('smtp/test', 'Settings::testSMTP',  ['as' => 'admin.settings.smtp.test']);
 });
 
 // -----------------------------------------------------------------------

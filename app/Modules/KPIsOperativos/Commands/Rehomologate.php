@@ -68,12 +68,12 @@ class Rehomologate extends BaseCommand
             CLI::write("Reporte {$reportId} ({$report['name']})...", 'cyan');
 
             // Limpiar canonical_id previo en este reporte (no borra canonicals globales)
-            $db->table('glpi_tickets')
+            $db->table('kpi_glpi_tickets')
                 ->where('report_id', $reportId)
                 ->update(['idc_canonical_id' => null]);
 
             // Iterar IDCs únicos de este reporte y mapearlos
-            $uniques = $db->table('glpi_tickets')
+            $uniques = $db->table('kpi_glpi_tickets')
                 ->select('idc')
                 ->distinct()
                 ->where('report_id', $reportId)
@@ -95,7 +95,7 @@ class Rehomologate extends BaseCommand
 
             // Aplicar mapping con UPDATE batch (1 query por raw → cubre miles de tickets)
             foreach ($mapping as $raw => $canonicalId) {
-                $db->table('glpi_tickets')
+                $db->table('kpi_glpi_tickets')
                     ->where('report_id', $reportId)
                     ->where('idc', $raw)
                     ->update(['idc_canonical_id' => $canonicalId]);
@@ -113,9 +113,9 @@ class Rehomologate extends BaseCommand
             CLI::write("  ✓ Snapshot KPI recalculado", 'green');
         }
 
-        $canonCount = (int) $db->table('glpi_idc_canonical')->countAllResults();
-        $aliasCount = (int) $db->table('glpi_idc_aliases')->countAllResults();
-        $reviewCount = (int) $db->table('glpi_idc_aliases')->where('needs_review', 1)->countAllResults();
+        $canonCount = (int) $db->table('kpi_glpi_idc_canonical')->countAllResults();
+        $aliasCount = (int) $db->table('kpi_glpi_idc_aliases')->countAllResults();
+        $reviewCount = (int) $db->table('kpi_glpi_idc_aliases')->where('needs_review', 1)->countAllResults();
 
         CLI::newLine();
         CLI::write("✅ Listo.", 'green');

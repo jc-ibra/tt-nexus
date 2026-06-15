@@ -264,7 +264,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
 
   async function searchMailboxes(term) {
     try {
-      const url = BASE + 'empleados/mailboxes-search?q=' + encodeURIComponent(term);
+      const url = BASE + 'employees/mailboxes-search?q=' + encodeURIComponent(term);
       const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
       const json = await res.json();
       if (json.status !== 'success') return;
@@ -306,7 +306,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       <?php if ($isEdit): ?>
       params.append('exclude_id', '<?= (int) $employee['id'] ?>');
       <?php endif; ?>
-      const url = BASE + 'empleados/employees-search?' + params.toString();
+      const url = BASE + 'employees/employees-search?' + params.toString();
       const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
       if (! res.ok) return;
       const json = await res.json();

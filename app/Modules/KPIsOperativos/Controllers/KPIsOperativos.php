@@ -16,17 +16,17 @@ class KPIsOperativos extends BaseController
     {
         $db = db_connect();
 
-        $glpiReportsCount = (int) $db->table('glpi_reports')
+        $glpiReportsCount = (int) $db->table('kpi_glpi_reports')
             ->where('status', 'ready')
             ->countAllResults();
 
-        $glpiTotalTickets = (int) ($db->table('glpi_reports')
+        $glpiTotalTickets = (int) ($db->table('kpi_glpi_reports')
             ->selectSum('total_tickets')
             ->where('status', 'ready')
             ->get()
             ->getRow()->total_tickets ?? 0);
 
-        $glpiLatest = $db->table('glpi_reports')
+        $glpiLatest = $db->table('kpi_glpi_reports')
             ->select('name, created_at')
             ->where('status', 'ready')
             ->orderBy('created_at', 'DESC')

@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 class EmployeeAreaModel extends Model
 {
-    protected $table         = 'employee_areas';
+    protected $table         = 'employees_areas';
     protected $primaryKey    = 'id';
     protected $returnType    = 'array';
     protected $useTimestamps = true;
@@ -16,7 +16,7 @@ class EmployeeAreaModel extends Model
     protected $allowedFields = ['name', 'status'];
 
     protected $validationRules = [
-        'name'   => 'required|max_length[120]|is_unique[employee_areas.name,id,{id}]',
+        'name'   => 'required|max_length[120]|is_unique[employees_areas.name,id,{id}]',
         'status' => 'in_list[active,inactive]',
     ];
 
@@ -35,7 +35,7 @@ class EmployeeAreaModel extends Model
 
     public function countEmployees(int $id): int
     {
-        return $this->db->table('employees')
+        return $this->db->table('employees_employees')
             ->where('area_id', $id)
             ->where('deleted_at', null)
             ->countAllResults();
