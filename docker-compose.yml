@@ -1,8 +1,7 @@
 services:
-
   app:
     build: .
-    container_name: tt-apps
+    container_name: tt-nexus
     ports:
       - "8080:80"
     volumes:
@@ -19,16 +18,17 @@ services:
 
   db:
     image: mysql:8.0
-    container_name: tt-apps-db
+    container_name: tt-nexus-db
     ports:
       - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: tt_apps
+      MYSQL_DATABASE: tt_nexus
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test:
+        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -36,7 +36,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
-    container_name: tt-apps-pma
+    container_name: tt-nexus-pma
     ports:
       - "8081:80"
     environment:

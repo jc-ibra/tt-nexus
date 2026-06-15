@@ -10,63 +10,97 @@ class CoreSeeder extends Seeder
 {
     public function run(): void
     {
+        $now = date('Y-m-d H:i:s');
+
         // ----------------------------------------------------------------
         // Roles
         // ----------------------------------------------------------------
-        $roleId = $this->db->table('roles')->insert([
-            'name'        => 'SuperAdmin',
-            'description' => 'Acceso completo a todos los módulos',
-            'status'      => 'active',
-            'created_at'  => date('Y-m-d H:i:s'),
-            'updated_at'  => date('Y-m-d H:i:s'),
-        ]);
-        $superAdminRoleId = $this->db->insertID();
+        $existingRole = $this->db->table('roles')->where('name', 'SuperAdmin')->get()->getRow();
+        if (! $existingRole) {
+            $this->db->table('roles')->insert([
+                'name'        => 'SuperAdmin',
+                'description' => 'Acceso completo a todos los módulos',
+                'status'      => 'active',
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ]);
+            $superAdminRoleId = $this->db->insertID();
+            echo "CoreSeeder: SuperAdmin role created.\n";
+        } else {
+            $superAdminRoleId = $existingRole->id;
+            echo "CoreSeeder: SuperAdmin role already exists — skipped.\n";
+        }
 
         // ----------------------------------------------------------------
         // Admin user
         // ----------------------------------------------------------------
+        $email    = env('ADMIN_EMAIL');
+        $password = env('ADMIN_PASSWORD');
         $name     = env('ADMIN_NAME', 'Administrator');
-        $email    = env('ADMIN_EMAIL', 'admin@ibrastudio.com');
-        $password = env('ADMIN_PASSWORD', 'changeme123');
 
-        $this->db->table('users')->insert([
-            'name'       => $name,
-            'email'      => $email,
-            'password'   => password_hash($password, PASSWORD_DEFAULT),
-            'status'     => 'active',
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-        $adminUserId = $this->db->insertID();
+        if (empty($email) || empty($password)) {
+            throw new \RuntimeException(
+                'CoreSeeder requires ADMIN_EMAIL and ADMIN_PASSWORD to be defined in .env — no defaults are provided.'
+            );
+        }
 
-        $this->db->table('user_roles')->insert([
-            'user_id' => $adminUserId,
-            'role_id' => $superAdminRoleId,
-        ]);
+        $existingUser = $this->db->table('users')->where('email', $email)->get()->getRow();
+        if (! $existingUser) {
+            $this->db->table('users')->insert([
+                'name'       => $name,
+                'email'      => $email,
+                'password'   => password_hash($password, PASSWORD_DEFAULT),
+                'status'     => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $adminUserId = $this->db->insertID();
+
+            $this->db->table('user_roles')->insert([
+                'user_id' => $adminUserId,
+                'role_id' => $superAdminRoleId,
+            ]);
+            echo "CoreSeeder: Admin user ({$email}) created.\n";
+        } else {
+            echo "CoreSeeder: Admin user ({$email}) already exists — skipped.\n";
+        }
 
         // ----------------------------------------------------------------
         // Modules registry
         // ----------------------------------------------------------------
-        $this->db->table('modules')->insert([
-            'key'         => 'communications',
-            'name'        => 'Comunicaciones',
-            'description' => 'Envío masivo de comunicados internos por correo',
-            'route_base'  => 'comms',
-            'icon'        => 'mail',
-            'is_active'   => 1,
-            'created_at'  => date('Y-m-d H:i:s'),
-            'updated_at'  => date('Y-m-d H:i:s'),
-        ]);
-        $commsModuleId = $this->db->insertID();
+        $existingModule = $this->db->table('modules')->where('key', 'communications')->get()->getRow();
+        if (! $existingModule) {
+            $this->db->table('modules')->insert([
+                'key'         => 'communications',
+                'name'        => 'Comunicaciones',
+                'description' => 'Envío masivo de comunicados internos por correo',
+                'route_base'  => 'comms',
+                'icon'        => 'mail',
+                'is_active'   => 1,
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ]);
+            $commsModuleId = $this->db->insertID();
+            echo "CoreSeeder: Communications module created.\n";
+        } else {
+            $commsModuleId = $existingModule->id;
+            echo "CoreSeeder: Communications module already exists — skipped.\n";
+        }
 
         // ----------------------------------------------------------------
-        // Grant SuperAdmin access to all modules
+        // Grant SuperAdmin access to Communications module
         // ----------------------------------------------------------------
-        $this->db->table('role_module')->insert([
-            'role_id'   => $superAdminRoleId,
-            'module_id' => $commsModuleId,
-        ]);
+        $existingLink = $this->db->table('role_module')
+            ->where('role_id', $superAdminRoleId)
+            ->where('module_id', $commsModuleId)
+            ->get()->getRow();
 
-        echo "CoreSeeder: SuperAdmin role, admin user ({$email}), and Communications module created.\n";
+        if (! $existingLink) {
+            $this->db->table('role_module')->insert([
+                'role_id'   => $superAdminRoleId,
+                'module_id' => $commsModuleId,
+            ]);
+            echo "CoreSeeder: SuperAdmin granted access to Communications.\n";
+        }
     }
 }
