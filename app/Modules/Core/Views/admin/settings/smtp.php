@@ -14,21 +14,6 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
 
 <div style="max-width:640px; display:flex; flex-direction:column; gap:var(--space-6);">
 
-  <?php $flashSuccess = session()->getFlashdata('success'); ?>
-  <?php if ($flashSuccess): ?>
-    <div class="banner banner-success" role="status">
-      <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-      <div class="banner-body"><?= esc($flashSuccess) ?></div>
-    </div>
-  <?php endif; ?>
-  <?php $flashError = session()->getFlashdata('error'); ?>
-  <?php if ($flashError): ?>
-    <div class="banner banner-critical" role="alert">
-      <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <div class="banner-body"><?= esc($flashError) ?></div>
-    </div>
-  <?php endif; ?>
-
   <form action="<?= route_to('admin.settings.smtp.save') ?>" method="post"
         style="display:flex; flex-direction:column; gap:var(--space-4);">
     <?= csrf_field() ?>

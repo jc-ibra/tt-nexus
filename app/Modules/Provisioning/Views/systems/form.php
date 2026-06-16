@@ -11,11 +11,6 @@
   </div>
 </div>
 
-<?php $flashError = session()->getFlashdata('error'); ?>
-<?php if ($flashError): ?>
-  <div class="banner banner-critical" style="margin-bottom:var(--space-4);"><div class="banner-body"><?= esc($flashError) ?></div></div>
-<?php endif; ?>
-
 <form method="post" action="<?= route_to('provisioning.systems.update', $system['id']) ?>" class="card">
   <?= csrf_field() ?>
   <div class="card-body" style="display:flex; flex-direction:column; gap:var(--space-4);">

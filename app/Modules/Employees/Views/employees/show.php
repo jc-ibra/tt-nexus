@@ -27,27 +27,6 @@ $parentName = trim(($employee['parent_name'] ?? '') . ' ' . ($employee['parent_l
   </div>
 </div>
 
-<?php $flashSuccess = session()->getFlashdata('success'); ?>
-<?php if ($flashSuccess): ?>
-<div class="banner banner-success" style="margin-bottom:var(--space-4);">
-  <div class="banner-body"><?= esc($flashSuccess) ?></div>
-</div>
-<?php endif; ?>
-
-<?php $flashWarning = session()->getFlashdata('warning'); ?>
-<?php if ($flashWarning): ?>
-<div class="banner banner-warning" style="margin-bottom:var(--space-4);">
-  <div class="banner-body"><?= esc($flashWarning) ?></div>
-</div>
-<?php endif; ?>
-
-<?php $flashError = session()->getFlashdata('error'); ?>
-<?php if ($flashError): ?>
-<div class="banner banner-critical" style="margin-bottom:var(--space-4);">
-  <div class="banner-body"><?= esc($flashError) ?></div>
-</div>
-<?php endif; ?>
-
 <?php
 // Embed provisioning panel (no-op if the user has no access to the module).
 $provisioningPanel = APPPATH . 'Modules/Provisioning/Views/partials/employee-panel.php';

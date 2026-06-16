@@ -15,15 +15,6 @@
   </div>
 </div>
 
-<?php $flashSuccess = session()->getFlashdata('success'); ?>
-<?php if ($flashSuccess): ?>
-  <div class="banner banner-success" style="margin-bottom:var(--space-4);"><div class="banner-body"><?= esc($flashSuccess) ?></div></div>
-<?php endif; ?>
-<?php $flashError = session()->getFlashdata('error'); ?>
-<?php if ($flashError): ?>
-  <div class="banner banner-critical" style="margin-bottom:var(--space-4);"><div class="banner-body"><?= esc($flashError) ?></div></div>
-<?php endif; ?>
-
 <div class="card">
   <div class="card-body" style="padding:0; overflow-x:auto;">
     <table class="table" style="width:100%;">
