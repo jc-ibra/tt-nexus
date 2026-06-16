@@ -49,6 +49,8 @@ class Employees extends BaseController
             'areas'       => $catalogSvc->listActiveAreas(),
             'departments' => $catalogSvc->listActiveDepartments(),
             'positions'   => $catalogSvc->listActivePositions(),
+            'states'      => $catalogSvc->listActiveStates(),
+            'locations'   => $catalogSvc->listActiveLocations(),
         ]);
     }
 
@@ -105,6 +107,8 @@ class Employees extends BaseController
             'areas'       => $catalogSvc->listActiveAreas(),
             'departments' => $catalogSvc->listActiveDepartments(),
             'positions'   => $catalogSvc->listActivePositions(),
+            'states'      => $catalogSvc->listActiveStates(),
+            'locations'   => $catalogSvc->listActiveLocations(),
         ]);
     }
 
@@ -275,7 +279,7 @@ class Employees extends BaseController
         return $this->request->getPost([
             'employee_number', 'name', 'lastname', 'email', 'email_secondary', 'has_mailbox',
             'telephone', 'cellphone', 'ext',
-            'position_id', 'department_id', 'area_id', 'parent_id',
+            'position_id', 'department_id', 'area_id', 'state_id', 'location_id', 'parent_id',
             'date_entry', 'date_discharge',
             'hide_emails', 'show_in_directory', 'active',
         ]);

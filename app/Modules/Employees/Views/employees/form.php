@@ -154,6 +154,28 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
           </select>
         </div>
 
+        <?php if (service('access')->isSuperAdmin()): ?>
+        <div class="field">
+          <label class="field-label" for="state_id">Estado de origen</label>
+          <select id="state_id" name="state_id" class="select">
+            <option value="">Sin asignar</option>
+            <?php foreach ($states as $st): ?>
+              <option value="<?= (int) $st['id'] ?>" <?= (string) $old('state_id') === (string) $st['id'] ? 'selected' : '' ?>><?= esc($st['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="location_id">Ubicación de origen</label>
+          <select id="location_id" name="location_id" class="select">
+            <option value="">Sin asignar</option>
+            <?php foreach ($locations as $loc): ?>
+              <option value="<?= (int) $loc['id'] ?>" <?= (string) $old('location_id') === (string) $loc['id'] ? 'selected' : '' ?>><?= esc($loc['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php endif; ?>
+
         <div class="field" style="grid-column: 1 / -1;">
           <label class="field-label" for="parent_search">Jefe directo</label>
           <input type="text" id="parent_search" class="input"

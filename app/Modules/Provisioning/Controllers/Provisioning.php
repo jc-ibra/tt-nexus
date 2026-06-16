@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Provisioning\Controllers;
 
 use App\Controllers\BaseController;
+use App\Modules\Mailboxes\Libraries\MailcowApi;
+use App\Modules\Mailboxes\Models\MailboxesSettingsModel;
 use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
 use App\Modules\Provisioning\Models\ProvisioningLogModel;
 use App\Modules\Provisioning\Models\ProvisioningRetryQueueModel;
@@ -170,6 +172,67 @@ class Provisioning extends BaseController
      * On successful provision/password, the temporary password is shown ONCE so the operator
      * can hand it to the employee. It is not persisted anywhere reachable from the UI.
      */
+    public function mailcowDomains(): ResponseInterface
+    {
+        try {
+            $settings = new MailboxesSettingsModel();
+            $api      = new MailcowApi(
+                (string) $settings->get('mailcow_url'),
+                (string) $settings->get('mailcow_api_key'),
+                (bool) $settings->get('mailcow_verify_ssl', '1'),
+            );
+            $resp = $api->getAllDomains();
+            if (! $resp['success']) {
+                return $this->response->setJSON(['status' => 'error', 'data' => []]);
+            }
+            $domains = array_column((array) $resp['data'], 'domain');
+            return $this->response->setJSON(['status' => 'success', 'data' => $domains]);
+        } catch (\Throwable $e) {
+            return $this->response->setJSON(['status' => 'error', 'data' => []]);
+        }
+    }
+
+    public function suggestMailbox(): ResponseInterface
+    {
+        $employeeId = (int) ($this->request->getGet('employee_id') ?? 0);
+        if ($employeeId <= 0) {
+            return $this->response->setJSON(['status' => 'error', 'suggestion' => '']);
+        }
+
+        $employee = (new \App\Modules\Employees\Models\EmployeeModel())->find($employeeId);
+        if (! $employee) {
+            return $this->response->setJSON(['status' => 'error', 'suggestion' => '']);
+        }
+
+        $suggestion = $this->buildMailboxSuggestion(
+            (string) ($employee['name'] ?? ''),
+            (string) ($employee['lastname'] ?? ''),
+        );
+
+        return $this->response->setJSON(['status' => 'success', 'suggestion' => $suggestion]);
+    }
+
+    private function buildMailboxSuggestion(string $name, string $lastname): string
+    {
+        $normalize = function (string $str): string {
+            $str = mb_strtolower(trim($str));
+            $map = ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n',
+                    'Á'=>'a','É'=>'e','Í'=>'i','Ó'=>'o','Ú'=>'u','Ü'=>'u','Ñ'=>'n'];
+            $str = strtr($str, $map);
+            $str = preg_replace('/[^a-z0-9]/', '', $str) ?? $str;
+            return $str;
+        };
+
+        $firstName  = $normalize(explode(' ', $name)[0] ?? $name);
+        $firstLast  = $normalize(explode(' ', $lastname)[0] ?? $lastname);
+
+        if ($firstName === '' || $firstLast === '') {
+            return $firstName . $firstLast;
+        }
+
+        return $firstName . '.' . $firstLast;
+    }
+
     private function parseSystemIds(mixed $raw): ?array
     {
         if (! is_array($raw) || empty($raw)) {

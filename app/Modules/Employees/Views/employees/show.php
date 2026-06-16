@@ -242,6 +242,16 @@ if (is_file($provisioningPanel)) {
               -
             <?php endif; ?>
           </dd>
+
+          <?php if (service('access')->isSuperAdmin()): ?>
+          <?php if (! empty($employee['state_name']) || ! empty($employee['location_name'])): ?>
+            <dt class="text-muted text-sm">Estado de origen</dt>
+            <dd><?= esc($employee['state_name'] ?? '-') ?></dd>
+
+            <dt class="text-muted text-sm">Ubicación de origen</dt>
+            <dd><?= esc($employee['location_name'] ?? '-') ?></dd>
+          <?php endif; ?>
+          <?php endif; ?>
         </dl>
       </div>
     </div>

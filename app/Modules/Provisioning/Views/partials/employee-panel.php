@@ -128,10 +128,20 @@ foreach ($accounts as $a) {
         </div>
         <div id="prov-mailbox-email-wrap" style="margin-bottom:var(--space-2); display:none;">
           <label class="label" style="font-size:var(--text-sm); margin-bottom:var(--space-1); display:block;">
-            Email del buzón Mailcow <span style="color:var(--color-critical-default);">*</span>
+            Correo de buzón Mailcow <span style="color:var(--color-critical-default);">*</span>
           </label>
-          <input type="email" name="mailbox_email" id="prov-mailbox-email" class="input"
-                 placeholder="usuario@dominio.com" style="width:100%;">
+          <p class="text-muted" style="font-size:var(--text-xs); margin:0 0 var(--space-1);">
+            Formato: nombre.apellido · Si ya existe se usará nombre.apellido1, etc.
+          </p>
+          <div style="display:flex; gap:var(--space-1); align-items:center;">
+            <input type="text" id="prov-mailbox-local" class="input" placeholder="nombre.apellido"
+                   style="flex:1;" autocomplete="off" spellcheck="false">
+            <span style="color:var(--text-muted); font-weight:600;">@</span>
+            <select id="prov-mailbox-domain" class="select" style="flex:1;">
+              <option value="">Cargando dominios...</option>
+            </select>
+          </div>
+          <input type="hidden" name="mailbox_email" id="prov-mailbox-email">
         </div>
         <button type="submit" class="btn btn-primary btn-sm" style="width:100%;">Alta en sistemas seleccionados</button>
       </form>
@@ -218,9 +228,54 @@ foreach ($accounts as $a) {
     return true;
   }
 
-  // ── Show/hide Mailcow email field based on checkbox selection ────────────
-  const mailboxWrap  = document.getElementById('prov-mailbox-email-wrap');
-  const mailboxInput = document.getElementById('prov-mailbox-email');
+  // ── Mailcow email: load domains + suggest username ────────────────────────
+  const mailboxWrap    = document.getElementById('prov-mailbox-email-wrap');
+  const mailboxHidden  = document.getElementById('prov-mailbox-email');
+  const mailboxLocal   = document.getElementById('prov-mailbox-local');
+  const mailboxDomain  = document.getElementById('prov-mailbox-domain');
+  const BASE           = '<?= base_url() ?>';
+  const EMPLOYEE_ID    = <?= (int) $employeeId ?>;
+
+  function assembleMailboxEmail() {
+    if (! mailboxHidden || ! mailboxLocal || ! mailboxDomain) return;
+    const local  = mailboxLocal.value.trim();
+    const domain = mailboxDomain.value;
+    mailboxHidden.value = (local && domain) ? local + '@' + domain : '';
+    mailboxHidden.required = !! mailboxWrap && mailboxWrap.style.display !== 'none';
+  }
+
+  async function loadMailcowDomains() {
+    if (! mailboxDomain) return;
+    try {
+      const res  = await fetch(BASE + 'admin/provisioning/mailcow-domains', { credentials: 'same-origin' });
+      const json = await res.json();
+      if (json.status === 'success' && json.data.length) {
+        mailboxDomain.innerHTML = json.data
+          .map(d => '<option value="' + d + '">' + d + '</option>')
+          .join('');
+        assembleMailboxEmail();
+      } else {
+        mailboxDomain.innerHTML = '<option value="">Sin dominios</option>';
+      }
+    } catch (_) {
+      mailboxDomain.innerHTML = '<option value="">Error al cargar</option>';
+    }
+  }
+
+  async function suggestMailboxLocal() {
+    if (! mailboxLocal || EMPLOYEE_ID <= 0) return;
+    try {
+      const res  = await fetch(BASE + 'admin/provisioning/suggest-mailbox?employee_id=' + EMPLOYEE_ID, { credentials: 'same-origin' });
+      const json = await res.json();
+      if (json.status === 'success' && json.suggestion) {
+        mailboxLocal.value = json.suggestion;
+        assembleMailboxEmail();
+      }
+    } catch (_) {}
+  }
+
+  if (mailboxLocal)  mailboxLocal.addEventListener('input', assembleMailboxEmail);
+  if (mailboxDomain) mailboxDomain.addEventListener('change', assembleMailboxEmail);
 
   function updateMailboxEmailField() {
     if (! mailboxWrap) return;
@@ -229,7 +284,7 @@ foreach ($accounts as $a) {
       return cb.checked && name === 'mailcow';
     });
     mailboxWrap.style.display = mailcowChecked ? '' : 'none';
-    if (mailboxInput) mailboxInput.required = mailcowChecked;
+    assembleMailboxEmail();
   }
 
   document.addEventListener('change', function (e) {
@@ -237,6 +292,10 @@ foreach ($accounts as $a) {
       updateMailboxEmailField();
     }
   });
+
+  // Init: load domains and suggest username
+  loadMailcowDomains();
+  suggestMailboxLocal();
   updateMailboxEmailField();
 
   document.querySelectorAll('.prov-bulk-form').forEach(form => {

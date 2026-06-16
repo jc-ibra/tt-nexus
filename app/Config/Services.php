@@ -25,8 +25,10 @@ use App\Modules\Core\Services\UserService;
 use App\Modules\Employees\Models\EmployeeAreaModel;
 use App\Modules\Employees\Models\EmployeeDepartmentModel;
 use App\Modules\Employees\Models\EmployeeEmailAccountModel;
+use App\Modules\Employees\Models\EmployeeLocationModel;
 use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
+use App\Modules\Employees\Models\EmployeeStateModel;
 use App\Modules\Employees\Services\EmployeeCatalogService;
 use App\Modules\Employees\Services\EmployeeService;
 use App\Modules\Provisioning\Models\MsLicenseModel;
@@ -164,6 +166,8 @@ class Services extends BaseService
             new EmployeeAreaModel(),
             new EmployeeDepartmentModel(),
             new EmployeePositionModel(),
+            new EmployeeStateModel(),
+            new EmployeeLocationModel(),
         );
     }
 

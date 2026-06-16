@@ -18,7 +18,7 @@ class EmployeeModel extends Model
     protected $allowedFields = [
         'employee_number', 'name', 'lastname', 'email', 'email_secondary',
         'has_mailbox', 'photo', 'telephone', 'cellphone', 'ext',
-        'position_id', 'department_id', 'area_id', 'parent_id',
+        'position_id', 'department_id', 'area_id', 'state_id', 'location_id', 'parent_id',
         'date_entry', 'date_discharge',
         'hide_emails', 'show_in_directory', 'active',
     ];
@@ -35,6 +35,8 @@ class EmployeeModel extends Model
         'position_id'     => 'permit_empty|integer|is_not_unique[employees_positions.id]',
         'department_id'   => 'permit_empty|integer|is_not_unique[employees_departments.id]',
         'area_id'         => 'permit_empty|integer|is_not_unique[employees_areas.id]',
+        'state_id'        => 'permit_empty|integer|is_not_unique[employees_states.id]',
+        'location_id'     => 'permit_empty|integer|is_not_unique[employees_locations.id]',
         'parent_id'       => 'permit_empty|integer|is_not_unique[employees_employees.id]',
         'date_entry'      => 'permit_empty|valid_date',
         'date_discharge'  => 'permit_empty|valid_date',
@@ -56,10 +58,12 @@ class EmployeeModel extends Model
     public function findWithRelations(int $id): ?array
     {
         $row = $this->db->table('employees_employees e')
-            ->select('e.*, a.name AS area_name, d.name AS department_name, p.name AS position_name, parent.name AS parent_name, parent.lastname AS parent_lastname')
+            ->select('e.*, a.name AS area_name, d.name AS department_name, p.name AS position_name, st.name AS state_name, loc.name AS location_name, parent.name AS parent_name, parent.lastname AS parent_lastname')
             ->join('employees_areas a',       'a.id = e.area_id',       'left')
             ->join('employees_departments d', 'd.id = e.department_id', 'left')
             ->join('employees_positions p',   'p.id = e.position_id',   'left')
+            ->join('employees_states st',     'st.id = e.state_id',     'left')
+            ->join('employees_locations loc', 'loc.id = e.location_id', 'left')
             ->join('employees_employees parent',       'parent.id = e.parent_id', 'left')
             ->where('e.id', $id)
             ->where('e.deleted_at', null)

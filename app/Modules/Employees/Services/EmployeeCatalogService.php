@@ -7,7 +7,9 @@ namespace App\Modules\Employees\Services;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Employees\Models\EmployeeAreaModel;
 use App\Modules\Employees\Models\EmployeeDepartmentModel;
+use App\Modules\Employees\Models\EmployeeLocationModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
+use App\Modules\Employees\Models\EmployeeStateModel;
 use CodeIgniter\Model;
 
 class EmployeeCatalogService
@@ -16,6 +18,8 @@ class EmployeeCatalogService
         private EmployeeAreaModel       $areaModel,
         private EmployeeDepartmentModel $departmentModel,
         private EmployeePositionModel   $positionModel,
+        private EmployeeStateModel      $stateModel,
+        private EmployeeLocationModel   $locationModel,
     ) {}
 
     // -----------------------------------------------------------------------
@@ -148,6 +152,94 @@ class EmployeeCatalogService
     public function positionUsage(int $id): int
     {
         return $this->positionModel->countEmployees($id);
+    }
+
+    // -----------------------------------------------------------------------
+    // States
+    // -----------------------------------------------------------------------
+
+    public function paginateStates(int $perPage = 50, int $page = 1): array
+    {
+        return $this->paginateCatalog($this->stateModel, $perPage, $page);
+    }
+
+    public function totalStates(): int
+    {
+        return $this->stateModel->countAllResults();
+    }
+
+    public function findState(int $id): ?array
+    {
+        return $this->stateModel->find($id);
+    }
+
+    public function listActiveStates(): array
+    {
+        return $this->stateModel->getAllActive();
+    }
+
+    public function createState(array $data): ServiceResult
+    {
+        return $this->createCatalog($this->stateModel, $data, 'Estado creado correctamente.');
+    }
+
+    public function updateState(int $id, array $data): ServiceResult
+    {
+        return $this->updateCatalog($this->stateModel, $id, $data, 'Estado actualizado correctamente.');
+    }
+
+    public function destroyState(int $id): ServiceResult
+    {
+        return $this->destroyCatalog($this->stateModel, $id, 'estado');
+    }
+
+    public function stateUsage(int $id): int
+    {
+        return $this->stateModel->countEmployees($id);
+    }
+
+    // -----------------------------------------------------------------------
+    // Locations
+    // -----------------------------------------------------------------------
+
+    public function paginateLocations(int $perPage = 50, int $page = 1): array
+    {
+        return $this->paginateCatalog($this->locationModel, $perPage, $page);
+    }
+
+    public function totalLocations(): int
+    {
+        return $this->locationModel->countAllResults();
+    }
+
+    public function findLocation(int $id): ?array
+    {
+        return $this->locationModel->find($id);
+    }
+
+    public function listActiveLocations(): array
+    {
+        return $this->locationModel->getAllActive();
+    }
+
+    public function createLocation(array $data): ServiceResult
+    {
+        return $this->createCatalog($this->locationModel, $data, 'Ubicación creada correctamente.');
+    }
+
+    public function updateLocation(int $id, array $data): ServiceResult
+    {
+        return $this->updateCatalog($this->locationModel, $id, $data, 'Ubicación actualizada correctamente.');
+    }
+
+    public function destroyLocation(int $id): ServiceResult
+    {
+        return $this->destroyCatalog($this->locationModel, $id, 'ubicación');
+    }
+
+    public function locationUsage(int $id): int
+    {
+        return $this->locationModel->countEmployees($id);
     }
 
     // -----------------------------------------------------------------------

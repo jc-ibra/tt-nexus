@@ -79,6 +79,57 @@
             <td class="text-sm"><?= esc($r['message'] ?: '-') ?><?php if (! empty($r['error_code'])): ?><br><code class="text-muted text-sm"><?= esc($r['error_code']) ?></code><?php endif; ?></td>
             <td class="text-sm"><?= esc($r['executor_name'] ?: '-') ?></td>
           </tr>
+          <?php if ($r['status'] === 'error' && ! empty($r['debug_data'])): ?>
+            <?php
+              $debug    = json_decode($r['debug_data'], true) ?? [];
+              $reqBody  = $debug['debug']['request_body'] ?? null;
+              $httpCode = $debug['debug']['http_code']    ?? null;
+              $respRaw  = $debug['debug']['response']     ?? null;
+              $url      = $debug['debug']['url']          ?? null;
+              $method   = $debug['debug']['method']       ?? null;
+            ?>
+            <tr style="background:var(--color-critical-surface, #fff5f5);">
+              <td colspan="7" style="padding:0;">
+                <details style="padding:var(--space-2) var(--space-4);">
+                  <summary style="cursor:pointer; font-size:var(--text-sm); font-weight:600; color:var(--color-critical-default); list-style:none; padding:var(--space-2) 0;">
+                    Ver request / response
+                  </summary>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); margin-top:var(--space-2);">
+                    <div>
+                      <p style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-muted); margin:0 0 var(--space-1);">Request</p>
+                      <pre style="background:var(--color-neutral-100); border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-2); font-size:var(--text-xs); overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-all;"><?php
+                        $reqLines = [];
+                        if ($method && $url) {
+                            $reqLines[] = $method . ' ' . $url;
+                        }
+                        if ($reqBody) {
+                            $decoded = json_decode($reqBody, true);
+                            $reqLines[] = '';
+                            $reqLines[] = $decoded !== null
+                                ? json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                                : $reqBody;
+                        }
+                        echo esc(implode("\n", $reqLines) ?: 'Sin datos');
+                      ?></pre>
+                    </div>
+                    <div>
+                      <p style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-muted); margin:0 0 var(--space-1);">Response<?= $httpCode ? ' · HTTP ' . (int) $httpCode : '' ?></p>
+                      <pre style="background:var(--color-neutral-100); border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-2); font-size:var(--text-xs); overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-all;"><?php
+                        if ($respRaw) {
+                            $decoded = json_decode($respRaw, true);
+                            echo esc($decoded !== null
+                                ? json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                                : $respRaw);
+                        } else {
+                            echo 'Sin datos';
+                        }
+                      ?></pre>
+                    </div>
+                  </div>
+                </details>
+              </td>
+            </tr>
+          <?php endif; ?>
         <?php endforeach; ?>
       </tbody>
     </table>

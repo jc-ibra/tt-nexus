@@ -50,38 +50,54 @@ class AccessOrchestrator
         $password = $password ?? $this->generateTemporaryPassword();
         $userData = $this->mapEmployee($employee, $password);
 
-        $perSystem    = [];
+        $perSystem     = [];
         $emailAccModel = new EmployeeEmailAccountModel();
         $now           = date('Y-m-d H:i:s');
 
-        foreach ($this->systems->listActive() as $system) {
+        // Sort systems: Mailcow always runs first so its email can be passed to GLPI.
+        $systems = $this->systems->listActive();
+        usort($systems, fn($a, $b) => ($a['key'] === 'mailcow' ? -1 : 1));
+
+        $resolvedMailboxEmail = $mailboxEmail; // may be updated after Mailcow succeeds
+
+        foreach ($systems as $system) {
             if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
                 continue;
             }
 
-            // Override email for Mailcow when a dedicated mailbox email was supplied.
             $effectiveData = $userData;
-            if ($system['key'] === 'mailcow' && $mailboxEmail !== null) {
-                $effectiveData['email'] = $mailboxEmail;
+
+            if ($system['key'] === 'mailcow') {
+                // Use explicit mailbox email for Mailcow creation.
+                if ($resolvedMailboxEmail !== null) {
+                    $effectiveData['email'] = $resolvedMailboxEmail;
+                }
+            } else {
+                // Pass resolved Mailcow email to every subsequent system (e.g. GLPI uses it as login).
+                if ($resolvedMailboxEmail !== null) {
+                    $effectiveData['mailbox_email'] = $resolvedMailboxEmail;
+                }
             }
 
             $result = $this->runCreate($system, $employee, $effectiveData);
             $perSystem[$system['key']] = $result;
 
-            // On successful Mailcow provision, record the email account.
+            // On successful Mailcow provision, capture the email and record the account.
             if ($system['key'] === 'mailcow' && $result['success']) {
-                $email = $mailboxEmail ?? $userData['email'];
+                $createdEmail = $result['external_id'] ?? $resolvedMailboxEmail ?? $userData['email'];
+                $resolvedMailboxEmail = $createdEmail; // propagate to subsequent systems
+
                 $alreadyExists = $emailAccModel
                     ->where('employee_id', $employeeId)
                     ->where('type', 'mailcow')
-                    ->where('email', $email)
+                    ->where('email', $createdEmail)
                     ->countAllResults();
 
                 if (! $alreadyExists) {
                     $emailAccModel->addAccount([
                         'employee_id' => $employeeId,
                         'type'        => 'mailcow',
-                        'email'       => $email,
+                        'email'       => $createdEmail,
                         'is_primary'  => 0,
                         'created_at'  => $now,
                         'updated_at'  => $now,
@@ -378,12 +394,16 @@ class AccessOrchestrator
             log_message('error', '[AccessOrchestrator] ' . $system['key'] . ' threw: ' . $e->getMessage());
         }
 
-        $this->log->update($logId, [
+        $logUpdate = [
             'status'      => $result->success ? 'success' : 'error',
             'message'     => $result->message,
             'error_code'  => $result->errorCode,
             'external_id' => $result->externalId,
-        ]);
+        ];
+        if (! $result->success && $result->payload !== null) {
+            $logUpdate['debug_data'] = json_encode($result->payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
+        $this->log->update($logId, $logUpdate);
 
         // External-account state update.
         $accountUpdate = [

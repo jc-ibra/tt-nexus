@@ -15,7 +15,7 @@ class ProvisioningLogModel extends Model
 
     protected $allowedFields = [
         'employee_id', 'system_id', 'operation', 'status', 'message',
-        'payload_summary', 'external_id', 'error_code',
+        'payload_summary', 'external_id', 'error_code', 'debug_data',
         'executor_user_id', 'ip_address', 'created_at',
     ];
 

@@ -72,9 +72,14 @@ class GlpiConnector implements SystemConnector
 
         $login = $this->buildLogin($userData);
 
+        // Use Mailcow email as GLPI login when available; fall back to employee number.
+        $mailboxEmail = trim((string) ($userData['mailbox_email'] ?? ''));
+        $glpiLogin    = $mailboxEmail !== '' ? $mailboxEmail : $login;
+        $glpiEmail    = $mailboxEmail !== '' ? $mailboxEmail : (string) ($userData['email'] ?? '');
+
         $payload = [
             'input' => [
-                'name'         => $login,
+                'name'         => $glpiLogin,
                 'realname'     => trim((string) ($userData['lastname'] ?? '')),
                 'firstname'    => trim((string) ($userData['name'] ?? '')),
                 'password'     => (string) ($userData['password'] ?? ''),
@@ -82,8 +87,8 @@ class GlpiConnector implements SystemConnector
                 'is_active'    => 1,
                 'entities_id'  => (int) ($this->options['default_entity_id'] ?? 0),
                 'profiles_id'  => (int) ($this->options['default_profile_id'] ?? 4),
-                'authtype'     => 1, // local
-                '_useremails'  => [(string) ($userData['email'] ?? '')],
+                'authtype'     => 1,
+                '_useremails'  => [$glpiEmail],
                 'comment'      => $this->buildComment($userData),
             ],
         ];
@@ -92,7 +97,7 @@ class GlpiConnector implements SystemConnector
         $this->killSession($session['token']);
 
         if (! $resp['success']) {
-            return ConnectorResult::fail($resp['error'], 'GLPI_CREATE_FAILED', $resp['data']);
+            return ConnectorResult::fail($resp['error'], 'GLPI_CREATE_FAILED', $this->buildDebug($resp));
         }
 
         $externalId = $this->extractId($resp['data']);
@@ -119,7 +124,7 @@ class GlpiConnector implements SystemConnector
         $this->killSession($session['token']);
 
         if (! $resp['success']) {
-            return ConnectorResult::fail($resp['error'], 'GLPI_DISABLE_FAILED', $resp['data']);
+            return ConnectorResult::fail($resp['error'], 'GLPI_DISABLE_FAILED', $this->buildDebug($resp));
         }
         return ConnectorResult::ok("Usuario {$externalId} desactivado en GLPI.", $externalId, $resp['data']);
     }
@@ -141,7 +146,7 @@ class GlpiConnector implements SystemConnector
         $this->killSession($session['token']);
 
         if (! $resp['success']) {
-            return ConnectorResult::fail($resp['error'], 'GLPI_PASSWORD_FAILED', $resp['data']);
+            return ConnectorResult::fail($resp['error'], 'GLPI_PASSWORD_FAILED', $this->buildDebug($resp));
         }
         return ConnectorResult::ok("Contraseña actualizada en GLPI para el usuario {$externalId}.", $externalId, $resp['data']);
     }
@@ -170,7 +175,7 @@ class GlpiConnector implements SystemConnector
         $this->killSession($session['token']);
 
         if (! $resp['success']) {
-            return ConnectorResult::fail($resp['error'], 'GLPI_UPDATE_FAILED', $resp['data']);
+            return ConnectorResult::fail($resp['error'], 'GLPI_UPDATE_FAILED', $this->buildDebug($resp));
         }
         return ConnectorResult::ok("Datos actualizados en GLPI para el usuario {$externalId}.", $externalId, $resp['data']);
     }
@@ -231,8 +236,9 @@ class GlpiConnector implements SystemConnector
 
     private function httpRequest(string $method, string $endpoint, ?array $body, array $headers): array
     {
-        $url  = $this->baseUrl . '/apirest.php/' . ltrim($endpoint, '/');
-        $curl = curl_init();
+        $url      = $this->baseUrl . '/apirest.php/' . ltrim($endpoint, '/');
+        $bodyJson = $body !== null ? json_encode($body) : null;
+        $curl     = curl_init();
 
         $opts = [
             CURLOPT_URL            => $url,
@@ -244,8 +250,8 @@ class GlpiConnector implements SystemConnector
             CURLOPT_SSL_VERIFYHOST => 2,
         ];
 
-        if ($body !== null) {
-            $opts[CURLOPT_POSTFIELDS] = json_encode($body);
+        if ($bodyJson !== null) {
+            $opts[CURLOPT_POSTFIELDS] = $bodyJson;
         }
 
         curl_setopt_array($curl, $opts);
@@ -254,9 +260,17 @@ class GlpiConnector implements SystemConnector
         $err      = curl_error($curl);
         curl_close($curl);
 
+        $debug = [
+            'url'          => $url,
+            'method'       => $method,
+            'request_body' => $bodyJson !== null ? $this->maskPasswords($bodyJson) : null,
+            'http_code'    => $httpCode,
+            'response'     => (string) $response,
+        ];
+
         if ($err) {
             log_message('error', "[GlpiConnector] cURL error {$method} {$endpoint}: {$err}");
-            return ['success' => false, 'error' => 'Error de conexión con GLPI: ' . $err, 'data' => null];
+            return ['success' => false, 'error' => 'Error de conexión con GLPI: ' . $err, 'data' => null, 'debug' => $debug];
         }
 
         $data = json_decode((string) $response, true);
@@ -264,10 +278,23 @@ class GlpiConnector implements SystemConnector
         if ($httpCode >= 400) {
             $msg = is_array($data) && isset($data[1]) ? (string) $data[1] : "HTTP {$httpCode}";
             log_message('error', "[GlpiConnector] HTTP {$httpCode} on {$method} {$endpoint}: {$msg}");
-            return ['success' => false, 'error' => $msg, 'data' => $data];
+            return ['success' => false, 'error' => $msg, 'data' => $data, 'debug' => $debug];
         }
 
-        return ['success' => true, 'data' => $data, 'error' => null];
+        return ['success' => true, 'data' => $data, 'error' => null, 'debug' => $debug];
+    }
+
+    private function maskPasswords(string $json): string
+    {
+        return preg_replace('/"(password2?)":\s*"[^"]*"/', '"$1":"***"', $json) ?? $json;
+    }
+
+    private function buildDebug(array $resp): array
+    {
+        return [
+            'debug'    => $resp['debug'] ?? null,
+            'response' => $resp['data'] ?? null,
+        ];
     }
 
     private function extractId(mixed $data): ?int
