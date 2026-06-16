@@ -89,7 +89,9 @@ $catalogToggleId = 'employees-catalog-menu';
           <tr>
             <td>
               <?php if (! empty($e['photo'])): ?>
-                <img src="<?= route_to('employees.photo.serve', $e['id']) ?>" alt="" width="32" height="32" style="border-radius:50%; object-fit:cover; display:block;">
+                <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0;">
+                  <img src="<?= route_to('employees.photo.serve', $e['id']) ?>" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">
+                </div>
               <?php else: ?>
                 <div style="width:32px; height:32px; border-radius:50%; background:var(--color-neutral-200); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:var(--text-sm); font-weight:600;">
                   <?= esc(strtoupper(mb_substr($e['name'] ?? '?', 0, 1))) ?>
@@ -124,11 +126,6 @@ $catalogToggleId = 'employees-catalog-menu';
               <div class="table-actions">
                 <a href="<?= route_to('employees.show', $e['id']) ?>" class="btn btn-tertiary btn-sm">Ver</a>
                 <a href="<?= route_to('employees.edit', $e['id']) ?>" class="btn btn-tertiary btn-sm">Editar</a>
-                <form action="<?= route_to('employees.destroy', $e['id']) ?>" method="post"
-                      onsubmit="return confirm('¿Eliminar a <?= esc(trim(($e['name'] ?? '') . ' ' . ($e['lastname'] ?? ''))) ?>?')">
-                  <?= csrf_field() ?>
-                  <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Eliminar</button>
-                </form>
               </div>
             </td>
           </tr>

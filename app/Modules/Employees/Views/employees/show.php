@@ -19,11 +19,6 @@ $parentName = trim(($employee['parent_name'] ?? '') . ' ' . ($employee['parent_l
   <div class="page-actions">
     <a href="<?= route_to('employees.index') ?>" class="btn btn-secondary">Volver</a>
     <a href="<?= route_to('employees.edit', $employee['id']) ?>" class="btn btn-primary">Editar</a>
-    <form action="<?= route_to('employees.destroy', $employee['id']) ?>" method="post"
-          onsubmit="return confirm('¿Eliminar a <?= esc($fullName) ?>?')" style="display:inline;">
-      <?= csrf_field() ?>
-      <button type="submit" class="btn btn-tertiary" style="color:var(--color-critical-default);">Eliminar</button>
-    </form>
   </div>
 </div>
 

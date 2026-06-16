@@ -67,7 +67,6 @@ $routes->group('employees', [
     $routes->get('(:num)',               'Employees::show/$1',        ['as' => 'employees.show']);
     $routes->get('(:num)/edit',          'Employees::edit/$1',        ['as' => 'employees.edit']);
     $routes->post('(:num)/update',       'Employees::update/$1',      ['as' => 'employees.update']);
-    $routes->post('(:num)/delete',       'Employees::destroy/$1',     ['as' => 'employees.destroy']);
     $routes->post('(:num)/photo',          'Employees::uploadPhoto/$1',   ['as' => 'employees.photo.upload']);
     $routes->get('(:num)/photo',           'Employees::servePhoto/$1',    ['as' => 'employees.photo.serve']);
     $routes->post('(:num)/link-mailbox',              'Employees::linkMailbox/$1',              ['as' => 'employees.link-mailbox']);
@@ -111,6 +110,5 @@ $routes->group('api/v1/employees', [
     $routes->get('(:num)',              'EmployeesApiController::show/$1');
     $routes->post('/',                  'EmployeesApiController::create');
     $routes->put('(:num)',              'EmployeesApiController::update/$1');
-    $routes->delete('(:num)',           'EmployeesApiController::delete/$1');
     $routes->post('(:num)/photo',       'EmployeesApiController::uploadPhoto/$1');
 });
