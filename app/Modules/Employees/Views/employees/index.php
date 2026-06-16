@@ -20,6 +20,8 @@ $catalogToggleId = 'employees-catalog-menu';
         <a href="<?= route_to('employees.areas.index') ?>" class="nav-subitem" style="display:block;">Áreas</a>
         <a href="<?= route_to('employees.departments.index') ?>" class="nav-subitem" style="display:block;">Departamentos</a>
         <a href="<?= route_to('employees.positions.index') ?>" class="nav-subitem" style="display:block;">Puestos</a>
+        <a href="<?= route_to('employees.states.index') ?>" class="nav-subitem" style="display:block;">Estados de origen</a>
+        <a href="<?= route_to('employees.locations.index') ?>" class="nav-subitem" style="display:block;">Ubicaciones de origen</a>
       </div>
     </div>
     <a href="<?= route_to('employees.new') ?>" class="btn btn-primary">

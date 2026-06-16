@@ -43,25 +43,21 @@ $routes->group('employees', [
         $routes->post('positions/(:num)',        'EmployeePositions::update/$1', ['as' => 'employees.positions.update']);
         $routes->post('positions/(:num)/delete', 'EmployeePositions::destroy/$1', ['as' => 'employees.positions.destroy']);
 
-        // States of origin (superadmin only)
-        $routes->group('states', ['filter' => 'super_admin'], function (RouteCollection $routes): void {
-            $routes->get('/',                'EmployeeStates::index',      ['as' => 'employees.states.index']);
-            $routes->get('new',              'EmployeeStates::new',        ['as' => 'employees.states.new']);
-            $routes->post('/',               'EmployeeStates::store',      ['as' => 'employees.states.store']);
-            $routes->get('(:num)/edit',      'EmployeeStates::edit/$1',    ['as' => 'employees.states.edit']);
-            $routes->post('(:num)',          'EmployeeStates::update/$1',  ['as' => 'employees.states.update']);
-            $routes->post('(:num)/delete',   'EmployeeStates::destroy/$1', ['as' => 'employees.states.destroy']);
-        });
+        // States of origin
+        $routes->get('states',                'EmployeeStates::index',      ['as' => 'employees.states.index']);
+        $routes->get('states/new',            'EmployeeStates::new',        ['as' => 'employees.states.new']);
+        $routes->post('states',               'EmployeeStates::store',      ['as' => 'employees.states.store']);
+        $routes->get('states/(:num)/edit',    'EmployeeStates::edit/$1',    ['as' => 'employees.states.edit']);
+        $routes->post('states/(:num)',        'EmployeeStates::update/$1',  ['as' => 'employees.states.update']);
+        $routes->post('states/(:num)/delete', 'EmployeeStates::destroy/$1', ['as' => 'employees.states.destroy']);
 
-        // Locations of origin (superadmin only)
-        $routes->group('locations', ['filter' => 'super_admin'], function (RouteCollection $routes): void {
-            $routes->get('/',                'EmployeeLocations::index',      ['as' => 'employees.locations.index']);
-            $routes->get('new',              'EmployeeLocations::new',        ['as' => 'employees.locations.new']);
-            $routes->post('/',               'EmployeeLocations::store',      ['as' => 'employees.locations.store']);
-            $routes->get('(:num)/edit',      'EmployeeLocations::edit/$1',    ['as' => 'employees.locations.edit']);
-            $routes->post('(:num)',          'EmployeeLocations::update/$1',  ['as' => 'employees.locations.update']);
-            $routes->post('(:num)/delete',   'EmployeeLocations::destroy/$1', ['as' => 'employees.locations.destroy']);
-        });
+        // Locations of origin
+        $routes->get('locations',                'EmployeeLocations::index',      ['as' => 'employees.locations.index']);
+        $routes->get('locations/new',            'EmployeeLocations::new',        ['as' => 'employees.locations.new']);
+        $routes->post('locations',               'EmployeeLocations::store',      ['as' => 'employees.locations.store']);
+        $routes->get('locations/(:num)/edit',    'EmployeeLocations::edit/$1',    ['as' => 'employees.locations.edit']);
+        $routes->post('locations/(:num)',        'EmployeeLocations::update/$1',  ['as' => 'employees.locations.update']);
+        $routes->post('locations/(:num)/delete', 'EmployeeLocations::destroy/$1', ['as' => 'employees.locations.destroy']);
     });
 
     // Employees CRUD

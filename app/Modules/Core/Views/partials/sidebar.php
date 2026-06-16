@@ -83,6 +83,16 @@ $moduleSubnav = [
             'url'    => base_url('employees/catalogs/positions'),
             'active' => str_starts_with($currentPath, '/employees/catalogs/positions'),
         ],
+        [
+            'label'  => 'Estados de origen',
+            'url'    => base_url('employees/catalogs/states'),
+            'active' => str_starts_with($currentPath, '/employees/catalogs/states'),
+        ],
+        [
+            'label'  => 'Ubicaciones de origen',
+            'url'    => base_url('employees/catalogs/locations'),
+            'active' => str_starts_with($currentPath, '/employees/catalogs/locations'),
+        ],
     ],
     'provisioning' => [
         [
