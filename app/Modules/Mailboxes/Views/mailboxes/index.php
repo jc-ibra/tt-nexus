@@ -22,6 +22,47 @@
   </div>
 </div>
 
+<!-- Stats cards -->
+<div id="stats-grid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:var(--space-3); margin-bottom:var(--space-4);">
+
+  <div class="card">
+    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Total de buzones</p>
+      <p class="stat-val" id="stat-total">—</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Activos</p>
+      <p class="stat-val" id="stat-active" style="color:var(--color-success-default);">—</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Inactivos</p>
+      <p class="stat-val" id="stat-inactive" style="color:var(--text-muted);">—</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Espacio utilizado</p>
+      <p class="stat-val" id="stat-used">—</p>
+      <p class="text-sm text-muted" id="stat-used-sub" style="margin:0;"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Uso critico (&ge;80%)</p>
+      <p class="stat-val" id="stat-critical" style="color:var(--color-critical-default);">—</p>
+    </div>
+  </div>
+
+</div>
+
 <!-- Error banner -->
 <div id="api-error" class="banner banner-critical" role="alert" style="margin-bottom:var(--space-4); display:none;">
   <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -254,6 +295,7 @@
 <div id="toast-container" style="position:fixed; bottom:var(--space-6); right:var(--space-6); z-index:500; display:flex; flex-direction:column; gap:var(--space-2); pointer-events:none;"></div>
 
 <style>
+.stat-val { font-size: var(--text-2xl); font-weight: 600; margin: 0; line-height: 1.2; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .quota-bar { height: 6px; border-radius: var(--radius-full); background: var(--color-neutral-200); overflow:hidden; margin-top: var(--space-1); }
 .quota-bar-fill { height: 100%; border-radius: var(--radius-full); transition: width 0.3s ease; }
@@ -341,6 +383,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
         return;
       }
       allMailboxes = data.data || [];
+      updateStats();
       applyFilters();
     } catch (e) {
       showError('No se pudo conectar con el servidor. ¿Está la aplicación disponible?');
@@ -841,6 +884,31 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   function debounce(fn, ms) {
     let timer;
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  }
+
+  // ----------------------------------------------------------------
+  // Stats
+  // ----------------------------------------------------------------
+  function updateStats() {
+    const total    = allMailboxes.length;
+    const active   = allMailboxes.filter(m => m.active).length;
+    const inactive = total - active;
+    const totalQuota = allMailboxes.reduce((s, m) => s + (m.quota      || 0), 0);
+    const totalUsed  = allMailboxes.reduce((s, m) => s + (m.quota_used || 0), 0);
+    const critical   = allMailboxes.filter(m => (m.quota_percent || 0) >= 80).length;
+
+    function fmt(bytes) {
+      if (bytes === 0) return '0 MB';
+      const gb = bytes / 1024 / 1024 / 1024;
+      return gb >= 1 ? gb.toFixed(1) + ' GB' : (bytes / 1024 / 1024).toFixed(0) + ' MB';
+    }
+
+    document.getElementById('stat-total').textContent    = total;
+    document.getElementById('stat-active').textContent   = active;
+    document.getElementById('stat-inactive').textContent = inactive;
+    document.getElementById('stat-used').textContent     = fmt(totalUsed);
+    document.getElementById('stat-used-sub').textContent = 'de ' + fmt(totalQuota) + ' asignados';
+    document.getElementById('stat-critical').textContent = critical;
   }
 
   // ----------------------------------------------------------------

@@ -38,7 +38,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
 
 <form id="employee-form" action="<?= $actionUrl ?>" method="post" novalidate>
   <?= csrf_field() ?>
-  <input type="hidden" name="has_mailbox" id="has_mailbox" value="<?= (int) ($old('has_mailbox', 0)) ?>">
 
   <!-- Card: Personal -->
   <div class="card" style="margin-bottom: var(--space-4);">
@@ -86,14 +85,9 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
 
         <div class="field" style="grid-column: 1 / -1;">
-          <label class="field-label" for="email">Correo electrónico <span class="required" aria-hidden="true">*</span></label>
+          <label class="field-label" for="email">Correo electrónico personal <span class="required" aria-hidden="true">*</span></label>
           <input type="email" id="email" name="email" class="input <?= isset($errors['email']) ? 'is-error' : '' ?>"
-                 value="<?= esc($old('email')) ?>" required maxlength="191" autocomplete="off"
-                 list="mailbox-options" aria-describedby="email-help">
-          <datalist id="mailbox-options"></datalist>
-          <p id="email-help" class="text-muted text-sm" style="margin-top:var(--space-1);">
-            Escribe para buscar buzones existentes en Mailcow o ingresa un correo libre. <span id="mailbox-state" class="text-sm"></span>
-          </p>
+                 value="<?= esc($old('email')) ?>" required maxlength="191" autocomplete="off">
           <?php if (isset($errors['email'])): ?><p class="field-error"><?= esc($errors['email']) ?></p><?php endif; ?>
         </div>
 
@@ -241,58 +235,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   'use strict';
 
   const BASE = '<?= base_url() ?>';
-
-  // ---- Mailbox autocomplete ----
-  const emailInput = document.getElementById('email');
-  const mailboxDatalist = document.getElementById('mailbox-options');
-  const hasMailboxInput = document.getElementById('has_mailbox');
-  const mailboxState    = document.getElementById('mailbox-state');
-  let mailboxCache      = [];
-
-  function setMailboxFlag(email) {
-    const match = mailboxCache.find(m => (m.username || '').toLowerCase() === email.toLowerCase());
-    if (match) {
-      hasMailboxInput.value = '1';
-      mailboxState.textContent = '· Vinculado a buzón Mailcow.';
-      mailboxState.style.color = 'var(--color-success-default)';
-    } else {
-      hasMailboxInput.value = '0';
-      mailboxState.textContent = '';
-      mailboxState.style.color = '';
-    }
-  }
-
-  async function searchMailboxes(term) {
-    try {
-      const url = BASE + 'employees/mailboxes-search?q=' + encodeURIComponent(term);
-      const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
-      const json = await res.json();
-      if (json.status !== 'success') return;
-      mailboxCache = (json.data || []);
-      mailboxDatalist.innerHTML = mailboxCache.map(m => {
-        const label = (m.name || '') + (m.name ? ' · ' : '') + (m.username || '');
-        return '<option value="' + escAttr(m.username || '') + '">' + escAttr(label) + '</option>';
-      }).join('');
-    } catch (e) {
-      // Silent — fall back to free text.
-    }
-  }
-
-  let timer;
-  emailInput.addEventListener('input', function () {
-    clearTimeout(timer);
-    const value = this.value.trim();
-    setMailboxFlag(value);
-    timer = setTimeout(() => {
-      if (value.length >= 2) searchMailboxes(value);
-    }, 200);
-  });
-  emailInput.addEventListener('change', function () { setMailboxFlag(this.value.trim()); });
-
-  // Pre-warm on edit
-  if (emailInput.value) {
-    searchMailboxes(emailInput.value).then(() => setMailboxFlag(emailInput.value));
-  }
 
   // ---- Parent (jefe directo) autocomplete ----
   const parentInput = document.getElementById('parent_search');

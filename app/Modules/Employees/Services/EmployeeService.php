@@ -136,6 +136,40 @@ class EmployeeService
         return $matches;
     }
 
+    public function linkMailbox(int $id, string $mailboxEmail): ServiceResult
+    {
+        $employee = $this->model->find($id);
+        if (! $employee) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        $updates = ['has_mailbox' => 1, 'email' => $mailboxEmail];
+
+        // Preserve personal email as secondary when it differs and no secondary exists yet.
+        if (
+            ! empty($employee['email'])
+            && strtolower($employee['email']) !== strtolower($mailboxEmail)
+            && empty($employee['email_secondary'])
+        ) {
+            $updates['email_secondary'] = $employee['email'];
+        }
+
+        $this->model->skipValidation(true)->update($id, $updates);
+
+        return ServiceResult::ok(null, 'Buzón de Mailcow vinculado correctamente.');
+    }
+
+    public function unlinkMailbox(int $id): ServiceResult
+    {
+        if (! $this->model->find($id)) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        $this->model->skipValidation(true)->update($id, ['has_mailbox' => 0]);
+
+        return ServiceResult::ok(null, 'Buzón de Mailcow desvinculado.');
+    }
+
     public function saveUploadedPhoto(int $id, UploadedFile $file): ServiceResult
     {
         $employee = $this->model->find($id);

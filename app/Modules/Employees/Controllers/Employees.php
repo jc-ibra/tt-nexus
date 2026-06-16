@@ -210,6 +210,37 @@ class Employees extends BaseController
         ]);
     }
 
+    public function linkMailbox(int $id): ResponseInterface
+    {
+        $svc          = service('employeeService');
+        $mailboxEmail = trim((string) ($this->request->getPost('mailbox_email') ?? ''));
+
+        if (! filter_var($mailboxEmail, FILTER_VALIDATE_EMAIL)) {
+            session()->setFlashdata('error', 'Selecciona un buzón válido de Mailcow.');
+            return redirect()->to(route_to('employees.show', $id));
+        }
+
+        $result = $svc->linkMailbox($id, $mailboxEmail);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', is_array($result->errors) ? implode(' ', $result->errors) : (string) $result->errors);
+
+        return redirect()->to(route_to('employees.show', $id));
+    }
+
+    public function unlinkMailbox(int $id): ResponseInterface
+    {
+        $svc    = service('employeeService');
+        $result = $svc->unlinkMailbox($id);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', is_array($result->errors) ? implode(' ', $result->errors) : (string) $result->errors);
+
+        return redirect()->to(route_to('employees.show', $id));
+    }
+
     private function collectFormData(): array
     {
         return $this->request->getPost([

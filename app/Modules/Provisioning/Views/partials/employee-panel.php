@@ -71,8 +71,10 @@ foreach ($accounts as $a) {
             <td style="text-align:right;">
               <?php if (! $account || empty($account['external_id'])): ?>
                 <?php if ($isActiveSystem): ?>
-                  <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>" style="display:inline;">
+                  <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>"
+                        style="display:flex; gap:var(--space-1); align-items:center; justify-content:flex-end; flex-wrap:wrap;">
                     <?= csrf_field() ?>
+                    <input type="password" name="password" class="input" placeholder="Contraseña" minlength="8" style="max-width:160px; font-size:var(--text-sm);">
                     <button type="submit" class="btn btn-tertiary btn-sm" title="Crear cuenta en <?= esc($s['name']) ?>">Crear</button>
                   </form>
                 <?php endif; ?>
@@ -97,25 +99,41 @@ foreach ($accounts as $a) {
     </table>
   </div>
 
-  <div class="card-footer" style="display:flex; gap:var(--space-2); flex-wrap:wrap; justify-content:space-between; align-items:center;">
-    <div style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
-      <form method="post" action="<?= route_to('provisioning.employee.provision', $employeeId) ?>" style="display:inline;" onsubmit="return confirm('¿Lanzar alta en todos los sistemas activos?');">
+  <div class="card-footer" style="display:flex; flex-direction:column; gap:var(--space-3);">
+
+    <!-- Alta / Baja -->
+    <div style="display:flex; gap:var(--space-2); flex-wrap:wrap; align-items:flex-end;">
+      <form method="post" action="<?= route_to('provisioning.employee.provision', $employeeId) ?>"
+            style="display:flex; gap:var(--space-2); align-items:flex-end; flex-wrap:wrap;"
+            onsubmit="return confirm('¿Lanzar alta en todos los sistemas activos?');">
         <?= csrf_field() ?>
+        <div>
+          <label class="label" style="font-size:var(--text-sm); margin-bottom:var(--space-1); display:block;">Contraseña inicial</label>
+          <input type="password" name="password" class="input" placeholder="Requerida para crear cuentas" minlength="8" style="max-width:240px;">
+        </div>
         <button type="submit" class="btn btn-primary btn-sm">Alta en todos</button>
       </form>
-      <form method="post" action="<?= route_to('provisioning.employee.deprovision', $employeeId) ?>" style="display:inline;" onsubmit="return confirm('¿Lanzar baja en todos los sistemas? El empleado quedará marcado como inactivo en Nexus.');">
+
+      <form method="post" action="<?= route_to('provisioning.employee.deprovision', $employeeId) ?>"
+            style="display:inline; align-self:flex-end;"
+            onsubmit="return confirm('¿Lanzar baja en todos los sistemas? El empleado quedará marcado como inactivo en Nexus.');">
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--color-critical-default);">Baja en todos</button>
       </form>
     </div>
-    <details style="margin:0;">
-      <summary class="btn btn-tertiary btn-sm" style="list-style:none; cursor:pointer;">Cambiar contraseña</summary>
-      <form method="post" action="<?= route_to('provisioning.employee.password', $employeeId) ?>" style="display:flex; gap:var(--space-2); margin-top:var(--space-2);" onsubmit="return confirm('¿Propagar la nueva contraseña a todos los sistemas activos?');">
-        <?= csrf_field() ?>
+
+    <!-- Cambiar contraseña (siempre visible) -->
+    <form method="post" action="<?= route_to('provisioning.employee.password', $employeeId) ?>"
+          style="display:flex; gap:var(--space-2); align-items:flex-end; flex-wrap:wrap; padding-top:var(--space-2); border-top:1px solid var(--color-neutral-200);"
+          onsubmit="return confirm('¿Propagar la nueva contraseña a todos los sistemas activos?');">
+      <?= csrf_field() ?>
+      <div>
+        <label class="label" style="font-size:var(--text-sm); margin-bottom:var(--space-1); display:block;">Cambiar contraseña en todos los sistemas</label>
         <input type="password" name="password" class="input" placeholder="Nueva contraseña (mín. 8)" minlength="8" required style="max-width:260px;">
-        <button type="submit" class="btn btn-secondary btn-sm">Propagar</button>
-      </form>
-    </details>
+      </div>
+      <button type="submit" class="btn btn-secondary btn-sm">Propagar contraseña</button>
+    </form>
+
   </div>
 </div>
 

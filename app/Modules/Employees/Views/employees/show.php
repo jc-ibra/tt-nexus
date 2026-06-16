@@ -118,6 +118,45 @@ if (is_file($provisioningPanel)) {
       </div>
     </div>
 
+    <!-- Buzón de correo Mailcow -->
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Buzón de correo</h2>
+        <?php if (! empty($employee['has_mailbox'])): ?>
+          <span class="badge badge-success">Vinculado a Mailcow</span>
+        <?php else: ?>
+          <span class="badge badge-neutral">Sin buzón</span>
+        <?php endif; ?>
+      </div>
+      <div class="card-body">
+        <?php if (! empty($employee['has_mailbox'])): ?>
+          <p class="text-sm" style="margin-bottom:var(--space-3);">
+            <strong><?= esc($employee['email']) ?></strong>
+          </p>
+          <form method="post" action="<?= route_to('employees.unlink-mailbox', $employee['id']) ?>"
+                onsubmit="return confirm('¿Desvincular el buzón de Mailcow? El buzón no se elimina.');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Desvincular buzón</button>
+          </form>
+        <?php else: ?>
+          <p class="text-muted text-sm" style="margin-bottom:var(--space-3);">
+            Vincula un buzón de Mailcow existente a este empleado. El correo personal se preserva como secundario si no hay uno registrado.
+          </p>
+          <form method="post" action="<?= route_to('employees.link-mailbox', $employee['id']) ?>"
+                style="display:flex; gap:var(--space-2); align-items:flex-end; flex-wrap:wrap;">
+            <?= csrf_field() ?>
+            <div style="flex:1; min-width:200px;">
+              <label class="label" style="font-size:var(--text-sm); margin-bottom:var(--space-1); display:block;">Buscar buzón en Mailcow</label>
+              <input type="email" id="mailbox-link-input" name="mailbox_email" class="input"
+                     placeholder="correo@dominio.com" autocomplete="off" list="mailbox-link-options" required>
+              <datalist id="mailbox-link-options"></datalist>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Vincular</button>
+          </form>
+        <?php endif; ?>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom: var(--space-4);">
       <div class="card-header"><h2 class="card-title">Organización</h2></div>
       <div class="card-body">
@@ -175,5 +214,40 @@ if (is_file($provisioningPanel)) {
     <?php endif; ?>
   </div>
 </div>
+
+<?php if (empty($employee['has_mailbox'])): ?>
+<script>
+(function () {
+  'use strict';
+  const input    = document.getElementById('mailbox-link-input');
+  if (! input) return;
+  const datalist = document.getElementById('mailbox-link-options');
+  const BASE     = '<?= base_url() ?>';
+  let cache = [], timer;
+
+  async function search(term) {
+    try {
+      const res  = await fetch(BASE + 'employees/mailboxes-search?q=' + encodeURIComponent(term), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin',
+      });
+      const json = await res.json();
+      if (json.status !== 'success') return;
+      cache = json.data || [];
+      datalist.innerHTML = cache.map(m => {
+        const label = (m.name ? m.name + ' · ' : '') + (m.username || '');
+        const v = (m.username || '').replace(/"/g, '&quot;');
+        return '<option value="' + v + '">' + label + '</option>';
+      }).join('');
+    } catch (_) {}
+  }
+
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    const v = this.value.trim();
+    timer = setTimeout(() => { if (v.length >= 2) search(v); }, 200);
+  });
+})();
+</script>
+<?php endif; ?>
 
 <?= $this->endSection() ?>
