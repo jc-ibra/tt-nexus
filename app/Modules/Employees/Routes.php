@@ -54,8 +54,10 @@ $routes->group('employees', [
     $routes->post('(:num)/delete',       'Employees::destroy/$1',     ['as' => 'employees.destroy']);
     $routes->post('(:num)/photo',          'Employees::uploadPhoto/$1',   ['as' => 'employees.photo.upload']);
     $routes->get('(:num)/photo',           'Employees::servePhoto/$1',    ['as' => 'employees.photo.serve']);
-    $routes->post('(:num)/link-mailbox',   'Employees::linkMailbox/$1',   ['as' => 'employees.link-mailbox']);
-    $routes->post('(:num)/unlink-mailbox', 'Employees::unlinkMailbox/$1', ['as' => 'employees.unlink-mailbox']);
+    $routes->post('(:num)/link-mailbox',              'Employees::linkMailbox/$1',              ['as' => 'employees.link-mailbox']);
+    $routes->post('(:num)/unlink-mailbox',            'Employees::unlinkMailbox/$1',            ['as' => 'employees.unlink-mailbox']);
+    $routes->post('(:num)/email-accounts',            'Employees::addEmailAccount/$1',          ['as' => 'employees.email-accounts.add']);
+    $routes->post('(:num)/email-accounts/(:num)/delete', 'Employees::removeEmailAccount/$1/$2', ['as' => 'employees.email-accounts.remove']);
 });
 
 // -----------------------------------------------------------------------

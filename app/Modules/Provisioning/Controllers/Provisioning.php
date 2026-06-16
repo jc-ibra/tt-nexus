@@ -97,9 +97,16 @@ class Provisioning extends BaseController
 
     public function provisionEmployee(int $employeeId): ResponseInterface
     {
-        $orch     = service('provisioningOrchestrator');
-        $password = (string) ($this->request->getPost('password') ?? '');
-        $result   = $orch->provisionEmployee($employeeId, $password !== '' ? $password : null);
+        $orch         = service('provisioningOrchestrator');
+        $password     = (string) ($this->request->getPost('password') ?? '');
+        $mailboxEmail = trim((string) ($this->request->getPost('mailbox_email') ?? ''));
+        $systemIds    = $this->parseSystemIds($this->request->getPost('system_ids'));
+        $result       = $orch->provisionEmployee(
+            $employeeId,
+            $password !== '' ? $password : null,
+            $systemIds,
+            $mailboxEmail !== '' ? $mailboxEmail : null,
+        );
 
         $this->flashWithTemporaryPassword($result, 'Alta lanzada.');
         return redirect()->to(route_to('employees.show', $employeeId));
@@ -107,8 +114,9 @@ class Provisioning extends BaseController
 
     public function deprovisionEmployee(int $employeeId): ResponseInterface
     {
-        $orch   = service('provisioningOrchestrator');
-        $result = $orch->deprovisionEmployee($employeeId);
+        $orch      = service('provisioningOrchestrator');
+        $systemIds = $this->parseSystemIds($this->request->getPost('system_ids'));
+        $result    = $orch->deprovisionEmployee($employeeId, $systemIds);
 
         $result->success
             ? session()->setFlashdata('success', $result->message)
@@ -125,8 +133,9 @@ class Provisioning extends BaseController
             return redirect()->to(route_to('employees.show', $employeeId));
         }
 
-        $orch   = service('provisioningOrchestrator');
-        $result = $orch->changePassword($employeeId, $password);
+        $orch      = service('provisioningOrchestrator');
+        $systemIds = $this->parseSystemIds($this->request->getPost('system_ids'));
+        $result    = $orch->changePassword($employeeId, $password, $systemIds);
 
         $result->success
             ? session()->setFlashdata('success', $result->message)
@@ -161,6 +170,16 @@ class Provisioning extends BaseController
      * On successful provision/password, the temporary password is shown ONCE so the operator
      * can hand it to the employee. It is not persisted anywhere reachable from the UI.
      */
+    private function parseSystemIds(mixed $raw): ?array
+    {
+        if (! is_array($raw) || empty($raw)) {
+            return null;
+        }
+        $ids = array_map('intval', $raw);
+        $ids = array_filter($ids, fn($id) => $id > 0);
+        return $ids !== [] ? array_values($ids) : null;
+    }
+
     private function flashWithTemporaryPassword(\App\Modules\Core\Services\ServiceResult $result, string $okMessage): void
     {
         $tmp = is_array($result->data) ? ($result->data['temporary_password'] ?? null) : null;

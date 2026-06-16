@@ -184,6 +184,7 @@ run_seeder "App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder"       
 
 # Provisioning
 run_seeder "App\Modules\Provisioning\Database\Seeders\ProvisioningModuleSeeder"   "ProvisioningModuleSeeder"
+run_seeder "App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder"           "MsLicensesSeeder"
 
 # ── Estado final de migraciones ────────────────────────────────────────────────
 step "Estado de migraciones"

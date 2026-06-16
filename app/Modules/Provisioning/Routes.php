@@ -44,6 +44,15 @@ $routes->group('admin/provisioning', [
     $routes->post('systems/(:num)',      'ProvisioningSystems::update/$1', ['as' => 'provisioning.systems.update']);
     $routes->post('systems/(:num)/test', 'ProvisioningSystems::test/$1',   ['as' => 'provisioning.systems.test']);
     $routes->post('systems/(:num)/toggle','ProvisioningSystems::toggle/$1',['as' => 'provisioning.systems.toggle']);
+
+    // Microsoft 365 license catalog
+    $routes->get('ms-licenses',              'ProvisioningMsLicenses::index',     ['as' => 'provisioning.ms-licenses.index']);
+    $routes->get('ms-licenses/new',          'ProvisioningMsLicenses::new',       ['as' => 'provisioning.ms-licenses.new']);
+    $routes->post('ms-licenses',             'ProvisioningMsLicenses::store',     ['as' => 'provisioning.ms-licenses.store']);
+    $routes->get('ms-licenses/(:num)/edit',  'ProvisioningMsLicenses::edit/$1',   ['as' => 'provisioning.ms-licenses.edit']);
+    $routes->post('ms-licenses/(:num)',      'ProvisioningMsLicenses::update/$1', ['as' => 'provisioning.ms-licenses.update']);
+    $routes->post('ms-licenses/(:num)/delete','ProvisioningMsLicenses::destroy/$1',['as' => 'provisioning.ms-licenses.destroy']);
+    $routes->post('ms-licenses/(:num)/toggle','ProvisioningMsLicenses::toggle/$1', ['as' => 'provisioning.ms-licenses.toggle']);
 });
 
 // -----------------------------------------------------------------------

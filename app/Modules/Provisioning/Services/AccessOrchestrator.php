@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Provisioning\Services;
 
 use App\Modules\Core\Services\ServiceResult;
+use App\Modules\Employees\Models\EmployeeEmailAccountModel;
 use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Provisioning\Connectors\ConnectorResult;
 use App\Modules\Provisioning\Connectors\SystemConnector;
@@ -39,7 +40,7 @@ class AccessOrchestrator
     // High-level operations
     // =======================================================================
 
-    public function provisionEmployee(int $employeeId, ?string $password = null): ServiceResult
+    public function provisionEmployee(int $employeeId, ?string $password = null, ?array $systemIds = null, ?string $mailboxEmail = null): ServiceResult
     {
         $employee = $this->loadEmployee($employeeId);
         if (! $employee) {
@@ -49,9 +50,44 @@ class AccessOrchestrator
         $password = $password ?? $this->generateTemporaryPassword();
         $userData = $this->mapEmployee($employee, $password);
 
-        $perSystem = [];
+        $perSystem    = [];
+        $emailAccModel = new EmployeeEmailAccountModel();
+        $now           = date('Y-m-d H:i:s');
+
         foreach ($this->systems->listActive() as $system) {
-            $perSystem[$system['key']] = $this->runCreate($system, $employee, $userData);
+            if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
+                continue;
+            }
+
+            // Override email for Mailcow when a dedicated mailbox email was supplied.
+            $effectiveData = $userData;
+            if ($system['key'] === 'mailcow' && $mailboxEmail !== null) {
+                $effectiveData['email'] = $mailboxEmail;
+            }
+
+            $result = $this->runCreate($system, $employee, $effectiveData);
+            $perSystem[$system['key']] = $result;
+
+            // On successful Mailcow provision, record the email account.
+            if ($system['key'] === 'mailcow' && $result['success']) {
+                $email = $mailboxEmail ?? $userData['email'];
+                $alreadyExists = $emailAccModel
+                    ->where('employee_id', $employeeId)
+                    ->where('type', 'mailcow')
+                    ->where('email', $email)
+                    ->countAllResults();
+
+                if (! $alreadyExists) {
+                    $emailAccModel->addAccount([
+                        'employee_id' => $employeeId,
+                        'type'        => 'mailcow',
+                        'email'       => $email,
+                        'is_primary'  => 0,
+                        'created_at'  => $now,
+                        'updated_at'  => $now,
+                    ]);
+                }
+            }
         }
 
         $allOk = ! in_array(false, array_map(fn($r) => $r['success'], $perSystem), true);
@@ -60,7 +96,7 @@ class AccessOrchestrator
             : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem, 'temporary_password' => $password]);
     }
 
-    public function deprovisionEmployee(int $employeeId): ServiceResult
+    public function deprovisionEmployee(int $employeeId, ?array $systemIds = null): ServiceResult
     {
         $employee = $this->loadEmployee($employeeId);
         if (! $employee) {
@@ -70,6 +106,9 @@ class AccessOrchestrator
         $userData = $this->mapEmployee($employee);
         $perSystem = [];
         foreach ($this->systems->listActive() as $system) {
+            if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
+                continue;
+            }
             $perSystem[$system['key']] = $this->runDisable($system, $employee, $userData);
         }
 
@@ -82,7 +121,7 @@ class AccessOrchestrator
             : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem]);
     }
 
-    public function changePassword(int $employeeId, string $newPassword): ServiceResult
+    public function changePassword(int $employeeId, string $newPassword, ?array $systemIds = null): ServiceResult
     {
         $employee = $this->loadEmployee($employeeId);
         if (! $employee) {
@@ -95,6 +134,9 @@ class AccessOrchestrator
         $userData = $this->mapEmployee($employee, $newPassword);
         $perSystem = [];
         foreach ($this->systems->listActive() as $system) {
+            if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
+                continue;
+            }
             $perSystem[$system['key']] = $this->runPassword($system, $employee, $userData, $newPassword);
         }
 

@@ -55,8 +55,15 @@ if (is_file($provisioningPanel)) {
         <span class="badge badge-neutral">Inactivo</span>
       <?php endif; ?>
 
-      <?php if (! empty($employee['has_mailbox'])): ?>
-        <span class="badge badge-info" style="margin-left:var(--space-1);">Buzón Mailcow</span>
+      <?php
+        $hasMailcow  = ! empty(array_filter($emailAccounts ?? [], fn($a) => $a['type'] === 'mailcow'));
+        $hasMicrosoft = ! empty(array_filter($emailAccounts ?? [], fn($a) => $a['type'] === 'microsoft'));
+      ?>
+      <?php if ($hasMailcow): ?>
+        <span class="badge badge-info" style="margin-left:var(--space-1);">Mailcow</span>
+      <?php endif; ?>
+      <?php if ($hasMicrosoft): ?>
+        <span class="badge badge-neutral" style="margin-left:var(--space-1);">Microsoft 365</span>
       <?php endif; ?>
 
       <?php if (! empty($employee['employee_number'])): ?>
@@ -97,42 +104,120 @@ if (is_file($provisioningPanel)) {
       </div>
     </div>
 
-    <!-- Buzón de correo Mailcow -->
+    <!-- Cuentas de correo electrónico -->
     <div class="card" style="margin-bottom: var(--space-4);">
       <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
-        <h2 class="card-title">Buzón de correo</h2>
-        <?php if (! empty($employee['has_mailbox'])): ?>
-          <span class="badge badge-success">Vinculado a Mailcow</span>
+        <h2 class="card-title">Cuentas de correo electrónico</h2>
+        <?php if (! $hasEmail): ?>
+          <span class="badge badge-warning">Sin cuentas configuradas</span>
         <?php else: ?>
-          <span class="badge badge-neutral">Sin buzón</span>
+          <span class="badge badge-success"><?= count($emailAccounts) ?> cuenta(s)</span>
         <?php endif; ?>
       </div>
-      <div class="card-body">
-        <?php if (! empty($employee['has_mailbox'])): ?>
-          <p class="text-sm" style="margin-bottom:var(--space-3);">
-            <strong><?= esc($employee['email']) ?></strong>
-          </p>
-          <form method="post" action="<?= route_to('employees.unlink-mailbox', $employee['id']) ?>"
-                onsubmit="return confirm('¿Desvincular el buzón de Mailcow? El buzón no se elimina.');">
+
+      <?php if (! $hasEmail): ?>
+        <div class="banner banner-warning" style="margin:var(--space-3) var(--space-4) 0;">
+          <div class="banner-body">Este empleado no tiene cuentas de correo configuradas. Agrega al menos una cuenta o marca que no cuenta con correo electrónico.</div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (! empty($emailAccounts)): ?>
+      <div class="card-body" style="padding:0;">
+        <table class="table" style="width:100%;">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Correo</th>
+              <th>Licencia</th>
+              <th>Primaria</th>
+              <th>Notas</th>
+              <th style="text-align:right;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($emailAccounts as $acc): ?>
+              <tr>
+                <td>
+                  <?php if ($acc['type'] === 'mailcow'): ?>
+                    <span class="badge badge-info">Mailcow</span>
+                  <?php elseif ($acc['type'] === 'microsoft'): ?>
+                    <span class="badge badge-neutral">Microsoft</span>
+                  <?php else: ?>
+                    <span class="badge badge-neutral">Sin correo</span>
+                  <?php endif; ?>
+                </td>
+                <td class="text-sm"><?= $acc['email'] ? esc($acc['email']) : '<span class="text-muted">—</span>' ?></td>
+                <td class="text-sm text-muted"><?= $acc['license_name'] ? esc($acc['license_name']) : '—' ?></td>
+                <td><?= (int) $acc['is_primary'] ? '<span class="badge badge-success">Sí</span>' : '' ?></td>
+                <td class="text-sm text-muted"><?= esc($acc['notes'] ?? '') ?></td>
+                <td style="text-align:right;">
+                  <form method="post"
+                        action="<?= route_to('employees.email-accounts.remove', $employee['id'], $acc['id']) ?>"
+                        style="display:inline;"
+                        onsubmit="return confirm('¿Eliminar esta cuenta de correo?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Eliminar</button>
+                  </form>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
+
+      <!-- Agregar cuenta -->
+      <div class="card-footer">
+        <details>
+          <summary style="cursor:pointer; font-weight:600; font-size:var(--text-sm); padding:var(--space-1) 0; list-style:none;">
+            + Agregar cuenta de correo
+          </summary>
+          <form method="post" action="<?= route_to('employees.email-accounts.add', $employee['id']) ?>"
+                style="margin-top:var(--space-3); display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Desvincular buzón</button>
-          </form>
-        <?php else: ?>
-          <p class="text-muted text-sm" style="margin-bottom:var(--space-3);">
-            Vincula un buzón de Mailcow existente a este empleado. El correo personal se preserva como secundario si no hay uno registrado.
-          </p>
-          <form method="post" action="<?= route_to('employees.link-mailbox', $employee['id']) ?>"
-                style="display:flex; gap:var(--space-2); align-items:flex-end; flex-wrap:wrap;">
-            <?= csrf_field() ?>
-            <div style="flex:1; min-width:200px;">
-              <label class="label" style="font-size:var(--text-sm); margin-bottom:var(--space-1); display:block;">Buscar buzón en Mailcow</label>
-              <input type="email" id="mailbox-link-input" name="mailbox_email" class="input"
-                     placeholder="correo@dominio.com" autocomplete="off" list="mailbox-link-options" required>
-              <datalist id="mailbox-link-options"></datalist>
+
+            <div class="field">
+              <label class="field-label" for="ea-type">Tipo <span class="required">*</span></label>
+              <select id="ea-type" name="type" class="select" required>
+                <option value="">Selecciona...</option>
+                <option value="mailcow">Mailcow</option>
+                <option value="microsoft">Microsoft 365</option>
+                <option value="none">Sin correo electrónico</option>
+              </select>
             </div>
-            <button type="submit" class="btn btn-primary btn-sm">Vincular</button>
+
+            <div class="field" id="ea-email-field">
+              <label class="field-label" for="ea-email">Correo electrónico <span class="required">*</span></label>
+              <input type="email" id="ea-email" name="email" class="input" placeholder="usuario@dominio.com" maxlength="255">
+            </div>
+
+            <div class="field" id="ea-license-field" style="display:none;">
+              <label class="field-label" for="ea-license">Licencia Microsoft 365 <span class="required">*</span></label>
+              <select id="ea-license" name="ms_license_id" class="select">
+                <option value="">Selecciona licencia...</option>
+                <?php foreach ($msLicenses as $lic): ?>
+                  <option value="<?= (int) $lic['id'] ?>"><?= esc($lic['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="field" style="grid-column:1/-1;">
+              <label class="field-label" for="ea-notes">Notas</label>
+              <input type="text" id="ea-notes" name="notes" class="input" placeholder="Observaciones opcionales" maxlength="255">
+            </div>
+
+            <div class="field" style="grid-column:1/-1;">
+              <label class="field-check">
+                <input type="checkbox" name="is_primary" value="1">
+                <span>Marcar como cuenta primaria</span>
+              </label>
+            </div>
+
+            <div style="grid-column:1/-1;">
+              <button type="submit" class="btn btn-primary btn-sm">Guardar cuenta</button>
+            </div>
           </form>
-        <?php endif; ?>
+        </details>
       </div>
     </div>
 
@@ -194,39 +279,32 @@ if (is_file($provisioningPanel)) {
   </div>
 </div>
 
-<?php if (empty($employee['has_mailbox'])): ?>
 <script>
 (function () {
   'use strict';
-  const input    = document.getElementById('mailbox-link-input');
-  if (! input) return;
-  const datalist = document.getElementById('mailbox-link-options');
-  const BASE     = '<?= base_url() ?>';
-  let cache = [], timer;
+  const typeSelect    = document.getElementById('ea-type');
+  const emailField    = document.getElementById('ea-email-field');
+  const licenseField  = document.getElementById('ea-license-field');
+  const emailInput    = document.getElementById('ea-email');
+  const licenseSelect = document.getElementById('ea-license');
 
-  async function search(term) {
-    try {
-      const res  = await fetch(BASE + 'employees/mailboxes-search?q=' + encodeURIComponent(term), {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin',
-      });
-      const json = await res.json();
-      if (json.status !== 'success') return;
-      cache = json.data || [];
-      datalist.innerHTML = cache.map(m => {
-        const label = (m.name ? m.name + ' · ' : '') + (m.username || '');
-        const v = (m.username || '').replace(/"/g, '&quot;');
-        return '<option value="' + v + '">' + label + '</option>';
-      }).join('');
-    } catch (_) {}
+  if (! typeSelect) return;
+
+  function updateFields() {
+    const t = typeSelect.value;
+    const showEmail   = t === 'mailcow' || t === 'microsoft';
+    const showLicense = t === 'microsoft';
+
+    emailField.style.display   = showEmail   ? '' : 'none';
+    licenseField.style.display = showLicense ? '' : 'none';
+
+    emailInput.required    = showEmail;
+    licenseSelect.required = showLicense;
   }
 
-  input.addEventListener('input', function () {
-    clearTimeout(timer);
-    const v = this.value.trim();
-    timer = setTimeout(() => { if (v.length >= 2) search(v); }, 200);
-  });
+  typeSelect.addEventListener('change', updateFields);
+  updateFields();
 })();
 </script>
-<?php endif; ?>
 
 <?= $this->endSection() ?>

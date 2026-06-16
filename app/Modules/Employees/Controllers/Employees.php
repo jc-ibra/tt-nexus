@@ -77,10 +77,15 @@ class Employees extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        $msLicenses = (new \App\Modules\Provisioning\Models\MsLicenseModel())->getAllActive();
+
         return view('App\Modules\Employees\Views\employees\show', [
-            'pageTitle' => trim($employee['name'] . ' ' . ($employee['lastname'] ?? '')),
-            'employee'  => $employee,
-            'reports'   => $svc->directReports($id),
+            'pageTitle'     => trim($employee['name'] . ' ' . ($employee['lastname'] ?? '')),
+            'employee'      => $employee,
+            'reports'       => $svc->directReports($id),
+            'emailAccounts' => $svc->listEmailAccounts($id),
+            'msLicenses'    => $msLicenses,
+            'hasEmail'      => $svc->hasConfiguredEmail($id),
         ]);
     }
 
@@ -208,6 +213,30 @@ class Employees extends BaseController
             'status' => 'success',
             'data'   => $matches,
         ]);
+    }
+
+    public function addEmailAccount(int $employeeId): ResponseInterface
+    {
+        $svc    = service('employeeService');
+        $result = $svc->addEmailAccount($employeeId, $this->request->getPost());
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(route_to('employees.show', $employeeId));
+    }
+
+    public function removeEmailAccount(int $employeeId, int $accountId): ResponseInterface
+    {
+        $svc    = service('employeeService');
+        $result = $svc->removeEmailAccount($accountId, $employeeId);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(route_to('employees.show', $employeeId));
     }
 
     public function linkMailbox(int $id): ResponseInterface

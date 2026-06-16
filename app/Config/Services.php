@@ -24,10 +24,12 @@ use App\Modules\Core\Services\RoleService;
 use App\Modules\Core\Services\UserService;
 use App\Modules\Employees\Models\EmployeeAreaModel;
 use App\Modules\Employees\Models\EmployeeDepartmentModel;
+use App\Modules\Employees\Models\EmployeeEmailAccountModel;
 use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Employees\Services\EmployeeCatalogService;
 use App\Modules\Employees\Services\EmployeeService;
+use App\Modules\Provisioning\Models\MsLicenseModel;
 use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
 use App\Modules\Provisioning\Models\ProvisioningLogModel;
 use App\Modules\Provisioning\Models\ProvisioningRetryQueueModel;
@@ -36,6 +38,7 @@ use App\Modules\Provisioning\Models\ProvisioningSystemModel;
 use App\Modules\Provisioning\Services\AccessOrchestrator;
 use App\Modules\Provisioning\Services\ConnectorFactory;
 use App\Modules\Provisioning\Services\CredentialCipher;
+use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
 use CodeIgniter\Config\BaseService;
 
@@ -147,6 +150,7 @@ class Services extends BaseService
             new EmployeeDepartmentModel(),
             new EmployeePositionModel(),
             self::mailboxesService(),
+            new EmployeeEmailAccountModel(),
         );
     }
 
@@ -200,6 +204,14 @@ class Services extends BaseService
             new ProvisioningRetryQueueModel(),
             self::connectorFactory(),
         );
+    }
+
+    public static function msLicenseService(bool $getShared = true): MsLicenseService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('msLicenseService');
+        }
+        return new MsLicenseService(new MsLicenseModel());
     }
 
     public static function provisioningSystemAdmin(bool $getShared = true): SystemAdminService

@@ -7,6 +7,7 @@ namespace App\Modules\Employees\Services;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Employees\Models\EmployeeAreaModel;
 use App\Modules\Employees\Models\EmployeeDepartmentModel;
+use App\Modules\Employees\Models\EmployeeEmailAccountModel;
 use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Mailboxes\Services\MailboxesService;
@@ -15,11 +16,12 @@ use CodeIgniter\HTTP\Files\UploadedFile;
 class EmployeeService
 {
     public function __construct(
-        private EmployeeModel           $model,
-        private EmployeeAreaModel       $areaModel,
-        private EmployeeDepartmentModel $departmentModel,
-        private EmployeePositionModel   $positionModel,
-        private MailboxesService        $mailboxesService,
+        private EmployeeModel              $model,
+        private EmployeeAreaModel          $areaModel,
+        private EmployeeDepartmentModel    $departmentModel,
+        private EmployeePositionModel      $positionModel,
+        private MailboxesService           $mailboxesService,
+        private EmployeeEmailAccountModel  $emailAccountModel,
     ) {}
 
     public function paginate(array $filters, int $perPage = 20, int $page = 1): array
@@ -134,6 +136,76 @@ class EmployeeService
         }
 
         return $matches;
+    }
+
+    // -----------------------------------------------------------------------
+    // Email accounts (multiple per employee)
+    // -----------------------------------------------------------------------
+
+    public function listEmailAccounts(int $employeeId): array
+    {
+        return $this->emailAccountModel->listForEmployee($employeeId);
+    }
+
+    public function hasConfiguredEmail(int $employeeId): bool
+    {
+        return $this->emailAccountModel->countForEmployee($employeeId) > 0;
+    }
+
+    public function addEmailAccount(int $employeeId, array $data): ServiceResult
+    {
+        if (! $this->model->find($employeeId)) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        $type = trim((string) ($data['type'] ?? ''));
+        if (! in_array($type, ['mailcow', 'microsoft', 'none'], true)) {
+            return ServiceResult::fail('Tipo de cuenta no válido.');
+        }
+
+        $email = trim((string) ($data['email'] ?? ''));
+        if ($type !== 'none') {
+            if ($email === '') {
+                return ServiceResult::fail('El correo electrónico es obligatorio para este tipo de cuenta.');
+            }
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ServiceResult::fail('El correo electrónico no es válido.');
+            }
+        }
+
+        $licenseId = null;
+        if ($type === 'microsoft') {
+            $licenseId = (int) ($data['ms_license_id'] ?? 0);
+            if ($licenseId === 0) {
+                return ServiceResult::fail('Debes seleccionar una licencia de Microsoft 365.');
+            }
+        }
+
+        $id = $this->emailAccountModel->addAccount([
+            'employee_id'   => $employeeId,
+            'type'          => $type,
+            'email'         => $type !== 'none' ? $email : null,
+            'ms_license_id' => $licenseId,
+            'is_primary'    => empty($data['is_primary']) ? 0 : 1,
+            'notes'         => trim((string) ($data['notes'] ?? '')) ?: null,
+        ]);
+
+        return ServiceResult::ok(['id' => $id], 'Cuenta de correo agregada.');
+    }
+
+    public function removeEmailAccount(int $accountId, int $employeeId): ServiceResult
+    {
+        $total = $this->emailAccountModel->countForEmployee($employeeId);
+        if ($total <= 1) {
+            return ServiceResult::fail('No puedes eliminar la última cuenta de correo. Agrega otra antes de eliminar esta.');
+        }
+
+        $deleted = $this->emailAccountModel->deleteAccount($accountId, $employeeId);
+        if (! $deleted) {
+            return ServiceResult::fail('Cuenta no encontrada o no pertenece a este empleado.');
+        }
+
+        return ServiceResult::ok(null, 'Cuenta de correo eliminada.');
     }
 
     public function linkMailbox(int $id, string $mailboxEmail): ServiceResult
