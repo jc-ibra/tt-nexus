@@ -141,17 +141,20 @@ class Communications extends BaseController
             return redirect()->to(route_to('comms.show', $id));
         }
 
-        $mailer = \Config\Services::email();
-        $mailer->setFrom($comm['from_email'], $comm['from_name']);
-        $mailer->setTo($email);
-        $mailer->setSubject('[TEST] ' . $comm['subject']);
-        $mailer->setMessage($svc->buildEmailHtml($comm['subject'], $comm['body']));
-        $mailer->setMailType('html');
+        $mailerSvc = new \App\Modules\Communications\Services\MailerService();
+        $result    = $mailerSvc->sendSingle(
+            $email,
+            $email,
+            $comm['from_email'],
+            $comm['from_name'],
+            '[TEST] ' . $comm['subject'],
+            $svc->buildEmailHtml($comm['subject'], $comm['body'])
+        );
 
-        if ($mailer->send()) {
+        if ($result['success']) {
             session()->setFlashdata('success', 'Correo de prueba enviado a ' . $email);
         } else {
-            log_message('error', '[comms.sendTest] ' . $mailer->printDebugger(['headers']));
+            log_message('error', '[comms.sendTest] ' . $result['error']);
             session()->setFlashdata('error', 'No se pudo enviar el correo de prueba. Verifica que el servidor SMTP este configurado correctamente o contacta a tu administrador.');
         }
 
