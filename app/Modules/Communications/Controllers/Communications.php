@@ -151,7 +151,8 @@ class Communications extends BaseController
         if ($mailer->send()) {
             session()->setFlashdata('success', 'Correo de prueba enviado a ' . $email);
         } else {
-            session()->setFlashdata('error', 'Error al enviar: ' . $mailer->printDebugger(['headers']));
+            log_message('error', '[comms.sendTest] ' . $mailer->printDebugger(['headers']));
+            session()->setFlashdata('error', 'No se pudo enviar el correo de prueba. Verifica que el servidor SMTP este configurado correctamente o contacta a tu administrador.');
         }
 
         return redirect()->to(route_to('comms.show', $id));
