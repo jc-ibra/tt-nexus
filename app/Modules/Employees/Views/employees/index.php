@@ -16,12 +16,12 @@ $catalogToggleId = 'employees-catalog-menu';
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         Catálogos
       </button>
-      <div id="<?= $catalogToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background:#fff; border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50;">
-        <a href="<?= route_to('employees.areas.index') ?>" class="nav-subitem" style="display:block;">Áreas</a>
-        <a href="<?= route_to('employees.departments.index') ?>" class="nav-subitem" style="display:block;">Departamentos</a>
-        <a href="<?= route_to('employees.positions.index') ?>" class="nav-subitem" style="display:block;">Puestos</a>
-        <a href="<?= route_to('employees.states.index') ?>" class="nav-subitem" style="display:block;">Estados de origen</a>
-        <a href="<?= route_to('employees.locations.index') ?>" class="nav-subitem" style="display:block;">Ubicaciones de origen</a>
+      <div id="<?= $catalogToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background:#fff; border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
+        <a href="<?= route_to('employees.areas.index') ?>" class="dropdown-item">Áreas</a>
+        <a href="<?= route_to('employees.departments.index') ?>" class="dropdown-item">Departamentos</a>
+        <a href="<?= route_to('employees.positions.index') ?>" class="dropdown-item">Puestos</a>
+        <a href="<?= route_to('employees.states.index') ?>" class="dropdown-item">Estados de origen</a>
+        <a href="<?= route_to('employees.locations.index') ?>" class="dropdown-item">Ubicaciones de origen</a>
       </div>
     </div>
     <a href="<?= route_to('employees.new') ?>" class="btn btn-primary">
@@ -124,8 +124,14 @@ $catalogToggleId = 'employees-catalog-menu';
             </td>
             <td>
               <div class="table-actions">
-                <a href="<?= route_to('employees.show', $e['id']) ?>" class="btn btn-tertiary btn-sm">Ver</a>
-                <a href="<?= route_to('employees.edit', $e['id']) ?>" class="btn btn-tertiary btn-sm">Editar</a>
+                <a href="<?= route_to('employees.show', $e['id']) ?>" class="btn btn-tertiary btn-sm" aria-label="Ver <?= esc(trim(($e['name'] ?? '') . ' ' . ($e['lastname'] ?? ''))) ?>">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Ver
+                </a>
+                <a href="<?= route_to('employees.edit', $e['id']) ?>" class="btn btn-tertiary btn-sm" aria-label="Editar <?= esc(trim(($e['name'] ?? '') . ' ' . ($e['lastname'] ?? ''))) ?>">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Editar
+                </a>
               </div>
             </td>
           </tr>

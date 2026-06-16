@@ -238,16 +238,100 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
 <div class="card" style="margin-bottom: var(--space-4);">
   <div class="card-header"><h2 class="card-title">Foto</h2></div>
   <div class="card-body">
-    <form action="<?= route_to('employees.photo.upload', $employee['id']) ?>" method="post" enctype="multipart/form-data">
+    <form action="<?= route_to('employees.photo.upload', $employee['id']) ?>" method="post" enctype="multipart/form-data" id="photo-form">
       <?= csrf_field() ?>
-      <div class="field">
-        <label class="field-label" for="photo">Subir nueva foto (JPG, PNG o WEBP, máx 2 MB)</label>
-        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" required>
+      <div style="display:flex; gap:var(--space-4); align-items:flex-start; flex-wrap:wrap;">
+
+        <!-- Current / new preview -->
+        <div id="photo-preview-wrap" style="width:80px; height:80px; border-radius:var(--radius-md); overflow:hidden; background:var(--color-neutral-100); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+          <?php if (! empty($employee['photo'])): ?>
+            <img id="photo-preview-img" src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="Foto actual" style="width:100%; height:100%; object-fit:cover; display:block;">
+          <?php else: ?>
+            <svg id="photo-preview-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <?php endif; ?>
+        </div>
+
+        <!-- Drop zone -->
+        <div style="flex:1; min-width:200px;">
+          <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" required style="display:none;" aria-label="Seleccionar foto">
+          <div id="photo-dropzone"
+               role="button" tabindex="0" aria-label="Subir foto"
+               style="border:2px dashed var(--color-neutral-300); border-radius:var(--radius-md); padding:var(--space-5) var(--space-4); text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; background:var(--color-neutral-50);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" style="margin:0 auto var(--space-2); display:block;" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p id="photo-dropzone-label" style="margin:0; font-size:var(--text-sm); color:var(--text-muted);">Arrastra una imagen aquí o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span></p>
+            <p style="margin:var(--space-1) 0 0; font-size:var(--text-xs); color:var(--text-muted);">JPG, PNG o WEBP · máx. 2 MB</p>
+          </div>
+          <button type="submit" id="photo-submit" class="btn btn-secondary" style="margin-top:var(--space-3); display:none;">Guardar foto</button>
+        </div>
       </div>
-      <button type="submit" class="btn btn-secondary">Guardar foto</button>
     </form>
   </div>
 </div>
+<script>
+(function () {
+  const input     = document.getElementById('photo');
+  const dropzone  = document.getElementById('photo-dropzone');
+  const label     = document.getElementById('photo-dropzone-label');
+  const wrap      = document.getElementById('photo-preview-wrap');
+  const submitBtn = document.getElementById('photo-submit');
+
+  function applyFile(file) {
+    if (! file) return;
+
+    label.innerHTML = '<span style="font-weight:500; color:var(--text-primary);">' + file.name + '</span>';
+    dropzone.style.borderColor = 'var(--color-primary)';
+    dropzone.style.background  = '#f0f7ff';
+    submitBtn.style.display    = '';
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      let img = document.getElementById('photo-preview-img');
+      if (! img) {
+        const icon = document.getElementById('photo-preview-icon');
+        if (icon) icon.remove();
+        img = document.createElement('img');
+        img.id = 'photo-preview-img';
+        img.alt = 'Vista previa';
+        img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
+        wrap.appendChild(img);
+      }
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  input.addEventListener('change', function () {
+    if (this.files.length) applyFile(this.files[0]);
+  });
+
+  dropzone.addEventListener('click', function () { input.click(); });
+  dropzone.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+  });
+
+  dropzone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    this.style.borderColor = 'var(--color-primary)';
+    this.style.background  = '#f0f7ff';
+  });
+  dropzone.addEventListener('dragleave', function () {
+    if (! input.files.length) {
+      this.style.borderColor = 'var(--color-neutral-300)';
+      this.style.background  = 'var(--color-neutral-50)';
+    }
+  });
+  dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      applyFile(file);
+    }
+  });
+}());
+</script>
 <?php endif; ?>
 
 <script>
