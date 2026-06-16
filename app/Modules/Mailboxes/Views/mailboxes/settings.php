@@ -10,9 +10,6 @@ $s = fn(string $key, string $default = '') => esc($settings[$key] ?? $default);
     <h1 class="page-title">Configuración de buzones</h1>
     <p class="page-subtitle">Conexión con la instancia Mailcow</p>
   </div>
-  <div class="page-actions">
-    <a href="<?= route_to('mailboxes.index') ?>" class="btn btn-secondary">← Volver a buzones</a>
-  </div>
 </div>
 
 <div style="max-width:640px; display:flex; flex-direction:column; gap:var(--space-6);">
