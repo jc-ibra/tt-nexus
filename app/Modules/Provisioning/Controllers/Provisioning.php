@@ -185,7 +185,10 @@ class Provisioning extends BaseController
             if (! $resp['success']) {
                 return $this->response->setJSON(['status' => 'error', 'data' => []]);
             }
-            $domains = array_column((array) $resp['data'], 'domain');
+            $domains = array_values(array_filter(array_map(
+                fn($d) => $d['domain_name'] ?? $d['domain'] ?? '',
+                (array) $resp['data']
+            )));
             return $this->response->setJSON(['status' => 'success', 'data' => $domains]);
         } catch (\Throwable $e) {
             return $this->response->setJSON(['status' => 'error', 'data' => []]);

@@ -29,6 +29,10 @@ $routes->group('provisioning', [
     $routes->post('employees/(:num)/password',               'Provisioning::changePasswordEmployee/$1',     ['as' => 'provisioning.employee.password']);
     $routes->post('employees/(:num)/systems/(:num)/provision',   'Provisioning::provisionEmployeeOnSystem/$1/$2',   ['as' => 'provisioning.employee.system.provision']);
     $routes->post('employees/(:num)/systems/(:num)/deprovision', 'Provisioning::deprovisionEmployeeOnSystem/$1/$2', ['as' => 'provisioning.employee.system.deprovision']);
+
+    // Mailcow AJAX helpers (used from employee panel, accessible to all provisioning users)
+    $routes->get('mailcow-domains', 'Provisioning::mailcowDomains', ['as' => 'provisioning.mailcow-domains']);
+    $routes->get('suggest-mailbox', 'Provisioning::suggestMailbox', ['as' => 'provisioning.suggest-mailbox']);
 });
 
 // -----------------------------------------------------------------------
@@ -54,9 +58,6 @@ $routes->group('admin/provisioning', [
     $routes->post('ms-licenses/(:num)/delete','ProvisioningMsLicenses::destroy/$1',['as' => 'provisioning.ms-licenses.destroy']);
     $routes->post('ms-licenses/(:num)/toggle','ProvisioningMsLicenses::toggle/$1', ['as' => 'provisioning.ms-licenses.toggle']);
 
-    // Mailcow AJAX helpers
-    $routes->get('mailcow-domains', 'Provisioning::mailcowDomains', ['as' => 'provisioning.mailcow-domains']);
-    $routes->get('suggest-mailbox', 'Provisioning::suggestMailbox', ['as' => 'provisioning.suggest-mailbox']);
 });
 
 // -----------------------------------------------------------------------

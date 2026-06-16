@@ -111,7 +111,7 @@ if (is_file($provisioningPanel)) {
       </div>
 
       <?php if (! $hasEmail): ?>
-        <div class="banner banner-warning" style="margin:var(--space-3) var(--space-4) 0;">
+        <div class="banner banner-warning" style="margin:var(--space-3) var(--space-4);">
           <div class="banner-body">Este empleado no tiene cuentas de correo configuradas. Agrega al menos una cuenta o marca que no cuenta con correo electrónico.</div>
         </div>
       <?php endif; ?>
@@ -162,13 +162,14 @@ if (is_file($provisioningPanel)) {
       <?php endif; ?>
 
       <!-- Agregar cuenta -->
-      <div class="card-footer">
-        <details>
-          <summary style="cursor:pointer; font-weight:600; font-size:var(--text-sm); padding:var(--space-1) 0; list-style:none;">
-            + Agregar cuenta de correo
+      <div class="card-footer" style="justify-content:flex-start;">
+        <details style="width:100%;">
+          <summary style="cursor:pointer; font-weight:var(--weight-medium); font-size:var(--text-sm); color:var(--color-primary); list-style:none; display:inline-flex; align-items:center; gap:var(--space-1);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar cuenta de correo
           </summary>
           <form method="post" action="<?= route_to('employees.email-accounts.add', $employee['id']) ?>"
-                style="margin-top:var(--space-3); display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
+                style="margin-top:var(--space-4); display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); max-width:560px;">
             <?= csrf_field() ?>
 
             <div class="field">
@@ -186,7 +187,7 @@ if (is_file($provisioningPanel)) {
               <input type="email" id="ea-email" name="email" class="input" placeholder="usuario@dominio.com" maxlength="255">
             </div>
 
-            <div class="field" id="ea-license-field" style="display:none;">
+            <div class="field" id="ea-license-field" style="display:none; grid-column:1/-1;">
               <label class="field-label" for="ea-license">Licencia Microsoft 365 <span class="required">*</span></label>
               <select id="ea-license" name="ms_license_id" class="select">
                 <option value="">Selecciona licencia...</option>
@@ -201,14 +202,11 @@ if (is_file($provisioningPanel)) {
               <input type="text" id="ea-notes" name="notes" class="input" placeholder="Observaciones opcionales" maxlength="255">
             </div>
 
-            <div class="field" style="grid-column:1/-1;">
+            <div style="grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;">
               <label class="field-check">
                 <input type="checkbox" name="is_primary" value="1">
                 <span>Marcar como cuenta primaria</span>
               </label>
-            </div>
-
-            <div style="grid-column:1/-1;">
               <button type="submit" class="btn btn-primary btn-sm">Guardar cuenta</button>
             </div>
           </form>
