@@ -7,7 +7,6 @@
     <p class="page-subtitle">Orquestador del ciclo de vida de identidades hacia GLPI, Mailcow e Intranet.</p>
   </div>
   <div class="page-actions">
-    <a href="<?= route_to('provisioning.systems.index') ?>" class="btn btn-secondary">Sistemas destino</a>
     <a href="<?= route_to('provisioning.log') ?>" class="btn btn-secondary">Bitácora</a>
     <a href="<?= route_to('provisioning.retries') ?>" class="btn btn-secondary">
       Reintentos
@@ -58,7 +57,6 @@
           <th>Clave</th>
           <th>Base URL</th>
           <th>Estado</th>
-          <th style="text-align:right;">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -73,10 +71,6 @@
               <?php else: ?>
                 <span class="badge badge-neutral">Inactivo</span>
               <?php endif; ?>
-            </td>
-            <td style="text-align:right;">
-              <a href="<?= route_to('provisioning.systems.show', $s['id']) ?>" class="btn btn-tertiary btn-sm">Ver</a>
-              <a href="<?= route_to('provisioning.systems.edit', $s['id']) ?>" class="btn btn-tertiary btn-sm">Editar</a>
             </td>
           </tr>
         <?php endforeach; ?>

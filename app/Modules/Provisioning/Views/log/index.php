@@ -13,19 +13,19 @@
 
 <form method="get" class="card" style="margin-bottom: var(--space-4);">
   <div style="padding: var(--space-3) var(--space-4); display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:center;">
-    <select name="operation" class="select">
+    <select name="operation" class="select" style="width:220px;">
       <option value="">Todas las operaciones</option>
       <?php foreach (['create', 'disable', 'password', 'update', 'connection_test'] as $op): ?>
         <option value="<?= $op ?>" <?= ($filters['operation'] ?? '') === $op ? 'selected' : '' ?>><?= esc($op) ?></option>
       <?php endforeach; ?>
     </select>
-    <select name="status" class="select">
+    <select name="status" class="select" style="width:180px;">
       <option value="">Todos los estados</option>
-      <option value="success" <?= ($filters['status'] ?? '') === 'success' ? 'selected' : '' ?>>Éxito</option>
+      <option value="success" <?= ($filters['status'] ?? '') === 'success' ? 'selected' : '' ?>>Exito</option>
       <option value="error"   <?= ($filters['status'] ?? '') === 'error' ? 'selected' : '' ?>>Error</option>
       <option value="pending" <?= ($filters['status'] ?? '') === 'pending' ? 'selected' : '' ?>>Pendiente</option>
     </select>
-    <select name="system_id" class="select">
+    <select name="system_id" class="select" style="width:200px;">
       <option value="">Todos los sistemas</option>
       <?php foreach ($systems as $s): ?>
         <option value="<?= (int) $s['id'] ?>" <?= (string) ($filters['system_id'] ?? '') === (string) $s['id'] ? 'selected' : '' ?>><?= esc($s['name']) ?></option>

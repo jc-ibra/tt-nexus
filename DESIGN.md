@@ -363,6 +363,8 @@ Sistema de **base 4px**. Todos los valores de margin, padding y gap deben ser m�
 
 **Regla de formularios:** Cada campo tiene `label → input → [help text | error text]`. Nunca omitas el label (usa `aria-label` si es visualmente oculto).
 
+**Regla de filtros en desktop:** Los `<select>` y `<input>` usados como filtros inline (dentro de una barra de filtros con `display: flex`) NO deben heredar `width: 100%`. Asigna un ancho fijo explícito via `style="width: Xpx;"` proporcional al contenido esperado (mínimo `160px`, típico `200–240px`). En mobile (`max-width: 640px`) pueden expandirse a `width: 100%`. El `width: 100%` del `.select` global aplica solo a campos de formulario verticales (dentro de `.field-group` o similar).
+
 ---
 
 ### 8.3 Cards
