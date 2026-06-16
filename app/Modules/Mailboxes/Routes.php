@@ -22,7 +22,6 @@ $routes->group('mailboxes', [
     // AJAX write
     $routes->post('create', 'Mailboxes::create',    ['as' => 'mailboxes.create']);
     $routes->post('edit',   'Mailboxes::edit',      ['as' => 'mailboxes.edit']);
-    $routes->post('delete', 'Mailboxes::delete',    ['as' => 'mailboxes.delete']);
     $routes->post('toggle', 'Mailboxes::toggle',    ['as' => 'mailboxes.toggle']);
 });
 
@@ -49,7 +48,6 @@ $routes->group('api/v1/mailboxes', [
     $routes->get('mailboxes/(:segment)', 'MailboxesApiController::show/$1');
     $routes->post('mailboxes',           'MailboxesApiController::create');
     $routes->post('mailboxes/edit',      'MailboxesApiController::editMailbox');
-    $routes->post('mailboxes/delete',    'MailboxesApiController::deleteMailboxes');
     $routes->post('mailboxes/toggle',    'MailboxesApiController::toggleMailbox');
     $routes->get('domains',              'MailboxesApiController::domains');
     $routes->get('settings',             'MailboxesApiController::getSettings');

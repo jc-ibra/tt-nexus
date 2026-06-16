@@ -88,7 +88,6 @@
       <span id="bulk-count" class="badge badge-info"></span>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-bulk-activate">Activar</button>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-bulk-deactivate">Desactivar</button>
-      <button type="button" class="btn btn-sm" id="btn-bulk-delete" style="color:var(--color-critical-default); border-color:var(--color-critical-default);">Eliminar</button>
     </span>
   </div>
 </div>
@@ -264,33 +263,6 @@
   </div>
 </div>
 
-<!-- ================================================================
-     MODAL: Confirmar eliminación
-     ================================================================ -->
-<div id="modal-delete" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modal-delete-title">
-  <div class="modal" style="max-width:460px;">
-    <div class="modal-header">
-      <h2 class="modal-title" id="modal-delete-title">Confirmar eliminación</h2>
-      <button type="button" class="btn btn-tertiary btn-sm modal-close" data-modal="modal-delete" aria-label="Cerrar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div class="banner banner-critical" style="margin-bottom:var(--space-4);" role="alert">
-        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <div class="banner-body">Esta acción es <strong>irreversible</strong>. Se eliminarán permanentemente los siguientes buzones y todo su contenido.</div>
-      </div>
-      <ul id="delete-list" style="margin:0; padding-left:var(--space-5); display:flex; flex-direction:column; gap:var(--space-1);"></ul>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary modal-close" data-modal="modal-delete">Cancelar</button>
-      <button type="button" class="btn btn-primary" id="btn-delete-confirm" style="background:var(--color-critical-default); border-color:var(--color-critical-default);" data-loading-text="Eliminando…">
-        Eliminar definitivamente
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- Toast notifications -->
 <div id="toast-container" style="position:fixed; bottom:var(--space-6); right:var(--space-6); z-index:500; display:flex; flex-direction:column; gap:var(--space-2); pointer-events:none;"></div>
 
@@ -339,7 +311,6 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   let currentPage     = 1;
   const perPage       = 25;
   let selectedEmails  = new Set();
-  let deleteTargets   = [];
 
   // ----------------------------------------------------------------
   // Toast
@@ -480,9 +451,6 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
     tbody.querySelectorAll('.btn-edit-row').forEach(btn => {
       btn.addEventListener('click', onEditRow);
     });
-    tbody.querySelectorAll('.btn-delete-row').forEach(btn => {
-      btn.addEventListener('click', onDeleteRow);
-    });
     tbody.querySelectorAll('.row-checkbox').forEach(cb => {
       cb.addEventListener('change', onRowCheck);
     });
@@ -526,7 +494,6 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
       <td>
         <div class="table-actions">
           <button type="button" class="btn btn-tertiary btn-sm btn-edit-row" data-email="${escHtml(m.username)}" data-name="${escHtml(m.name)}" data-quota="${m.quota / 1024 / 1024}" data-active="${m.active ? 1 : 0}" aria-label="Editar ${escHtml(m.username)}">Editar</button>
-          <button type="button" class="btn btn-tertiary btn-sm btn-delete-row" data-email="${escHtml(m.username)}" style="color:var(--color-critical-default);" aria-label="Eliminar ${escHtml(m.username)}">Eliminar</button>
         </div>
       </td>
     </tr>`;
@@ -660,10 +627,6 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
     toast(`${emails.length} buzón(es) desactivado(s).`);
   });
 
-  document.getElementById('btn-bulk-delete').addEventListener('click', () => {
-    deleteTargets = [...selectedEmails];
-    openDeleteModal(deleteTargets);
-  });
 
   // ----------------------------------------------------------------
   // Create mailbox
@@ -765,42 +728,6 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   });
 
   // ----------------------------------------------------------------
-  // Delete mailbox
-  // ----------------------------------------------------------------
-  function onDeleteRow(e) {
-    deleteTargets = [e.currentTarget.dataset.email];
-    openDeleteModal(deleteTargets);
-  }
-
-  function openDeleteModal(emails) {
-    const list = document.getElementById('delete-list');
-    list.innerHTML = emails.map(e => `<li style="font-family:var(--font-mono); font-size:var(--text-sm);">${escHtml(e)}</li>`).join('');
-    openModal('modal-delete');
-  }
-
-  document.getElementById('btn-delete-confirm').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-delete-confirm');
-    btn.disabled = true;
-
-    const res = await postJSON('mailboxes/delete', { emails: deleteTargets });
-    btn.disabled = false;
-
-    closeModal('modal-delete');
-
-    if (res.success) {
-      deleteTargets.forEach(e => {
-        allMailboxes = allMailboxes.filter(m => m.username !== e);
-        selectedEmails.delete(e);
-      });
-      deleteTargets = [];
-      applyFilters();
-      toast(res.message);
-    } else {
-      toast(res.message || 'Error al eliminar.', 'error');
-    }
-  });
-
-  // ----------------------------------------------------------------
   // Refresh
   // ----------------------------------------------------------------
   document.getElementById('btn-refresh').addEventListener('click', loadMailboxes);
@@ -830,7 +757,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      ['modal-create', 'modal-edit', 'modal-delete'].forEach(id => {
+      ['modal-create', 'modal-edit'].forEach(id => {
         if (document.getElementById(id).style.display !== 'none') closeModal(id);
       });
     }

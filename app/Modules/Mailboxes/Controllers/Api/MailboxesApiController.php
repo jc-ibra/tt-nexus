@@ -73,21 +73,6 @@ class MailboxesApiController extends BaseApiController
         return $this->success(['message' => $result->message]);
     }
 
-    // POST /api/v1/mailboxes/mailboxes/delete
-    public function deleteMailboxes(): \CodeIgniter\HTTP\ResponseInterface
-    {
-        $data   = (array) $this->request->getJSON(true);
-        $emails = (array) ($data['emails'] ?? []);
-
-        $result = $this->svc()->deleteMailboxes($emails);
-
-        if (! $result->success) {
-            return $this->error($result->message);
-        }
-
-        return $this->success(['message' => $result->message]);
-    }
-
     // POST /api/v1/mailboxes/mailboxes/toggle
     public function toggleMailbox(): \CodeIgniter\HTTP\ResponseInterface
     {

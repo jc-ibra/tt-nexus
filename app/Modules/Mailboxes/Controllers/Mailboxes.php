@@ -98,23 +98,6 @@ class Mailboxes extends BaseController
         ]);
     }
 
-    public function delete(): \CodeIgniter\HTTP\ResponseInterface
-    {
-        if (! $this->request->is('post')) {
-            return $this->response->setStatusCode(405)->setJSON(['success' => false, 'error' => 'Método no permitido.']);
-        }
-
-        $body   = (array) ($this->request->getJSON(true) ?? $this->request->getPost());
-        $emails = (array) ($body['emails'] ?? []);
-
-        $result = $this->svc()->deleteMailboxes($emails);
-
-        return $this->response->setJSON([
-            'success' => $result->success,
-            'message' => $result->message,
-        ]);
-    }
-
     public function toggle(): \CodeIgniter\HTTP\ResponseInterface
     {
         if (! $this->request->is('post')) {
