@@ -93,6 +93,42 @@ class Provisioning extends BaseController
         return redirect()->to(route_to('provisioning.retries'));
     }
 
+    public function cancelRetry(int $retryId): ResponseInterface
+    {
+        $model = new ProvisioningRetryQueueModel();
+        $row   = $model->find($retryId);
+
+        if (! $row || $row['status'] !== 'pending') {
+            session()->setFlashdata('error', 'Reintento no encontrado o no está pendiente.');
+            return redirect()->to(route_to('provisioning.retries'));
+        }
+
+        $model->cancel($retryId);
+        session()->setFlashdata('success', 'Reintento #' . $retryId . ' cancelado.');
+        return redirect()->to(route_to('provisioning.retries'));
+    }
+
+    public function deleteRetry(int $retryId): ResponseInterface
+    {
+        $model = new ProvisioningRetryQueueModel();
+
+        if (! $model->find($retryId)) {
+            session()->setFlashdata('error', 'Reintento no encontrado.');
+            return redirect()->to(route_to('provisioning.retries'));
+        }
+
+        $model->remove($retryId);
+        session()->setFlashdata('success', 'Reintento #' . $retryId . ' eliminado.');
+        return redirect()->to(route_to('provisioning.retries'));
+    }
+
+    public function clearRetries(): ResponseInterface
+    {
+        $count = (new ProvisioningRetryQueueModel())->clearFinished();
+        session()->setFlashdata('success', sprintf('%d entradas eliminadas de la cola.', $count));
+        return redirect()->to(route_to('provisioning.retries'));
+    }
+
     // -----------------------------------------------------------------------
     // Operations triggered from the employee detail page
     // -----------------------------------------------------------------------

@@ -8,6 +8,10 @@
   </div>
   <div class="page-actions">
     <a href="<?= route_to('provisioning.index') ?>" class="btn btn-secondary">Volver</a>
+    <form method="post" action="<?= route_to('provisioning.retries.clear') ?>" style="display:inline;" onsubmit="return confirm('¿Eliminar todos los registros completados y abandonados?');">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-secondary">Limpiar cola</button>
+    </form>
     <form method="post" action="<?= route_to('provisioning.retries.run') ?>" style="display:inline;">
       <?= csrf_field() ?>
       <button type="submit" class="btn btn-primary">Procesar pendientes ahora</button>
@@ -59,13 +63,21 @@
               <?php endif; ?>
             </td>
             <td class="text-sm"><?= esc($r['last_error'] ?: '-') ?></td>
-            <td style="text-align:right;">
+            <td style="text-align:right; white-space:nowrap;">
               <?php if ($r['status'] === 'pending'): ?>
                 <form method="post" action="<?= route_to('provisioning.retries.one', $r['id']) ?>" style="display:inline;">
                   <?= csrf_field() ?>
                   <button type="submit" class="btn btn-tertiary btn-sm">Reintentar</button>
                 </form>
+                <form method="post" action="<?= route_to('provisioning.retries.cancel', $r['id']) ?>" style="display:inline;">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-tertiary btn-sm">Cancelar</button>
+                </form>
               <?php endif; ?>
+              <form method="post" action="<?= route_to('provisioning.retries.delete', $r['id']) ?>" style="display:inline;" onsubmit="return confirm('¿Eliminar este reintento de la cola?');">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-tertiary btn-sm btn-critical">Eliminar</button>
+              </form>
             </td>
           </tr>
         <?php endforeach; ?>

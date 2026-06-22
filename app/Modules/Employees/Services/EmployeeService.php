@@ -71,9 +71,14 @@ class EmployeeService
 
         $clean = $this->normalize($data, $current);
 
-        $this->model->skipValidation(false);
+        // Include id so the {id} placeholder in is_unique[...,id,{id}] is substituted
+        // correctly; without it, CI4 strips id (not in allowedFields) before validation
+        // and the rule incorrectly flags the record's own email as a duplicate.
+        if (! $this->model->validate(array_merge($clean, ['id' => $id]))) {
+            return ServiceResult::fail($this->model->errors());
+        }
 
-        if (! $this->model->update($id, $clean)) {
+        if (! $this->model->skipValidation(true)->update($id, $clean)) {
             return ServiceResult::fail($this->model->errors());
         }
 

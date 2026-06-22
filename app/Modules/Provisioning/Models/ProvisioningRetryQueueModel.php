@@ -74,4 +74,21 @@ class ProvisioningRetryQueueModel extends Model
             'status'          => $abandoned ? 'abandoned' : 'pending',
         ]);
     }
+
+    public function cancel(int $id): void
+    {
+        $this->update($id, ['status' => 'abandoned']);
+    }
+
+    public function remove(int $id): void
+    {
+        $this->delete($id);
+    }
+
+    public function clearFinished(): int
+    {
+        $count = $this->whereIn('status', ['completed', 'abandoned'])->countAllResults();
+        $this->whereIn('status', ['completed', 'abandoned'])->delete();
+        return $count;
+    }
 }

@@ -168,4 +168,35 @@ class ProvisioningApiController extends BaseApiController
             ? $this->success(null, ResponseInterface::HTTP_OK)
             : $this->error($result->message);
     }
+
+    public function cancelRetry(int $retryId): ResponseInterface
+    {
+        $model = new ProvisioningRetryQueueModel();
+        $row   = $model->find($retryId);
+
+        if (! $row || $row['status'] !== 'pending') {
+            return $this->error('Reintento no encontrado o no está pendiente.', ResponseInterface::HTTP_NOT_FOUND);
+        }
+
+        $model->cancel($retryId);
+        return $this->success(null);
+    }
+
+    public function deleteRetry(int $retryId): ResponseInterface
+    {
+        $model = new ProvisioningRetryQueueModel();
+
+        if (! $model->find($retryId)) {
+            return $this->error('Reintento no encontrado.', ResponseInterface::HTTP_NOT_FOUND);
+        }
+
+        $model->remove($retryId);
+        return $this->success(null, ResponseInterface::HTTP_NO_CONTENT);
+    }
+
+    public function clearRetries(): ResponseInterface
+    {
+        $count = (new ProvisioningRetryQueueModel())->clearFinished();
+        return $this->success(['deleted' => $count]);
+    }
 }

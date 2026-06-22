@@ -19,9 +19,12 @@ $routes->group('provisioning', [
     $routes->get('log', 'Provisioning::log', ['as' => 'provisioning.log']);
 
     // Retry queue
-    $routes->get('retries',         'Provisioning::retries',     ['as' => 'provisioning.retries']);
-    $routes->post('retries/run',    'Provisioning::runRetries',  ['as' => 'provisioning.retries.run']);
-    $routes->post('retries/(:num)', 'Provisioning::retryOne/$1', ['as' => 'provisioning.retries.one']);
+    $routes->get('retries',                  'Provisioning::retries',          ['as' => 'provisioning.retries']);
+    $routes->post('retries/run',             'Provisioning::runRetries',       ['as' => 'provisioning.retries.run']);
+    $routes->post('retries/clear',           'Provisioning::clearRetries',     ['as' => 'provisioning.retries.clear']);
+    $routes->post('retries/(:num)',          'Provisioning::retryOne/$1',      ['as' => 'provisioning.retries.one']);
+    $routes->post('retries/(:num)/cancel',   'Provisioning::cancelRetry/$1',   ['as' => 'provisioning.retries.cancel']);
+    $routes->post('retries/(:num)/delete',   'Provisioning::deleteRetry/$1',   ['as' => 'provisioning.retries.delete']);
 
     // Orchestrator operations (triggered from the employee profile)
     $routes->post('employees/(:num)/provision',              'Provisioning::provisionEmployee/$1',          ['as' => 'provisioning.employee.provision']);
@@ -87,8 +90,11 @@ $routes->group('api/v1/provisioning', [
     $routes->post('employees/(:num)/systems/(:num)/deprovision', 'ProvisioningApiController::deprovisionEmployeeOnSystem/$1/$2');
 
     // Audit log and retries
-    $routes->get('log',             'ProvisioningApiController::log');
-    $routes->get('retries',         'ProvisioningApiController::retries');
-    $routes->post('retries/run',    'ProvisioningApiController::runRetries');
-    $routes->post('retries/(:num)', 'ProvisioningApiController::retryOne/$1');
+    $routes->get('log',                       'ProvisioningApiController::log');
+    $routes->get('retries',                   'ProvisioningApiController::retries');
+    $routes->post('retries/run',              'ProvisioningApiController::runRetries');
+    $routes->post('retries/clear',            'ProvisioningApiController::clearRetries');
+    $routes->post('retries/(:num)',           'ProvisioningApiController::retryOne/$1');
+    $routes->post('retries/(:num)/cancel',    'ProvisioningApiController::cancelRetry/$1');
+    $routes->delete('retries/(:num)',         'ProvisioningApiController::deleteRetry/$1');
 });
