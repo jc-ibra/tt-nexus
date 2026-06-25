@@ -800,14 +800,23 @@ img, svg { display: block; max-width: 100%; }
 /* --------------------------------------------------------------------------
    15. Pagination
    -------------------------------------------------------------------------- */
+.pager-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+.pager-summary { margin: 0; }
+
 .pagination {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  margin-top: var(--space-4);
   list-style: none;
   padding: 0;
-  margin-left: 0;
+  margin: 0;
 }
 
 .pagination-item {

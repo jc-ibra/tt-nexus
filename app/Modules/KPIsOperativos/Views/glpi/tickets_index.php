@@ -139,23 +139,46 @@ function paginationUrl(int $reportId, array $filters, int $page, int $perPage): 
   </div>
 
   <?php if ($lastPage > 1): ?>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: var(--space-4);">
-      <p class="text-muted text-sm" style="margin:0;">
-        Página <?= $page ?> de <?= $lastPage ?> ·
-        Mostrando <?= ($page - 1) * $perPage + 1 ?> – <?= min($page * $perPage, $total) ?> de <?= number_format($total) ?>
-      </p>
-      <div style="display:flex; gap: var(--space-2);">
-        <?php if ($page > 1): ?>
-          <a href="<?= paginationUrl($report['id'], $filters, $page - 1, $perPage) ?>" class="btn btn-tertiary btn-sm">
-            ← Anterior
-          </a>
-        <?php endif; ?>
-        <?php if ($page < $lastPage): ?>
-          <a href="<?= paginationUrl($report['id'], $filters, $page + 1, $perPage) ?>" class="btn btn-tertiary btn-sm">
-            Siguiente →
-          </a>
-        <?php endif; ?>
-      </div>
+    <div class="pager-bar">
+      <span class="pager-summary text-sm text-muted">
+        Mostrando <?= ($page - 1) * $perPage + 1 ?>-<?= min($page * $perPage, $total) ?>
+        de <?= number_format($total) ?>
+        · Página <?= $page ?> de <?= $lastPage ?>
+      </span>
+      <nav aria-label="Paginación">
+        <ul class="pagination">
+          <?php if ($page > 1): ?>
+            <li><a href="<?= paginationUrl($report['id'], $filters, 1, $perPage) ?>" class="pagination-item" aria-label="Primera página">«</a></li>
+            <li><a href="<?= paginationUrl($report['id'], $filters, $page - 1, $perPage) ?>" class="pagination-item" aria-label="Página anterior">‹</a></li>
+          <?php else: ?>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">«</span></li>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">‹</span></li>
+          <?php endif; ?>
+
+          <?php
+            $surround = 2;
+            $startPage = max(1, $page - $surround);
+            $endPage   = min($lastPage, $page + $surround);
+          ?>
+          <?php for ($p = $startPage; $p <= $endPage; $p++): ?>
+            <li>
+              <?php if ($p === $page): ?>
+                <span class="pagination-item is-active" aria-current="page"><?= $p ?></span>
+              <?php else: ?>
+                <a href="<?= paginationUrl($report['id'], $filters, $p, $perPage) ?>" class="pagination-item"><?= $p ?></a>
+              <?php endif; ?>
+            </li>
+          <?php endfor; ?>
+
+          <?php if ($page < $lastPage): ?>
+            <li><a href="<?= paginationUrl($report['id'], $filters, $page + 1, $perPage) ?>" class="pagination-item" aria-label="Página siguiente">›</a></li>
+            <li><a href="<?= paginationUrl($report['id'], $filters, $lastPage, $perPage) ?>" class="pagination-item" aria-label="Última página">»</a></li>
+          <?php else: ?>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">›</span></li>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">»</span></li>
+          <?php endif; ?>
+        </ul>
+      </nav>
     </div>
   <?php endif; ?>
 <?php endif; ?>

@@ -500,26 +500,54 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   }
 
   function renderPagination(total) {
-    const lastPage = Math.ceil(total / perPage);
+    const lastPage = Math.max(1, Math.ceil(total / perPage));
     const start    = (currentPage - 1) * perPage + 1;
     const end      = Math.min(currentPage * perPage, total);
 
-    document.getElementById('pagination-info').textContent = `Mostrando ${start}–${end} de ${total} buzones`;
+    document.getElementById('pagination-info').textContent =
+      `Mostrando ${start}-${end} de ${total} buzones · Página ${currentPage} de ${lastPage}`;
 
     const controls = document.getElementById('pagination-controls');
     controls.innerHTML = '';
 
-    const pages = getPageRange(currentPage, lastPage);
-    pages.forEach(p => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = p === '...' ? '…' : p;
-      btn.className = 'btn btn-tertiary btn-sm' + (p === currentPage ? ' is-active' : '');
-      btn.style.minWidth = '36px';
-      if (p === '...' || p === currentPage) btn.style.pointerEvents = 'none';
-      else btn.addEventListener('click', () => { currentPage = p; renderTable(); });
-      controls.appendChild(btn);
+    const goTo = (p) => { currentPage = p; renderTable(); };
+
+    // First / Previous
+    controls.appendChild(navItem('«', 'Primera página', currentPage > 1 ? () => goTo(1) : null));
+    controls.appendChild(navItem('‹', 'Página anterior', currentPage > 1 ? () => goTo(currentPage - 1) : null));
+
+    // Page numbers
+    getPageRange(currentPage, lastPage).forEach(p => {
+      if (p === '...') {
+        controls.appendChild(navItem('…', null, null));
+      } else if (p === currentPage) {
+        const el = document.createElement('span');
+        el.className = 'pagination-item is-active';
+        el.setAttribute('aria-current', 'page');
+        el.textContent = p;
+        controls.appendChild(el);
+      } else {
+        controls.appendChild(navItem(p, `Página ${p}`, () => goTo(p)));
+      }
     });
+
+    // Next / Last
+    controls.appendChild(navItem('›', 'Página siguiente', currentPage < lastPage ? () => goTo(currentPage + 1) : null));
+    controls.appendChild(navItem('»', 'Última página', currentPage < lastPage ? () => goTo(lastPage) : null));
+  }
+
+  function navItem(label, ariaLabel, onClick) {
+    const el = document.createElement(onClick ? 'a' : 'span');
+    el.className = 'pagination-item' + (onClick ? '' : ' is-disabled');
+    el.textContent = label;
+    if (ariaLabel) el.setAttribute('aria-label', ariaLabel);
+    if (onClick) {
+      el.href = '#';
+      el.addEventListener('click', (e) => { e.preventDefault(); onClick(); });
+    } else {
+      el.setAttribute('aria-hidden', 'true');
+    }
+    return el;
   }
 
   function getPageRange(current, last) {

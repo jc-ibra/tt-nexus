@@ -70,9 +70,7 @@
   </div>
 
   <?php if ($pager): ?>
-    <div class="pagination">
-      <?= $pager->links('default', 'pagination') ?>
-    </div>
+    <?= $pager->links('default', 'pagination') ?>
   <?php endif; ?>
 <?php endif; ?>
 

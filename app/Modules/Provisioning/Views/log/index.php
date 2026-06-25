@@ -137,7 +137,7 @@
 </div>
 
 <?php if ($pager ?? false): ?>
-  <div style="margin-top:var(--space-3);"><?= $pager->links() ?></div>
+  <?= $pager->links('default', 'pagination') ?>
 <?php endif; ?>
 
 <?= $this->endSection() ?>

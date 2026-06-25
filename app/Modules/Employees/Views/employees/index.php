@@ -144,25 +144,52 @@ $catalogToggleId = 'employees-catalog-menu';
     $lastPage = max(1, (int) ceil(($total ?? 0) / max(1, $perPage)));
   ?>
   <?php if ($lastPage > 1): ?>
-    <div style="padding: var(--space-3) var(--space-4); display:flex; align-items:center; justify-content:space-between;">
-      <span class="text-muted text-sm">
-        Página <?= (int) $page ?> de <?= $lastPage ?> · <?= (int) ($total ?? 0) ?> empleado(s)
+    <?php
+      $query = $filters;
+      $build = function (int $p) use ($query): string {
+          $query['page'] = $p;
+          return route_to('employees.index') . '?' . http_build_query($query);
+      };
+      $start     = ($page - 1) * $perPage + 1;
+      $end       = min($page * $perPage, (int) ($total ?? 0));
+      $surround  = 2;
+      $startPage = max(1, $page - $surround);
+      $endPage   = min($lastPage, $page + $surround);
+    ?>
+    <div class="pager-bar">
+      <span class="pager-summary text-sm text-muted">
+        Mostrando <?= $start ?>-<?= $end ?> de <?= number_format((int) ($total ?? 0)) ?>
+        · Página <?= (int) $page ?> de <?= $lastPage ?>
       </span>
-      <div style="display:flex; gap:var(--space-1);">
-        <?php
-          $query = $filters;
-          $build = function (int $p) use ($query): string {
-              $query['page'] = $p;
-              return route_to('employees.index') . '?' . http_build_query($query);
-          };
-        ?>
-        <?php if ($page > 1): ?>
-          <a href="<?= $build($page - 1) ?>" class="btn btn-tertiary btn-sm">Anterior</a>
-        <?php endif; ?>
-        <?php if ($page < $lastPage): ?>
-          <a href="<?= $build($page + 1) ?>" class="btn btn-tertiary btn-sm">Siguiente</a>
-        <?php endif; ?>
-      </div>
+      <nav aria-label="Paginación">
+        <ul class="pagination">
+          <?php if ($page > 1): ?>
+            <li><a href="<?= $build(1) ?>" class="pagination-item" aria-label="Primera página">«</a></li>
+            <li><a href="<?= $build($page - 1) ?>" class="pagination-item" aria-label="Página anterior">‹</a></li>
+          <?php else: ?>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">«</span></li>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">‹</span></li>
+          <?php endif; ?>
+
+          <?php for ($p = $startPage; $p <= $endPage; $p++): ?>
+            <li>
+              <?php if ($p === (int) $page): ?>
+                <span class="pagination-item is-active" aria-current="page"><?= $p ?></span>
+              <?php else: ?>
+                <a href="<?= $build($p) ?>" class="pagination-item"><?= $p ?></a>
+              <?php endif; ?>
+            </li>
+          <?php endfor; ?>
+
+          <?php if ($page < $lastPage): ?>
+            <li><a href="<?= $build($page + 1) ?>" class="pagination-item" aria-label="Página siguiente">›</a></li>
+            <li><a href="<?= $build($lastPage) ?>" class="pagination-item" aria-label="Última página">»</a></li>
+          <?php else: ?>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">›</span></li>
+            <li><span class="pagination-item is-disabled" aria-hidden="true">»</span></li>
+          <?php endif; ?>
+        </ul>
+      </nav>
     </div>
   <?php endif; ?>
 <?php endif; ?>
