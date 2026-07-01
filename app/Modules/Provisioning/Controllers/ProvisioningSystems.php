@@ -26,11 +26,22 @@ class ProvisioningSystems extends BaseController
         if (! $system) {
             throw PageNotFoundException::forPageNotFound();
         }
-        return view('App\Modules\Provisioning\Views\systems\show', [
+
+        $data = [
             'pageTitle' => 'Sistema: ' . $system['name'],
             'system'    => $system,
             'expected'  => $svc->expectedCredentials($system['key']),
-        ]);
+        ];
+
+        // GLPI-specific tools: DB connection config + additional-fields catalogs.
+        if ($system['key'] === 'glpi') {
+            $settings              = service('provisioningSettings')->getAll();
+            $data['glpiSettings']  = $settings;
+            $data['glpiHasPassword'] = ($settings['glpi_db_password'] ?? '') !== '';
+            $data['glpiConfigured']  = service('glpiDbConnection')->isConfigured();
+        }
+
+        return view('App\Modules\Provisioning\Views\systems\show', $data);
     }
 
     public function edit(int $id): string

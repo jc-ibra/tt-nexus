@@ -2353,6 +2353,283 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Provisioning — GLPI Catalogs",
+      "item": [
+        {
+          "name": "List catalogs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List values",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/regionalfield/values",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "regionalfield",
+                "values"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create value",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/regionalfield/values",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "regionalfield",
+                "values"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nueva zona\",\n  \"comment\": \"Opcional\",\n  \"parent\": 0\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import values",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/regionalfield/import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "regionalfield",
+                "import"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"values\": [\n    { \"name\": \"Zona A\", \"comment\": \"\" },\n    { \"name\": \"Zona B\" }\n  ]\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update value",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/regionalfield/values/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "regionalfield",
+                "values",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Zona renombrada\",\n  \"comment\": \"\",\n  \"parent\": 0\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete value",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/regionalfield/values/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "regionalfield",
+                "values",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List classification/visibility prefs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/prefs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "prefs"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save classification/visibility prefs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-catalogs/prefs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-catalogs",
+                "prefs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prefs\": [\n    { \"slug\": \"idsnombrefield\", \"classification\": \"IDS\" },\n    { \"slug\": \"fueradetiempofield\", \"hidden\": true }\n  ]\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test GLPI connection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-connection/test",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-connection",
+                "test"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

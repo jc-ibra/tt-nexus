@@ -61,6 +61,22 @@ $routes->group('admin/provisioning', [
     $routes->post('ms-licenses/(:num)/delete','ProvisioningMsLicenses::destroy/$1',['as' => 'provisioning.ms-licenses.destroy']);
     $routes->post('ms-licenses/(:num)/toggle','ProvisioningMsLicenses::toggle/$1', ['as' => 'provisioning.ms-licenses.toggle']);
 
+    // GLPI database connection + additional-fields catalogs.
+    // Managed from the GLPI system detail page (systems/(:num)); SuperAdmin only.
+    $routes->post('glpi-connection',      'GlpiConnection::update', ['as' => 'provisioning.glpi-connection.update']);
+    $routes->post('glpi-connection/test', 'GlpiConnection::test',   ['as' => 'provisioning.glpi-connection.test']);
+
+    $routes->get('glpi-catalogs',                           'GlpiCatalogs::index',        ['as' => 'provisioning.glpi-catalogs.index']);
+    // 'manage' must be declared before the (:segment) route so it is not captured as a catalog slug.
+    $routes->get('glpi-catalogs/manage',                    'GlpiCatalogs::manage',       ['as' => 'provisioning.glpi-catalogs.manage']);
+    $routes->post('glpi-catalogs/manage',                   'GlpiCatalogs::saveManage',   ['as' => 'provisioning.glpi-catalogs.manage.save']);
+    $routes->get('glpi-catalogs/(:segment)',                'GlpiCatalogs::show/$1',      ['as' => 'provisioning.glpi-catalogs.show']);
+    $routes->post('glpi-catalogs/(:segment)',               'GlpiCatalogs::store/$1',     ['as' => 'provisioning.glpi-catalogs.store']);
+    $routes->post('glpi-catalogs/(:segment)/import',        'GlpiCatalogs::import/$1',    ['as' => 'provisioning.glpi-catalogs.import']);
+    $routes->get('glpi-catalogs/(:segment)/(:num)/edit',    'GlpiCatalogs::edit/$1/$2',   ['as' => 'provisioning.glpi-catalogs.edit']);
+    $routes->post('glpi-catalogs/(:segment)/(:num)',        'GlpiCatalogs::update/$1/$2', ['as' => 'provisioning.glpi-catalogs.update']);
+    $routes->post('glpi-catalogs/(:segment)/(:num)/delete', 'GlpiCatalogs::destroy/$1/$2',['as' => 'provisioning.glpi-catalogs.destroy']);
+
 });
 
 // -----------------------------------------------------------------------
@@ -97,4 +113,15 @@ $routes->group('api/v1/provisioning', [
     $routes->post('retries/(:num)',           'ProvisioningApiController::retryOne/$1');
     $routes->post('retries/(:num)/cancel',    'ProvisioningApiController::cancelRetry/$1');
     $routes->delete('retries/(:num)',         'ProvisioningApiController::deleteRetry/$1');
+
+    // GLPI additional-fields catalogs
+    $routes->get('glpi-catalogs',                          'GlpiCatalogsApiController::listCatalogs');
+    $routes->get('glpi-catalogs/prefs',                    'GlpiCatalogsApiController::listPrefs');
+    $routes->post('glpi-catalogs/prefs',                   'GlpiCatalogsApiController::savePrefs');
+    $routes->get('glpi-catalogs/(:segment)/values',        'GlpiCatalogsApiController::listValues/$1');
+    $routes->post('glpi-catalogs/(:segment)/values',       'GlpiCatalogsApiController::createValue/$1');
+    $routes->post('glpi-catalogs/(:segment)/import',       'GlpiCatalogsApiController::importValues/$1');
+    $routes->put('glpi-catalogs/(:segment)/values/(:num)', 'GlpiCatalogsApiController::updateValue/$1/$2');
+    $routes->delete('glpi-catalogs/(:segment)/values/(:num)', 'GlpiCatalogsApiController::deleteValue/$1/$2');
+    $routes->post('glpi-connection/test',                  'GlpiCatalogsApiController::testConnection');
 });

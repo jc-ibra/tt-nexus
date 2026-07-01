@@ -35,11 +35,16 @@ use App\Modules\Provisioning\Models\MsLicenseModel;
 use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
 use App\Modules\Provisioning\Models\ProvisioningLogModel;
 use App\Modules\Provisioning\Models\ProvisioningRetryQueueModel;
+use App\Modules\Provisioning\Models\GlpiCatalogPrefModel;
+use App\Modules\Provisioning\Models\ProvisioningSettingsModel;
 use App\Modules\Provisioning\Models\ProvisioningSystemCredentialModel;
 use App\Modules\Provisioning\Models\ProvisioningSystemModel;
+use App\Modules\Provisioning\Config\GlpiCatalogs;
 use App\Modules\Provisioning\Services\AccessOrchestrator;
 use App\Modules\Provisioning\Services\ConnectorFactory;
 use App\Modules\Provisioning\Services\CredentialCipher;
+use App\Modules\Provisioning\Services\GlpiCatalogService;
+use App\Modules\Provisioning\Services\GlpiDbConnection;
 use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
 use CodeIgniter\Config\BaseService;
@@ -228,5 +233,29 @@ class Services extends BaseService
             new ProvisioningSystemCredentialModel(),
             self::credentialCipher(),
         );
+    }
+
+    public static function provisioningSettings(bool $getShared = true): ProvisioningSettingsModel
+    {
+        if ($getShared) {
+            return static::getSharedInstance('provisioningSettings');
+        }
+        return new ProvisioningSettingsModel(self::credentialCipher());
+    }
+
+    public static function glpiDbConnection(bool $getShared = true): GlpiDbConnection
+    {
+        if ($getShared) {
+            return static::getSharedInstance('glpiDbConnection');
+        }
+        return new GlpiDbConnection(self::provisioningSettings());
+    }
+
+    public static function glpiCatalogService(bool $getShared = true): GlpiCatalogService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('glpiCatalogService');
+        }
+        return new GlpiCatalogService(self::glpiDbConnection(), new GlpiCatalogs(), new GlpiCatalogPrefModel());
     }
 }

@@ -81,6 +81,106 @@
     </div>
   <?php endif; ?>
 
+  <?php if (($system['key'] ?? '') === 'glpi'):
+    $g = fn(string $key, string $default = '') => esc(old($key, $glpiSettings[$key] ?? $default));
+  ?>
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header"><h2 class="card-title">Base de datos de GLPI</h2></div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom:var(--space-3);">
+          Conexión directa a la base de datos de GLPI para gestionar los catálogos de campos adicionales.
+        </p>
+        <form id="glpi-conn-form" action="<?= route_to('provisioning.glpi-connection.update') ?>" method="post" style="max-width:640px;" novalidate>
+          <?= csrf_field() ?>
+          <div class="form-group">
+            <div class="field">
+              <label class="field-check">
+                <input type="checkbox" name="glpi_db_enabled" value="1" <?= ($glpiSettings['glpi_db_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+                <span>Conexión habilitada</span>
+              </label>
+            </div>
+            <div class="field">
+              <label class="field-label" for="glpi_db_host">Host <span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="glpi_db_host" name="glpi_db_host" class="input" value="<?= $g('glpi_db_host') ?>" placeholder="Host del servidor de base de datos de GLPI">
+            </div>
+            <div class="field">
+              <label class="field-label" for="glpi_db_port">Puerto <span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="glpi_db_port" name="glpi_db_port" class="input" value="<?= $g('glpi_db_port', '3306') ?>" placeholder="3306">
+            </div>
+            <div class="field">
+              <label class="field-label" for="glpi_db_name">Base de datos <span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="glpi_db_name" name="glpi_db_name" class="input" value="<?= $g('glpi_db_name') ?>" placeholder="Nombre de la base de datos">
+            </div>
+            <div class="field">
+              <label class="field-label" for="glpi_db_user">Usuario <span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="glpi_db_user" name="glpi_db_user" class="input" value="<?= $g('glpi_db_user') ?>" placeholder="Usuario de base de datos" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="field-label" for="glpi_db_password">Contraseña</label>
+              <input type="password" id="glpi_db_password" name="glpi_db_password" class="input"
+                     placeholder="<?= $glpiHasPassword ? '(definida) dejar vacío para conservar' : 'Contraseña de la base de datos' ?>" autocomplete="new-password">
+              <p class="text-muted text-sm" style="margin-top:var(--space-1);">
+                La contraseña se cifra en reposo. Deja el campo vacío para conservar la actual.
+              </p>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:var(--space-3); margin-top:var(--space-3);">
+            <button type="submit" class="btn btn-primary">Guardar conexión</button>
+            <button type="button" id="glpi-test-btn" class="btn btn-secondary">Probar conexión</button>
+            <span id="glpi-test-result" class="text-sm" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header"><h2 class="card-title">Catálogos de campos adicionales</h2></div>
+      <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); flex-wrap:wrap;">
+        <p class="text-muted text-sm" style="margin:0;">
+          Gestiona (y carga por CSV) los valores de los dropdowns de campos adicionales de GLPI.
+          <?php if (! ($glpiConfigured ?? false)): ?>
+            <br><strong>Configura y habilita la conexión</strong> antes de gestionar los catálogos.
+          <?php endif; ?>
+        </p>
+        <a href="<?= route_to('provisioning.glpi-catalogs.index') ?>" class="btn btn-secondary">Gestionar catálogos</a>
+      </div>
+    </div>
+  <?php endif; ?>
+
 </div>
 
 <?= $this->endSection() ?>
+
+<?php if (($system['key'] ?? '') === 'glpi'): ?>
+<?= $this->section('scripts') ?>
+<script>
+(function () {
+  const btn    = document.getElementById('glpi-test-btn');
+  const result = document.getElementById('glpi-test-result');
+  const form   = document.getElementById('glpi-conn-form');
+  if (!btn) return;
+
+  btn.addEventListener('click', async function () {
+    result.textContent = 'Probando conexión...';
+    result.style.color = 'var(--text-muted)';
+    btn.disabled = true;
+    try {
+      const res  = await fetch('<?= route_to('provisioning.glpi-connection.test') ?>', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new FormData(form),
+      });
+      const json = await res.json();
+      result.textContent = json.message || (json.status === 'success' ? 'Conexión exitosa.' : 'Error de conexión.');
+      result.style.color = json.status === 'success' ? 'var(--color-success-default)' : 'var(--color-critical-default)';
+    } catch (e) {
+      result.textContent = 'No se pudo ejecutar la prueba: ' + e.message;
+      result.style.color = 'var(--color-critical-default)';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+<?= $this->endSection() ?>
+<?php endif; ?>
