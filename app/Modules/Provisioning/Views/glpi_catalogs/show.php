@@ -101,6 +101,9 @@
       </tbody>
     </table>
   </div>
+  <?php if (($total ?? 0) > 0): ?>
+    <?= $pagerLinks ?>
+  <?php endif; ?>
 </div>
 
 <?= $this->endSection() ?>

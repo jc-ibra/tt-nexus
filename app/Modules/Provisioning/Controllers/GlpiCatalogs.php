@@ -127,20 +127,27 @@ class GlpiCatalogs extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        $perPage = 25;
+        $page    = (int) ($this->request->getGet('page') ?? 1);
+
         try {
-            $values  = $svc->listValues($table);
+            $paged   = $svc->paginateValues($table, $page, $perPage);
             $parents = $svc->parentOptions($table);
         } catch (\Throwable $e) {
             session()->setFlashdata('error', 'Error al leer el catálogo: ' . $e->getMessage());
             return redirect()->to(route_to('provisioning.glpi-catalogs.index'));
         }
 
+        $pagerLinks = service('pager')->makeLinks($paged['page'], $paged['perPage'], $paged['total'], 'pagination');
+
         return view('App\Modules\Provisioning\Views\glpi_catalogs\show', [
-            'pageTitle' => 'Catálogo: ' . $svc->labelFor($table),
-            'slug'      => $slug,
-            'label'     => $svc->labelFor($table),
-            'values'    => $values,
-            'parents'   => $parents,
+            'pageTitle'  => 'Catálogo: ' . $svc->labelFor($table),
+            'slug'       => $slug,
+            'label'      => $svc->labelFor($table),
+            'values'     => $paged['values'],
+            'total'      => $paged['total'],
+            'pagerLinks' => $pagerLinks,
+            'parents'    => $parents,
         ]);
     }
 
@@ -195,7 +202,12 @@ class GlpiCatalogs extends BaseController
         $rows  = [];
         $first = true;
         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
-            $name = isset($data[0]) ? trim((string) $data[0]) : '';
+            $cell = (string) ($data[0] ?? '');
+
+            if ($first && str_starts_with($cell, "\xEF\xBB\xBF")) {
+                $cell = substr($cell, 3); // strip UTF-8 BOM from the very first cell
+            }
+            $name = trim($cell);
 
             if ($first) {
                 $first = false;

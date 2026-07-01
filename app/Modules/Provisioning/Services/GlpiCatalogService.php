@@ -190,6 +190,8 @@ class GlpiCatalogService
     // ------------------------------------------------------------------
 
     /**
+     * All values (no pagination). Used by parentOptions/findValue.
+     *
      * @return array<int, array{id:int,name:string,completename:string,comment:string,parent:int,level:int}>
      */
     public function listValues(string $table): array
@@ -198,23 +200,70 @@ class GlpiCatalogService
         $cols = $this->columns($db, $table);
         $pcol = $this->parentColumn($table);
 
+        $rows = $db->table($table)
+            ->select(implode(', ', $this->valueSelect($cols, $pcol)))
+            ->orderBy($this->valueOrder($cols), 'ASC')
+            ->get()->getResultArray();
+
+        return $this->mapValueRows($rows);
+    }
+
+    /**
+     * One page of values, ordered by completename. For large catalogs (1000+).
+     *
+     * @return array{values: array<int,array<string,mixed>>, total:int, page:int, perPage:int, lastPage:int}
+     */
+    public function paginateValues(string $table, int $page, int $perPage): array
+    {
+        $db      = $this->glpi->connection();
+        $cols    = $this->columns($db, $table);
+        $pcol    = $this->parentColumn($table);
+        $perPage = max(1, $perPage);
+
+        $builder = $db->table($table);
+        $total   = $builder->countAllResults(false);
+
+        $page    = max(1, min($page, (int) max(1, ceil($total / $perPage))));
+        $offset  = ($page - 1) * $perPage;
+
+        $rows = $builder
+            ->select(implode(', ', $this->valueSelect($cols, $pcol)))
+            ->orderBy($this->valueOrder($cols), 'ASC')
+            ->get($perPage, $offset)
+            ->getResultArray();
+
+        return [
+            'values'   => $this->mapValueRows($rows),
+            'total'    => $total,
+            'page'     => $page,
+            'perPage'  => $perPage,
+            'lastPage' => (int) max(1, ceil($total / $perPage)),
+        ];
+    }
+
+    /** @return string[] */
+    private function valueSelect(array $cols, string $pcol): array
+    {
         $select = ['id', 'name'];
-        if (in_array('completename', $cols, true)) {
-            $select[] = 'completename';
-        }
-        if (in_array('comment', $cols, true)) {
-            $select[] = 'comment';
-        }
-        if (in_array('level', $cols, true)) {
-            $select[] = 'level';
+        foreach (['completename', 'comment', 'level'] as $c) {
+            if (in_array($c, $cols, true)) {
+                $select[] = $c;
+            }
         }
         if (in_array($pcol, $cols, true)) {
             $select[] = "$pcol AS parent";
         }
+        return $select;
+    }
 
-        $order = in_array('completename', $cols, true) ? 'completename' : 'name';
-        $rows  = $db->table($table)->select(implode(', ', $select))->orderBy($order, 'ASC')->get()->getResultArray();
+    private function valueOrder(array $cols): string
+    {
+        return in_array('completename', $cols, true) ? 'completename' : 'name';
+    }
 
+    /** @return array<int,array<string,mixed>> */
+    private function mapValueRows(array $rows): array
+    {
         return array_map(static fn($r) => [
             'id'           => (int) $r['id'],
             'name'         => (string) ($r['name'] ?? ''),
