@@ -155,6 +155,7 @@ try {
 }
 
 // ── Migraciones ─────────────────────────────────────────────────────────────────
+$migrationErrors = [];
 if ($runMigrations) {
     step('Migraciones');
     $migrate = \Config\Services::migrations();
@@ -167,7 +168,9 @@ if ($runMigrations) {
             $migrate->latest();
             ok($short);
         } catch (\Throwable $e) {
-            warn($short . ' — ' . $e->getMessage());
+            // Un error de migración NO es benigno: se muestra completo y se registra.
+            $migrationErrors[$short] = $e->getMessage();
+            errl($short . ' — ' . $e->getMessage());
         }
     }
 }
@@ -186,6 +189,49 @@ if ($runSeeders) {
             warn($label . ' — ' . $e->getMessage() . ' (puede ser que ya existan los datos)');
         }
     }
+}
+
+// ── Verificación de tablas críticas ─────────────────────────────────────────────
+// Detecta el caso "migración registrada en la tabla `migrations` pero la tabla
+// física NO existe" (típico de un dump/import parcial en una BD de prueba). En
+// ese estado `latest()` reporta OK pero la tabla nunca se crea.
+step('Verificación de tablas críticas');
+$EXPECTED_TABLES = [
+    'App\Modules\Employees'    => ['employees_employees', 'employee_areas', 'employee_departments', 'employee_positions'],
+    'App\Modules\Mailboxes'    => ['mailboxes_settings'],
+    'App\Modules\Provisioning' => ['provisioning_systems', 'provisioning_settings', 'employee_email_accounts', 'provisioning_ms_licenses'],
+];
+$phantomNamespaces = [];
+try {
+    $existing = array_flip($db->listTables());
+    foreach ($EXPECTED_TABLES as $ns => $tables) {
+        $short   = substr((string) strrchr($ns, '\\'), 1) ?: $ns;
+        $missing = array_values(array_filter($tables, static fn ($t) => ! isset($existing[$t])));
+        if ($missing === []) {
+            ok($short . ': tablas presentes');
+            continue;
+        }
+
+        // ¿La migración está registrada pese a faltar la tabla? => registro fantasma.
+        $recorded = (int) $db->table('migrations')->where('namespace', $ns)->countAllResults();
+        if ($recorded > 0) {
+            $phantomNamespaces[] = $ns;
+            errl($short . ': FALTAN tablas [' . implode(', ', $missing)
+                . '] pero hay ' . $recorded . ' migraciones registradas (registro fantasma).');
+        } else {
+            errl($short . ': FALTAN tablas [' . implode(', ', $missing) . '] y no están registradas.');
+        }
+    }
+} catch (\Throwable $e) {
+    warn('No se pudo verificar tablas: ' . $e->getMessage());
+}
+
+if ($phantomNamespaces !== []) {
+    $inList = implode(', ', array_map(static fn ($ns) => "'" . str_replace('\\', '\\\\', $ns) . "'", $phantomNamespaces));
+    emit('<div class="danger">Registros fantasma detectados: la tabla <code>migrations</code> dice que estos '
+        . 'módulos ya migraron, pero sus tablas no existen (BD importada a medias). '
+        . 'Ejecuta este SQL en la BD y vuelve a correr setup.php:<br><br>'
+        . '<code>DELETE FROM migrations WHERE namespace IN (' . htmlspecialchars($inList) . ');</code></div>');
 }
 
 // ── Estado de migraciones ───────────────────────────────────────────────────────
@@ -214,7 +260,11 @@ try {
 }
 
 emit('</div>'); // cierra .box
-emit('<div class="done">Setup completo.</div>');
+if ($migrationErrors !== [] || $phantomNamespaces !== []) {
+    emit('<div class="danger">Setup terminó CON ERRORES. Revisa las líneas [ERR] de arriba y aplica la remediación antes de usar la app.</div>');
+} else {
+    emit('<div class="done">Setup completo.</div>');
+}
 emit('<div class="danger">Por seguridad, BORRA este archivo (public/setup.php) del servidor ahora que terminaste.</div>');
 ?>
 </div>
