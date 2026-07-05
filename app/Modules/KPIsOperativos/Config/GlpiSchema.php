@@ -58,6 +58,13 @@ final class GlpiSchema
     public const ENVIOS_CATEGORY_SUBSTRING = 'ENVI';
 
     /**
+     * Substring (case-insensitive) que identifica la sub-categoría
+     * "Almacén". Se corta antes del acento (é) para ser robusto a
+     * variantes de escritura y collation, igual que ENVI.
+     */
+    public const ALMACEN_CATEGORY_SUBSTRING = 'ALMAC';
+
+    /**
      * Substrings (case-insensitive) que mandan un ticket al área de
      * Administración. Espejo de ADMIN_SUBCATS en la lógica original.
      *
@@ -118,25 +125,28 @@ final class GlpiSchema
     }
 
     /**
-     * Fragmento SQL que excluye los tickets de la sub-categoría
-     * "Control de Envíos" (substring ENVI). Los tickets de envíos no
-     * tienen IDC asignado por diseño, así que no deben contabilizar
-     * en métricas de cobertura IDC (sin_idc, idc_top, idc_bottom).
+     * Fragmento SQL para métricas de cobertura IDC (sin_idc, idc_top,
+     * idc_bottom): excluye las sub-categorías "Control de Envíos"
+     * (substring ENVI) y "Almacén" (substring ALMAC). Ninguna de las dos
+     * tiene IDC asignado por diseño, así que no deben contabilizar.
      *
      * Para regional, usar notRegionalApplicableSqlCondition() — además
-     * de envíos también excluye Laboratorio.
+     * de envíos y almacén también excluye Laboratorio.
      *
      * Conserva los tickets con categoria NULL.
      */
     public static function notEnviosSqlCondition(string $column = 'categoria'): string
     {
-        $needle = str_replace("'", "''", mb_strtoupper(self::ENVIOS_CATEGORY_SUBSTRING, 'UTF-8'));
-        return "(UPPER({$column}) NOT LIKE '%{$needle}%' OR {$column} IS NULL)";
+        $env = str_replace("'", "''", mb_strtoupper(self::ENVIOS_CATEGORY_SUBSTRING, 'UTF-8'));
+        $alm = str_replace("'", "''", mb_strtoupper(self::ALMACEN_CATEGORY_SUBSTRING, 'UTF-8'));
+        return "({$column} IS NULL OR ("
+            . "UPPER({$column}) NOT LIKE '%{$env}%' "
+            . "AND UPPER({$column}) NOT LIKE '%{$alm}%'))";
     }
 
     /**
-     * Fragmento SQL para métricas de regional: excluye Control de Envíos
-     * y Laboratorio (ninguna de las dos sub-categorías opera con
+     * Fragmento SQL para métricas de regional: excluye Control de Envíos,
+     * Almacén y Laboratorio (ninguna de las tres sub-categorías opera con
      * regional asignada por diseño).
      *
      * Se aplica a sin_reg, reg_top y al regAll que alimenta coord_tickets.
@@ -146,9 +156,11 @@ final class GlpiSchema
     {
         $env = str_replace("'", "''", mb_strtoupper(self::ENVIOS_CATEGORY_SUBSTRING, 'UTF-8'));
         $lab = str_replace("'", "''", mb_strtoupper(self::LAB_SUBCAT, 'UTF-8'));
+        $alm = str_replace("'", "''", mb_strtoupper(self::ALMACEN_CATEGORY_SUBSTRING, 'UTF-8'));
         return "({$column} IS NULL OR ("
             . "UPPER({$column}) NOT LIKE '%{$env}%' "
-            . "AND UPPER({$column}) NOT LIKE '%{$lab}%'))";
+            . "AND UPPER({$column}) NOT LIKE '%{$lab}%' "
+            . "AND UPPER({$column}) NOT LIKE '%{$alm}%'))";
     }
 
     /**

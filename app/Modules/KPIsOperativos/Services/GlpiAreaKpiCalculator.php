@@ -73,8 +73,8 @@ final class GlpiAreaKpiCalculator
         $slaPct = $sla && $sla->n_valid > 0 ? (float) $sla->sla_pct : 0.0;
 
         // Reglas de exclusión por categoría:
-        //   • Regional: excluye envíos y laboratorio.
-        //   • IDC: excluye sólo envíos.
+        //   • Regional: excluye envíos, almacén y laboratorio.
+        //   • IDC: excluye envíos y almacén.
         $notEnvios   = GlpiSchema::notEnviosSqlCondition();
         $regAppliesC = GlpiSchema::notRegionalApplicableSqlCondition();
 
@@ -110,7 +110,7 @@ final class GlpiAreaKpiCalculator
         $proyTop = $this->ranking('proyecto',   $reportId, $areaSql, 5);
 
         // IDC: agrupado por canonical_name con fallback al raw `idc`.
-        // Excluye envíos.
+        // Excluye envíos y almacén.
         $idcAll = $this->db->query("
             SELECT
                 COALESCE(c.canonical_name, t.idc) AS label,

@@ -71,8 +71,8 @@ final class GlpiKpiCalculator
         $slaPct = $sla && $sla->n_valid > 0 ? (float) $sla->sla_pct : 0.0;
 
         // Faltantes — reglas de exclusión por categoría:
-        //   • Regional: excluye envíos y laboratorio (no operan con regional).
-        //   • IDC: excluye sólo envíos (laboratorio sí tiene IDC asignado).
+        //   • Regional: excluye envíos, almacén y laboratorio (no operan con regional).
+        //   • IDC: excluye envíos y almacén (laboratorio sí tiene IDC asignado).
         $notEnvios   = GlpiSchema::notEnviosSqlCondition();
         $regAppliesC = GlpiSchema::notRegionalApplicableSqlCondition();
 
@@ -107,7 +107,7 @@ final class GlpiKpiCalculator
 
         // IDC: ahora agrupa por el canonical_name (homologación fuzzy),
         // con fallback al raw `idc` cuando el ticket no tiene canonical_id
-        // (tickets antiguos pre-homologación). Excluye envíos.
+        // (tickets antiguos pre-homologación). Excluye envíos y almacén.
         $idcAll = $this->db->query("
             SELECT
                 COALESCE(c.canonical_name, t.idc) AS label,
@@ -158,7 +158,7 @@ final class GlpiKpiCalculator
         }
 
         // Si hay más regionales (rare beyond top 8), las agregamos.
-        // Excluye envíos y laboratorio (no operan con regional asignada).
+        // Excluye envíos, almacén y laboratorio (no operan con regional asignada).
         $regAll = $this->db->query("
             SELECT regional AS label, COUNT(*) AS n
             FROM {$this->table}
@@ -254,8 +254,8 @@ final class GlpiKpiCalculator
     }
 
     /**
-     * Variante de ranking() para métricas de regional: excluye envíos y
-     * laboratorio (ninguna de las dos opera con regional asignada).
+     * Variante de ranking() para métricas de regional: excluye envíos,
+     * almacén y laboratorio (ninguna de las tres opera con regional asignada).
      *
      * @return list<array{0: string, 1: int}>
      */
