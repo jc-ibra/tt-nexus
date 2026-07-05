@@ -78,3 +78,10 @@
 
 # APP_SETTINGS_ENCRYPTION_KEY: encryption for SMTP credentials and core app settings.
 # APP_SETTINGS_ENCRYPTION_KEY = <generate-a-64-char-hex-string>
+
+#--------------------------------------------------------------------
+# SETUP WEB (public/setup.php)
+#--------------------------------------------------------------------
+# Token secreto para autorizar public/setup.php.
+# Genera uno con: php -r "echo bin2hex(random_bytes(24));"
+# SETUP_TOKEN = <genera-un-token-secreto>

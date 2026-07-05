@@ -34,7 +34,7 @@ class CommunicationLogModel extends Model
                 SUM(status = 'queued') AS queued,
                 SUM(status = 'bounced') AS bounced,
                 SUM(opened_at IS NOT NULL) AS opened
-            FROM communication_logs
+            FROM comms_communication_logs
             WHERE communication_id = ?
         ", [$communicationId])->getRowArray();
 

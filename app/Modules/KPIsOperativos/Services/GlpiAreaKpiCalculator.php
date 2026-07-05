@@ -116,7 +116,7 @@ final class GlpiAreaKpiCalculator
                 COALESCE(c.canonical_name, t.idc) AS label,
                 COUNT(*)                          AS n
             FROM {$this->table} t
-            LEFT JOIN glpi_idc_canonical c ON c.id = t.idc_canonical_id
+            LEFT JOIN kpi_glpi_idc_canonical c ON c.id = t.idc_canonical_id
             WHERE t.report_id = ?
               AND t.idc IS NOT NULL
               AND t.idc <> ?

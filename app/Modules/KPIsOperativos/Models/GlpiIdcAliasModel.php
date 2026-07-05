@@ -52,8 +52,8 @@ class GlpiIdcAliasModel extends Model
                 a.*,
                 c.canonical_name,
                 c.id AS canonical_id_v
-            FROM glpi_idc_aliases a
-            JOIN glpi_idc_canonical c ON c.id = a.canonical_id
+            FROM kpi_glpi_idc_aliases a
+            JOIN kpi_glpi_idc_canonical c ON c.id = a.canonical_id
             WHERE a.needs_review = 1
             ORDER BY a.similarity_score DESC, a.alias_raw ASC
         ")->getResultArray();

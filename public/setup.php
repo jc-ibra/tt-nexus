@@ -8,8 +8,9 @@
  *
  * USO:
  *   1. Sube este archivo a la carpeta public/ del hosting (junto a index.php).
- *   2. Cambia SETUP_TOKEN por un valor secreto propio (linea de abajo).
- *   3. Visita:  https://TU-DOMINIO/setup.php?token=TOKEN_1a2b3c
+ *   2. Define SETUP_TOKEN en tu .env (o como variable de entorno del hosting):
+ *        SETUP_TOKEN = un-valor-secreto-largo-y-aleatorio
+ *   3. Visita:  https://TU-DOMINIO/setup.php?token=un-valor-secreto-largo-y-aleatorio
  *        - &only=migrations   corre solo migraciones
  *        - &only=seeders      corre solo seeders
  *        (sin 'only' corre ambos)
@@ -17,9 +18,6 @@
  *
  * No contempla modo Docker (a diferencia de setup.sh).
  */
-
-// ── Seguridad: cambia esto por un token secreto tuyo ────────────────────────────
-const SETUP_TOKEN = 'CAMBIA_ESTE_TOKEN_1a2b3c';
 
 // ── Visibilidad de errores y sin límite de tiempo ───────────────────────────────
 error_reporting(E_ALL);
@@ -31,17 +29,6 @@ $minPhpVersion = '8.2';
 if (version_compare(PHP_VERSION, $minPhpVersion, '<')) {
     header('HTTP/1.1 503 Service Unavailable.', true, 503);
     exit(sprintf('Se requiere PHP %s o superior. Versión actual: %s', $minPhpVersion, PHP_VERSION));
-}
-
-// ── Guard por token ─────────────────────────────────────────────────────────────
-$token = $_GET['token'] ?? '';
-if (! is_string($token) || ! hash_equals(SETUP_TOKEN, $token)) {
-    header('HTTP/1.1 403 Forbidden', true, 403);
-    exit('403 Forbidden - token invalido o ausente.');
-}
-if (SETUP_TOKEN === 'TOKEN_1a2b3c') {
-    // Permite correr pero avisa; el usuario deberia cambiarlo.
-    // (No abortamos para no bloquear el primer uso.)
 }
 
 // ── Arranque del framework CodeIgniter (sin routear) ────────────────────────────
@@ -56,18 +43,24 @@ $paths = new Config\Paths();
 require $paths->systemDirectory . '/Boot.php';
 
 // bootWorker() carga .env, constantes, autoloader, namespaces de modulos y
-// servicios, y devuelve la app SIN ejecutar el kernel HTTP.
+// servicios, y devuelve la app SIN ejecutar el kernel HTTP. NO ejecuta
+// migraciones ni seeders, así que es seguro arrancar ANTES de validar el token
+// (y así podemos leer SETUP_TOKEN desde el .env que carga bootWorker).
 CodeIgniter\Boot::bootWorker($paths);
 
-// ── Módulos y sus namespaces (mismo orden que setup.sh) ─────────────────────────
-$MODULES = [
-    'App\Modules\Core',
-    'App\Modules\Communications',
-    'App\Modules\Employees',
-    'App\Modules\KPIsOperativos',
-    'App\Modules\Mailboxes',
-    'App\Modules\Provisioning',
-];
+// ── Guard por token ─────────────────────────────────────────────────────────────
+// El token secreto se lee de la variable de entorno SETUP_TOKEN (definida en el
+// .env de CI4 o como variable de entorno real del hosting). NUNCA se hardcodea.
+$expectedToken = (string) (env('SETUP_TOKEN') ?: '');
+if ($expectedToken === '') {
+    header('HTTP/1.1 500 Internal Server Error', true, 500);
+    exit('500 - SETUP_TOKEN no está configurado. Define SETUP_TOKEN en tu .env antes de usar este script.');
+}
+$token = $_GET['token'] ?? '';
+if (! is_string($token) || ! hash_equals($expectedToken, $token)) {
+    header('HTTP/1.1 403 Forbidden', true, 403);
+    exit('403 Forbidden - token invalido o ausente.');
+}
 
 // ── Seeders (clase => etiqueta), mismo orden que setup.sh ───────────────────────
 $SEEDERS = [
@@ -155,23 +148,23 @@ try {
 }
 
 // ── Migraciones ─────────────────────────────────────────────────────────────────
+// Corremos TODAS las migraciones en orden cronológico global (setNamespace(null)),
+// igual que `php spark migrate --all`. Esto auto-descubre todos los módulos y
+// respeta el orden entre módulos (FKs cruzadas), evitando el fallo de "olvidé
+// agregar el módulo a la lista".
 $migrationErrors = [];
 if ($runMigrations) {
     step('Migraciones');
     $migrate = \Config\Services::migrations();
 
-    foreach ($MODULES as $ns) {
-        $short = substr((string) strrchr($ns, '\\'), 1) ?: $ns;
-        info('Migrando: ' . $short);
-        try {
-            $migrate->setNamespace($ns);
-            $migrate->latest();
-            ok($short);
-        } catch (\Throwable $e) {
-            // Un error de migración NO es benigno: se muestra completo y se registra.
-            $migrationErrors[$short] = $e->getMessage();
-            errl($short . ' — ' . $e->getMessage());
-        }
+    try {
+        $migrate->setNamespace(null);
+        $migrate->latest();
+        ok('Todas las migraciones aplicadas (todos los módulos)');
+    } catch (\Throwable $e) {
+        // Un error de migración NO es benigno: se muestra completo y se registra.
+        $migrationErrors['migrate --all'] = $e->getMessage();
+        errl('migrate --all — ' . $e->getMessage());
     }
 }
 
@@ -196,26 +189,44 @@ if ($runSeeders) {
 // física NO existe" (típico de un dump/import parcial en una BD de prueba). En
 // ese estado `latest()` reporta OK pero la tabla nunca se crea.
 step('Verificación de tablas críticas');
-$EXPECTED_TABLES = [
-    'App\Modules\Employees'    => ['employees_employees', 'employees_areas', 'employees_departments', 'employees_positions'],
-    'App\Modules\Mailboxes'    => ['mailboxes_settings'],
-    'App\Modules\Provisioning' => ['provisioning_systems', 'provisioning_settings', 'employee_email_accounts', 'provisioning_ms_licenses', 'provisioning_glpi_catalog_prefs'],
-];
+// Auto-derivamos la lista esperada leyendo los createTable()/CREATE TABLE de cada
+// migración (misma lógica que `php spark db:verify-schema`). Sin lista manual que
+// mantener: si agregas un módulo o migración, la verificación se entera sola.
+$EXPECTED_TABLES = [];
+foreach (glob(APPPATH . 'Modules/*/Database/Migrations/*.php') ?: [] as $file) {
+    $code   = (string) @file_get_contents($file);
+    $module = basename(dirname($file, 3));
+    $origin = $module . '/' . basename($file);
+    if (preg_match_all("/createTable\(\s*'([a-zA-Z0-9_]+)'/", $code, $m)) {
+        foreach ($m[1] as $t) {
+            $EXPECTED_TABLES[$t] = $origin;
+        }
+    }
+    if (preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([a-zA-Z0-9_]+)`?/i', $code, $m)) {
+        foreach ($m[1] as $t) {
+            $EXPECTED_TABLES[$t] = $origin;
+        }
+    }
+}
+ksort($EXPECTED_TABLES);
+
 $hasMissingTables = false;
 try {
     $existing = array_flip($db->listTables());
-    foreach ($EXPECTED_TABLES as $ns => $tables) {
-        $short   = substr((string) strrchr($ns, '\\'), 1) ?: $ns;
-        $missing = array_values(array_filter($tables, static fn ($t) => ! isset($existing[$t])));
-        if ($missing === []) {
-            ok($short . ': tablas presentes');
-            continue;
+    $missing  = [];
+    foreach ($EXPECTED_TABLES as $table => $origin) {
+        if (! isset($existing[$table])) {
+            $missing[$table] = $origin;
         }
+    }
 
+    if ($missing === []) {
+        ok(sprintf('Esquema OK: las %d tablas esperadas existen.', count($EXPECTED_TABLES)));
+    } else {
         $hasMissingTables = true;
-        $recorded = (int) $db->table('migrations')->where('namespace', $ns)->countAllResults();
-        errl($short . ': FALTAN tablas [' . implode(', ', $missing)
-            . '] (migraciones registradas para el módulo: ' . $recorded . ').');
+        foreach ($missing as $table => $origin) {
+            errl('FALTA tabla: ' . $table . '  (' . $origin . ')');
+        }
     }
 } catch (\Throwable $e) {
     warn('No se pudo verificar tablas: ' . $e->getMessage());

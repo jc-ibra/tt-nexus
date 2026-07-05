@@ -67,8 +67,10 @@ step "Verificando entorno"
 if $DOCKER; then
     command -v docker &>/dev/null || fail "Docker no está disponible en el PATH."
 
-    # Levantar contenedores si no están corriendo
-    if ! docker compose ps --status running | grep -q "tt-apps"; then
+    # Levantar contenedores si no están corriendo.
+    # Detectamos por el SERVICIO 'app' (no por nombre de contenedor, que cambia
+    # entre proyectos) para no reconstruir innecesariamente en cada corrida.
+    if [[ -z "$(docker compose ps --status running --services 2>/dev/null | grep -x app)" ]]; then
         info "Levantando contenedores..."
         docker compose up -d --build
         info "Esperando que la base de datos esté lista..."
@@ -129,28 +131,23 @@ if ! $DOCKER; then
     fi
 fi
 
-# ── Módulos y sus namespaces ───────────────────────────────────────────────────
-declare -a MODULES=(
-    "App\\Modules\\Core"
-    "App\\Modules\\Communications"
-    "App\\Modules\\Employees"
-    "App\\Modules\\KPIsOperativos"
-    "App\\Modules\\Mailboxes"
-    "App\\Modules\\Provisioning"
-)
-
 # ── Migraciones ────────────────────────────────────────────────────────────────
+# Usamos `migrate --all`: auto-descubre TODOS los namespaces de módulos
+# registrados en app/Config/Autoload.php y aplica las migraciones en orden
+# cronológico GLOBAL (no por-módulo). Esto es clave porque hay FKs entre módulos
+# (p.ej. KPIsOperativos referencia tablas creadas por su propio orden temporal)
+# y evita el fallo de "olvidé agregar el módulo nuevo a la lista de setup".
+#
+# Un error de migración es FATAL: preferimos abortar y verlo ahora que descubrir
+# una tabla faltante semanas después usando el sistema.
 step "Migraciones"
 
-for NS in "${MODULES[@]}"; do
-    MODULE_SHORT="${NS##*\\}"
-    info "Migrando: $MODULE_SHORT"
-    if spark migrate -n "$NS" --no-interaction 2>&1; then
-        ok "$MODULE_SHORT"
-    else
-        warn "Falló o no hay migraciones para $MODULE_SHORT (puede ser normal si el namespace no existe aún)"
-    fi
-done
+info "Aplicando todas las migraciones (migrate --all)"
+if spark migrate --all --no-interaction; then
+    ok "Migraciones aplicadas"
+else
+    fail "Falló la migración. Revisa el error de arriba ANTES de continuar (no se sembrarán datos)."
+fi
 
 # ── Seeders ────────────────────────────────────────────────────────────────────
 step "Seeders"
@@ -185,6 +182,15 @@ run_seeder "App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder"       
 # Provisioning
 run_seeder "App\Modules\Provisioning\Database\Seeders\ProvisioningModuleSeeder"   "ProvisioningModuleSeeder"
 run_seeder "App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder"           "MsLicensesSeeder"
+
+# ── Verificación de esquema ────────────────────────────────────────────────────
+# Confirma que CADA tabla declarada por las migraciones exista físicamente. Es la
+# red de seguridad contra el problema recurrente de "tablas faltantes": si algo
+# no se creó, el setup falla AQUÍ en vez de que lo descubras usando el sistema.
+step "Verificación de esquema"
+if ! spark db:verify-schema; then
+    fail "Hay tablas faltantes (ver arriba). El setup NO está completo."
+fi
 
 # ── Estado final de migraciones ────────────────────────────────────────────────
 step "Estado de migraciones"
