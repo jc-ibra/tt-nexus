@@ -147,6 +147,71 @@ try {
     exit;
 }
 
+// ── Baseline (reconciliación de historial) ──────────────────────────────────────
+// Antes de migrar, reconciliamos la tabla `migrations` con el esquema real. Si esta
+// BD ya tiene tablas/columnas creadas a mano (levantamiento manual en staging/prod)
+// pero sin su registro de migración, `latest()` intentaría recrearlas y fallaría con
+// "already exists". Aquí marcamos como aplicadas SÓLO las migraciones cuyo efecto ya
+// existe físicamente (misma lógica que `php spark db:baseline`). Seguro e idempotente:
+// en una BD limpia no hace nada porque las tablas aún no existen.
+if ($runMigrations) {
+    step('Baseline (reconciliación de historial)');
+    try {
+        $runner = \Config\Services::migrations();
+        $runner->setNamespace(null);
+        $found = $runner->findMigrations();
+
+        $applied = [];
+        foreach ($runner->getHistory('') as $h) {
+            $applied[$runner->getObjectUid($h)] = true;
+        }
+
+        $existingTables = array_flip($db->listTables());
+        $baselined      = 0;
+        $batch          = ((int) ($db->table('migrations')->selectMax('batch', 'b')->get()->getRow()->b ?? 0)) + 1;
+        $nowTs          = \CodeIgniter\I18n\Time::now()->getTimestamp();
+
+        foreach ($found as $m) {
+            if (isset($applied[$m->uid])) {
+                continue;
+            }
+
+            // Verifica que el efecto de la migración ya exista antes de marcarla.
+            $code    = (string) @file_get_contents((string) $m->path);
+            $present = false;
+            if (preg_match("/createTable\(\s*'([a-zA-Z0-9_]+)'/", $code, $mm)) {
+                $present = isset($existingTables[$mm[1]]);
+            } elseif (preg_match("/addColumn\(\s*'([a-zA-Z0-9_]+)'/", $code, $mm) && isset($existingTables[$mm[1]])) {
+                preg_match_all("/'([a-zA-Z0-9_]+)'\s*=>\s*\[/", $code, $cm);
+                $present = true;
+                foreach (array_unique($cm[1]) as $col) {
+                    if (! $db->fieldExists($col, $mm[1])) {
+                        $present = false;
+                        break;
+                    }
+                }
+            }
+
+            if ($present) {
+                $db->table('migrations')->insert([
+                    'version'   => $m->version,
+                    'class'     => $m->class,
+                    'group'     => 'default',
+                    'namespace' => $m->namespace,
+                    'time'      => $nowTs,
+                    'batch'     => $batch,
+                ]);
+                $baselined++;
+                info('Baseline: ' . $m->version . ' ' . substr((string) strrchr($m->class, '\\'), 1));
+            }
+        }
+
+        ok($baselined === 0 ? 'Historial ya sincronizado (nada que reconciliar).' : "Reconciliadas {$baselined} migración(es) ya aplicadas físicamente.");
+    } catch (\Throwable $e) {
+        warn('Baseline no pudo completarse: ' . $e->getMessage() . ' (continúo con migraciones).');
+    }
+}
+
 // ── Migraciones ─────────────────────────────────────────────────────────────────
 // Corremos TODAS las migraciones en orden cronológico global (setNamespace(null)),
 // igual que `php spark migrate --all`. Esto auto-descubre todos los módulos y

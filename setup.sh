@@ -131,6 +131,16 @@ if ! $DOCKER; then
     fi
 fi
 
+# ── Baseline (reconciliación de historial) ─────────────────────────────────────
+# Antes de migrar, reconciliamos la tabla `migrations` con el esquema real: si una
+# BD ya tiene tablas/columnas creadas a mano (típico de un levantamiento manual en
+# staging/prod) pero sin el registro de migración, `migrate` intentaría recrearlas
+# y fallaría con "already exists". `db:baseline` marca esas migraciones como
+# aplicadas SÓLO si verifica que su efecto ya existe. Es seguro e idempotente:
+# en una BD limpia no hace nada (las tablas aún no existen).
+step "Baseline (reconciliación de historial)"
+spark db:baseline --no-interaction || warn "db:baseline reportó avisos (revisa arriba); continúo con migrate."
+
 # ── Migraciones ────────────────────────────────────────────────────────────────
 # Usamos `migrate --all`: auto-descubre TODOS los namespaces de módulos
 # registrados en app/Config/Autoload.php y aplica las migraciones en orden
