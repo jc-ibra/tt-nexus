@@ -25,33 +25,56 @@ class EmployeeModel extends Model
 
     protected $validationRules = [
         'name'            => 'required|max_length[180]',
-        'lastname'        => 'permit_empty|max_length[255]',
+        'lastname'        => 'required|max_length[255]',
         'email'           => 'required|valid_email|max_length[191]|is_unique[employees_employees.email,id,{id}]',
         'email_secondary' => 'permit_empty|valid_email|max_length[255]',
-        'employee_number' => 'permit_empty|max_length[20]',
+        'employee_number' => 'required|max_length[20]|is_unique[employees_employees.employee_number,id,{id}]',
         'telephone'       => 'permit_empty|max_length[15]',
         'cellphone'       => 'permit_empty|max_length[20]',
         'ext'             => 'permit_empty|max_length[20]',
-        'position_id'     => 'permit_empty|integer|is_not_unique[employees_positions.id]',
-        'department_id'   => 'permit_empty|integer|is_not_unique[employees_departments.id]',
-        'area_id'         => 'permit_empty|integer|is_not_unique[employees_areas.id]',
-        'state_id'        => 'permit_empty|integer|is_not_unique[employees_states.id]',
+        'position_id'     => 'required|integer|is_not_unique[employees_positions.id]',
+        'department_id'   => 'required|integer|is_not_unique[employees_departments.id]',
+        'area_id'         => 'required|integer|is_not_unique[employees_areas.id]',
+        'state_id'        => 'required|integer|is_not_unique[employees_states.id]',
         'location_id'     => 'permit_empty|integer|is_not_unique[employees_locations.id]',
         'parent_id'       => 'permit_empty|integer|is_not_unique[employees_employees.id]',
-        'date_entry'      => 'permit_empty|valid_date',
+        'date_entry'      => 'required|valid_date',
         'date_discharge'  => 'permit_empty|valid_date',
     ];
 
     protected $validationMessages = [
-        'name'  => ['required' => 'El nombre es obligatorio.'],
+        'name'     => ['required' => 'El nombre es obligatorio.'],
+        'lastname' => ['required' => 'Los apellidos son obligatorios.'],
         'email' => [
             'required'    => 'El correo electrónico es obligatorio.',
             'valid_email' => 'El correo electrónico no es válido.',
             'is_unique'   => 'Ya existe un empleado con ese correo.',
         ],
-        'position_id'   => ['is_not_unique' => 'El puesto seleccionado no existe.'],
-        'department_id' => ['is_not_unique' => 'El departamento seleccionado no existe.'],
-        'area_id'       => ['is_not_unique' => 'El área seleccionada no existe.'],
+        'employee_number' => [
+            'required'  => 'El número de empleado es obligatorio.',
+            'is_unique' => 'Ya existe un empleado con ese número.',
+        ],
+        'position_id'   => [
+            'required'      => 'El puesto es obligatorio.',
+            'is_not_unique' => 'El puesto seleccionado no existe.',
+        ],
+        'department_id' => [
+            'required'      => 'El departamento es obligatorio.',
+            'is_not_unique' => 'El departamento seleccionado no existe.',
+        ],
+        'area_id'       => [
+            'required'      => 'El área es obligatoria.',
+            'is_not_unique' => 'El área seleccionada no existe.',
+        ],
+        'state_id'      => [
+            'required'      => 'El estado de origen es obligatorio.',
+            'is_not_unique' => 'El estado seleccionado no existe.',
+        ],
+        'location_id'   => [
+            'required'      => 'La ubicación de origen es obligatoria.',
+            'is_not_unique' => 'La ubicación seleccionada no existe.',
+        ],
+        'date_entry'    => ['required' => 'La fecha de ingreso es obligatoria.'],
         'parent_id'     => ['is_not_unique' => 'El jefe directo seleccionado no existe.'],
     ];
 

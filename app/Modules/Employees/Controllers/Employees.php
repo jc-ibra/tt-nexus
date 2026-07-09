@@ -66,6 +66,16 @@ class Employees extends BaseController
             return redirect()->back()->withInput();
         }
 
+        // Optional photo uploaded together with the create form.
+        $file = $this->request->getFile('photo');
+        if ($file && $file->isValid()) {
+            $photoResult = $svc->saveUploadedPhoto($result->data['id'], $file);
+            if (! $photoResult->success) {
+                $err = is_array($photoResult->errors) ? implode(' ', $photoResult->errors) : (string) $photoResult->errors;
+                session()->setFlashdata('warning', 'Empleado creado, pero la foto no se guardó: ' . $err);
+            }
+        }
+
         session()->setFlashdata('success', $result->message);
         return redirect()->to(route_to('employees.show', $result->data['id']));
     }
@@ -276,9 +286,12 @@ class Employees extends BaseController
 
     private function collectFormData(): array
     {
+        // Note: email_secondary, telephone, ext and has_mailbox are intentionally
+        // omitted. They are no longer part of the form, and pulling them in as
+        // null would wipe existing values (or reset has_mailbox) on update.
         return $this->request->getPost([
-            'employee_number', 'name', 'lastname', 'email', 'email_secondary', 'has_mailbox',
-            'telephone', 'cellphone', 'ext',
+            'employee_number', 'name', 'lastname', 'email',
+            'cellphone',
             'position_id', 'department_id', 'area_id', 'state_id', 'location_id', 'parent_id',
             'date_entry', 'date_discharge',
             'hide_emails', 'show_in_directory', 'active',

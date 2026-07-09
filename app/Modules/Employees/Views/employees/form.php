@@ -36,13 +36,36 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
 </div>
 <?php endif; ?>
 
-<form id="employee-form" action="<?= $actionUrl ?>" method="post" novalidate>
+<form id="employee-form" action="<?= $actionUrl ?>" method="post" enctype="multipart/form-data" novalidate>
   <?= csrf_field() ?>
 
-  <!-- Card: Personal -->
+  <!-- Card: Datos personales -->
   <div class="card" style="margin-bottom: var(--space-4);">
-    <div class="card-header"><h2 class="card-title">Personal</h2></div>
+    <div class="card-header"><h2 class="card-title">Datos personales</h2></div>
     <div class="card-body">
+
+      <?php if (! $isEdit): ?>
+      <!-- Foto (opcional, se sube junto con el alta) -->
+      <div class="field" style="margin-bottom: var(--space-5);">
+        <label class="field-label" for="new-photo">Foto <span class="text-muted" style="font-weight:400;">(opcional)</span></label>
+        <div style="display:flex; gap:var(--space-4); align-items:center;">
+          <div id="new-photo-wrap" style="width:72px; height:72px; border-radius:var(--radius-full); overflow:hidden; background:var(--color-neutral-100); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+            <svg id="new-photo-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <input type="file" id="new-photo" name="photo" accept="image/jpeg,image/png,image/webp" style="display:none;" aria-label="Seleccionar foto">
+            <div id="new-photo-dropzone"
+                 role="button" tabindex="0" aria-label="Subir foto"
+                 style="border:2px dashed var(--color-neutral-300); border-radius:var(--radius-md); padding:var(--space-4); text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; background:var(--color-neutral-50);">
+              <p id="new-photo-label" style="margin:0; font-size:var(--text-sm); color:var(--text-muted);">Arrastra una imagen o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span></p>
+              <p style="margin:var(--space-1) 0 0; font-size:var(--text-xs); color:var(--text-muted);">JPG, PNG o WEBP · máximo 2 MB</p>
+            </div>
+            <button type="button" id="new-photo-clear" class="btn btn-tertiary btn-sm" style="margin-top:var(--space-2); display:none;">Quitar foto</button>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
       <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
 
         <div class="field">
@@ -53,27 +76,31 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         </div>
 
         <div class="field">
-          <label class="field-label" for="lastname">Apellidos</label>
-          <input type="text" id="lastname" name="lastname" class="input"
-                 value="<?= esc($old('lastname')) ?>" maxlength="255">
+          <label class="field-label" for="lastname">Apellidos <span class="required" aria-hidden="true">*</span></label>
+          <input type="text" id="lastname" name="lastname" class="input <?= isset($errors['lastname']) ? 'is-error' : '' ?>"
+                 value="<?= esc($old('lastname')) ?>" required maxlength="255">
+          <?php if (isset($errors['lastname'])): ?><p class="field-error"><?= esc($errors['lastname']) ?></p><?php endif; ?>
         </div>
 
         <div class="field">
-          <label class="field-label" for="employee_number">Número de empleado</label>
-          <input type="text" id="employee_number" name="employee_number" class="input"
-                 value="<?= esc($old('employee_number')) ?>" maxlength="20">
+          <label class="field-label" for="employee_number">Número de empleado <span class="required" aria-hidden="true">*</span></label>
+          <input type="text" id="employee_number" name="employee_number" class="input <?= isset($errors['employee_number']) ? 'is-error' : '' ?>"
+                 value="<?= esc($old('employee_number')) ?>" required maxlength="20">
+          <?php if (isset($errors['employee_number'])): ?><p class="field-error"><?= esc($errors['employee_number']) ?></p><?php endif; ?>
         </div>
 
+        <?php if ($isEdit): ?>
         <div class="field">
-          <?php if ($isEdit && ! empty($employee['photo'])): ?>
+          <?php if (! empty($employee['photo'])): ?>
             <label class="field-label">Foto actual</label>
             <img src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="Foto del empleado"
-                 width="80" height="80" style="border-radius:var(--radius-md); object-fit:cover; display:block;">
+                 width="72" height="72" style="border-radius:var(--radius-full); object-fit:cover; display:block;">
           <?php else: ?>
             <label class="field-label">Foto</label>
-            <p class="text-muted text-sm" style="margin:0;">Disponible al editar.</p>
+            <p class="text-muted text-sm" style="margin:0;">Súbela en la tarjeta inferior.</p>
           <?php endif; ?>
         </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -84,7 +111,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
     <div class="card-body">
       <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
 
-        <div class="field" style="grid-column: 1 / -1;">
+        <div class="field">
           <label class="field-label" for="email">Correo electrónico personal <span class="required" aria-hidden="true">*</span></label>
           <input type="email" id="email" name="email" class="input <?= isset($errors['email']) ? 'is-error' : '' ?>"
                  value="<?= esc($old('email')) ?>" required maxlength="191" autocomplete="off">
@@ -92,27 +119,9 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         </div>
 
         <div class="field">
-          <label class="field-label" for="email_secondary">Correo secundario</label>
-          <input type="email" id="email_secondary" name="email_secondary" class="input"
-                 value="<?= esc($old('email_secondary')) ?>" maxlength="255" autocomplete="off">
-        </div>
-
-        <div class="field">
-          <label class="field-label" for="telephone">Teléfono</label>
-          <input type="text" id="telephone" name="telephone" class="input"
-                 value="<?= esc($old('telephone')) ?>" maxlength="15">
-        </div>
-
-        <div class="field">
-          <label class="field-label" for="cellphone">Celular</label>
+          <label class="field-label" for="cellphone">Celular o teléfono de contacto personal</label>
           <input type="text" id="cellphone" name="cellphone" class="input"
                  value="<?= esc($old('cellphone')) ?>" maxlength="20">
-        </div>
-
-        <div class="field">
-          <label class="field-label" for="ext">Extensión</label>
-          <input type="text" id="ext" name="ext" class="input"
-                 value="<?= esc($old('ext')) ?>" maxlength="20">
         </div>
       </div>
     </div>
@@ -125,9 +134,9 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-4);">
 
         <div class="field">
-          <label class="field-label" for="area_id">Área</label>
-          <select id="area_id" name="area_id" class="select">
-            <option value="">Sin asignar</option>
+          <label class="field-label" for="area_id">Área <span class="required" aria-hidden="true">*</span></label>
+          <select id="area_id" name="area_id" class="select <?= isset($errors['area_id']) ? 'is-error' : '' ?>" required>
+            <option value="">Selecciona…</option>
             <?php foreach ($areas as $a): ?>
               <option value="<?= (int) $a['id'] ?>" <?= (string) $old('area_id') === (string) $a['id'] ? 'selected' : '' ?>><?= esc($a['name']) ?></option>
             <?php endforeach; ?>
@@ -135,9 +144,9 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         </div>
 
         <div class="field">
-          <label class="field-label" for="department_id">Departamento</label>
-          <select id="department_id" name="department_id" class="select">
-            <option value="">Sin asignar</option>
+          <label class="field-label" for="department_id">Departamento <span class="required" aria-hidden="true">*</span></label>
+          <select id="department_id" name="department_id" class="select <?= isset($errors['department_id']) ? 'is-error' : '' ?>" required>
+            <option value="">Selecciona…</option>
             <?php foreach ($departments as $d): ?>
               <option value="<?= (int) $d['id'] ?>" <?= (string) $old('department_id') === (string) $d['id'] ? 'selected' : '' ?>><?= esc($d['name']) ?></option>
             <?php endforeach; ?>
@@ -145,9 +154,9 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         </div>
 
         <div class="field">
-          <label class="field-label" for="position_id">Puesto</label>
-          <select id="position_id" name="position_id" class="select">
-            <option value="">Sin asignar</option>
+          <label class="field-label" for="position_id">Puesto <span class="required" aria-hidden="true">*</span></label>
+          <select id="position_id" name="position_id" class="select <?= isset($errors['position_id']) ? 'is-error' : '' ?>" required>
+            <option value="">Selecciona…</option>
             <?php foreach ($positions as $p): ?>
               <option value="<?= (int) $p['id'] ?>" <?= (string) $old('position_id') === (string) $p['id'] ? 'selected' : '' ?>><?= esc($p['name']) ?></option>
             <?php endforeach; ?>
@@ -155,9 +164,9 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         </div>
 
         <div class="field">
-          <label class="field-label" for="state_id">Estado de origen</label>
-          <select id="state_id" name="state_id" class="select">
-            <option value="">Sin asignar</option>
+          <label class="field-label" for="state_id">Estado de origen <span class="required" aria-hidden="true">*</span></label>
+          <select id="state_id" name="state_id" class="select <?= isset($errors['state_id']) ? 'is-error' : '' ?>" required>
+            <option value="">Selecciona…</option>
             <?php foreach ($states as $st): ?>
               <option value="<?= (int) $st['id'] ?>" <?= (string) $old('state_id') === (string) $st['id'] ? 'selected' : '' ?>><?= esc($st['name']) ?></option>
             <?php endforeach; ?>
@@ -166,7 +175,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
 
         <div class="field">
           <label class="field-label" for="location_id">Ubicación de origen</label>
-          <select id="location_id" name="location_id" class="select">
+          <select id="location_id" name="location_id" class="select <?= isset($errors['location_id']) ? 'is-error' : '' ?>">
             <option value="">Sin asignar</option>
             <?php foreach ($locations as $loc): ?>
               <option value="<?= (int) $loc['id'] ?>" <?= (string) $old('location_id') === (string) $loc['id'] ? 'selected' : '' ?>><?= esc($loc['name']) ?></option>
@@ -174,18 +183,20 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
           </select>
         </div>
 
+        <?php if ($isEdit): ?>
         <div class="field" style="grid-column: 1 / -1;">
           <label class="field-label" for="parent_search">Jefe directo</label>
           <input type="text" id="parent_search" class="input"
                  placeholder="Buscar por nombre, correo o número…" autocomplete="off"
                  list="parent-options"
-                 value="<?= esc($isEdit && ! empty($employee['parent_name']) ? trim($employee['parent_name'] . ' ' . ($employee['parent_lastname'] ?? '')) : '') ?>">
+                 value="<?= esc(! empty($employee['parent_name']) ? trim($employee['parent_name'] . ' ' . ($employee['parent_lastname'] ?? '')) : '') ?>">
           <datalist id="parent-options"></datalist>
           <input type="hidden" name="parent_id" id="parent_id" value="<?= esc($old('parent_id')) ?>">
           <p class="text-muted text-sm" style="margin-top:var(--space-1);">
             Selecciona un empleado existente como jefe directo. Vacío si es el nivel más alto.
           </p>
         </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -194,12 +205,13 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   <div class="card" style="margin-bottom: var(--space-4);">
     <div class="card-header"><h2 class="card-title">Estatus</h2></div>
     <div class="card-body">
+      <?php if ($isEdit): ?>
       <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
 
         <div class="field">
-          <label class="field-label" for="date_entry">Fecha de ingreso</label>
-          <input type="date" id="date_entry" name="date_entry" class="input"
-                 value="<?= esc($old('date_entry')) ?>">
+          <label class="field-label" for="date_entry">Fecha de ingreso <span class="required" aria-hidden="true">*</span></label>
+          <input type="date" id="date_entry" name="date_entry" class="input <?= isset($errors['date_entry']) ? 'is-error' : '' ?>"
+                 value="<?= esc($old('date_entry')) ?>" required>
         </div>
 
         <div class="field">
@@ -229,9 +241,111 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
           </label>
         </div>
       </div>
+      <?php else: ?>
+      <input type="hidden" name="active" value="1">
+      <div class="form-group" style="max-width: 320px;">
+        <div class="field">
+          <label class="field-label" for="date_entry">Fecha de ingreso <span class="required" aria-hidden="true">*</span></label>
+          <input type="date" id="date_entry" name="date_entry" class="input <?= isset($errors['date_entry']) ? 'is-error' : '' ?>"
+                 value="<?= esc($old('date_entry')) ?>" required>
+        </div>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </form>
+
+<?php if (! $isEdit): ?>
+<script>
+(function () {
+  const input    = document.getElementById('new-photo');
+  const dropzone = document.getElementById('new-photo-dropzone');
+  const label    = document.getElementById('new-photo-label');
+  const wrap     = document.getElementById('new-photo-wrap');
+  const clearBtn = document.getElementById('new-photo-clear');
+  const DEFAULT_LABEL = 'Arrastra una imagen o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span>';
+
+  function applyFile(file) {
+    if (! file) return;
+    label.innerHTML = '<span style="font-weight:500; color:var(--text-primary);">' + file.name + '</span>';
+    dropzone.style.borderColor = 'var(--color-primary)';
+    dropzone.style.background  = '#f0f7ff';
+    clearBtn.style.display     = '';
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      let img = document.getElementById('new-photo-img');
+      if (! img) {
+        const icon = document.getElementById('new-photo-icon');
+        if (icon) icon.remove();
+        img = document.createElement('img');
+        img.id = 'new-photo-img';
+        img.alt = 'Vista previa';
+        img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
+        wrap.appendChild(img);
+      }
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetField() {
+    input.value = '';
+    label.innerHTML = DEFAULT_LABEL;
+    dropzone.style.borderColor = 'var(--color-neutral-300)';
+    dropzone.style.background  = 'var(--color-neutral-50)';
+    clearBtn.style.display     = 'none';
+    const img = document.getElementById('new-photo-img');
+    if (img) {
+      img.remove();
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.id = 'new-photo-icon';
+      icon.setAttribute('width', '30');
+      icon.setAttribute('height', '30');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('fill', 'none');
+      icon.setAttribute('stroke', 'var(--color-neutral-400)');
+      icon.setAttribute('stroke-width', '1.5');
+      icon.innerHTML = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>';
+      wrap.appendChild(icon);
+    }
+  }
+
+  input.addEventListener('change', function () {
+    if (this.files.length) applyFile(this.files[0]);
+  });
+
+  clearBtn.addEventListener('click', resetField);
+
+  dropzone.addEventListener('click', function () { input.click(); });
+  dropzone.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+  });
+
+  dropzone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    this.style.borderColor = 'var(--color-primary)';
+    this.style.background  = '#f0f7ff';
+  });
+  dropzone.addEventListener('dragleave', function () {
+    if (! input.files.length) {
+      this.style.borderColor = 'var(--color-neutral-300)';
+      this.style.background  = 'var(--color-neutral-50)';
+    }
+  });
+  dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      applyFile(file);
+    }
+  });
+}());
+</script>
+<?php endif; ?>
 
 <?php if ($isEdit): ?>
 <!-- Photo upload (separate form, only on edit) -->
@@ -332,7 +446,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   });
 }());
 </script>
-<?php endif; ?>
 
 <script>
 (function () {
@@ -349,9 +462,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   async function searchEmployees(term) {
     try {
       const params = new URLSearchParams({ q: term, limit: '10' });
-      <?php if ($isEdit): ?>
       params.append('exclude_id', '<?= (int) $employee['id'] ?>');
-      <?php endif; ?>
       const url = BASE + 'employees/employees-search?' + params.toString();
       const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
       if (! res.ok) return;
@@ -383,7 +494,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       return;
     }
     const match = parentCache.find(e => {
-      const display = ((e.name || '') + ' ' + (e.lastname || '')).trim() + (e.email ? ' — ' + e.email : '');
+      const display = ((e.name || '') + ' ' + (e.lastname || '')).trim() + (e.email ? ' · ' + e.email : '');
       return display === term;
     });
     parentIdInput.value = match ? match.id : '';
@@ -394,5 +505,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   }
 })();
 </script>
+<?php endif; ?>
 
 <?= $this->endSection() ?>
