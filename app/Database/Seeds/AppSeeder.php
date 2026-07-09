@@ -13,9 +13,6 @@ class AppSeeder extends Seeder
         $this->call(CoreSeeder::class);
 
         $this->call(\App\Modules\Employees\Database\Seeders\EmployeesModuleSeeder::class);
-        $this->call(\App\Modules\Employees\Database\Seeders\EmployeeAreasSeeder::class);
-        $this->call(\App\Modules\Employees\Database\Seeders\EmployeeDepartmentsSeeder::class);
-        $this->call(\App\Modules\Employees\Database\Seeders\EmployeePositionsSeeder::class);
 
         $this->call(\App\Modules\KPIsOperativos\Database\Seeders\KPIsOperativosModuleSeeder::class);
         $this->call(\App\Modules\KPIsOperativos\Database\Seeders\GlpiCoordinatorsSeeder::class);

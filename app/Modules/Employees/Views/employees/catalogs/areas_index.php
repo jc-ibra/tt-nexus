@@ -8,6 +8,7 @@
   </div>
   <div class="page-actions">
     <a href="<?= route_to('employees.index') ?>" class="btn btn-secondary">Volver a empleados</a>
+    <a href="<?= route_to('employees.areas.import') ?>" class="btn btn-secondary">Importar CSV</a>
     <a href="<?= route_to('employees.areas.new') ?>" class="btn btn-primary">Nueva área</a>
   </div>
 </div>

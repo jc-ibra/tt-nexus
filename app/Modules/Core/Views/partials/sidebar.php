@@ -114,63 +114,84 @@ $moduleSubnav = [
 ];
 ?>
 
+<?php
+  $isSuperAdmin = service('access')->isSuperAdmin();
+
+  $adminOpen = $currentPath === '/admin/dashboard'
+      || str_starts_with($currentPath, '/admin/users')
+      || str_starts_with($currentPath, '/admin/roles');
+
+  $configOpen = str_starts_with($currentPath, '/admin/settings/smtp')
+      || str_starts_with($currentPath, '/admin/mailboxes')
+      || str_starts_with($currentPath, '/admin/provisioning');
+?>
+
 <nav aria-label="Navegación principal">
-  <p class="nav-section-label">Administración</p>
-
-  <a href="<?= route_to('dashboard') ?>"
-     class="nav-item <?= $currentPath === '/admin/dashboard' ? 'is-active' : '' ?>">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-    </svg>
-    Dashboard
-  </a>
-
-  <?php if (service('access')->isSuperAdmin()): ?>
-  <a href="<?= route_to('admin.users.index') ?>"
-     class="nav-item <?= str_starts_with($currentPath, '/admin/users') ? 'is-active' : '' ?>">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-    Usuarios
-  </a>
-
-  <a href="<?= route_to('admin.roles.index') ?>"
-     class="nav-item <?= str_starts_with($currentPath, '/admin/roles') ? 'is-active' : '' ?>">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    </svg>
-    Roles
-  </a>
-  <?php endif; ?>
-
-  <?php if (service('access')->isSuperAdmin()): ?>
-    <p class="nav-section-label" style="margin-top: var(--space-4);">Configuración</p>
-
-    <a href="<?= route_to('admin.settings.smtp') ?>"
-       class="nav-item <?= str_starts_with($currentPath, '/admin/settings/smtp') ? 'is-active' : '' ?>">
+  <div class="nav-group <?= $adminOpen ? 'is-open' : '' ?>" data-nav-group>
+    <button type="button"
+            class="nav-item nav-group-toggle <?= $adminOpen ? 'is-active' : '' ?>"
+            aria-expanded="<?= $adminOpen ? 'true' : 'false' ?>"
+            data-nav-toggle>
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+        <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
+        <line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/>
+        <line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>
       </svg>
-      SMTP
-    </a>
+      <span class="nav-group-label">Administración</span>
+      <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
 
-    <a href="<?= route_to('mailboxes.settings') ?>"
-       class="nav-item <?= str_starts_with($currentPath, '/admin/mailboxes') ? 'is-active' : '' ?>">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
-      </svg>
-      Buzones API
-    </a>
+    <div class="nav-subnav" role="list">
+      <a href="<?= route_to('dashboard') ?>" role="listitem"
+         class="nav-subitem <?= $currentPath === '/admin/dashboard' ? 'is-active' : '' ?>">
+        Dashboard
+      </a>
+      <?php if ($isSuperAdmin): ?>
+      <a href="<?= route_to('admin.users.index') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/users') ? 'is-active' : '' ?>">
+        Usuarios
+      </a>
+      <a href="<?= route_to('admin.roles.index') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/roles') ? 'is-active' : '' ?>">
+        Roles
+      </a>
+      <?php endif; ?>
+    </div>
+  </div>
 
-    <a href="<?= route_to('provisioning.systems.index') ?>"
-       class="nav-item <?= str_starts_with($currentPath, '/admin/provisioning') ? 'is-active' : '' ?>">
+  <?php if ($isSuperAdmin): ?>
+  <div class="nav-group <?= $configOpen ? 'is-open' : '' ?>" data-nav-group>
+    <button type="button"
+            class="nav-item nav-group-toggle <?= $configOpen ? 'is-active' : '' ?>"
+            aria-expanded="<?= $configOpen ? 'true' : 'false' ?>"
+            data-nav-toggle>
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
-      Sistemas
-    </a>
+      <span class="nav-group-label">Configuración</span>
+      <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+
+    <div class="nav-subnav" role="list">
+      <a href="<?= route_to('admin.settings.smtp') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/settings/smtp') ? 'is-active' : '' ?>">
+        SMTP
+      </a>
+      <a href="<?= route_to('mailboxes.settings') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/mailboxes') ? 'is-active' : '' ?>">
+        Buzones API
+      </a>
+      <a href="<?= route_to('provisioning.systems.index') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/provisioning') ? 'is-active' : '' ?>">
+        Sistemas
+      </a>
+    </div>
+  </div>
   <?php endif; ?>
 
   <?php if (! empty($modules)): ?>

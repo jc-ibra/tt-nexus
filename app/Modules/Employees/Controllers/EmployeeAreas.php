@@ -91,4 +91,34 @@ class EmployeeAreas extends BaseController
 
         return redirect()->to(route_to('employees.areas.index'));
     }
+
+    public function importForm(): string
+    {
+        return view('App\Modules\Employees\Views\employees\catalogs\import', [
+            'pageTitle' => 'Importar áreas',
+            'backRoute' => route_to('employees.areas.index'),
+            'postRoute' => route_to('employees.areas.import.post'),
+            'sample'    => "name\nAdministración\nOperaciones\nFinanzas",
+        ]);
+    }
+
+    public function import(): ResponseInterface
+    {
+        $file = $this->request->getFile('file');
+
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            session()->setFlashdata('error', 'Selecciona un archivo CSV.');
+            return redirect()->back();
+        }
+
+        $result = service('employeeCatalogService')->importAreas($file);
+
+        if (! $result->success) {
+            session()->setFlashdata('error', is_array($result->errors) ? implode(' ', $result->errors) : (string) $result->errors);
+            return redirect()->back();
+        }
+
+        session()->setFlashdata('success', $result->message);
+        return redirect()->to(route_to('employees.areas.index'));
+    }
 }

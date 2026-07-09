@@ -32,7 +32,8 @@ class CreateEmployeeEmailAccountsTable extends Migration
         $now = date('Y-m-d H:i:s');
         $employees = $this->db->table('employees_employees')
             ->where('has_mailbox', 1)
-            ->whereNotNull('email')
+            ->where('email IS NOT NULL', null, false)
+            ->where('email !=', '')
             ->get()
             ->getResultArray();
 

@@ -91,4 +91,34 @@ class EmployeeStates extends BaseController
 
         return redirect()->to(route_to('employees.states.index'));
     }
+
+    public function importForm(): string
+    {
+        return view('App\Modules\Employees\Views\employees\catalogs\import', [
+            'pageTitle' => 'Importar estados de origen',
+            'backRoute' => route_to('employees.states.index'),
+            'postRoute' => route_to('employees.states.import.post'),
+            'sample'    => "name\nJalisco\nNuevo León\nCiudad de México",
+        ]);
+    }
+
+    public function import(): ResponseInterface
+    {
+        $file = $this->request->getFile('file');
+
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            session()->setFlashdata('error', 'Selecciona un archivo CSV.');
+            return redirect()->back();
+        }
+
+        $result = service('employeeCatalogService')->importStates($file);
+
+        if (! $result->success) {
+            session()->setFlashdata('error', is_array($result->errors) ? implode(' ', $result->errors) : (string) $result->errors);
+            return redirect()->back();
+        }
+
+        session()->setFlashdata('success', $result->message);
+        return redirect()->to(route_to('employees.states.index'));
+    }
 }

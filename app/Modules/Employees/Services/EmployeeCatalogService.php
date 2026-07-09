@@ -10,10 +10,14 @@ use App\Modules\Employees\Models\EmployeeDepartmentModel;
 use App\Modules\Employees\Models\EmployeeLocationModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Employees\Models\EmployeeStateModel;
+use CodeIgniter\HTTP\Files\UploadedFile;
 use CodeIgniter\Model;
 
 class EmployeeCatalogService
 {
+    private const IMPORT_MAX_BYTES = 5_242_880; // 5 MB
+    private const IMPORT_ALLOWED_MIME = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'];
+
     public function __construct(
         private EmployeeAreaModel       $areaModel,
         private EmployeeDepartmentModel $departmentModel,
@@ -240,6 +244,164 @@ class EmployeeCatalogService
     public function locationUsage(int $id): int
     {
         return $this->locationModel->countEmployees($id);
+    }
+
+    // -----------------------------------------------------------------------
+    // Bulk import (CSV)
+    // -----------------------------------------------------------------------
+
+    public function importAreas(UploadedFile $file): ServiceResult
+    {
+        return $this->importCatalog($this->areaModel, $file);
+    }
+
+    public function importDepartments(UploadedFile $file): ServiceResult
+    {
+        return $this->importCatalog($this->departmentModel, $file);
+    }
+
+    public function importPositions(UploadedFile $file): ServiceResult
+    {
+        return $this->importCatalog($this->positionModel, $file);
+    }
+
+    public function importStates(UploadedFile $file): ServiceResult
+    {
+        return $this->importCatalog($this->stateModel, $file);
+    }
+
+    public function importLocations(UploadedFile $file): ServiceResult
+    {
+        return $this->importCatalog($this->locationModel, $file);
+    }
+
+    /**
+     * Import catalog rows from a CSV file. Expects a "name" (or "nombre")
+     * column; an optional "status" (or "estado") column is honored. Rows whose
+     * name already exists (case-insensitive) are skipped.
+     */
+    private function importCatalog(Model $model, UploadedFile $file): ServiceResult
+    {
+        if (! $file->isValid()) {
+            return ServiceResult::fail('El archivo no es válido: ' . $file->getErrorString());
+        }
+
+        if ($file->getSize() > self::IMPORT_MAX_BYTES) {
+            return ServiceResult::fail('El archivo excede el tamaño máximo de 5 MB.');
+        }
+
+        $mime = $file->getMimeType();
+        if (! in_array($mime, self::IMPORT_ALLOWED_MIME, true) && ! str_ends_with(strtolower($file->getName()), '.csv')) {
+            return ServiceResult::fail("Tipo de archivo no permitido ({$mime}). Sube un archivo CSV.");
+        }
+
+        $handle = fopen($file->getTempName(), 'r');
+        if ($handle === false) {
+            return ServiceResult::fail('No se pudo leer el archivo.');
+        }
+
+        $headers = fgetcsv($handle);
+        if ($headers === false) {
+            fclose($handle);
+
+            return ServiceResult::fail('El archivo está vacío o no tiene encabezados.');
+        }
+
+        $headers = array_map(static fn($h) => strtolower(trim((string) $h)), $headers);
+        // Strip UTF-8 BOM from the first column (common in Excel-exported CSVs).
+        if (isset($headers[0])) {
+            $headers[0] = ltrim($headers[0], "\xEF\xBB\xBF");
+        }
+
+        $nameIdx = array_search('name', $headers, true);
+        if ($nameIdx === false) {
+            $nameIdx = array_search('nombre', $headers, true);
+        }
+
+        if ($nameIdx === false) {
+            fclose($handle);
+
+            return ServiceResult::fail('El CSV debe tener una columna "name" (o "nombre"). Columnas encontradas: ' . implode(', ', $headers));
+        }
+
+        $statusIdx = array_search('status', $headers, true);
+        if ($statusIdx === false) {
+            $statusIdx = array_search('estado', $headers, true);
+        }
+
+        // Preload existing names (lowercased) so duplicates are skipped.
+        $existing = [];
+        foreach ($model->select('name')->findAll() as $r) {
+            $existing[mb_strtolower(trim((string) $r['name']))] = true;
+        }
+
+        $imported = 0;
+        $skipped  = 0;
+        $errors   = [];
+        $row      = 1;
+
+        $model->db->transStart();
+
+        while (($cols = fgetcsv($handle)) !== false) {
+            $row++;
+
+            // Skip fully blank lines silently.
+            if (count(array_filter($cols, static fn($c) => trim((string) $c) !== '')) === 0) {
+                continue;
+            }
+
+            $name = trim((string) ($cols[$nameIdx] ?? ''));
+
+            if ($name === '') {
+                $errors[] = ['row' => $row, 'reason' => 'Nombre vacío'];
+                $skipped++;
+                continue;
+            }
+
+            if (mb_strlen($name) > 120) {
+                $errors[] = ['row' => $row, 'reason' => "Nombre demasiado largo (máx. 120): {$name}"];
+                $skipped++;
+                continue;
+            }
+
+            $key = mb_strtolower($name);
+            if (isset($existing[$key])) {
+                $errors[] = ['row' => $row, 'reason' => "Duplicado (omitido): {$name}"];
+                $skipped++;
+                continue;
+            }
+
+            $status = 'active';
+            if ($statusIdx !== false) {
+                $raw = strtolower(trim((string) ($cols[$statusIdx] ?? '')));
+                if (in_array($raw, ['inactive', 'inactivo', 'inactiva', '0'], true)) {
+                    $status = 'inactive';
+                }
+            }
+
+            $model->skipValidation(true);
+            $ok = $model->insert(['name' => $name, 'status' => $status]);
+            $model->skipValidation(false);
+
+            if ($ok !== false) {
+                $existing[$key] = true;
+                $imported++;
+            } else {
+                $errors[] = ['row' => $row, 'reason' => "No se pudo insertar: {$name}"];
+                $skipped++;
+            }
+        }
+
+        fclose($handle);
+        $model->db->transComplete();
+
+        $message = "Importación completada: {$imported} agregado(s), {$skipped} omitido(s).";
+
+        return ServiceResult::ok([
+            'imported' => $imported,
+            'skipped'  => $skipped,
+            'errors'   => $errors,
+        ], $message);
     }
 
     // -----------------------------------------------------------------------

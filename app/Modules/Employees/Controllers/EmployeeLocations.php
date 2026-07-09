@@ -91,4 +91,34 @@ class EmployeeLocations extends BaseController
 
         return redirect()->to(route_to('employees.locations.index'));
     }
+
+    public function importForm(): string
+    {
+        return view('App\Modules\Employees\Views\employees\catalogs\import', [
+            'pageTitle' => 'Importar ubicaciones de origen',
+            'backRoute' => route_to('employees.locations.index'),
+            'postRoute' => route_to('employees.locations.import.post'),
+            'sample'    => "name\nGuadalajara\nMonterrey\nCDMX",
+        ]);
+    }
+
+    public function import(): ResponseInterface
+    {
+        $file = $this->request->getFile('file');
+
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            session()->setFlashdata('error', 'Selecciona un archivo CSV.');
+            return redirect()->back();
+        }
+
+        $result = service('employeeCatalogService')->importLocations($file);
+
+        if (! $result->success) {
+            session()->setFlashdata('error', is_array($result->errors) ? implode(' ', $result->errors) : (string) $result->errors);
+            return redirect()->back();
+        }
+
+        session()->setFlashdata('success', $result->message);
+        return redirect()->to(route_to('employees.locations.index'));
+    }
 }

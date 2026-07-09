@@ -23,6 +23,8 @@ $routes->group('employees', [
         $routes->get('areas',                'EmployeeAreas::index',     ['as' => 'employees.areas.index']);
         $routes->get('areas/new',            'EmployeeAreas::new',       ['as' => 'employees.areas.new']);
         $routes->post('areas',               'EmployeeAreas::store',     ['as' => 'employees.areas.store']);
+        $routes->get('areas/import',         'EmployeeAreas::importForm', ['as' => 'employees.areas.import']);
+        $routes->post('areas/import',        'EmployeeAreas::import',     ['as' => 'employees.areas.import.post']);
         $routes->get('areas/(:num)/edit',    'EmployeeAreas::edit/$1',   ['as' => 'employees.areas.edit']);
         $routes->post('areas/(:num)',        'EmployeeAreas::update/$1', ['as' => 'employees.areas.update']);
         $routes->post('areas/(:num)/delete', 'EmployeeAreas::destroy/$1', ['as' => 'employees.areas.destroy']);
@@ -31,6 +33,8 @@ $routes->group('employees', [
         $routes->get('departments',                'EmployeeDepartments::index',     ['as' => 'employees.departments.index']);
         $routes->get('departments/new',            'EmployeeDepartments::new',       ['as' => 'employees.departments.new']);
         $routes->post('departments',               'EmployeeDepartments::store',     ['as' => 'employees.departments.store']);
+        $routes->get('departments/import',         'EmployeeDepartments::importForm', ['as' => 'employees.departments.import']);
+        $routes->post('departments/import',        'EmployeeDepartments::import',     ['as' => 'employees.departments.import.post']);
         $routes->get('departments/(:num)/edit',    'EmployeeDepartments::edit/$1',   ['as' => 'employees.departments.edit']);
         $routes->post('departments/(:num)',        'EmployeeDepartments::update/$1', ['as' => 'employees.departments.update']);
         $routes->post('departments/(:num)/delete', 'EmployeeDepartments::destroy/$1', ['as' => 'employees.departments.destroy']);
@@ -39,6 +43,8 @@ $routes->group('employees', [
         $routes->get('positions',                'EmployeePositions::index',     ['as' => 'employees.positions.index']);
         $routes->get('positions/new',            'EmployeePositions::new',       ['as' => 'employees.positions.new']);
         $routes->post('positions',               'EmployeePositions::store',     ['as' => 'employees.positions.store']);
+        $routes->get('positions/import',         'EmployeePositions::importForm', ['as' => 'employees.positions.import']);
+        $routes->post('positions/import',        'EmployeePositions::import',     ['as' => 'employees.positions.import.post']);
         $routes->get('positions/(:num)/edit',    'EmployeePositions::edit/$1',   ['as' => 'employees.positions.edit']);
         $routes->post('positions/(:num)',        'EmployeePositions::update/$1', ['as' => 'employees.positions.update']);
         $routes->post('positions/(:num)/delete', 'EmployeePositions::destroy/$1', ['as' => 'employees.positions.destroy']);
@@ -47,6 +53,8 @@ $routes->group('employees', [
         $routes->get('states',                'EmployeeStates::index',      ['as' => 'employees.states.index']);
         $routes->get('states/new',            'EmployeeStates::new',        ['as' => 'employees.states.new']);
         $routes->post('states',               'EmployeeStates::store',      ['as' => 'employees.states.store']);
+        $routes->get('states/import',         'EmployeeStates::importForm', ['as' => 'employees.states.import']);
+        $routes->post('states/import',        'EmployeeStates::import',     ['as' => 'employees.states.import.post']);
         $routes->get('states/(:num)/edit',    'EmployeeStates::edit/$1',    ['as' => 'employees.states.edit']);
         $routes->post('states/(:num)',        'EmployeeStates::update/$1',  ['as' => 'employees.states.update']);
         $routes->post('states/(:num)/delete', 'EmployeeStates::destroy/$1', ['as' => 'employees.states.destroy']);
@@ -55,6 +63,8 @@ $routes->group('employees', [
         $routes->get('locations',                'EmployeeLocations::index',      ['as' => 'employees.locations.index']);
         $routes->get('locations/new',            'EmployeeLocations::new',        ['as' => 'employees.locations.new']);
         $routes->post('locations',               'EmployeeLocations::store',      ['as' => 'employees.locations.store']);
+        $routes->get('locations/import',         'EmployeeLocations::importForm', ['as' => 'employees.locations.import']);
+        $routes->post('locations/import',        'EmployeeLocations::import',     ['as' => 'employees.locations.import.post']);
         $routes->get('locations/(:num)/edit',    'EmployeeLocations::edit/$1',    ['as' => 'employees.locations.edit']);
         $routes->post('locations/(:num)',        'EmployeeLocations::update/$1',  ['as' => 'employees.locations.update']);
         $routes->post('locations/(:num)/delete', 'EmployeeLocations::destroy/$1', ['as' => 'employees.locations.destroy']);

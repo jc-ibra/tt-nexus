@@ -6,15 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**tt-apps** is a modular internal platform built with **CodeIgniter 4**, designed to grow through independent modules while maintaining a shared authentication and role-based access control (RBAC) core.
+**tt-nexus** is a modular internal platform built with **CodeIgniter 4**, designed to grow through independent modules while maintaining a shared authentication and role-based access control (RBAC) core.
 
 - **Organization:** ibrastudio
 - **Framework:** CodeIgniter 4 (latest stable 4.x)
 - **PHP Version:** 8.2+
 - **Database:** MySQL/MariaDB with CI4 Migrations and Seeders
-- **Initial Module:** Communications (internal bulk email system)
+- **Deployment:** Runs locally (host PHP) or via Docker (`docker-compose.yml`; service `app`, container `tt-nexus`, plus `db` and phpMyAdmin `tt-nexus-pma`)
 
 The platform enforces a strict modular architecture where each module encapsulates its own routes, controllers, models, migrations, and views, with runtime validation of module access via user roles.
+
+### Module identifiers
+
+All module identifiers (folder, namespace, DB `key`, `route_base`, URL prefix, controllers, services, models, table names, view folder, sidebar key) are in **English** and homologated across every touch point. Spanish appears only in `modules.name` and UI copy. See `docs/CONVENTIONS.md §2.1`.
 
 ---
 
@@ -26,6 +30,7 @@ The platform enforces a strict modular architecture where each module encapsulat
 | `docs/CONVENTIONS.md` | PHP/CI4 coding conventions: PSR-12, naming, routes, migrations, security, git commits |
 | `docs/tt-apps.postman_collection.json` | Postman collection — import to test all API endpoints |
 | `DESIGN.md` | UI/UX design system — all CSS tokens, components, accessibility rules |
+| `app/Modules/Provisioning/README.md` | Provisioning module: Intranet API contract and lifecycle orchestration details |
 
 ---
 
@@ -36,16 +41,21 @@ The platform enforces a strict modular architecture where each module encapsulat
 ```
 app/Modules/
   Core/              # Shared: auth, users, roles, permissions, module registry
-  Communications/    # Module 1: bulk email communications
-  [future modules]
+  Communications/    # Bulk internal email. Routes /comms/*, key `communications`
+  Employees/         # Staff directory + catalogs. Routes /empleados/*, key `employees`
+  KPIsOperativos/    # Operational KPIs sourced from GLPI. Routes /kpi/*, key `kpis_operativos`
+  Mailboxes/         # Mailcow mailbox admin via API. Routes /mailboxes/*, key `mailboxes` (UI display "Buzones")
+  Provisioning/      # Identity lifecycle orchestrator → GLPI, Mailcow, Intranet. Routes /aprovisionamiento/*, key `provisioning` (UI display "Aprovisionamiento")
 ```
 
 **Core Principles:**
-- Each module registers its namespace in `app/Config/Autoload.php`
+- Each module registers its namespace in `app/Config/Autoload.php` (`$psr4` array — currently all six above)
 - Routes are declared in each module's `Routes.php`
 - Migrations are module-scoped
 - Module registration via `modules` table tracks which roles can access which modules
 - **Critical:** Module access is never hardcoded; it's validated at runtime via filters against the user's roles
+- **Table naming:** every table carries its module prefix baked into the literal `createTable()` name (`core_`, `comms_`, `employees_`, `kpi_glpi_`, `mailboxes_`, `provisioning_`), even though `DBPrefix` is empty in `Database.php`. A `Table '…' doesn't exist` error is usually a hardcoded name missing its prefix in raw SQL, **not** a missing migration — `grep` the exact name first before suspecting setup.
+- **Cross-module reuse via services only:** e.g. Provisioning reuses Mailboxes' `MailcowApi` without modifying it.
 
 ### Authentication & Authorization
 
@@ -121,23 +131,44 @@ The platform uses a Shopify Polaris-inspired design system. Key tokens:
 
 ### Setup
 
+The recommended path is the **`setup.sh`** script, which runs the full sequence (baseline → migrate → seed → verify) idempotently:
+
 ```bash
 # Install dependencies
 composer install
 
-# Create .env from .env.example
-cp .env.example .env
+# Create .env (the script copies from the `env` template if .env is missing)
+cp env .env    # then edit DB + SMTP credentials
 
-# Configure database and SMTP in .env
-# - DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-# - email.SMTPHost, email.SMTPUser, email.SMTPPass, email.SMTPPort, email.SMTPCrypto
+# Full setup — local (host PHP)
+./setup.sh
 
-# Run database migrations (--all discovers all module namespaces)
-php spark migrate --all --namespace App\Modules\Core
-
-# Seed initial data (superadmin role, admin user, module registry)
-php spark db:seed CoreSeeder
+# Full setup — Docker (docker compose exec app …); also brings containers up
+./setup.sh --docker
 ```
+
+`public/setup.php` performs the equivalent flow from the web (guarded by `SETUP_TOKEN` read from env) for instances without terminal access.
+
+**What the setup does, in order** (do NOT hand-maintain a per-module migration list):
+
+1. **`php spark db:baseline`** — reconciles the `migrations` table with the real schema. Marks migrations as applied **only** if their effect already exists (table from `createTable`, column from `addColumn` via `fieldExists`). Fixes the "already exists" desync from manual DB provisioning. Safe and idempotent (no-op on a clean DB).
+2. **`php spark migrate --all`** — auto-discovers all six module namespaces from `Autoload.php` and applies migrations in **global chronological order** (respecting cross-module FKs). A migration error is **fatal** — the script aborts before seeding.
+3. **Seeders** (see below).
+4. **`php spark db:verify-schema`** — auto-derives expected tables by reading every migration's `createTable()` and fails if any is missing physically. This is the safety net against the recurring "missing table" problem.
+
+Seeders run by setup:
+
+```bash
+php spark db:seed App\Database\Seeds\CoreSeeder                                     # roles, admin user, Communications module
+php spark db:seed App\Modules\Employees\Database\Seeders\EmployeesModuleSeeder
+php spark db:seed App\Modules\KPIsOperativos\Database\Seeders\KPIsOperativosModuleSeeder
+php spark db:seed App\Modules\KPIsOperativos\Database\Seeders\GlpiCoordinatorsSeeder
+php spark db:seed App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder
+php spark db:seed App\Modules\Provisioning\Database\Seeders\ProvisioningModuleSeeder
+php spark db:seed App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder
+```
+
+> Note: Core seeders (`CoreSeeder`, `AppSeeder`) live in `app/Database/Seeds/` under the `App\Database\Seeds` namespace; module seeders live under each module's `Database/Seeders/`.
 
 ### Running the Application
 
@@ -151,21 +182,28 @@ Access the app at `http://localhost:8080`. Login with credentials from `.env` (c
 ### Database
 
 ```bash
-# Run migrations from Core module  (-n is the correct flag, NOT --namespace)
+# Apply ALL module migrations in global chronological order (preferred — respects cross-module FKs)
+php spark migrate --all
+
+# Reconcile the migrations table with the real schema before migrating (safe, idempotent)
+php spark db:baseline
+php spark db:baseline --dry-run     # show what it would do, without writing
+
+# Verify every migration-declared table exists physically (exit 1 if any is missing)
+php spark db:verify-schema
+php spark db:verify-schema -v        # also list all expected tables
+
+# Run migrations from a single module namespace  (-n is the correct flag, NOT --namespace)
 php spark migrate -n "App\Modules\Core"
-
-# Run migrations from Communications module
-php spark migrate -n "App\Modules\Communications"
-
-# Run all module migrations at once
-php spark migrate -n "App\Modules\Core" && php spark migrate -n "App\Modules\Communications"
 
 # Rollback last batch (specify namespace)
 php spark migrate:rollback -n "App\Modules\Core"
 
-# Seed core data (roles, admin user, modules registry)
-php spark db:seed CoreSeeder
+# Check status
+php spark migrate:status
 ```
+
+> `db:baseline` and `db:verify-schema` are custom commands defined in `app/Modules/Core/Commands/`.
 
 ### Queue/Background Tasks
 
@@ -307,10 +345,12 @@ Location: `app/Modules/[ModuleName]/Views/`
    'App\Modules\NewModule' => APPPATH . 'Modules/NewModule',
    ```
 4. Create `Routes.php` — declare both web routes and `api/v1/` routes
-5. Create migration to register module in `modules` table
+5. Create migration to register module in `modules` table (prefix every table name with the module slug, e.g. `newmodule_`)
 6. Define web Controllers, API Controllers (in `Controllers/Api/`), Models, and Services
-7. Create Seeder to assign module to SuperAdmin role
+7. Create a `NewModuleModuleSeeder` to register the module and assign it to the SuperAdmin role
 8. Add the new module's API endpoints to `docs/tt-apps.postman_collection.json`
+9. Add the seeder to `setup.sh` (and `public/setup.php`) — migrations are auto-discovered by `migrate --all`, but seeders must be listed explicitly. The `/update-script` skill automates this.
+10. Confirm `php spark db:verify-schema` passes
 
 ### Creating Admin Pages with Module Access Control
 
@@ -425,8 +465,11 @@ php spark comms:process-queue --debug
 ### Database Issues
 
 - Verify migrations ran: `php spark migrate:status`
+- Verify every expected table physically exists: `php spark db:verify-schema -v`
 - Check `modules` table is populated: `SELECT * FROM modules;`
 - Verify `role_module` entries exist: `SELECT * FROM role_module;`
+- **`Table '…' doesn't exist`:** `grep` the exact name first. If a prefixed version exists (e.g. error says `glpi_idc_canonical` but `kpi_glpi_idc_canonical` exists), it's a hardcoded raw-SQL name missing its module prefix — a code bug, not a missing migration.
+- **`Table '…' already exists` on migrate:** the schema is present but the `migrations` table is out of sync (manual provisioning). Run `php spark db:baseline`, then `php spark migrate --all`.
 
 ### Email Not Sending
 

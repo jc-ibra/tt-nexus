@@ -7,7 +7,8 @@
     <p class="page-subtitle">Catálogo de estados de procedencia</p>
   </div>
   <div class="page-actions">
-    <a href="<?= route_to('employees.states.index') ?>" class="btn btn-secondary">Volver a estados</a>
+    <a href="<?= route_to('employees.index') ?>" class="btn btn-secondary">Volver a empleados</a>
+    <a href="<?= route_to('employees.states.import') ?>" class="btn btn-secondary">Importar CSV</a>
     <a href="<?= route_to('employees.states.new') ?>" class="btn btn-primary">Nuevo estado</a>
   </div>
 </div>

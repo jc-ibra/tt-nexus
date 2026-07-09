@@ -7,7 +7,8 @@
     <p class="page-subtitle">Catálogo de ubicaciones</p>
   </div>
   <div class="page-actions">
-    <a href="<?= route_to('employees.locations.index') ?>" class="btn btn-secondary">Volver a ubicaciones</a>
+    <a href="<?= route_to('employees.index') ?>" class="btn btn-secondary">Volver a empleados</a>
+    <a href="<?= route_to('employees.locations.import') ?>" class="btn btn-secondary">Importar CSV</a>
     <a href="<?= route_to('employees.locations.new') ?>" class="btn btn-primary">Nueva ubicación</a>
   </div>
 </div>
