@@ -3,6 +3,9 @@
 
 <?php
 $catalogToggleId = 'employees-catalog-menu';
+// Provisioning users may reach this directory read-only (to open an employee
+// and provision their accounts); management actions stay in the Employees role.
+$canManageEmployees = service('access')->canAccessModule('employees');
 ?>
 
 <div class="page-header">
@@ -10,6 +13,7 @@ $catalogToggleId = 'employees-catalog-menu';
     <h1 class="page-title">Empleados</h1>
     <p class="page-subtitle">Directorio de colaboradores</p>
   </div>
+  <?php if ($canManageEmployees): ?>
   <div class="page-actions">
     <div style="position:relative;">
       <button type="button" class="btn btn-secondary" id="<?= $catalogToggleId ?>-btn" aria-expanded="false" aria-controls="<?= $catalogToggleId ?>">
@@ -29,6 +33,7 @@ $catalogToggleId = 'employees-catalog-menu';
       Nuevo empleado
     </a>
   </div>
+  <?php endif; ?>
 </div>
 
 <!-- Filters -->
@@ -66,7 +71,9 @@ $catalogToggleId = 'employees-catalog-menu';
       </div>
       <h2 class="empty-state-title">Sin empleados</h2>
       <p class="empty-state-message">Aún no hay empleados registrados con los filtros actuales.</p>
-      <a href="<?= route_to('employees.new') ?>" class="btn btn-primary">Nuevo empleado</a>
+      <?php if ($canManageEmployees): ?>
+        <a href="<?= route_to('employees.new') ?>" class="btn btn-primary">Nuevo empleado</a>
+      <?php endif; ?>
     </div>
   </div>
 <?php else: ?>
@@ -128,10 +135,12 @@ $catalogToggleId = 'employees-catalog-menu';
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   Ver
                 </a>
+                <?php if ($canManageEmployees): ?>
                 <a href="<?= route_to('employees.edit', $e['id']) ?>" class="btn btn-tertiary btn-sm" aria-label="Editar <?= esc(trim(($e['name'] ?? '') . ' ' . ($e['lastname'] ?? ''))) ?>">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   Editar
                 </a>
+                <?php endif; ?>
               </div>
             </td>
           </tr>

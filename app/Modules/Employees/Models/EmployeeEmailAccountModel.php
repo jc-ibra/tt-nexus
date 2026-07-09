@@ -37,6 +37,39 @@ class EmployeeEmailAccountModel extends Model
         return (int) $this->getInsertID();
     }
 
+    public function findForEmployee(int $id, int $employeeId): ?array
+    {
+        return $this->where('id', $id)->where('employee_id', $employeeId)->first();
+    }
+
+    public function updateAccount(int $id, int $employeeId, array $data): bool
+    {
+        $data['updated_at'] = date('Y-m-d H:i:s');
+
+        return $this->db->table($this->table)
+            ->where('id', $id)
+            ->where('employee_id', $employeeId)
+            ->update($data);
+    }
+
+    /**
+     * Clears the primary flag from all of the employee's accounts, optionally
+     * keeping one (the account that should remain/become primary). Enforces the
+     * "only one primary account" rule.
+     */
+    public function clearPrimary(int $employeeId, ?int $exceptId = null): void
+    {
+        $builder = $this->db->table($this->table)
+            ->where('employee_id', $employeeId)
+            ->where('is_primary', 1);
+
+        if ($exceptId !== null) {
+            $builder->where('id !=', $exceptId);
+        }
+
+        $builder->update(['is_primary' => 0, 'updated_at' => date('Y-m-d H:i:s')]);
+    }
+
     public function deleteAccount(int $id, int $employeeId): bool
     {
         return $this->where('id', $id)->where('employee_id', $employeeId)->delete() > 0;

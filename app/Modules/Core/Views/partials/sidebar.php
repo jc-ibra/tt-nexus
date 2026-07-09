@@ -101,6 +101,11 @@ $moduleSubnav = [
             'active' => $currentPath === '/provisioning',
         ],
         [
+            'label'  => 'Empleados',
+            'url'    => base_url('employees'),
+            'active' => str_starts_with($currentPath, '/employees'),
+        ],
+        [
             'label'  => 'Bitácora',
             'url'    => base_url('provisioning/log'),
             'active' => str_starts_with($currentPath, '/provisioning/log'),
@@ -200,8 +205,12 @@ $moduleSubnav = [
     <?php foreach ($modules as $module):
         $key       = $module['key'];
         $routeBase = '/' . ltrim($module['route_base'], '/');
-        $isOpen    = str_starts_with($currentPath, $routeBase);
         $subnav    = $moduleSubnav[$key] ?? [];
+        // Open when the URL is under the module's own base, or when any of its
+        // sub-links is active (a sub-link may point outside the base, e.g.
+        // Provisioning → Empleados linking to /employees).
+        $isOpen    = str_starts_with($currentPath, $routeBase)
+            || ! empty(array_filter($subnav, fn($i) => ! empty($i['active'])));
     ?>
       <?php if (! empty($subnav)): ?>
         <div class="nav-group <?= $isOpen ? 'is-open' : '' ?>" data-nav-group>

@@ -239,8 +239,27 @@ class Employees extends BaseController
         ]);
     }
 
+    /**
+     * Managing email accounts belongs to the Provisioning role, not Employees.
+     * Employees-module users may see the accounts (read-only) but not edit them.
+     */
+    private function guardProvisioning(): ?ResponseInterface
+    {
+        if (service('access')->canAccessModule('provisioning')) {
+            return null;
+        }
+
+        return service('response')->setStatusCode(403)->setBody(
+            view('App\Modules\Core\Views\errors\403')
+        );
+    }
+
     public function addEmailAccount(int $employeeId): ResponseInterface
     {
+        if ($denied = $this->guardProvisioning()) {
+            return $denied;
+        }
+
         $svc    = service('employeeService');
         $result = $svc->addEmailAccount($employeeId, $this->request->getPost());
 
@@ -251,8 +270,28 @@ class Employees extends BaseController
         return redirect()->to(route_to('employees.show', $employeeId));
     }
 
+    public function updateEmailAccount(int $employeeId, int $accountId): ResponseInterface
+    {
+        if ($denied = $this->guardProvisioning()) {
+            return $denied;
+        }
+
+        $svc    = service('employeeService');
+        $result = $svc->updateEmailAccount($accountId, $employeeId, $this->request->getPost());
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(route_to('employees.show', $employeeId));
+    }
+
     public function removeEmailAccount(int $employeeId, int $accountId): ResponseInterface
     {
+        if ($denied = $this->guardProvisioning()) {
+            return $denied;
+        }
+
         $svc    = service('employeeService');
         $result = $svc->removeEmailAccount($accountId, $employeeId);
 

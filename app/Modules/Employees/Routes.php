@@ -5,7 +5,7 @@ use CodeIgniter\Router\RouteCollection;
 /** @var RouteCollection $routes */
 
 // -----------------------------------------------------------------------
-// Employees web (protected + module access)
+// Employees web — full management (RRHH). Writes, catalogs and search.
 // -----------------------------------------------------------------------
 $routes->group('employees', [
     'namespace' => 'App\Modules\Employees\Controllers',
@@ -70,19 +70,45 @@ $routes->group('employees', [
         $routes->post('locations/(:num)/delete', 'EmployeeLocations::destroy/$1', ['as' => 'employees.locations.destroy']);
     });
 
-    // Employees CRUD
-    $routes->get('/',                    'Employees::index',          ['as' => 'employees.index']);
+    // Employees write actions (management)
     $routes->get('new',                  'Employees::new',            ['as' => 'employees.new']);
     $routes->post('store',               'Employees::store',          ['as' => 'employees.store']);
-    $routes->get('(:num)',               'Employees::show/$1',        ['as' => 'employees.show']);
     $routes->get('(:num)/edit',          'Employees::edit/$1',        ['as' => 'employees.edit']);
     $routes->post('(:num)/update',       'Employees::update/$1',      ['as' => 'employees.update']);
     $routes->post('(:num)/photo',          'Employees::uploadPhoto/$1',   ['as' => 'employees.photo.upload']);
-    $routes->get('(:num)/photo',           'Employees::servePhoto/$1',    ['as' => 'employees.photo.serve']);
     $routes->post('(:num)/link-mailbox',              'Employees::linkMailbox/$1',              ['as' => 'employees.link-mailbox']);
     $routes->post('(:num)/unlink-mailbox',            'Employees::unlinkMailbox/$1',            ['as' => 'employees.unlink-mailbox']);
+});
+
+// -----------------------------------------------------------------------
+// Employee email accounts — managed by Provisioning (Sistemas), NOT RRHH.
+// These are rendered inside the provisioning panel on the employee profile,
+// so a provisioning user must be able to submit them even without the
+// Employees role. Gated by module_access:provisioning.
+// -----------------------------------------------------------------------
+$routes->group('employees', [
+    'namespace' => 'App\Modules\Employees\Controllers',
+    'filter'    => ['auth', 'module_access:provisioning'],
+], function (RouteCollection $routes): void {
     $routes->post('(:num)/email-accounts',            'Employees::addEmailAccount/$1',          ['as' => 'employees.email-accounts.add']);
+    $routes->post('(:num)/email-accounts/(:num)',        'Employees::updateEmailAccount/$1/$2', ['as' => 'employees.email-accounts.update']);
     $routes->post('(:num)/email-accounts/(:num)/delete', 'Employees::removeEmailAccount/$1/$2', ['as' => 'employees.email-accounts.remove']);
+});
+
+// -----------------------------------------------------------------------
+// Employees web — read-only directory. Shared with Provisioning (Sistemas)
+// so a provisioning user without the Employees role can still open an
+// employee and generate their system accounts from the provisioning panel.
+// Declared AFTER the management group so its literal/suffixed routes take
+// precedence over the bare (:num) show route.
+// -----------------------------------------------------------------------
+$routes->group('employees', [
+    'namespace' => 'App\Modules\Employees\Controllers',
+    'filter'    => ['auth', 'module_access_any:employees,provisioning'],
+], function (RouteCollection $routes): void {
+    $routes->get('/',            'Employees::index',         ['as' => 'employees.index']);
+    $routes->get('(:num)',       'Employees::show/$1',       ['as' => 'employees.show']);
+    $routes->get('(:num)/photo', 'Employees::servePhoto/$1', ['as' => 'employees.photo.serve']);
 });
 
 // -----------------------------------------------------------------------

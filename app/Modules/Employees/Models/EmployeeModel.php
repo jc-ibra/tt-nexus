@@ -24,6 +24,9 @@ class EmployeeModel extends Model
     ];
 
     protected $validationRules = [
+        // Required so CI4 can substitute the {id} placeholder used by the
+        // is_unique[...,id,{id}] rules on email/employee_number during update.
+        'id'              => 'permit_empty|is_natural_no_zero',
         'name'            => 'required|max_length[180]',
         'lastname'        => 'required|max_length[255]',
         'email'           => 'required|valid_email|max_length[191]|is_unique[employees_employees.email,id,{id}]',

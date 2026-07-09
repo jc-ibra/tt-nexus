@@ -163,18 +163,71 @@ class EmployeeService
             return ServiceResult::fail('Empleado no encontrado.');
         }
 
+        $built = $this->buildEmailAccountFields($data);
+        if (isset($built['error'])) {
+            return ServiceResult::fail($built['error']);
+        }
+
+        $fields                = $built['fields'];
+        $fields['employee_id'] = $employeeId;
+
+        $id = $this->emailAccountModel->addAccount($fields);
+
+        // Only one account may be primary at a time.
+        if ($fields['is_primary'] === 1) {
+            $this->emailAccountModel->clearPrimary($employeeId, $id);
+        }
+
+        return ServiceResult::ok(['id' => $id], 'Cuenta de correo agregada.');
+    }
+
+    public function updateEmailAccount(int $accountId, int $employeeId, array $data): ServiceResult
+    {
+        if (! $this->model->find($employeeId)) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        if (! $this->emailAccountModel->findForEmployee($accountId, $employeeId)) {
+            return ServiceResult::fail('Cuenta no encontrada o no pertenece a este empleado.');
+        }
+
+        $built = $this->buildEmailAccountFields($data);
+        if (isset($built['error'])) {
+            return ServiceResult::fail($built['error']);
+        }
+
+        $fields = $built['fields'];
+
+        if (! $this->emailAccountModel->updateAccount($accountId, $employeeId, $fields)) {
+            return ServiceResult::fail('No se pudo actualizar la cuenta de correo.');
+        }
+
+        // Only one account may be primary at a time.
+        if ($fields['is_primary'] === 1) {
+            $this->emailAccountModel->clearPrimary($employeeId, $accountId);
+        }
+
+        return ServiceResult::ok(['id' => $accountId], 'Cuenta de correo actualizada.');
+    }
+
+    /**
+     * Validates and normalizes email-account form data shared by add/update.
+     * Returns ['error' => string] on failure or ['fields' => array] on success.
+     */
+    private function buildEmailAccountFields(array $data): array
+    {
         $type = trim((string) ($data['type'] ?? ''));
         if (! in_array($type, ['mailcow', 'microsoft', 'none'], true)) {
-            return ServiceResult::fail('Tipo de cuenta no válido.');
+            return ['error' => 'Tipo de cuenta no válido.'];
         }
 
         $email = trim((string) ($data['email'] ?? ''));
         if ($type !== 'none') {
             if ($email === '') {
-                return ServiceResult::fail('El correo electrónico es obligatorio para este tipo de cuenta.');
+                return ['error' => 'El correo electrónico es obligatorio para este tipo de cuenta.'];
             }
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                return ServiceResult::fail('El correo electrónico no es válido.');
+                return ['error' => 'El correo electrónico no es válido.'];
             }
         }
 
@@ -182,20 +235,17 @@ class EmployeeService
         if ($type === 'microsoft') {
             $licenseId = (int) ($data['ms_license_id'] ?? 0);
             if ($licenseId === 0) {
-                return ServiceResult::fail('Debes seleccionar una licencia de Microsoft 365.');
+                return ['error' => 'Debes seleccionar una licencia de Microsoft 365.'];
             }
         }
 
-        $id = $this->emailAccountModel->addAccount([
-            'employee_id'   => $employeeId,
+        return ['fields' => [
             'type'          => $type,
             'email'         => $type !== 'none' ? $email : null,
             'ms_license_id' => $licenseId,
             'is_primary'    => empty($data['is_primary']) ? 0 : 1,
             'notes'         => trim((string) ($data['notes'] ?? '')) ?: null,
-        ]);
-
-        return ServiceResult::ok(['id' => $id], 'Cuenta de correo agregada.');
+        ]];
     }
 
     public function removeEmailAccount(int $accountId, int $employeeId): ServiceResult

@@ -4,6 +4,9 @@
 <?php
 $fullName = trim(($employee['name'] ?? '') . ' ' . ($employee['lastname'] ?? ''));
 $parentName = trim(($employee['parent_name'] ?? '') . ' ' . ($employee['parent_lastname'] ?? ''));
+// Editing employees belongs to the Employees (RRHH) role. Provisioning users
+// reach this page read-only to operate the provisioning panel below.
+$canManageEmployees = service('access')->canAccessModule('employees');
 ?>
 
 <div class="page-header">
@@ -18,17 +21,11 @@ $parentName = trim(($employee['parent_name'] ?? '') . ' ' . ($employee['parent_l
   </div>
   <div class="page-actions">
     <a href="<?= route_to('employees.index') ?>" class="btn btn-secondary">Volver</a>
-    <a href="<?= route_to('employees.edit', $employee['id']) ?>" class="btn btn-primary">Editar</a>
+    <?php if ($canManageEmployees): ?>
+      <a href="<?= route_to('employees.edit', $employee['id']) ?>" class="btn btn-primary">Editar</a>
+    <?php endif; ?>
   </div>
 </div>
-
-<?php
-// Embed provisioning panel (no-op if the user has no access to the module).
-$provisioningPanel = APPPATH . 'Modules/Provisioning/Views/partials/employee-panel.php';
-if (is_file($provisioningPanel)) {
-    include $provisioningPanel;
-}
-?>
 
 <div style="display:grid; grid-template-columns: 280px 1fr; gap: var(--space-4); align-items:start;">
 
@@ -99,121 +96,6 @@ if (is_file($provisioningPanel)) {
       </div>
     </div>
 
-    <!-- Cuentas de correo electrónico -->
-    <div class="card" style="margin-bottom: var(--space-4);">
-      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
-        <h2 class="card-title">Cuentas de correo electrónico</h2>
-        <?php if (! $hasEmail): ?>
-          <span class="badge badge-warning">Sin cuentas configuradas</span>
-        <?php else: ?>
-          <span class="badge badge-success"><?= count($emailAccounts) ?> cuenta(s)</span>
-        <?php endif; ?>
-      </div>
-
-      <?php if (! $hasEmail): ?>
-        <div class="banner banner-warning" style="margin:var(--space-3) var(--space-4);">
-          <div class="banner-body">Este empleado no tiene cuentas de correo configuradas. Agrega al menos una cuenta o marca que no cuenta con correo electrónico.</div>
-        </div>
-      <?php endif; ?>
-
-      <?php if (! empty($emailAccounts)): ?>
-      <div class="card-body" style="padding:0;">
-        <table class="table" style="width:100%;">
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Correo</th>
-              <th>Licencia</th>
-              <th>Primaria</th>
-              <th>Notas</th>
-              <th style="text-align:right;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($emailAccounts as $acc): ?>
-              <tr>
-                <td>
-                  <?php if ($acc['type'] === 'mailcow'): ?>
-                    <span class="badge badge-info">Mailcow</span>
-                  <?php elseif ($acc['type'] === 'microsoft'): ?>
-                    <span class="badge badge-neutral">Microsoft</span>
-                  <?php else: ?>
-                    <span class="badge badge-neutral">Sin correo</span>
-                  <?php endif; ?>
-                </td>
-                <td class="text-sm"><?= $acc['email'] ? esc($acc['email']) : '<span class="text-muted">—</span>' ?></td>
-                <td class="text-sm text-muted"><?= $acc['license_name'] ? esc($acc['license_name']) : '—' ?></td>
-                <td><?= (int) $acc['is_primary'] ? '<span class="badge badge-success">Sí</span>' : '' ?></td>
-                <td class="text-sm text-muted"><?= esc($acc['notes'] ?? '') ?></td>
-                <td style="text-align:right;">
-                  <form method="post"
-                        action="<?= route_to('employees.email-accounts.remove', $employee['id'], $acc['id']) ?>"
-                        style="display:inline;"
-                        onsubmit="return confirm('¿Eliminar esta cuenta de correo?');">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Eliminar</button>
-                  </form>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
-      <?php endif; ?>
-
-      <!-- Agregar cuenta -->
-      <div class="card-footer" style="justify-content:flex-start;">
-        <details style="width:100%;">
-          <summary style="cursor:pointer; font-weight:var(--weight-medium); font-size:var(--text-sm); color:var(--color-primary); list-style:none; display:inline-flex; align-items:center; gap:var(--space-1);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Agregar cuenta de correo
-          </summary>
-          <form method="post" action="<?= route_to('employees.email-accounts.add', $employee['id']) ?>"
-                style="margin-top:var(--space-4); display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); max-width:560px;">
-            <?= csrf_field() ?>
-
-            <div class="field">
-              <label class="field-label" for="ea-type">Tipo <span class="required">*</span></label>
-              <select id="ea-type" name="type" class="select" required>
-                <option value="">Selecciona...</option>
-                <option value="mailcow">Mailcow</option>
-                <option value="microsoft">Microsoft 365</option>
-                <option value="none">Sin correo electrónico</option>
-              </select>
-            </div>
-
-            <div class="field" id="ea-email-field">
-              <label class="field-label" for="ea-email">Correo electrónico <span class="required">*</span></label>
-              <input type="email" id="ea-email" name="email" class="input" placeholder="usuario@dominio.com" maxlength="255">
-            </div>
-
-            <div class="field" id="ea-license-field" style="display:none; grid-column:1/-1;">
-              <label class="field-label" for="ea-license">Licencia Microsoft 365 <span class="required">*</span></label>
-              <select id="ea-license" name="ms_license_id" class="select">
-                <option value="">Selecciona licencia...</option>
-                <?php foreach ($msLicenses as $lic): ?>
-                  <option value="<?= (int) $lic['id'] ?>"><?= esc($lic['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <div class="field" style="grid-column:1/-1;">
-              <label class="field-label" for="ea-notes">Notas</label>
-              <input type="text" id="ea-notes" name="notes" class="input" placeholder="Observaciones opcionales" maxlength="255">
-            </div>
-
-            <div style="grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;">
-              <label class="field-check">
-                <input type="checkbox" name="is_primary" value="1">
-                <span>Marcar como cuenta primaria</span>
-              </label>
-              <button type="submit" class="btn btn-primary btn-sm">Guardar cuenta</button>
-            </div>
-          </form>
-        </details>
-      </div>
-    </div>
-
     <div class="card" style="margin-bottom: var(--space-4);">
       <div class="card-header"><h2 class="card-title">Organización</h2></div>
       <div class="card-body">
@@ -275,35 +157,17 @@ if (is_file($provisioningPanel)) {
         </div>
       </div>
     <?php endif; ?>
+
+    <?php
+    // Embed provisioning panel at the bottom of the info column (no-op if the
+    // user has no access to the module). Placed last so the operator scrolls
+    // through all the employee data before acting.
+    $provisioningPanel = APPPATH . 'Modules/Provisioning/Views/partials/employee-panel.php';
+    if (is_file($provisioningPanel)) {
+        include $provisioningPanel;
+    }
+    ?>
   </div>
 </div>
-
-<script>
-(function () {
-  'use strict';
-  const typeSelect    = document.getElementById('ea-type');
-  const emailField    = document.getElementById('ea-email-field');
-  const licenseField  = document.getElementById('ea-license-field');
-  const emailInput    = document.getElementById('ea-email');
-  const licenseSelect = document.getElementById('ea-license');
-
-  if (! typeSelect) return;
-
-  function updateFields() {
-    const t = typeSelect.value;
-    const showEmail   = t === 'mailcow' || t === 'microsoft';
-    const showLicense = t === 'microsoft';
-
-    emailField.style.display   = showEmail   ? '' : 'none';
-    licenseField.style.display = showLicense ? '' : 'none';
-
-    emailInput.required    = showEmail;
-    licenseSelect.required = showLicense;
-  }
-
-  typeSelect.addEventListener('change', updateFields);
-  updateFields();
-})();
-</script>
 
 <?= $this->endSection() ?>

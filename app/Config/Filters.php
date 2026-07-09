@@ -4,6 +4,7 @@ namespace Config;
 
 use App\Modules\Core\Filters\AuthFilter;
 use App\Modules\Core\Filters\ApiAuthFilter;
+use App\Modules\Core\Filters\ModuleAccessAnyFilter;
 use App\Modules\Core\Filters\ModuleAccessFilter;
 use App\Modules\Core\Filters\SuperAdminFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
@@ -40,8 +41,9 @@ class Filters extends BaseFilters
         'performance'   => PerformanceMetrics::class,
         'auth'          => AuthFilter::class,
         'api_auth'      => ApiAuthFilter::class,
-        'module_access' => ModuleAccessFilter::class,
-        'super_admin'   => SuperAdminFilter::class,
+        'module_access'     => ModuleAccessFilter::class,
+        'module_access_any' => ModuleAccessAnyFilter::class,
+        'super_admin'       => SuperAdminFilter::class,
     ];
 
     /**
