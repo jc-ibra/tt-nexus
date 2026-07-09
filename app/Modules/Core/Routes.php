@@ -35,6 +35,9 @@ $routes->group('mfa', ['namespace' => 'App\Modules\Core\Controllers'], function 
 $routes->group('admin', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => 'auth'], function (RouteCollection $routes): void {
     $routes->get('dashboard', 'Dashboard::index', ['as' => 'dashboard']);
 
+    // Switch the active role (user must be authenticated; ownership validated in the service)
+    $routes->post('switch-role', 'Auth::switchRole', ['as' => 'switch-role']);
+
     // Users — SuperAdmin only
     $routes->get('users',                'Users::index',      ['as' => 'admin.users.index',    'filter' => 'super_admin']);
     $routes->get('users/new',            'Users::new',        ['as' => 'admin.users.new',      'filter' => 'super_admin']);

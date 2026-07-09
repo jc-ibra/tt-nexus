@@ -37,6 +37,18 @@ class UserRoleModel extends Model
         return array_column($rows, 'key');
     }
 
+    public function getModuleKeysForRole(int $roleId): array
+    {
+        $rows = $this->db->table('core_role_modules rm')
+            ->select('m.key')
+            ->join('core_modules m', 'm.id = rm.module_id')
+            ->where('rm.role_id', $roleId)
+            ->where('m.is_active', 1)
+            ->get()->getResultArray();
+
+        return array_column($rows, 'key');
+    }
+
     public function syncRoles(int $userId, array $roleIds): void
     {
         $this->where('user_id', $userId)->delete();

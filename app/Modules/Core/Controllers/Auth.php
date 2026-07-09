@@ -64,6 +64,17 @@ class Auth extends BaseController
         return redirect()->to(route_to('login'))->with('success', 'Sesión cerrada.');
     }
 
+    public function switchRole(): \CodeIgniter\HTTP\RedirectResponse
+    {
+        $roleId = (int) $this->request->getPost('role_id');
+
+        if (! service('access')->setActiveRole($roleId)) {
+            return redirect()->back()->with('errors', ['Rol no válido.']);
+        }
+
+        return redirect()->to(route_to('dashboard'))->with('success', 'Rol activo actualizado.');
+    }
+
     public function forgotPassword(): string
     {
         return view('App\Modules\Core\Views\auth\forgot_password', ['pageTitle' => 'Restablecer contraseña']);
