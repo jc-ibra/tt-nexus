@@ -332,7 +332,7 @@ class EmployeeService
             unset($clean['name']);
         }
 
-        $intFields = ['position_id', 'department_id', 'area_id', 'parent_id'];
+        $intFields = ['position_id', 'department_id', 'area_id', 'state_id', 'location_id', 'parent_id'];
         foreach ($intFields as $f) {
             if (array_key_exists($f, $data)) {
                 $value = $data[$f];

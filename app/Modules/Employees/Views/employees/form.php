@@ -44,13 +44,16 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
     <div class="card-header"><h2 class="card-title">Datos personales</h2></div>
     <div class="card-body">
 
-      <?php if (! $isEdit): ?>
-      <!-- Foto (opcional, se sube junto con el alta) -->
+      <!-- Foto (opcional, se sube junto con el formulario) -->
       <div class="field" style="margin-bottom: var(--space-5);">
         <label class="field-label" for="new-photo">Foto <span class="text-muted" style="font-weight:400;">(opcional)</span></label>
         <div style="display:flex; gap:var(--space-4); align-items:center;">
           <div id="new-photo-wrap" style="width:72px; height:72px; border-radius:var(--radius-full); overflow:hidden; background:var(--color-neutral-100); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-            <svg id="new-photo-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <?php if ($isEdit && ! empty($employee['photo'])): ?>
+              <img id="new-photo-img" src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="Foto del empleado" style="width:100%; height:100%; object-fit:cover; display:block;">
+            <?php else: ?>
+              <svg id="new-photo-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <?php endif; ?>
           </div>
           <div style="flex:1; min-width:0;">
             <input type="file" id="new-photo" name="photo" accept="image/jpeg,image/png,image/webp" style="display:none;" aria-label="Seleccionar foto">
@@ -64,7 +67,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
           </div>
         </div>
       </div>
-      <?php endif; ?>
 
       <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
 
@@ -88,19 +90,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
                  value="<?= esc($old('employee_number')) ?>" required maxlength="20">
           <?php if (isset($errors['employee_number'])): ?><p class="field-error"><?= esc($errors['employee_number']) ?></p><?php endif; ?>
         </div>
-
-        <?php if ($isEdit): ?>
-        <div class="field">
-          <?php if (! empty($employee['photo'])): ?>
-            <label class="field-label">Foto actual</label>
-            <img src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="Foto del empleado"
-                 width="72" height="72" style="border-radius:var(--radius-full); object-fit:cover; display:block;">
-          <?php else: ?>
-            <label class="field-label">Foto</label>
-            <p class="text-muted text-sm" style="margin:0;">Súbela en la tarjeta inferior.</p>
-          <?php endif; ?>
-        </div>
-        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -183,20 +172,18 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
           </select>
         </div>
 
-        <?php if ($isEdit): ?>
         <div class="field" style="grid-column: 1 / -1;">
           <label class="field-label" for="parent_search">Jefe directo</label>
           <input type="text" id="parent_search" class="input"
                  placeholder="Buscar por nombre, correo o número…" autocomplete="off"
                  list="parent-options"
-                 value="<?= esc(! empty($employee['parent_name']) ? trim($employee['parent_name'] . ' ' . ($employee['parent_lastname'] ?? '')) : '') ?>">
+                 value="<?= esc($isEdit && ! empty($employee['parent_name']) ? trim($employee['parent_name'] . ' ' . ($employee['parent_lastname'] ?? '')) : '') ?>">
           <datalist id="parent-options"></datalist>
           <input type="hidden" name="parent_id" id="parent_id" value="<?= esc($old('parent_id')) ?>">
           <p class="text-muted text-sm" style="margin-top:var(--space-1);">
             Selecciona un empleado existente como jefe directo. Vacío si es el nivel más alto.
           </p>
         </div>
-        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -226,20 +213,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
             <span>Empleado activo</span>
           </label>
         </div>
-
-        <div class="field">
-          <label class="field-check">
-            <input type="checkbox" name="show_in_directory" value="1" <?= (int) $old('show_in_directory', 0) === 1 ? 'checked' : '' ?>>
-            <span>Mostrar en el directorio público</span>
-          </label>
-        </div>
-
-        <div class="field">
-          <label class="field-check">
-            <input type="checkbox" name="hide_emails" value="1" <?= (int) $old('hide_emails', 0) === 1 ? 'checked' : '' ?>>
-            <span>Ocultar correos en el directorio</span>
-          </label>
-        </div>
       </div>
       <?php else: ?>
       <input type="hidden" name="active" value="1">
@@ -255,7 +228,6 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   </div>
 </form>
 
-<?php if (! $isEdit): ?>
 <script>
 (function () {
   const input    = document.getElementById('new-photo');
@@ -345,113 +317,13 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   });
 }());
 </script>
-<?php endif; ?>
-
-<?php if ($isEdit): ?>
-<!-- Photo upload (separate form, only on edit) -->
-<div class="card" style="margin-bottom: var(--space-4);">
-  <div class="card-header"><h2 class="card-title">Foto</h2></div>
-  <div class="card-body">
-    <form action="<?= route_to('employees.photo.upload', $employee['id']) ?>" method="post" enctype="multipart/form-data" id="photo-form">
-      <?= csrf_field() ?>
-      <div style="display:flex; gap:var(--space-4); align-items:flex-start; flex-wrap:wrap;">
-
-        <!-- Current / new preview -->
-        <div id="photo-preview-wrap" style="width:80px; height:80px; border-radius:var(--radius-md); overflow:hidden; background:var(--color-neutral-100); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-          <?php if (! empty($employee['photo'])): ?>
-            <img id="photo-preview-img" src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="Foto actual" style="width:100%; height:100%; object-fit:cover; display:block;">
-          <?php else: ?>
-            <svg id="photo-preview-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <?php endif; ?>
-        </div>
-
-        <!-- Drop zone -->
-        <div style="flex:1; min-width:200px;">
-          <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" required style="display:none;" aria-label="Seleccionar foto">
-          <div id="photo-dropzone"
-               role="button" tabindex="0" aria-label="Subir foto"
-               style="border:2px dashed var(--color-neutral-300); border-radius:var(--radius-md); padding:var(--space-5) var(--space-4); text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; background:var(--color-neutral-50);">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="1.5" style="margin:0 auto var(--space-2); display:block;" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p id="photo-dropzone-label" style="margin:0; font-size:var(--text-sm); color:var(--text-muted);">Arrastra una imagen aquí o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span></p>
-            <p style="margin:var(--space-1) 0 0; font-size:var(--text-xs); color:var(--text-muted);">JPG, PNG o WEBP · máx. 2 MB</p>
-          </div>
-          <button type="submit" id="photo-submit" class="btn btn-secondary" style="margin-top:var(--space-3); display:none;">Guardar foto</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-<script>
-(function () {
-  const input     = document.getElementById('photo');
-  const dropzone  = document.getElementById('photo-dropzone');
-  const label     = document.getElementById('photo-dropzone-label');
-  const wrap      = document.getElementById('photo-preview-wrap');
-  const submitBtn = document.getElementById('photo-submit');
-
-  function applyFile(file) {
-    if (! file) return;
-
-    label.innerHTML = '<span style="font-weight:500; color:var(--text-primary);">' + file.name + '</span>';
-    dropzone.style.borderColor = 'var(--color-primary)';
-    dropzone.style.background  = '#f0f7ff';
-    submitBtn.style.display    = '';
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      let img = document.getElementById('photo-preview-img');
-      if (! img) {
-        const icon = document.getElementById('photo-preview-icon');
-        if (icon) icon.remove();
-        img = document.createElement('img');
-        img.id = 'photo-preview-img';
-        img.alt = 'Vista previa';
-        img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
-        wrap.appendChild(img);
-      }
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  input.addEventListener('change', function () {
-    if (this.files.length) applyFile(this.files[0]);
-  });
-
-  dropzone.addEventListener('click', function () { input.click(); });
-  dropzone.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
-  });
-
-  dropzone.addEventListener('dragover', function (e) {
-    e.preventDefault();
-    this.style.borderColor = 'var(--color-primary)';
-    this.style.background  = '#f0f7ff';
-  });
-  dropzone.addEventListener('dragleave', function () {
-    if (! input.files.length) {
-      this.style.borderColor = 'var(--color-neutral-300)';
-      this.style.background  = 'var(--color-neutral-50)';
-    }
-  });
-  dropzone.addEventListener('drop', function (e) {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      input.files = dt.files;
-      applyFile(file);
-    }
-  });
-}());
-</script>
 
 <script>
 (function () {
   'use strict';
 
   const BASE = '<?= base_url() ?>';
+  const EXCLUDE_ID = '<?= $isEdit ? (int) $employee['id'] : '' ?>';
 
   // ---- Parent (jefe directo) autocomplete ----
   const parentInput = document.getElementById('parent_search');
@@ -462,7 +334,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   async function searchEmployees(term) {
     try {
       const params = new URLSearchParams({ q: term, limit: '10' });
-      params.append('exclude_id', '<?= (int) $employee['id'] ?>');
+      if (EXCLUDE_ID) params.append('exclude_id', EXCLUDE_ID);
       const url = BASE + 'employees/employees-search?' + params.toString();
       const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
       if (! res.ok) return;
@@ -505,6 +377,5 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   }
 })();
 </script>
-<?php endif; ?>
 
 <?= $this->endSection() ?>

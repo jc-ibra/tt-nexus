@@ -30,7 +30,7 @@ if (is_file($provisioningPanel)) {
 }
 ?>
 
-<div style="display:grid; grid-template-columns: 280px 1fr; gap: var(--space-4);">
+<div style="display:grid; grid-template-columns: 280px 1fr; gap: var(--space-4); align-items:start;">
 
   <!-- Left column: photo and quick badges -->
   <div class="card">
