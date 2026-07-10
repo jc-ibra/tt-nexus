@@ -27,6 +27,39 @@ $canManageEmployees = service('access')->canAccessModule('employees');
   </div>
 </div>
 
+<style>
+.emp-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-neutral-200);
+  margin-bottom: var(--space-4);
+}
+.emp-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition: color var(--duration-base), border-color var(--duration-base);
+}
+.emp-tab:hover { color: var(--text-primary); }
+.emp-tab.is-active {
+  color: var(--color-primary);
+  font-weight: var(--weight-semibold);
+  border-bottom-color: var(--color-primary);
+}
+.emp-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+</style>
+
 <div style="display:grid; grid-template-columns: 280px 1fr; gap: var(--space-4); align-items:start;">
 
   <!-- Left column: photo and quick badges -->
@@ -64,8 +97,21 @@ $canManageEmployees = service('access')->canAccessModule('employees');
     </div>
   </div>
 
-  <!-- Right column: data sections -->
+  <!-- Right column: tabbed employee record (expediente) -->
   <div>
+    <div class="emp-tabs" role="tablist" aria-label="Secciones del empleado">
+      <button type="button" class="emp-tab is-active" id="emp-tab-info" role="tab"
+              aria-selected="true" aria-controls="emp-panel-info" data-panel="emp-panel-info">
+        Información del empleado
+      </button>
+      <button type="button" class="emp-tab" id="emp-tab-prov" role="tab"
+              aria-selected="false" aria-controls="emp-panel-prov" tabindex="-1" data-panel="emp-panel-prov">
+        Aprovisionamiento
+      </button>
+    </div>
+
+    <!-- Tab: Información del empleado -->
+    <div id="emp-panel-info" class="emp-tab-panel" role="tabpanel" aria-labelledby="emp-tab-info">
     <div class="card" style="margin-bottom: var(--space-4);">
       <div class="card-header"><h2 class="card-title">Contacto</h2></div>
       <div class="card-body">
@@ -157,17 +203,53 @@ $canManageEmployees = service('access')->canAccessModule('employees');
         </div>
       </div>
     <?php endif; ?>
+    </div><!-- /emp-panel-info -->
 
+    <!-- Tab: Aprovisionamiento -->
+    <div id="emp-panel-prov" class="emp-tab-panel" role="tabpanel" aria-labelledby="emp-tab-prov" style="display:none;">
     <?php
-    // Embed provisioning panel at the bottom of the info column (no-op if the
-    // user has no access to the module). Placed last so the operator scrolls
-    // through all the employee data before acting.
+    // Provisioning panel (no-op if the user has no access to the module; the
+    // email-accounts section is read-only for everyone else).
     $provisioningPanel = APPPATH . 'Modules/Provisioning/Views/partials/employee-panel.php';
     if (is_file($provisioningPanel)) {
         include $provisioningPanel;
     }
     ?>
+    </div><!-- /emp-panel-prov -->
   </div>
 </div>
+
+<script>
+(function () {
+  'use strict';
+  const tabs   = [...document.querySelectorAll('.emp-tab')];
+  const panels = id => document.getElementById(id);
+
+  function activate(tab) {
+    tabs.forEach(t => {
+      const active = t === tab;
+      t.classList.toggle('is-active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+      t.tabIndex = active ? 0 : -1;
+      const panel = panels(t.dataset.panel);
+      if (panel) panel.style.display = active ? '' : 'none';
+    });
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => activate(tab));
+    // Arrow-key navigation between tabs (WCAG tablist pattern)
+    tab.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      const next = e.key === 'ArrowRight'
+        ? tabs[(i + 1) % tabs.length]
+        : tabs[(i - 1 + tabs.length) % tabs.length];
+      activate(next);
+      next.focus();
+    });
+  });
+}());
+</script>
 
 <?= $this->endSection() ?>

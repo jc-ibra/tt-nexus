@@ -95,19 +95,24 @@ Authorization: Bearer <API_KEY>
 
 La API key vive cifrada en `provisioning_system_credentials`, fuera del repositorio.
 
+> **API v1 (usuarios de login).** La Intranet separó **empleado** (nodo del
+> organigrama, no inicia sesión, lo administra la Intranet) de **usuario** (cuenta
+> de login, la administra Nexus). Nexus **ya no** envía datos de organigrama
+> (`puesto`, `area`, `departamento`, `jefe_directo`); envía sólo la información
+> mínima de la cuenta. El identificador de recurso es **`nexus_id`** (derivado del
+> id de Nexus, p. ej. `NX-42`), **no** `no_empleado`. El `id_usuario` (`INT-<n>`)
+> que devuelve la Intranet es informativo: todas las operaciones posteriores usan
+> `nexus_id`.
+
 ### `POST /api/v1/usuarios` — Crear usuario
 
 Request:
 ```json
 {
-  "no_empleado": "1024",
+  "nexus_id": "NX-42",
   "nombre": "Ana",
   "apellidos": "Lopez Garcia",
   "correo": "ana.lopez@trantortechnologies.mx",
-  "area": "Ops",
-  "departamento": "Soporte en Campo",
-  "puesto": "Tecnico de Campo",
-  "jefe_directo": "1003",
   "password": "<texto_plano_temporal>",
   "estado": "activo"
 }
@@ -118,7 +123,7 @@ Respuesta esperada:
 { "exito": true, "id_usuario": "INT-5567", "mensaje": "Usuario creado" }
 ```
 
-### `POST /api/v1/usuarios/{no_empleado}/desactivar`
+### `POST /api/v1/usuarios/{nexus_id}/desactivar`
 
 ```json
 { "exito": true, "mensaje": "Usuario desactivado" }
@@ -126,7 +131,7 @@ Respuesta esperada:
 
 > La baja **no debe borrar** el registro; sólo marcarlo inactivo.
 
-### `POST /api/v1/usuarios/{no_empleado}/password`
+### `POST /api/v1/usuarios/{nexus_id}/password`
 
 Request:
 ```json
@@ -138,9 +143,9 @@ Respuesta:
 { "exito": true, "mensaje": "Contrasena actualizada" }
 ```
 
-### `PUT /api/v1/usuarios/{no_empleado}` (opcional)
+### `PUT /api/v1/usuarios/{nexus_id}` — Actualizar (parcial)
 
-Request: mismos campos que en la creación, los que cambien. Respuesta: mismo formato.
+Request: sólo los campos que cambian (`nombre`, `apellidos`, `correo`, `estado`, `password`). Respuesta: mismo formato.
 
 ### `GET /api/v1/ping` (opcional, recomendado)
 
@@ -156,7 +161,7 @@ Sirve para que el botón **Probar conexión** del panel de Nexus tenga algo conc
 - Siempre regresa `exito` (bool) y `mensaje` (string), incluso en error.
 - En error, agrega `error_codigo`:
   ```json
-  { "exito": false, "error_codigo": "USUARIO_DUPLICADO", "mensaje": "Ya existe un usuario con ese no_empleado" }
+  { "exito": false, "error_codigo": "USUARIO_DUPLICADO", "mensaje": "Ya existe un usuario con ese nexus_id" }
   ```
 
 ---

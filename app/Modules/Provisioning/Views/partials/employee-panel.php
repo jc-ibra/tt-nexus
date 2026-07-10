@@ -286,15 +286,25 @@ if ($canProvision) {
             $account        = $accountsBySystem[$sysId] ?? null;
             $isActiveSystem = (int) $s['is_active'] === 1;
             $status         = $account['status'] ?? 'sin_cuenta';
+            $hasAccount     = $status !== 'sin_cuenta';
+            // Once the employee is provisioned, the only bulk actions are
+            // "Cambiar contraseña" and "Dar de baja" — both require an existing
+            // account. A system without an account must not be selectable so we
+            // never attempt to change a password / disable on a nonexistent
+            // account (which the backend now skips regardless).
+            $selectable = $isActiveSystem && ! ($isProvisioned && ! $hasAccount);
           ?>
             <tr>
               <td style="padding-left:var(--space-4);">
-                <?php if ($isActiveSystem): ?>
+                <?php if ($selectable): ?>
                   <input type="checkbox" class="prov-sys-check" value="<?= $sysId ?>"
-                         data-system="<?= esc($s['name']) ?>" checked
+                         data-system="<?= esc($s['name']) ?>" data-account-status="<?= esc($status) ?>" checked
                          aria-label="Incluir <?= esc($s['name']) ?> en operaciones masivas">
-                <?php else: ?>
+                <?php elseif (! $isActiveSystem): ?>
                   <input type="checkbox" disabled title="Sistema inactivo" aria-label="<?= esc($s['name']) ?> inactivo">
+                <?php else: ?>
+                  <input type="checkbox" disabled title="Sin cuenta en este sistema; no aplica para cambiar contraseña ni dar de baja"
+                         aria-label="<?= esc($s['name']) ?> sin cuenta">
                 <?php endif; ?>
               </td>
               <td>
@@ -373,7 +383,7 @@ if ($canProvision) {
         <div class="prov-field prov-pw-wrap">
           <label class="prov-field-label">Contraseña inicial <span class="prov-req">*</span></label>
           <div class="prov-input-shell">
-            <input type="password" name="password" class="input prov-password-input" placeholder="Mínimo 8 caracteres" minlength="8">
+            <input type="password" name="password" class="input prov-password-input" placeholder="Mínimo 8 caracteres" minlength="8" required>
             <button type="button" class="prov-toggle-pw" aria-label="Mostrar contraseña">
               <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg class="icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -407,7 +417,7 @@ if ($canProvision) {
     <!-- Panel: Cambiar contraseña -->
     <div id="prov-panel-password" class="prov-panel" style="display:none; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
-        Actualiza la contraseña en todos los sistemas activos seleccionados de forma simultánea.
+        Actualiza la contraseña en los sistemas seleccionados que tengan una cuenta existente. Los sistemas sin cuenta se omiten: no se crea ninguna cuenta desde aquí.
       </p>
       <form method="post" action="<?= route_to('provisioning.employee.password', $employeeId) ?>"
             class="prov-bulk-form prov-form"
@@ -671,6 +681,30 @@ if ($canProvision) {
     });
   });
 
+  // ── "Dar de alta": lock submit until password + at least one system ────────
+  const altaPanel = document.getElementById('prov-panel-alta');
+  if (altaPanel) {
+    const altaForm    = altaPanel.querySelector('form');
+    const altaSubmit  = altaForm.querySelector('button[type="submit"]');
+    const altaPwInput = altaForm.querySelector('.prov-password-input');
+
+    const updateAltaSubmitState = function () {
+      const hasPassword = altaPwInput.value.trim().length > 0;
+      const hasSystem   = checks().some(cb => cb.checked);
+      altaSubmit.disabled = ! (hasPassword && hasSystem);
+    };
+
+    // Programmatic value changes (e.g. "Generar contraseña") don't fire 'input',
+    // so the generate handler dispatches one to keep this in sync.
+    altaPwInput.addEventListener('input', updateAltaSubmitState);
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('prov-sys-check') || e.target.id === 'prov-select-all') {
+        updateAltaSubmitState();
+      }
+    });
+    updateAltaSubmitState();
+  }
+
   // ── Password visibility toggle ─────────────────────────────────────────────
   document.querySelectorAll('.prov-toggle-pw').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -702,6 +736,9 @@ if ($canProvision) {
 
       input.value = pw;
       input.type  = 'text';
+      // Notify listeners (e.g. the "Dar de alta" enable/disable guard) since
+      // setting .value programmatically does not fire an 'input' event.
+      input.dispatchEvent(new Event('input', { bubbles: true }));
       const eyeBtn = wrap.querySelector('.prov-toggle-pw');
       if (eyeBtn) {
         eyeBtn.querySelector('.icon-eye').style.display    = 'none';

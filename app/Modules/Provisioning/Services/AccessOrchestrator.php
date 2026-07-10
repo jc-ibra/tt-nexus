@@ -327,8 +327,11 @@ class AccessOrchestrator
     {
         $existing = $this->accounts->findFor((int) $employee['id'], (int) $system['id']);
         if (! $existing || empty($existing['external_id'])) {
-            // No existing account → create instead of changePassword.
-            return $this->runCreate($system, $employee, array_merge($userData, ['password' => $newPassword]));
+            // No existing account → skip. A password change must never provision
+            // a new account: if Sistemas deliberately did not create the account
+            // (e.g. Mailcow), silently creating it here would override that
+            // decision. Use the "Alta en sistemas" flow to create accounts.
+            return ['success' => true, 'message' => 'Sin cuenta en ' . $system['name'] . '; no se cambió la contraseña.', 'skipped' => true];
         }
         $externalId = (string) $existing['external_id'];
         return $this->runOperation('password', $system, $employee, $userData, function (SystemConnector $c) use ($externalId, $newPassword, $userData) {
@@ -463,6 +466,10 @@ class AccessOrchestrator
     private function mapEmployee(array $employee, ?string $password = null): array
     {
         $data = [
+            // Nexus-owned identifier used by the Intranet API v1 as the resource
+            // key (nexus_id) for create/update/disable/password. Derived from the
+            // employee's Nexus primary key so it is always present and stable.
+            'nexus_id'        => ! empty($employee['id']) ? 'NX-' . (int) $employee['id'] : '',
             'employee_number' => (string) ($employee['employee_number'] ?? ''),
             'name'            => (string) ($employee['name'] ?? ''),
             'lastname'        => (string) ($employee['lastname'] ?? ''),

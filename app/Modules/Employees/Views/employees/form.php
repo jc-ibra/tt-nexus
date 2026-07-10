@@ -175,7 +175,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         <div class="field" style="grid-column: 1 / -1;">
           <label class="field-label" for="parent_search">Jefe directo</label>
           <input type="text" id="parent_search" class="input"
-                 placeholder="Buscar por nombre, correo o número…" autocomplete="off"
+                 placeholder="Buscar por nombre o número de empleado…" autocomplete="off"
                  list="parent-options"
                  value="<?= esc($isEdit && ! empty($employee['parent_name']) ? trim($employee['parent_name'] . ' ' . ($employee['parent_lastname'] ?? '')) : '') ?>">
           <datalist id="parent-options"></datalist>
@@ -331,6 +331,13 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   const parentIdInput  = document.getElementById('parent_id');
   let parentCache = [];
 
+  // Label shown in the dropdown: name + employee number (never the personal
+  // email). Search still matches by email/number on the backend.
+  function parentLabel(e) {
+    const name = ((e.name || '') + ' ' + (e.lastname || '')).trim();
+    return e.employee_number ? name + ' · #' + e.employee_number : name;
+  }
+
   async function searchEmployees(term) {
     try {
       const params = new URLSearchParams({ q: term, limit: '10' });
@@ -342,7 +349,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       if (json.status !== 'success') return;
       parentCache = (json.data || []);
       parentDatalist.innerHTML = parentCache.map(e => {
-        const display = ((e.name || '') + ' ' + (e.lastname || '')).trim() + (e.email ? ' · ' + e.email : '');
+        const display = parentLabel(e);
         return '<option value="' + escAttr(display) + '" data-id="' + e.id + '">' + escAttr(display) + '</option>';
       }).join('');
     } catch (e) {
@@ -365,10 +372,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       parentIdInput.value = '';
       return;
     }
-    const match = parentCache.find(e => {
-      const display = ((e.name || '') + ' ' + (e.lastname || '')).trim() + (e.email ? ' · ' + e.email : '');
-      return display === term;
-    });
+    const match = parentCache.find(e => parentLabel(e) === term);
     parentIdInput.value = match ? match.id : '';
   });
 

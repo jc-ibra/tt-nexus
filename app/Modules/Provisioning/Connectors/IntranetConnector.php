@@ -5,23 +5,25 @@ declare(strict_types=1);
 namespace App\Modules\Provisioning\Connectors;
 
 /**
- * Intranet connector.
+ * Intranet connector — Intranet Trantor API v1 de Usuarios.
  *
- * Nexus owns the contract; the Intranet must implement the endpoints
- * described in the module README ("Contrato de la Intranet").
+ * The Intranet now manages login accounts only (no org-chart data). Nexus sends
+ * the minimal user info keyed by `nexus_id`; puesto/area/departamento/jefe_directo
+ * are no longer part of the contract.
  *
  * Auth: Authorization: Bearer <api_key>
  * Format: JSON
  *
- * Endpoints:
- *   POST   /api/v1/usuarios
- *   POST   /api/v1/usuarios/{no_empleado}/desactivar
- *   POST   /api/v1/usuarios/{no_empleado}/password
- *   PUT    /api/v1/usuarios/{no_empleado}
- *   GET    /api/v1/ping (used by verifyConnection; OPTIONAL on intranet side)
+ * Endpoints (resource key is `nexus_id`, e.g. "NX-42"):
+ *   GET    /api/v1/ping
+ *   POST   /api/v1/usuarios                          { nexus_id, nombre, apellidos, correo, password, estado? }
+ *   PUT    /api/v1/usuarios/{nexus_id}               partial: nombre?, apellidos?, correo?, estado?, password?
+ *   POST   /api/v1/usuarios/{nexus_id}/desactivar
+ *   POST   /api/v1/usuarios/{nexus_id}/password      { password }
  *
  * Response contract:
- *   { "exito": bool, "id_usuario": "...", "mensaje": "...", "error_codigo": "..." }
+ *   { "exito": bool, "id_usuario": "INT-<n>", "mensaje": "...", "error_codigo": "..." }
+ *   `id_usuario` is informational only; all subsequent operations key off `nexus_id`.
  */
 class IntranetConnector implements SystemConnector
 {
@@ -51,26 +53,22 @@ class IntranetConnector implements SystemConnector
 
     public function createUser(array $userData): ConnectorResult
     {
-        $employeeNumber = trim((string) ($userData['employee_number'] ?? ''));
-        if ($employeeNumber === '') {
-            return ConnectorResult::fail('Falta el número de empleado para crear el usuario en la Intranet.', 'INTRANET_NO_EMP_NUMBER');
+        $nexusId = trim((string) ($userData['nexus_id'] ?? ''));
+        if ($nexusId === '') {
+            return ConnectorResult::fail('Falta el identificador de Nexus (nexus_id) para crear el usuario en la Intranet.', 'INTRANET_NO_NEXUS_ID');
         }
 
         $payload = [
-            'no_empleado'    => $employeeNumber,
-            'nombre'         => (string) ($userData['name'] ?? ''),
-            'apellidos'      => (string) ($userData['lastname'] ?? ''),
-            'correo'         => (string) ($userData['email'] ?? ''),
-            'area'           => (string) ($userData['area'] ?? ''),
-            'departamento'   => (string) ($userData['department'] ?? ''),
-            'puesto'         => (string) ($userData['position'] ?? ''),
-            'jefe_directo'   => (string) ($userData['boss_number'] ?? ''),
-            'password'       => (string) ($userData['password'] ?? ''),
-            'estado'         => 'activo',
+            'nexus_id'  => $nexusId,
+            'nombre'    => (string) ($userData['name'] ?? ''),
+            'apellidos' => (string) ($userData['lastname'] ?? ''),
+            'correo'    => (string) ($userData['email'] ?? ''),
+            'password'  => (string) ($userData['password'] ?? ''),
+            'estado'    => 'activo',
         ];
 
         $resp = $this->request('POST', '/api/v1/usuarios', $payload);
-        return $this->wrap($resp, $employeeNumber, "Usuario creado en Intranet.", 'INTRANET_CREATE_FAILED');
+        return $this->wrap($resp, $nexusId, "Usuario creado en Intranet.", 'INTRANET_CREATE_FAILED');
     }
 
     public function disableUser(string $externalId, array $userData = []): ConnectorResult
@@ -90,13 +88,9 @@ class IntranetConnector implements SystemConnector
     public function updateUser(string $externalId, array $userData): ConnectorResult
     {
         $payload = [
-            'nombre'       => (string) ($userData['name'] ?? ''),
-            'apellidos'    => (string) ($userData['lastname'] ?? ''),
-            'correo'       => (string) ($userData['email'] ?? ''),
-            'area'         => (string) ($userData['area'] ?? ''),
-            'departamento' => (string) ($userData['department'] ?? ''),
-            'puesto'       => (string) ($userData['position'] ?? ''),
-            'jefe_directo' => (string) ($userData['boss_number'] ?? ''),
+            'nombre'    => (string) ($userData['name'] ?? ''),
+            'apellidos' => (string) ($userData['lastname'] ?? ''),
+            'correo'    => (string) ($userData['email'] ?? ''),
         ];
 
         $resp = $this->request('PUT', '/api/v1/usuarios/' . rawurlencode($externalId), $payload);
@@ -172,7 +166,9 @@ class IntranetConnector implements SystemConnector
             );
         }
 
-        $returnedId = is_array($body) && isset($body['id_usuario']) ? (string) $body['id_usuario'] : $externalId;
-        return ConnectorResult::ok($okMessage, $returnedId, $body);
+        // Persist the nexus_id (the value we sent) as the external id — the API
+        // keys every subsequent operation off nexus_id, not the intranet's own
+        // id_usuario (INT-<n>), which is informational only.
+        return ConnectorResult::ok($okMessage, $externalId, $body);
     }
 }
