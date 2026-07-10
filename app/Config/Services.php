@@ -158,6 +158,7 @@ class Services extends BaseService
             new EmployeePositionModel(),
             self::mailboxesService(),
             new EmployeeEmailAccountModel(),
+            self::glpiCatalogService(),
         );
     }
 

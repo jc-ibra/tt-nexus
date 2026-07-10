@@ -347,6 +347,49 @@ class GlpiCatalogService
         return ServiceResult::ok(['id' => $newId], 'Valor agregado correctamente.');
     }
 
+    /**
+     * Finds a value by name (case-insensitive, trimmed) within a catalog table.
+     * Used for duplicate detection before an automated insert.
+     */
+    public function findByName(string $table, string $name): ?array
+    {
+        $needle = mb_strtolower(trim($name), 'UTF-8');
+        if ($needle === '') {
+            return null;
+        }
+        foreach ($this->listValues($table) as $row) {
+            if (mb_strtolower(trim($row['name']), 'UTF-8') === $needle) {
+                return $row;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Idempotent insert: creates the value only when no entry with the same
+     * name already exists. On success, data['existed'] is true when the value
+     * was already present (skipped) and false when it was freshly created.
+     */
+    public function ensureValue(string $table, string $name, string $comment = ''): ServiceResult
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return ServiceResult::fail('El nombre es obligatorio.');
+        }
+
+        $existing = $this->findByName($table, $name);
+        if ($existing !== null) {
+            return ServiceResult::ok(['id' => (int) $existing['id'], 'existed' => true], 'El valor ya existía.');
+        }
+
+        $result = $this->createValue($table, ['name' => $name, 'comment' => $comment]);
+        if (! $result->success) {
+            return $result;
+        }
+
+        return ServiceResult::ok(['id' => (int) ($result->data['id'] ?? 0), 'existed' => false], $result->message);
+    }
+
     public function updateValue(string $table, int $id, array $data): ServiceResult
     {
         $db   = $this->glpi->connection();

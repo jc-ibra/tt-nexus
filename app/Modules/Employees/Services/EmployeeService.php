@@ -11,6 +11,7 @@ use App\Modules\Employees\Models\EmployeeEmailAccountModel;
 use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Mailboxes\Services\MailboxesService;
+use App\Modules\Provisioning\Services\GlpiCatalogService;
 use CodeIgniter\HTTP\Files\UploadedFile;
 
 class EmployeeService
@@ -22,6 +23,7 @@ class EmployeeService
         private EmployeePositionModel      $positionModel,
         private MailboxesService           $mailboxesService,
         private EmployeeEmailAccountModel  $emailAccountModel,
+        private GlpiCatalogService         $glpiCatalog,
     ) {}
 
     public function paginate(array $filters, int $perPage = 20, int $page = 1): array
@@ -83,6 +85,8 @@ class EmployeeService
         }
 
         $employee = $this->findById($id);
+
+        $this->syncGlpiCatalogsOnUpdate($current, $employee);
 
         $becameInactive  = (int) ($current['active'] ?? 1) === 1 && isset($clean['active']) && (int) $clean['active'] === 0;
         $gotDischargeNow = empty($current['date_discharge']) && ! empty($clean['date_discharge']);
@@ -430,6 +434,169 @@ class EmployeeService
     private function afterCreate(?array $employee): void
     {
         // TODO: future Mailcow sync — provision/refresh mailbox here.
+
+        $this->syncGlpiCatalogs($employee);
+    }
+
+    /**
+     * Registers the new employee in the GLPI "IDS" catalogs so they become
+     * available as dropdown values in GLPI:
+     *   - idsnombrefield            → "APELLIDOS NOMBRES" (uppercased)
+     *   - idsnumerodeempleadofield  → employee_number as captured on the form
+     *
+     * Best-effort by design: any GLPI failure is logged and NEVER blocks the
+     * employee creation. Duplicates are skipped and logged. Reuses Provisioning's
+     * GlpiCatalogService — this module never touches the GLPI database directly.
+     */
+    private function syncGlpiCatalogs(?array $employee): void
+    {
+        if ($employee === null) {
+            return;
+        }
+
+        $id = $employee['id'] ?? '?';
+
+        try {
+            if (! $this->glpiCatalog->isConfigured()) {
+                log_message('info', "[Employees->GLPI] GLPI no configurado; se omite alta en catálogos IDS (empleado id={$id}).");
+                return;
+            }
+
+            // IDS Nombre — "APELLIDOS NOMBRES" en mayúsculas.
+            $idsName = $this->idsCatalogName($employee);
+            if ($idsName !== '') {
+                $this->pushGlpiCatalogValue('idsnombrefield', $idsName);
+            } else {
+                log_message('warning', "[Employees->GLPI] Empleado id={$id} sin nombre; se omite catálogo IDS Nombre.");
+            }
+
+            // IDS Número de Empleado — tal cual se capturó en el formulario.
+            $number = trim((string) ($employee['employee_number'] ?? ''));
+            if ($number !== '') {
+                $this->pushGlpiCatalogValue('idsnumerodeempleadofield', $number);
+            } else {
+                log_message('warning', "[Employees->GLPI] Empleado id={$id} sin número de empleado; se omite catálogo IDS Número de Empleado.");
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking: a GLPI outage must never break employee creation.
+            log_message('error', "[Employees->GLPI] Error al sincronizar catálogos IDS (empleado id={$id}): " . $e->getMessage());
+        }
+    }
+
+    /** Builds "APELLIDOS NOMBRES" uppercased for the GLPI IDS name catalog. */
+    private function idsCatalogName(array $employee): string
+    {
+        $lastname = trim((string) ($employee['lastname'] ?? ''));
+        $name     = trim((string) ($employee['name'] ?? ''));
+        $full     = trim($lastname . ' ' . $name);
+
+        return $full === '' ? '' : mb_strtoupper($full, 'UTF-8');
+    }
+
+    /**
+     * Keeps the GLPI "IDS Nombre" catalog in sync when an employee's name is
+     * corrected (e.g. an HR typo fix). The employee number is immutable by
+     * business rule, so only idsnombrefield is touched here.
+     *
+     * Strategy (no schema change — we don't store the GLPI row id):
+     *   - Locate the OLD entry by its previous name and RENAME it in place via
+     *     updateValue. Renaming preserves the GLPI row id, so any GLPI ticket or
+     *     asset referencing that catalog value keeps its link (a delete+recreate
+     *     would orphan them). This relies on the golden rule: names are never
+     *     edited manually in any system, only through Nexus — so the old name in
+     *     GLPI always matches what Nexus last wrote.
+     *   - If the new name already exists as a different entry, skip to avoid a
+     *     duplicate (logged).
+     *   - If the old entry can't be found (never created), fall back to creating
+     *     the new value (dedup-safe).
+     *
+     * Best-effort: any GLPI failure is logged and NEVER blocks the update.
+     */
+    private function syncGlpiCatalogsOnUpdate(?array $current, ?array $employee): void
+    {
+        if ($current === null || $employee === null) {
+            return;
+        }
+
+        $id = $employee['id'] ?? '?';
+
+        try {
+            if (! $this->glpiCatalog->isConfigured()) {
+                log_message('info', "[Employees->GLPI] GLPI no configurado; se omite actualización de catálogo IDS Nombre (empleado id={$id}).");
+                return;
+            }
+
+            $oldName = $this->idsCatalogName($current);
+            $newName = $this->idsCatalogName($employee);
+
+            if ($newName === '') {
+                log_message('warning', "[Employees->GLPI] Empleado id={$id} sin nombre tras actualizar; se omite catálogo IDS Nombre.");
+                return;
+            }
+
+            // Sin cambio efectivo de nombre (case-insensitive) → nada que hacer.
+            if (mb_strtolower($oldName, 'UTF-8') === mb_strtolower($newName, 'UTF-8')) {
+                return;
+            }
+
+            $slug  = 'idsnombrefield';
+            $table = $this->glpiCatalog->resolveTable($slug);
+            if ($table === null) {
+                log_message('warning', "[Employees->GLPI] Catálogo '{$slug}' no encontrado en GLPI; se omite actualización de '{$newName}'.");
+                return;
+            }
+
+            // Colisión: el nombre nuevo ya existe como otra entrada → no duplicar.
+            if ($this->glpiCatalog->findByName($table, $newName) !== null) {
+                log_message('warning', "[Employees->GLPI] El nombre '{$newName}' ya existe en catálogo '{$slug}'; se omite renombrar para no duplicar (empleado id={$id}).");
+                return;
+            }
+
+            // Renombrar la entrada vieja en su lugar (preserva id y referencias GLPI).
+            $existing = $oldName !== '' ? $this->glpiCatalog->findByName($table, $oldName) : null;
+            if ($existing !== null) {
+                $result = $this->glpiCatalog->updateValue($table, (int) $existing['id'], ['name' => $newName]);
+                if ($result->success) {
+                    log_message('info', "[Employees->GLPI] Catálogo '{$slug}': '{$oldName}' renombrado a '{$newName}' (empleado id={$id}).");
+                } else {
+                    log_message('warning', "[Employees->GLPI] No se pudo renombrar '{$oldName}' a '{$newName}' en '{$slug}': {$result->message}");
+                }
+                return;
+            }
+
+            // Fallback: la entrada vieja no existe → crear la nueva (dedup-safe).
+            $result = $this->glpiCatalog->ensureValue($table, $newName);
+            if ($result->success) {
+                log_message('info', "[Employees->GLPI] Catálogo '{$slug}': entrada vieja '{$oldName}' no encontrada; se creó '{$newName}' (empleado id={$id}).");
+            } else {
+                log_message('warning', "[Employees->GLPI] No se pudo crear '{$newName}' en '{$slug}': {$result->message}");
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking: a GLPI outage must never break the employee update.
+            log_message('error', "[Employees->GLPI] Error al actualizar catálogo IDS Nombre (empleado id={$id}): " . $e->getMessage());
+        }
+    }
+
+    /** Inserts a value into a GLPI catalog by slug, skipping duplicates. Best-effort, log-only. */
+    private function pushGlpiCatalogValue(string $slug, string $value): void
+    {
+        $table = $this->glpiCatalog->resolveTable($slug);
+        if ($table === null) {
+            log_message('warning', "[Employees->GLPI] Catálogo '{$slug}' no encontrado en GLPI; se omite '{$value}'.");
+            return;
+        }
+
+        $result = $this->glpiCatalog->ensureValue($table, $value);
+        if (! $result->success) {
+            log_message('warning', "[Employees->GLPI] No se pudo agregar '{$value}' al catálogo '{$slug}': {$result->message}");
+            return;
+        }
+
+        if (! empty($result->data['existed'])) {
+            log_message('info', "[Employees->GLPI] Valor '{$value}' ya existía en catálogo '{$slug}'; se omite duplicado.");
+        } else {
+            log_message('info', "[Employees->GLPI] Valor '{$value}' agregado al catálogo '{$slug}'.");
+        }
     }
 
     private function afterDeactivate(?array $employee): void
