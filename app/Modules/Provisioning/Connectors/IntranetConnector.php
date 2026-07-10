@@ -16,10 +16,14 @@ namespace App\Modules\Provisioning\Connectors;
  *
  * Endpoints (resource key is `nexus_id`, e.g. "NX-42"):
  *   GET    /api/v1/ping
- *   POST   /api/v1/usuarios                          { nexus_id, nombre, apellidos, correo, password, estado? }
- *   PUT    /api/v1/usuarios/{nexus_id}               partial: nombre?, apellidos?, correo?, estado?, password?
+ *   POST   /api/v1/usuarios                          { nexus_id, nombre, apellidos, correo, password, estado?, foto_base64?, foto_mime? }
+ *   PUT    /api/v1/usuarios/{nexus_id}               partial: nombre?, apellidos?, correo?, estado?, password?, foto_base64?, foto_mime?
  *   POST   /api/v1/usuarios/{nexus_id}/desactivar
  *   POST   /api/v1/usuarios/{nexus_id}/password      { password }
+ *
+ * Photo: on create, when the employee has a photo, `foto_base64` carries the raw
+ * image bytes base64-encoded (no data: prefix) and `foto_mime` its content type
+ * (e.g. image/jpeg). Both are omitted when there is no photo.
  *
  * Response contract:
  *   { "exito": bool, "id_usuario": "INT-<n>", "mensaje": "...", "error_codigo": "..." }
@@ -77,6 +81,9 @@ class IntranetConnector implements SystemConnector
             'estado'    => 'activo',
         ];
 
+        // Ship the employee photo (if any) in the same call, base64-encoded.
+        $payload = array_merge($payload, $this->photoFields($userData));
+
         $resp = $this->request('POST', '/api/v1/usuarios', $payload);
         return $this->wrap($resp, $nexusId, "Usuario creado en Intranet.", 'INTRANET_CREATE_FAILED');
     }
@@ -107,14 +114,66 @@ class IntranetConnector implements SystemConnector
 
     public function updateUser(string $externalId, array $userData): ConnectorResult
     {
-        $payload = [
-            'nombre'    => (string) ($userData['name'] ?? ''),
-            'apellidos' => (string) ($userData['lastname'] ?? ''),
-            'correo'    => (string) ($userData['email'] ?? ''),
-        ];
+        // Partial update: only send the fields actually provided, so a
+        // profile-only sync (name/lastname/photo) never blanks the email.
+        $payload = [];
+        if (array_key_exists('name', $userData)) {
+            $payload['nombre'] = (string) $userData['name'];
+        }
+        if (array_key_exists('lastname', $userData)) {
+            $payload['apellidos'] = (string) $userData['lastname'];
+        }
+        if (array_key_exists('email', $userData) && trim((string) $userData['email']) !== '') {
+            $payload['correo'] = (string) $userData['email'];
+        }
+        $payload = array_merge($payload, $this->photoFields($userData));
+
+        if ($payload === []) {
+            return ConnectorResult::ok("Sin cambios aplicables en Intranet para {$externalId}.", $externalId);
+        }
 
         $resp = $this->request('PUT', '/api/v1/usuarios/' . rawurlencode($externalId), $payload);
         return $this->wrap($resp, $externalId, "Datos actualizados en Intranet para {$externalId}.", 'INTRANET_UPDATE_FAILED');
+    }
+
+    /**
+     * Builds the optional photo fields for the create payload. Returns an empty
+     * array when the employee has no photo on disk.
+     *
+     * @return array{foto_base64?: string, foto_mime?: string}
+     */
+    private function photoFields(array $userData): array
+    {
+        $path = trim((string) ($userData['photo_path'] ?? ''));
+        if ($path === '' || ! is_file($path)) {
+            return [];
+        }
+
+        $bytes = @file_get_contents($path);
+        if ($bytes === false || $bytes === '') {
+            return [];
+        }
+
+        return [
+            'foto_base64' => base64_encode($bytes),
+            'foto_mime'   => $this->detectMime($path),
+        ];
+    }
+
+    private function detectMime(string $path): string
+    {
+        if (function_exists('mime_content_type')) {
+            $mime = @mime_content_type($path);
+            if (is_string($mime) && $mime !== '') {
+                return $mime;
+            }
+        }
+        return match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'png'         => 'image/png',
+            'webp'        => 'image/webp',
+            'jpg', 'jpeg' => 'image/jpeg',
+            default       => 'application/octet-stream',
+        };
     }
 
     // -----------------------------------------------------------------------

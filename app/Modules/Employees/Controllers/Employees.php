@@ -69,7 +69,7 @@ class Employees extends BaseController
         // Optional photo uploaded together with the create form.
         $file = $this->request->getFile('photo');
         if ($file && $file->isValid()) {
-            $photoResult = $svc->saveUploadedPhoto($result->data['id'], $file);
+            $photoResult = $svc->saveUploadedPhoto((int) $result->data['id'], $file);
             if (! $photoResult->success) {
                 $err = is_array($photoResult->errors) ? implode(' ', $photoResult->errors) : (string) $photoResult->errors;
                 session()->setFlashdata('warning', 'Empleado creado, pero la foto no se guardó: ' . $err);
@@ -127,6 +127,15 @@ class Employees extends BaseController
         $svc  = service('employeeService');
         $data = $this->collectFormData();
 
+        // Capture the values that must propagate outward so we only sync on change.
+        $before = $svc->findById($id);
+
+        // The employee number is read-only: force the stored value so an edit
+        // (or a tampered POST) can never change it.
+        if ($before) {
+            $data['employee_number'] = $before['employee_number'] ?? '';
+        }
+
         $result = $svc->update($id, $data);
 
         if (! $result->success) {
@@ -135,12 +144,28 @@ class Employees extends BaseController
         }
 
         // Optional photo uploaded together with the edit form.
-        $file = $this->request->getFile('photo');
+        $file        = $this->request->getFile('photo');
+        $photoChanged = false;
         if ($file && $file->isValid()) {
-            $photoResult = $svc->saveUploadedPhoto($id, $file);
+            $photoChanged = true;
+            $photoResult  = $svc->saveUploadedPhoto($id, $file);
             if (! $photoResult->success) {
+                $photoChanged = false;
                 $err = is_array($photoResult->errors) ? implode(' ', $photoResult->errors) : (string) $photoResult->errors;
                 session()->setFlashdata('warning', 'Empleado actualizado, pero la foto no se guardó: ' . $err);
+            }
+        }
+
+        // Propagate Nombre/Apellidos (and Foto) to the external systems where the
+        // employee already has an account. Only when one of those changed.
+        $after       = $svc->findById($id);
+        $nameChanged = ($before['name'] ?? '') !== ($after['name'] ?? '');
+        $lastChanged = ($before['lastname'] ?? '') !== ($after['lastname'] ?? '');
+        if ($nameChanged || $lastChanged || $photoChanged) {
+            try {
+                service('provisioningOrchestrator')->syncEmployeeProfile($id);
+            } catch (\Throwable $e) {
+                log_message('error', '[Employees] Profile sync to systems failed: ' . $e->getMessage());
             }
         }
 

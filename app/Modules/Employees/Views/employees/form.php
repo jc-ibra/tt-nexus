@@ -19,7 +19,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   </div>
   <div class="page-actions">
     <a href="<?= $isEdit ? route_to('employees.show', $employee['id']) : route_to('employees.index') ?>" class="btn btn-secondary">Cancelar</a>
-    <button type="submit" form="employee-form" class="btn btn-primary"><?= $isEdit ? 'Guardar cambios' : 'Crear empleado' ?></button>
+    <button type="submit" id="employee-submit" form="employee-form" class="btn btn-primary"><?= $isEdit ? 'Guardar cambios' : 'Crear empleado' ?></button>
   </div>
 </div>
 
@@ -85,9 +85,10 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
         </div>
 
         <div class="field">
-          <label class="field-label" for="employee_number">Número de empleado <span class="required" aria-hidden="true">*</span></label>
+          <label class="field-label" for="employee_number">Número de empleado <?php if (! $isEdit): ?><span class="required" aria-hidden="true">*</span><?php endif; ?></label>
           <input type="text" id="employee_number" name="employee_number" class="input <?= isset($errors['employee_number']) ? 'is-error' : '' ?>"
-                 value="<?= esc($old('employee_number')) ?>" required maxlength="20">
+                 value="<?= esc($old('employee_number')) ?>" <?= $isEdit ? 'readonly' : 'required' ?> maxlength="20">
+          <?php if ($isEdit): ?><p class="field-hint text-muted text-sm">El número de empleado no se puede modificar.</p><?php endif; ?>
           <?php if (isset($errors['employee_number'])): ?><p class="field-error"><?= esc($errors['employee_number']) ?></p><?php endif; ?>
         </div>
       </div>
@@ -379,6 +380,21 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   function escAttr(str) {
     return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+})();
+</script>
+
+<script>
+// Prevent double submission: lock the submit button once the form is submitting.
+(function () {
+  var form = document.getElementById('employee-form');
+  var btn  = document.getElementById('employee-submit');
+  if (! form || ! btn) return;
+
+  form.addEventListener('submit', function () {
+    // The form is already submitting here; disabling the button afterward is safe.
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+  });
 })();
 </script>
 

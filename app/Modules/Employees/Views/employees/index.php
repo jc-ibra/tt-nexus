@@ -117,16 +117,20 @@ $canManageEmployees = service('access')->canAccessModule('employees');
             <td class="text-muted text-sm"><?= esc($e['department_name'] ?? '-') ?></td>
             <td class="text-muted text-sm"><?= esc($e['area_name'] ?? '-') ?></td>
             <td class="text-muted text-sm">
-              <?= esc(! empty($e['primary_email']) ? $e['primary_email'] : ($e['email'] ?? '')) ?>
-              <?php if (! empty($e['has_mailbox'])): ?>
-                <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón en Mailcow">Buzón</span>
+              <?php if (! empty($e['primary_email'])): ?>
+                <?= esc($e['primary_email']) ?>
+                <?php if (! empty($e['has_mailbox'])): ?>
+                  <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón en Mailcow">Buzón</span>
+                <?php endif; ?>
+              <?php else: ?>
+                <span class="badge badge-warning" title="Sin correo institucional; falta aprovisionar">Pendiente por provisionar</span>
               <?php endif; ?>
             </td>
             <td>
               <?php if ((int) ($e['active'] ?? 0) === 1): ?>
                 <span class="badge badge-success">Activo</span>
               <?php else: ?>
-                <span class="badge badge-neutral">Inactivo</span>
+                <span class="badge badge-warning">Inactivo</span>
               <?php endif; ?>
             </td>
             <td>

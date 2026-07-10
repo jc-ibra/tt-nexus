@@ -84,17 +84,18 @@ class GlpiConnector implements SystemConnector
 
         $payload = [
             'input' => [
-                'name'         => $glpiLogin,
-                'realname'     => trim((string) ($userData['lastname'] ?? '')),
-                'firstname'    => trim((string) ($userData['name'] ?? '')),
-                'password'     => (string) ($userData['password'] ?? ''),
-                'password2'    => (string) ($userData['password'] ?? ''),
-                'is_active'    => 1,
-                'entities_id'  => (int) ($this->options['default_entity_id'] ?? 0),
-                'profiles_id'  => (int) ($this->options['default_profile_id'] ?? 4),
-                'authtype'     => 1,
-                '_useremails'  => [$glpiEmail],
-                'comment'      => $this->buildComment($userData),
+                'name'                => $glpiLogin,
+                'realname'            => trim((string) ($userData['lastname'] ?? '')),
+                'firstname'           => trim((string) ($userData['name'] ?? '')),
+                'password'            => (string) ($userData['password'] ?? ''),
+                'password2'           => (string) ($userData['password'] ?? ''),
+                'is_active'           => 1,
+                'entities_id'         => (int) ($this->options['default_entity_id'] ?? 0),
+                'profiles_id'         => (int) ($this->options['default_profile_id'] ?? 4),
+                'authtype'            => 1,
+                'registration_number' => trim((string) ($userData['employee_number'] ?? '')),
+                '_useremails'         => [$glpiEmail],
+                'comment'             => $this->buildComment($userData),
             ],
         ];
 
@@ -198,7 +199,15 @@ class GlpiConnector implements SystemConnector
         if (isset($userData['email'])) {
             $input['_useremails'] = [(string) $userData['email']];
         }
-        $input['comment'] = $this->buildComment($userData);
+        if (isset($userData['employee_number'])) {
+            $input['registration_number'] = trim((string) $userData['employee_number']);
+        }
+        // Only touch the comment when org data is present; a profile-only sync
+        // (name/lastname) must not blank the existing comment.
+        $comment = $this->buildComment($userData);
+        if ($comment !== '') {
+            $input['comment'] = $comment;
+        }
 
         $resp = $this->request('PUT', 'User/' . $externalId, ['input' => $input], $session['token']);
         $this->killSession($session['token']);

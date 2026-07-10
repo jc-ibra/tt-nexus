@@ -261,6 +261,44 @@ class AccessOrchestrator
             : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem, 'temporary_password' => $newPassword]);
     }
 
+    /**
+     * Push profile changes (Nombre/Apellidos, plus Foto for the Intranet) to the
+     * external systems where the employee already has an account. Triggered by an
+     * RRHH edit from the Employees module — it never creates accounts and never
+     * touches credentials, the employee number, or org data.
+     *
+     * By contract: Intranet receives name/lastname/photo; GLPI and Mailcow
+     * receive only name/lastname (their updateUser ignores the photo — Mailcow
+     * just refreshes the mailbox display name).
+     */
+    public function syncEmployeeProfile(int $employeeId, array $systemKeys = ['glpi', 'intranet', 'mailcow']): ServiceResult
+    {
+        $employee = $this->loadEmployee($employeeId);
+        if (! $employee) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        // Restricted payload: only the fields that are allowed to travel outward.
+        $userData = [
+            'name'       => (string) ($employee['name'] ?? ''),
+            'lastname'   => (string) ($employee['lastname'] ?? ''),
+            'photo_path' => $this->resolvePhotoPath($employee),
+        ];
+
+        $perSystem = [];
+        foreach ($this->systems->listActive() as $system) {
+            if (! in_array($system['key'], $systemKeys, true)) {
+                continue;
+            }
+            $perSystem[$system['key']] = $this->runUpdate($system, $employee, $userData);
+        }
+
+        $allOk = ! in_array(false, array_map(fn($r) => $r['success'], $perSystem), true);
+        return $allOk
+            ? ServiceResult::ok(['results' => $perSystem], 'Datos sincronizados con los sistemas.')
+            : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem]);
+    }
+
     public function provisionOnSystem(int $employeeId, int $systemId, ?string $password = null): ServiceResult
     {
         $employee = $this->loadEmployee($employeeId);
@@ -639,11 +677,31 @@ class AccessOrchestrator
             'department'      => (string) ($employee['department_name'] ?? ''),
             'position'        => (string) ($employee['position_name'] ?? ''),
             'boss_number'     => (string) ($employee['boss_number'] ?? ''),
+            // Absolute path to the employee photo (if any). Connectors that need
+            // to ship the image (e.g. Intranet) read and encode it themselves;
+            // we keep the raw bytes out of userData and the bitácora.
+            'photo_path'      => $this->resolvePhotoPath($employee),
         ];
         if ($password !== null) {
             $data['password'] = $password;
         }
         return $data;
+    }
+
+    /**
+     * Absolute path to the employee photo on disk, or '' if none. Photos live in
+     * WRITEPATH/uploads/employees/{id}/{filename} and are served through an
+     * authenticated route, so external systems cannot fetch them by URL.
+     */
+    private function resolvePhotoPath(array $employee): string
+    {
+        $id    = (int) ($employee['id'] ?? 0);
+        $photo = trim((string) ($employee['photo'] ?? ''));
+        if ($id <= 0 || $photo === '') {
+            return '';
+        }
+        $path = WRITEPATH . 'uploads/employees/' . $id . '/' . $photo;
+        return is_file($path) ? $path : '';
     }
 
     private function summarize(array $userData): string

@@ -72,7 +72,7 @@ class WelcomeMailService
             'helpDeskEmail' => self::HELP_DESK_EMAIL,
         ]);
 
-        return service('mailer')->sendSingle(
+        return service('mailerService')->sendSingle(
             $loginEmail,
             $employeeName,
             $from['email'],
