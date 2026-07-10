@@ -58,11 +58,21 @@ class IntranetConnector implements SystemConnector
             return ConnectorResult::fail('Falta el identificador de Nexus (nexus_id) para crear el usuario en la Intranet.', 'INTRANET_NO_NEXUS_ID');
         }
 
+        // The institutional email is the key replicated to the Intranet, never
+        // the personal one.
+        $correo = trim((string) ($userData['mailbox_email'] ?? ''));
+        if ($correo === '') {
+            return ConnectorResult::fail(
+                'No hay un correo institucional para crear el usuario en la Intranet. Crea la cuenta de Mailcow o marca una cuenta institucional (Mailcow o Microsoft) como principal antes de aprovisionar.',
+                'INTRANET_NO_INSTITUTIONAL_EMAIL'
+            );
+        }
+
         $payload = [
             'nexus_id'  => $nexusId,
             'nombre'    => (string) ($userData['name'] ?? ''),
             'apellidos' => (string) ($userData['lastname'] ?? ''),
-            'correo'    => (string) ($userData['email'] ?? ''),
+            'correo'    => $correo,
             'password'  => (string) ($userData['password'] ?? ''),
             'estado'    => 'activo',
         ];

@@ -58,7 +58,36 @@ class AccessOrchestrator
         $systems = $this->systems->listActive();
         usort($systems, fn($a, $b) => ($a['key'] === 'mailcow' ? -1 : 1));
 
-        $resolvedMailboxEmail = $mailboxEmail; // may be updated after Mailcow succeeds
+        // --- Resolve the institutional email (the key for GLPI/Intranet) -------
+        // Which systems will actually run in this request.
+        $selectedKeys = [];
+        foreach ($systems as $s) {
+            if ($systemIds === null || in_array((int) $s['id'], $systemIds, true)) {
+                $selectedKeys[] = $s['key'];
+            }
+        }
+        $willCreateMailcow  = in_array('mailcow', $selectedKeys, true);
+        $needsInstitutional = (bool) array_intersect(['glpi', 'intranet'], $selectedKeys);
+
+        // When Mailcow is created here, its mailbox becomes the institutional key.
+        // Otherwise GLPI/Intranet must ride on the primary institutional account
+        // already on file — a personal email is never the key.
+        $resolvedMailboxEmail = $willCreateMailcow ? $mailboxEmail : null;
+
+        if (! $willCreateMailcow && $needsInstitutional) {
+            $primary         = $emailAccModel->getPrimary($employeeId);
+            $primaryEmail    = trim((string) ($primary['email'] ?? ''));
+            $isInstitutional = $primary
+                && in_array($primary['type'], ['mailcow', 'microsoft'], true)
+                && $primaryEmail !== '';
+
+            if (! $isInstitutional) {
+                return ServiceResult::fail(
+                    'Antes de dar de alta en GLPI o Intranet debes registrar una cuenta de correo institucional (Mailcow o Microsoft) y marcarla como principal, o incluir Mailcow en el alta. El correo personal no se usa como llave para los demás sistemas.'
+                );
+            }
+            $resolvedMailboxEmail = $primaryEmail;
+        }
 
         foreach ($systems as $system) {
             if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
@@ -73,9 +102,11 @@ class AccessOrchestrator
                     $effectiveData['email'] = $resolvedMailboxEmail;
                 }
             } else {
-                // Pass resolved Mailcow email to every subsequent system (e.g. GLPI uses it as login).
-                if ($resolvedMailboxEmail !== null) {
+                // GLPI/Intranet always ride on the institutional email, never the
+                // personal one — overwrite `email` so no connector can fall back to it.
+                if ($resolvedMailboxEmail !== null && $resolvedMailboxEmail !== '') {
                     $effectiveData['mailbox_email'] = $resolvedMailboxEmail;
+                    $effectiveData['email']         = $resolvedMailboxEmail;
                 }
             }
 
@@ -94,14 +125,17 @@ class AccessOrchestrator
                     ->countAllResults();
 
                 if (! $alreadyExists) {
-                    $emailAccModel->addAccount([
+                    // Rule: a Mailcow mailbox is always the primary email account.
+                    // A personal email is never primary, so this new account takes over.
+                    $newId = $emailAccModel->addAccount([
                         'employee_id' => $employeeId,
                         'type'        => 'mailcow',
                         'email'       => $createdEmail,
-                        'is_primary'  => 0,
+                        'is_primary'  => 1,
                         'created_at'  => $now,
                         'updated_at'  => $now,
                     ]);
+                    $emailAccModel->clearPrimary($employeeId, $newId);
                 }
             }
         }
@@ -172,6 +206,24 @@ class AccessOrchestrator
 
         $password = $password ?? $this->generateTemporaryPassword();
         $userData = $this->mapEmployee($employee, $password);
+
+        // GLPI/Intranet ride on the primary institutional account, never the
+        // personal email. (Mailcow provisions its own mailbox, so it is exempt.)
+        if (in_array($system['key'], ['glpi', 'intranet'], true)) {
+            $primary         = (new EmployeeEmailAccountModel())->getPrimary($employeeId);
+            $primaryEmail    = trim((string) ($primary['email'] ?? ''));
+            $isInstitutional = $primary
+                && in_array($primary['type'], ['mailcow', 'microsoft'], true)
+                && $primaryEmail !== '';
+
+            if (! $isInstitutional) {
+                return ServiceResult::fail(
+                    'Antes de dar de alta en ' . ($system['name'] ?? $system['key']) . ' debes registrar una cuenta de correo institucional (Mailcow o Microsoft) y marcarla como principal. El correo personal no se usa como llave.'
+                );
+            }
+            $userData['mailbox_email'] = $primaryEmail;
+            $userData['email']         = $primaryEmail;
+        }
 
         $result = $this->runCreate($system, $employee, $userData);
         return $result['success']
@@ -268,6 +320,22 @@ class AccessOrchestrator
 
         switch ($row['operation']) {
             case 'create':
+                // GLPI/Intranet need the institutional email as their key; a
+                // rebuilt payload must not fall back to the personal email.
+                if (in_array($system['key'], ['glpi', 'intranet'], true)) {
+                    $primary         = (new EmployeeEmailAccountModel())->getPrimary((int) $row['employee_id']);
+                    $primaryEmail    = trim((string) ($primary['email'] ?? ''));
+                    $isInstitutional = $primary
+                        && in_array($primary['type'], ['mailcow', 'microsoft'], true)
+                        && $primaryEmail !== '';
+
+                    if (! $isInstitutional) {
+                        $this->retries->update($row['id'], ['status' => 'abandoned', 'last_error' => 'Sin correo institucional principal; no se puede crear en ' . ($system['name'] ?? $system['key']) . ' con un correo personal.']);
+                        return false;
+                    }
+                    $userData['mailbox_email'] = $primaryEmail;
+                    $userData['email']         = $primaryEmail;
+                }
                 $result = $this->runCreate($system, $employee, $userData);
                 break;
             case 'disable':

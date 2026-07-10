@@ -70,12 +70,17 @@ class GlpiConnector implements SystemConnector
             return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
         }
 
-        $login = $this->buildLogin($userData);
-
-        // Use Mailcow email as GLPI login when available; fall back to employee number.
+        // The institutional email (Mailcow, or the primary institutional account)
+        // is the GLPI login and email. A personal email is never used here.
         $mailboxEmail = trim((string) ($userData['mailbox_email'] ?? ''));
-        $glpiLogin    = $mailboxEmail !== '' ? $mailboxEmail : $login;
-        $glpiEmail    = $mailboxEmail !== '' ? $mailboxEmail : (string) ($userData['email'] ?? '');
+        if ($mailboxEmail === '') {
+            return ConnectorResult::fail(
+                'No hay un correo institucional para crear el usuario en GLPI. Crea la cuenta de Mailcow o marca una cuenta institucional (Mailcow o Microsoft) como principal antes de aprovisionar.',
+                'GLPI_NO_INSTITUTIONAL_EMAIL'
+            );
+        }
+        $glpiLogin = $mailboxEmail;
+        $glpiEmail = $mailboxEmail;
 
         $payload = [
             'input' => [

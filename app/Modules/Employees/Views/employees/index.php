@@ -117,7 +117,7 @@ $canManageEmployees = service('access')->canAccessModule('employees');
             <td class="text-muted text-sm"><?= esc($e['department_name'] ?? '-') ?></td>
             <td class="text-muted text-sm"><?= esc($e['area_name'] ?? '-') ?></td>
             <td class="text-muted text-sm">
-              <?= esc($e['email']) ?>
+              <?= esc(! empty($e['primary_email']) ? $e['primary_email'] : ($e['email'] ?? '')) ?>
               <?php if (! empty($e['has_mailbox'])): ?>
                 <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón en Mailcow">Buzón</span>
               <?php endif; ?>

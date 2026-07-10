@@ -103,6 +103,7 @@ class EmployeeModel extends Model
         $offset  = ($page - 1) * $perPage;
         $builder = $this->db->table('employees_employees e')
             ->select('e.id, e.employee_number, e.name, e.lastname, e.email, e.has_mailbox, e.photo, e.active, e.date_entry, a.name AS area_name, d.name AS department_name, p.name AS position_name')
+            ->select('(SELECT ea.email FROM employee_email_accounts ea WHERE ea.employee_id = e.id AND ea.is_primary = 1 AND ea.email IS NOT NULL AND ea.email != \'\' ORDER BY ea.id ASC LIMIT 1) AS primary_email', false)
             ->join('employees_areas a',       'a.id = e.area_id',       'left')
             ->join('employees_departments d', 'd.id = e.department_id', 'left')
             ->join('employees_positions p',   'p.id = e.position_id',   'left')

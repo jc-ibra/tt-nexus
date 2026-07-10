@@ -88,19 +88,13 @@ class MailcowConnector implements SystemConnector
             'active'     => 1,
         ]);
 
-        if (! $resp['success']) {
-            return ConnectorResult::fail((string) ($resp['error'] ?? 'Error desconocido'), 'MAILCOW_CREATE_FAILED', $resp['data']);
-        }
-        return ConnectorResult::ok("Buzón {$email} creado en Mailcow.", $email, $resp['data']);
+        return $this->interpret($resp, "Buzón {$email} creado en Mailcow.", $email, 'MAILCOW_CREATE_FAILED');
     }
 
     public function disableUser(string $externalId, array $userData = []): ConnectorResult
     {
         $resp = $this->api->editMailbox([$externalId], ['active' => 0]);
-        if (! $resp['success']) {
-            return ConnectorResult::fail((string) ($resp['error'] ?? 'Error desconocido'), 'MAILCOW_DISABLE_FAILED', $resp['data']);
-        }
-        return ConnectorResult::ok("Buzón {$externalId} desactivado en Mailcow.", $externalId, $resp['data']);
+        return $this->interpret($resp, "Buzón {$externalId} desactivado en Mailcow.", $externalId, 'MAILCOW_DISABLE_FAILED');
     }
 
     public function changePassword(string $externalId, string $newPassword, array $userData = []): ConnectorResult
@@ -112,10 +106,7 @@ class MailcowConnector implements SystemConnector
             'password'  => $newPassword,
             'password2' => $newPassword,
         ]);
-        if (! $resp['success']) {
-            return ConnectorResult::fail((string) ($resp['error'] ?? 'Error desconocido'), 'MAILCOW_PASSWORD_FAILED', $resp['data']);
-        }
-        return ConnectorResult::ok("Contraseña actualizada en Mailcow para {$externalId}.", $externalId, $resp['data']);
+        return $this->interpret($resp, "Contraseña actualizada en Mailcow para {$externalId}.", $externalId, 'MAILCOW_PASSWORD_FAILED');
     }
 
     public function updateUser(string $externalId, array $userData): ConnectorResult
@@ -129,9 +120,67 @@ class MailcowConnector implements SystemConnector
             return ConnectorResult::ok("Sin cambios aplicables en Mailcow para {$externalId}.", $externalId);
         }
         $resp = $this->api->editMailbox([$externalId], $attrs);
+        return $this->interpret($resp, "Buzón {$externalId} actualizado en Mailcow.", $externalId, 'MAILCOW_UPDATE_FAILED');
+    }
+
+    /**
+     * Interprets a MailcowApi write response.
+     *
+     * Mailcow answers HTTP 200 for add/edit/delete even on logical failures
+     * (mailbox not found, password rejected by policy, etc.), encoding the real
+     * outcome in the JSON body as objects with a `type` (success|danger|error|
+     * warning|info) and `msg`. MailcowApi only checks the HTTP status, so those
+     * failures would otherwise be logged as success. This treats any `danger`/
+     * `error` entry in the body as a failure.
+     */
+    private function interpret(array $resp, string $okMsg, string $externalId, string $errCode): ConnectorResult
+    {
         if (! $resp['success']) {
-            return ConnectorResult::fail((string) ($resp['error'] ?? 'Error desconocido'), 'MAILCOW_UPDATE_FAILED', $resp['data']);
+            return ConnectorResult::fail((string) ($resp['error'] ?? 'Error desconocido'), $errCode, $resp['data'] ?? null);
         }
-        return ConnectorResult::ok("Buzón {$externalId} actualizado en Mailcow.", $externalId, $resp['data']);
+
+        $bodyError = $this->mailcowBodyError($resp['data'] ?? null);
+        if ($bodyError !== null) {
+            log_message('error', "[MailcowConnector] {$errCode}: {$bodyError}");
+            return ConnectorResult::fail($bodyError, $errCode, $resp['data'] ?? null);
+        }
+
+        return ConnectorResult::ok($okMsg, $externalId, $resp['data'] ?? null);
+    }
+
+    /**
+     * Returns a human-readable error when the Mailcow response body reports a
+     * `danger`/`error` outcome, or null when no failure is present.
+     */
+    private function mailcowBodyError(mixed $data): ?string
+    {
+        // Normalize to a list of result objects (Mailcow may return a single one).
+        $items = (is_array($data) && isset($data['type'])) ? [$data] : $data;
+        if (! is_array($items)) {
+            return null; // unparseable body: don't override the HTTP-level result
+        }
+
+        $messages = [];
+        foreach ($items as $item) {
+            if (! is_array($item) || ! isset($item['type'])) {
+                continue;
+            }
+            if (in_array(strtolower((string) $item['type']), ['danger', 'error'], true)) {
+                $messages[] = $this->flattenMailcowMsg($item['msg'] ?? $item['type']);
+            }
+        }
+
+        return $messages ? implode(' | ', $messages) : null;
+    }
+
+    private function flattenMailcowMsg(mixed $msg): string
+    {
+        if (is_array($msg)) {
+            return trim(implode(' ', array_map(
+                static fn($m) => is_scalar($m) ? (string) $m : json_encode($m),
+                $msg
+            )));
+        }
+        return is_scalar($msg) ? (string) $msg : (string) json_encode($msg);
     }
 }

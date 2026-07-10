@@ -42,6 +42,17 @@ class EmployeeEmailAccountModel extends Model
         return $this->where('id', $id)->where('employee_id', $employeeId)->first();
     }
 
+    /**
+     * Returns the employee's primary email account (is_primary = 1), or null.
+     * This account is the institutional key replicated to GLPI/Intranet.
+     */
+    public function getPrimary(int $employeeId): ?array
+    {
+        return $this->where('employee_id', $employeeId)
+            ->where('is_primary', 1)
+            ->first();
+    }
+
     public function updateAccount(int $id, int $employeeId, array $data): bool
     {
         $data['updated_at'] = date('Y-m-d H:i:s');

@@ -49,7 +49,10 @@ class MailcowApi
 
     public function editMailbox(array $items, array $attrs): array
     {
-        return $this->post('edit/mailbox', [['items' => $items, 'attr' => $attrs]]);
+        // Mailcow reads `items` and `attr` from the TOP LEVEL of the JSON body.
+        // Wrapping them in an outer array made every edit a silent no-op
+        // (Mailcow logged the request as attr='', items='' and returned success).
+        return $this->post('edit/mailbox', ['items' => $items, 'attr' => $attrs]);
     }
 
     public function deleteMailboxes(array $emails): array

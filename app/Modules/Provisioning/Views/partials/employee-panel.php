@@ -246,7 +246,7 @@ if ($canProvision) {
                 <span>Marcar como cuenta principal</span>
               </label>
               <p class="prov-field-hint" style="margin-top:var(--space-1);">
-                La cuenta principal es la que se toma como base para crear al usuario en los demás sistemas (GLPI e Intranet). No aplica para Mailcow. Solo puede haber una cuenta principal: marcarla aquí quita la marca de cualquier otra.
+                La cuenta principal es la llave institucional que se replica al crear al usuario en GLPI e Intranet. Debe ser una cuenta institucional (Mailcow o Microsoft); un correo personal nunca es la principal. Al crear un buzón de Mailcow queda como principal automáticamente. Solo puede haber una cuenta principal: marcarla aquí quita la marca de cualquier otra.
               </p>
             </div>
 
@@ -298,7 +298,7 @@ if ($canProvision) {
               <td style="padding-left:var(--space-4);">
                 <?php if ($selectable): ?>
                   <input type="checkbox" class="prov-sys-check" value="<?= $sysId ?>"
-                         data-system="<?= esc($s['name']) ?>" data-account-status="<?= esc($status) ?>" checked
+                         data-system="<?= esc($s['name']) ?>" data-key="<?= esc($s['key']) ?>" data-account-status="<?= esc($status) ?>" checked
                          aria-label="Incluir <?= esc($s['name']) ?> en operaciones masivas">
                 <?php elseif (! $isActiveSystem): ?>
                   <input type="checkbox" disabled title="Sistema inactivo" aria-label="<?= esc($s['name']) ?> inactivo">
@@ -374,8 +374,11 @@ if ($canProvision) {
     <!-- Panel: Alta en sistemas (only shown when not yet provisioned) -->
     <div id="prov-panel-alta" class="prov-panel" style="display:<?= $isProvisioned ? 'none' : '' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
-        Crea la cuenta en los sistemas seleccionados. Si incluyes Mailcow, indica el correo del buzón.
+        Crea la cuenta en los sistemas seleccionados. Si incluyes Mailcow, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
       </p>
+      <div id="prov-inst-email-warn" class="banner banner-warning" style="display:none; margin:0 0 var(--space-3);">
+        <div class="banner-body">Este empleado no tiene un correo institucional principal. Incluye Mailcow en el alta, o registra/marca como principal una cuenta institucional (Mailcow o Microsoft) antes de dar de alta en GLPI o Intranet. El correo personal no se usa como llave.</div>
+      </div>
       <form method="post" action="<?= route_to('provisioning.employee.provision', $employeeId) ?>"
             class="prov-bulk-form prov-form"
             onsubmit="return confirm('¿Crear cuentas en los sistemas seleccionados?');">
@@ -467,6 +470,33 @@ if ($canProvision) {
 <script>
 (function () {
   'use strict';
+
+  // Whether the employee already has a primary INSTITUTIONAL email account
+  // (Mailcow/Microsoft with a non-empty address). GLPI/Intranet need this as
+  // their key when Mailcow is not part of the alta.
+  const HAS_INSTITUTIONAL_PRIMARY = <?= (static function () use ($emailAccounts): string {
+      foreach ($emailAccounts as $a) {
+          if ((int) ($a['is_primary'] ?? 0) === 1
+              && in_array($a['type'] ?? '', ['mailcow', 'microsoft'], true)
+              && trim((string) ($a['email'] ?? '')) !== '') {
+              return 'true';
+          }
+      }
+      return 'false';
+  })() ?>;
+
+  // The institutional-email rule: GLPI/Intranet cannot be provisioned without an
+  // institutional key. It is satisfied by either creating Mailcow in the same
+  // alta, or an existing primary institutional account.
+  function institutionalRuleViolated() {
+    if (HAS_INSTITUTIONAL_PRIMARY) return false;
+    const selected = [...document.querySelectorAll('.prov-sys-check')]
+      .filter(cb => cb.checked)
+      .map(cb => (cb.dataset.key || '').toLowerCase());
+    const mailcow   = selected.includes('mailcow');
+    const needsInst = selected.includes('glpi') || selected.includes('intranet');
+    return needsInst && ! mailcow;
+  }
 
   // ── Email account form: type-dependent fields + add/edit modes ─────────────
   const typeSelect = document.getElementById('ea-type');
@@ -688,10 +718,13 @@ if ($canProvision) {
     const altaSubmit  = altaForm.querySelector('button[type="submit"]');
     const altaPwInput = altaForm.querySelector('.prov-password-input');
 
+    const instWarn = document.getElementById('prov-inst-email-warn');
     const updateAltaSubmitState = function () {
       const hasPassword = altaPwInput.value.trim().length > 0;
       const hasSystem   = checks().some(cb => cb.checked);
-      altaSubmit.disabled = ! (hasPassword && hasSystem);
+      const violated    = institutionalRuleViolated();
+      if (instWarn) instWarn.style.display = violated ? '' : 'none';
+      altaSubmit.disabled = ! (hasPassword && hasSystem) || violated;
     };
 
     // Programmatic value changes (e.g. "Generar contraseña") don't fire 'input',
