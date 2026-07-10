@@ -140,6 +140,28 @@ class AccessOrchestrator
             }
         }
 
+        // Welcome email: send the temporary password to the primary mailbox once
+        // at least one account exists. Never let a mail failure break the alta.
+        if ($resolvedMailboxEmail !== null && $resolvedMailboxEmail !== '') {
+            $createdSystems = [];
+            foreach ($systems as $sys) {
+                $r = $perSystem[$sys['key']] ?? null;
+                if ($r && $r['success']) {
+                    $createdSystems[] = $sys;
+                }
+            }
+            if ($createdSystems !== []) {
+                try {
+                    $mail = (new WelcomeMailService())->sendWelcome($employee, $resolvedMailboxEmail, $password, $createdSystems);
+                    if (! $mail['success']) {
+                        log_message('error', '[Provisioning] Welcome email not sent to ' . $resolvedMailboxEmail . ': ' . $mail['error']);
+                    }
+                } catch (Throwable $e) {
+                    log_message('error', '[Provisioning] Welcome email exception: ' . $e->getMessage());
+                }
+            }
+        }
+
         $allOk = ! in_array(false, array_map(fn($r) => $r['success'], $perSystem), true);
         return $allOk
             ? ServiceResult::ok(['results' => $perSystem, 'temporary_password' => $password], 'Empleado aprovisionado.')
