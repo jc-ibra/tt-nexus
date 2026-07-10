@@ -114,7 +114,7 @@ class AccessOrchestrator
             $perSystem[$system['key']] = $result;
 
             // On successful Mailcow provision, capture the email and record the account.
-            if ($system['key'] === 'mailcow' && $result['success']) {
+            if ($system['key'] === 'mailcow' && $result['success'] && empty($result['skipped'])) {
                 $createdEmail = $result['external_id'] ?? $resolvedMailboxEmail ?? $userData['email'];
                 $resolvedMailboxEmail = $createdEmail; // propagate to subsequent systems
 
@@ -216,6 +216,49 @@ class AccessOrchestrator
         return $allOk
             ? ServiceResult::ok(['results' => $perSystem], 'Contraseña propagada.')
             : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem]);
+    }
+
+    /**
+     * Reactivate a previously deprovisioned employee. Accounts are never
+     * re-created: every system where the employee already has an account is
+     * re-enabled, and a NEW password is set on all of them (enforced by the
+     * connector contract). This blocks silent access after an accidental baja.
+     */
+    public function reactivateEmployee(int $employeeId, string $newPassword, ?array $systemIds = null): ServiceResult
+    {
+        $employee = $this->loadEmployee($employeeId);
+        if (! $employee) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+        if (strlen($newPassword) < 8) {
+            return ServiceResult::fail('La contraseña debe tener al menos 8 caracteres.');
+        }
+
+        $userData  = $this->mapEmployee($employee, $newPassword);
+        $perSystem = [];
+        foreach ($this->systems->listActive() as $system) {
+            if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
+                continue;
+            }
+            $perSystem[$system['key']] = $this->runReactivate($system, $employee, $userData, $newPassword);
+        }
+
+        // If no system had an account, there is nothing to reactivate.
+        $applied = array_filter($perSystem, fn($r) => empty($r['skipped']));
+        if ($applied === []) {
+            return ServiceResult::fail('Este empleado no tiene cuentas que reactivar.');
+        }
+
+        // Bring Nexus back in sync once at least one system was re-enabled.
+        $anySuccess = in_array(true, array_map(fn($r) => $r['success'], $applied), true);
+        if ($anySuccess) {
+            $this->employees->update($employeeId, ['active' => 1, 'date_discharge' => null]);
+        }
+
+        $allOk = ! in_array(false, array_map(fn($r) => $r['success'], $perSystem), true);
+        return $allOk
+            ? ServiceResult::ok(['results' => $perSystem, 'temporary_password' => $newPassword], 'Empleado reactivado con nueva contraseña.')
+            : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem, 'temporary_password' => $newPassword]);
     }
 
     public function provisionOnSystem(int $employeeId, int $systemId, ?string $password = null): ServiceResult
@@ -371,6 +414,12 @@ class AccessOrchestrator
                 }
                 $result = $this->runPassword($system, $employee, $userData, $newPwd);
                 break;
+            case 'enable':
+                // Reactivation rotates the password, which is never persisted in
+                // the queue. It cannot be replayed safely: the operator must run
+                // "Reactivar" again from the employee panel.
+                $this->retries->update($row['id'], ['status' => 'abandoned', 'last_error' => 'Reintento de reactivación no soportado (la contraseña no se guarda). Vuelve a ejecutar "Reactivar" desde el panel del empleado.']);
+                return false;
             case 'update':
                 $result = $this->runUpdate($system, $employee, $userData);
                 break;
@@ -396,6 +445,15 @@ class AccessOrchestrator
 
     private function runCreate(array $system, array $employee, array $userData): array
     {
+        // Hard barrier: never create a second account where one already exists
+        // (active or disabled). Users are never deleted from the systems, only
+        // disabled, so re-creation is never valid — reactivate instead. A failed
+        // creation (status 'error', no external_id) may still be retried.
+        $existing = $this->accounts->findFor((int) $employee['id'], (int) $system['id']);
+        if ($existing && ! empty($existing['external_id']) && in_array($existing['status'] ?? '', ['active', 'disabled'], true)) {
+            return ['success' => true, 'message' => 'Ya existe una cuenta en ' . $system['name'] . '; no se crea de nuevo. Usa Reactivar.', 'skipped' => true];
+        }
+
         return $this->runOperation('create', $system, $employee, $userData, function (SystemConnector $c) use ($userData) {
             return $c->createUser($userData);
         });
@@ -410,6 +468,18 @@ class AccessOrchestrator
         $externalId = (string) $existing['external_id'];
         return $this->runOperation('disable', $system, $employee, $userData, function (SystemConnector $c) use ($externalId, $userData) {
             return $c->disableUser($externalId, $userData);
+        });
+    }
+
+    private function runReactivate(array $system, array $employee, array $userData, string $newPassword): array
+    {
+        $existing = $this->accounts->findFor((int) $employee['id'], (int) $system['id']);
+        if (! $existing || empty($existing['external_id'])) {
+            return ['success' => true, 'message' => 'Sin cuenta en ' . $system['name'] . '; nada que reactivar.', 'skipped' => true];
+        }
+        $externalId = (string) $existing['external_id'];
+        return $this->runOperation('enable', $system, $employee, $userData, function (SystemConnector $c) use ($externalId, $newPassword, $userData) {
+            return $c->enableUser($externalId, $newPassword, $userData);
         });
     }
 

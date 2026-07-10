@@ -182,6 +182,24 @@ class Provisioning extends BaseController
         return redirect()->to(route_to('employees.show', $employeeId));
     }
 
+    public function reactivateEmployee(int $employeeId): ResponseInterface
+    {
+        $password = (string) ($this->request->getPost('password') ?? '');
+        if ($password === '') {
+            session()->setFlashdata('error', 'Debes capturar la nueva contraseña para reactivar.');
+            return redirect()->to(route_to('employees.show', $employeeId));
+        }
+
+        // Reactivation always spans every system the employee has an account in,
+        // so credentials stay homologated. System selection is intentionally
+        // ignored here.
+        $orch   = service('provisioningOrchestrator');
+        $result = $orch->reactivateEmployee($employeeId, $password, null);
+
+        $this->flashWithTemporaryPassword($result, 'Reactivación lanzada.');
+        return redirect()->to(route_to('employees.show', $employeeId));
+    }
+
     public function provisionEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
     {
         $orch     = service('provisioningOrchestrator');

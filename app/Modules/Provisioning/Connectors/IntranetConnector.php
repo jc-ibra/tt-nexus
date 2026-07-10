@@ -87,6 +87,16 @@ class IntranetConnector implements SystemConnector
         return $this->wrap($resp, $externalId, "Usuario {$externalId} desactivado en Intranet.", 'INTRANET_DISABLE_FAILED');
     }
 
+    public function enableUser(string $externalId, string $newPassword, array $userData = []): ConnectorResult
+    {
+        // The PUT accepts partial fields: re-enable and rotate the password at once.
+        $resp = $this->request('PUT', '/api/v1/usuarios/' . rawurlencode($externalId), [
+            'estado'   => 'activo',
+            'password' => $newPassword,
+        ]);
+        return $this->wrap($resp, $externalId, "Usuario {$externalId} reactivado en Intranet.", 'INTRANET_ENABLE_FAILED');
+    }
+
     public function changePassword(string $externalId, string $newPassword, array $userData = []): ConnectorResult
     {
         $resp = $this->request('POST', '/api/v1/usuarios/' . rawurlencode($externalId) . '/password', [

@@ -97,6 +97,20 @@ class MailcowConnector implements SystemConnector
         return $this->interpret($resp, "Buzón {$externalId} desactivado en Mailcow.", $externalId, 'MAILCOW_DISABLE_FAILED');
     }
 
+    public function enableUser(string $externalId, string $newPassword, array $userData = []): ConnectorResult
+    {
+        if (strlen($newPassword) < 8) {
+            return ConnectorResult::fail('La contraseña debe tener al menos 8 caracteres.', 'MAILCOW_WEAK_PASSWORD');
+        }
+        // Re-enable the mailbox and rotate the password in the same edit.
+        $resp = $this->api->editMailbox([$externalId], [
+            'active'    => 1,
+            'password'  => $newPassword,
+            'password2' => $newPassword,
+        ]);
+        return $this->interpret($resp, "Buzón {$externalId} reactivado en Mailcow.", $externalId, 'MAILCOW_ENABLE_FAILED');
+    }
+
     public function changePassword(string $externalId, string $newPassword, array $userData = []): ConnectorResult
     {
         if (strlen($newPassword) < 8) {

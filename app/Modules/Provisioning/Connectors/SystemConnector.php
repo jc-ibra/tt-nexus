@@ -37,6 +37,17 @@ interface SystemConnector
     public function disableUser(string $externalId, array $userData = []): ConnectorResult;
 
     /**
+     * Re-enable a previously disabled user AND set a new password in a single
+     * operation. Reactivation must always rotate the password, so the two are
+     * baked together: there is no way to re-enable without a fresh credential.
+     * The account is never re-created here; only the existing record is enabled.
+     *
+     * @param string $externalId  Stored in provisioning_external_accounts.external_id.
+     * @param string $newPassword Plain text, held in memory only for this call.
+     */
+    public function enableUser(string $externalId, string $newPassword, array $userData = []): ConnectorResult;
+
+    /**
      * Push a new password to the external system.
      * Plain text is held in memory only and discarded after this call returns.
      */

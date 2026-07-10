@@ -30,6 +30,7 @@ $routes->group('provisioning', [
     $routes->post('employees/(:num)/provision',              'Provisioning::provisionEmployee/$1',          ['as' => 'provisioning.employee.provision']);
     $routes->post('employees/(:num)/deprovision',            'Provisioning::deprovisionEmployee/$1',        ['as' => 'provisioning.employee.deprovision']);
     $routes->post('employees/(:num)/password',               'Provisioning::changePasswordEmployee/$1',     ['as' => 'provisioning.employee.password']);
+    $routes->post('employees/(:num)/reactivate',             'Provisioning::reactivateEmployee/$1',         ['as' => 'provisioning.employee.reactivate']);
     $routes->post('employees/(:num)/systems/(:num)/provision',   'Provisioning::provisionEmployeeOnSystem/$1/$2',   ['as' => 'provisioning.employee.system.provision']);
     $routes->post('employees/(:num)/systems/(:num)/deprovision', 'Provisioning::deprovisionEmployeeOnSystem/$1/$2', ['as' => 'provisioning.employee.system.deprovision']);
 

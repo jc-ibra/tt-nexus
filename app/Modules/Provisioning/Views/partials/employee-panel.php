@@ -22,6 +22,8 @@ $systems          = [];
 $accountsBySystem = [];
 $log              = [];
 $isProvisioned    = false;
+$hasAnyAccount    = false;
+$hasDisabled      = false;
 
 if ($canProvision) {
     $systems  = (new \App\Modules\Provisioning\Models\ProvisioningSystemModel())->listAll();
@@ -32,9 +34,21 @@ if ($canProvision) {
         $accountsBySystem[(int) $a['system_id']] = $a;
     }
 
-    // At least one system with an active account → employee is provisioned
+    // At least one system with an active account → employee is provisioned.
     $isProvisioned = ! empty(array_filter($accounts, fn($a) => ($a['status'] ?? '') === 'active'));
+    // Employees keep their accounts forever (systems only disable, never delete).
+    // These drive the "Reactivar" vs "Alta" decision.
+    $hasAnyAccount = ! empty($accounts);
+    $hasDisabled   = ! empty(array_filter($accounts, fn($a) => ($a['status'] ?? '') === 'disabled'));
 }
+
+// A deprovisioned employee (has accounts, but none active) is reactivated, not
+// re-created. "Alta" is only for a brand-new employee with no accounts at all.
+$canReactivate  = $hasDisabled;
+$showAlta       = ! $hasAnyAccount;
+$defaultReactiv = $canReactivate && ! $isProvisioned;
+// Has accounts, but none active → the employee is deprovisioned (dado de baja).
+$isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
 ?>
 
 <style>
@@ -122,6 +136,15 @@ if ($canProvision) {
       <span class="text-muted text-sm">Selecciona los sistemas y elige una acción</span>
     <?php endif; ?>
   </div>
+
+  <?php if ($canProvision && $isDeprovisioned): ?>
+    <div style="display:flex; align-items:center; gap:var(--space-2); margin:var(--space-3) var(--space-4) 0; padding:var(--space-2) var(--space-3); background:#fff7e6; border:1px solid #ffe1a8; border-radius:var(--radius-2, 8px);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b7791f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      <span style="font-size:var(--text-sm); color:#8a5a00; line-height:1.45;">
+        <strong>Empleado dado de baja.</strong> Sus cuentas siguen creadas pero desactivadas en los sistemas. Usa <strong>Reactivar</strong> para restablecer el acceso con una nueva contraseña.
+      </span>
+    </div>
+  <?php endif; ?>
 
   <!-- ══ Section: Cuentas de correo electrónico (read-only for all, editable for provisioning) ══ -->
   <div class="prov-section" style="border-top:none;">
@@ -354,13 +377,20 @@ if ($canProvision) {
 
     <!-- Action tab bar -->
     <div style="border-top:1px solid var(--color-neutral-200); display:flex;">
-      <?php if (! $isProvisioned): ?>
+      <?php if ($showAlta): ?>
         <button type="button" class="prov-tab-btn is-active" data-panel="prov-panel-alta" aria-expanded="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Alta en sistemas
         </button>
-      <?php else: ?>
-        <button type="button" class="prov-tab-btn" data-panel="prov-panel-password" aria-expanded="false">
+      <?php endif; ?>
+      <?php if ($canReactivate): ?>
+        <button type="button" class="prov-tab-btn <?= $defaultReactiv ? 'is-active' : '' ?>" data-panel="prov-panel-reactivar" aria-expanded="<?= $defaultReactiv ? 'true' : 'false' ?>">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Reactivar
+        </button>
+      <?php endif; ?>
+      <?php if ($isProvisioned): ?>
+        <button type="button" class="prov-tab-btn is-active" data-panel="prov-panel-password" aria-expanded="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Cambiar contraseña
         </button>
@@ -371,8 +401,40 @@ if ($canProvision) {
       <?php endif; ?>
     </div>
 
-    <!-- Panel: Alta en sistemas (only shown when not yet provisioned) -->
-    <div id="prov-panel-alta" class="prov-panel" style="display:<?= $isProvisioned ? 'none' : '' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <!-- Panel: Reactivar (shown when the employee has disabled accounts) -->
+    <?php if ($canReactivate): ?>
+    <div id="prov-panel-reactivar" class="prov-panel" style="display:<?= $defaultReactiv ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+      <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
+        Reactiva al empleado en todos los sistemas donde ya tiene cuenta (GLPI, Intranet y Correo). No se crean cuentas nuevas: solo se vuelven a habilitar las existentes. Como regla de seguridad, cada reactivación asigna una contraseña nueva a todos sus accesos.
+      </p>
+      <form method="post" action="<?= route_to('provisioning.employee.reactivate', $employeeId) ?>"
+            class="prov-form"
+            onsubmit="return confirm('¿Reactivar al empleado en todos sus sistemas y asignar una nueva contraseña?');">
+        <?= csrf_field() ?>
+        <div class="prov-field prov-pw-wrap">
+          <label class="prov-field-label">Nueva contraseña <span class="prov-req">*</span></label>
+          <div class="prov-input-shell">
+            <input type="password" name="password" class="input prov-password-input" placeholder="Mínimo 8 caracteres" minlength="8" required>
+            <button type="button" class="prov-toggle-pw" aria-label="Mostrar contraseña">
+              <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <button type="button" class="prov-gen-btn" aria-label="Generar y copiar contraseña segura">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            Generar y copiar contraseña
+          </button>
+          <span class="prov-copy-ok">Copiado</span>
+        </div>
+        <div class="prov-actions">
+          <button type="submit" class="btn btn-primary">Reactivar y asignar contraseña</button>
+        </div>
+      </form>
+    </div>
+    <?php endif; ?>
+
+    <!-- Panel: Alta en sistemas (only shown for a brand-new employee with no accounts) -->
+    <div id="prov-panel-alta" class="prov-panel" style="display:<?= $showAlta ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Crea la cuenta en los sistemas seleccionados. Si incluyes Mailcow, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
       </p>
@@ -418,7 +480,7 @@ if ($canProvision) {
     </div>
 
     <!-- Panel: Cambiar contraseña -->
-    <div id="prov-panel-password" class="prov-panel" style="display:none; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-password" class="prov-panel" style="display:<?= $isProvisioned ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Actualiza la contraseña en los sistemas seleccionados que tengan una cuenta existente. Los sistemas sin cuenta se omiten: no se crea ninguna cuenta desde aquí.
       </p>

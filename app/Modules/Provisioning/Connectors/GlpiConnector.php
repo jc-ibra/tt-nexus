@@ -134,6 +134,30 @@ class GlpiConnector implements SystemConnector
         return ConnectorResult::ok("Usuario {$externalId} desactivado en GLPI.", $externalId, $resp['data']);
     }
 
+    public function enableUser(string $externalId, string $newPassword, array $userData = []): ConnectorResult
+    {
+        $session = $this->initSession();
+        if (! $session['success']) {
+            return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+        }
+
+        // Re-enable and rotate the password in the same PUT.
+        $resp = $this->request('PUT', 'User/' . $externalId, [
+            'input' => [
+                'id'        => (int) $externalId,
+                'is_active' => 1,
+                'password'  => $newPassword,
+                'password2' => $newPassword,
+            ],
+        ], $session['token']);
+        $this->killSession($session['token']);
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_ENABLE_FAILED', $this->buildDebug($resp));
+        }
+        return ConnectorResult::ok("Usuario {$externalId} reactivado en GLPI.", $externalId, $resp['data']);
+    }
+
     public function changePassword(string $externalId, string $newPassword, array $userData = []): ConnectorResult
     {
         $session = $this->initSession();
