@@ -236,7 +236,8 @@ class AccessOrchestrator
 
         $userData  = $this->mapEmployee($employee, $newPassword);
         $perSystem = [];
-        foreach ($this->systems->listActive() as $system) {
+        $systems   = $this->systems->listActive();
+        foreach ($systems as $system) {
             if ($systemIds !== null && ! in_array((int) $system['id'], $systemIds, true)) {
                 continue;
             }
@@ -253,6 +254,33 @@ class AccessOrchestrator
         $anySuccess = in_array(true, array_map(fn($r) => $r['success'], $applied), true);
         if ($anySuccess) {
             $this->employees->update($employeeId, ['active' => 1, 'date_discharge' => null]);
+
+            // Welcome email: resend the accesses + the new temporary password to
+            // the employee's primary mailbox, mirroring the alta flow. Never let a
+            // mail failure break the reactivation.
+            $primary    = (new EmployeeEmailAccountModel())->getPrimary($employeeId);
+            $loginEmail = trim((string) ($primary['email'] ?? ''));
+            if ($loginEmail !== '') {
+                $reactivatedSystems = [];
+                foreach ($systems as $sys) {
+                    $r = $perSystem[$sys['key']] ?? null;
+                    if ($r && $r['success'] && empty($r['skipped'])) {
+                        $reactivatedSystems[] = $sys;
+                    }
+                }
+                if ($reactivatedSystems !== []) {
+                    try {
+                        $mail = (new WelcomeMailService())->sendWelcome($employee, $loginEmail, $newPassword, $reactivatedSystems);
+                        if (! $mail['success']) {
+                            log_message('error', '[Provisioning] Reactivation welcome email not sent to ' . $loginEmail . ': ' . $mail['error']);
+                        }
+                    } catch (Throwable $e) {
+                        log_message('error', '[Provisioning] Reactivation welcome email exception: ' . $e->getMessage());
+                    }
+                }
+            } else {
+                log_message('warning', '[Provisioning] Reactivation: sin correo principal para empleado id=' . $employeeId . '; se omite correo de bienvenida.');
+            }
         }
 
         $allOk = ! in_array(false, array_map(fn($r) => $r['success'], $perSystem), true);
