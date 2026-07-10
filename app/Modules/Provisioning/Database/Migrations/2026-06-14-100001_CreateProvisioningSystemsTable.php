@@ -33,7 +33,7 @@ class CreateProvisioningSystemsTable extends Migration
             [
                 'key'        => 'glpi',
                 'name'       => 'GLPI',
-                'description'=> 'Sistema de tickets y servicio. Sincroniza identidad para asignación de tickets e indicadores por técnico.',
+                'description'=> 'Sistema de tickets y servicio.',
                 'base_url'   => '',
                 'auth_type'  => 'glpi_app_user_token',
                 'options'    => json_encode([
@@ -47,7 +47,7 @@ class CreateProvisioningSystemsTable extends Migration
             [
                 'key'        => 'mailcow',
                 'name'       => 'Mailcow',
-                'description'=> 'Servidor de correo. La conexión se reutiliza desde el módulo de Buzones.',
+                'description'=> 'Servidor de correo.',
                 'base_url'   => '',
                 'auth_type'  => 'mailcow_settings_reuse',
                 'options'    => json_encode([
@@ -61,7 +61,7 @@ class CreateProvisioningSystemsTable extends Migration
             [
                 'key'        => 'intranet',
                 'name'       => 'Intranet',
-                'description'=> 'Intranet corporativa. Implementa el contrato definido en el README del módulo.',
+                'description'=> 'Intranet corporativa.',
                 'base_url'   => '',
                 'auth_type'  => 'bearer_api_key',
                 'options'    => json_encode([]),

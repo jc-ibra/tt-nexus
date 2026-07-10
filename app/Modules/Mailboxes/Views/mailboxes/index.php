@@ -25,24 +25,35 @@
 <!-- Stats cards -->
 <div id="stats-grid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:var(--space-3); margin-bottom:var(--space-4);">
 
-  <div class="card">
+  <div class="card stat-card" data-filter="all" role="button" tabindex="0" aria-pressed="false" aria-label="Mostrar todos los buzones">
     <div class="card-body" style="padding:var(--space-3) var(--space-4);">
       <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Total de buzones</p>
       <p class="stat-val" id="stat-total">—</p>
+      <p class="text-sm text-muted stat-sub">&nbsp;</p>
     </div>
   </div>
 
-  <div class="card">
+  <div class="card stat-card" data-filter="active" role="button" tabindex="0" aria-pressed="false" aria-label="Filtrar buzones activos">
     <div class="card-body" style="padding:var(--space-3) var(--space-4);">
-      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Activos</p>
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Buzones activos</p>
       <p class="stat-val" id="stat-active" style="color:var(--color-success-default);">—</p>
+      <p class="text-sm text-muted stat-sub">&nbsp;</p>
     </div>
   </div>
 
-  <div class="card">
+  <div class="card stat-card" data-filter="inactive" role="button" tabindex="0" aria-pressed="false" aria-label="Filtrar buzones inactivos">
     <div class="card-body" style="padding:var(--space-3) var(--space-4);">
-      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Inactivos</p>
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Buzones inactivos</p>
       <p class="stat-val" id="stat-inactive" style="color:var(--text-muted);">—</p>
+      <p class="text-sm text-muted stat-sub">&nbsp;</p>
+    </div>
+  </div>
+
+  <div class="card stat-card" data-filter="critical" role="button" tabindex="0" aria-pressed="false" aria-label="Filtrar buzones con uso critico">
+    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Buzones con uso critico</p>
+      <p class="stat-val" id="stat-critical" style="color:var(--color-critical-default);">—</p>
+      <p class="text-sm text-muted stat-sub">&ge;80% de su cuota</p>
     </div>
   </div>
 
@@ -50,14 +61,7 @@
     <div class="card-body" style="padding:var(--space-3) var(--space-4);">
       <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Espacio utilizado</p>
       <p class="stat-val" id="stat-used">—</p>
-      <p class="text-sm text-muted" id="stat-used-sub" style="margin:0;"></p>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-body" style="padding:var(--space-3) var(--space-4);">
-      <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Uso critico (&ge;80%)</p>
-      <p class="stat-val" id="stat-critical" style="color:var(--color-critical-default);">—</p>
+      <p class="text-sm text-muted stat-sub" id="stat-used-sub">&nbsp;</p>
     </div>
   </div>
 
@@ -267,7 +271,12 @@
 <div id="toast-container" style="position:fixed; bottom:var(--space-6); right:var(--space-6); z-index:500; display:flex; flex-direction:column; gap:var(--space-2); pointer-events:none;"></div>
 
 <style>
-.stat-val { font-size: var(--text-2xl); font-weight: 600; margin: 0; line-height: 1.2; }
+.stat-val { font-size: var(--text-2xl); font-weight: 600; margin: 0 0 var(--space-1); line-height: 1.2; }
+.stat-sub { margin: 0; min-height: 1.25em; }
+.stat-card { cursor: pointer; transition: box-shadow var(--duration-base) ease, border-color var(--duration-base) ease, transform var(--duration-base) ease; }
+.stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.stat-card:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+.stat-card.is-active { border-color: var(--color-blue-500); box-shadow: 0 0 0 1px var(--color-blue-500); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .quota-bar { height: 6px; border-radius: var(--radius-full); background: var(--color-neutral-200); overflow:hidden; margin-top: var(--space-1); }
 .quota-bar-fill { height: 100%; border-radius: var(--radius-full); transition: width 0.3s ease; }
@@ -311,6 +320,7 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   let currentPage     = 1;
   const perPage       = 25;
   let selectedEmails  = new Set();
+  let criticalOnly    = false;
 
   // ----------------------------------------------------------------
   // Toast
@@ -394,22 +404,66 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   // Filtering & sorting
   // ----------------------------------------------------------------
   function applyFilters() {
-    const search = document.getElementById('filter-search').value.toLowerCase();
+    const tokens = normalize(document.getElementById('filter-search').value).split(/\s+/).filter(Boolean);
     const domain = document.getElementById('filter-domain').value;
     const status = document.getElementById('filter-status').value;
 
     filteredMailboxes = allMailboxes.filter(m => {
-      if (search && ! (m.username.toLowerCase().includes(search) || m.name.toLowerCase().includes(search))) return false;
+      // Multi-token, accent-insensitive search over email + name + domain (any word order)
+      if (tokens.length) {
+        const haystack = normalize(`${m.username} ${m.name} ${m.domain}`);
+        if (! tokens.every(t => haystack.includes(t))) return false;
+      }
       if (domain && m.domain !== domain) return false;
       if (status === 'active'   && ! m.active) return false;
       if (status === 'inactive' && m.active)   return false;
+      if (criticalOnly && (m.quota_percent || 0) < 80) return false;
       return true;
     });
 
     sortMailboxes();
     currentPage = 1;
     renderTable();
+    updateCardActive();
   }
+
+  // ----------------------------------------------------------------
+  // Stat card filters
+  // ----------------------------------------------------------------
+  function updateCardActive() {
+    const status = document.getElementById('filter-status').value;
+    let active = 'all';
+    if (criticalOnly) active = 'critical';
+    else if (status === 'active')   active = 'active';
+    else if (status === 'inactive') active = 'inactive';
+    document.querySelectorAll('.stat-card[data-filter]').forEach(c => {
+      const on = c.dataset.filter === active;
+      c.classList.toggle('is-active', on);
+      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  function applyCardFilter(f) {
+    const statusSel = document.getElementById('filter-status');
+    if (f === 'critical') {
+      criticalOnly = true;
+      statusSel.value = '';
+    } else {
+      criticalOnly = false;
+      statusSel.value = (f === 'all') ? '' : f;
+    }
+    applyFilters();
+  }
+
+  document.querySelectorAll('.stat-card[data-filter]').forEach(card => {
+    card.addEventListener('click', () => applyCardFilter(card.dataset.filter));
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        applyCardFilter(card.dataset.filter);
+      }
+    });
+  });
 
   function sortMailboxes() {
     filteredMailboxes.sort((a, b) => {
@@ -579,8 +633,11 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
   // ----------------------------------------------------------------
   // Filters
   // ----------------------------------------------------------------
-  ['filter-search', 'filter-domain', 'filter-status'].forEach(id => {
-    document.getElementById(id).addEventListener('input', debounce(applyFilters, 200));
+  document.getElementById('filter-search').addEventListener('input', debounce(applyFilters, 200));
+  document.getElementById('filter-domain').addEventListener('change', applyFilters);
+  document.getElementById('filter-status').addEventListener('change', () => {
+    criticalOnly = false; // manual status change clears the critical card filter
+    applyFilters();
   });
 
   // ----------------------------------------------------------------
@@ -817,6 +874,11 @@ th.sorted-desc .sort-icon { color: var(--color-blue-500); }
 
   function showEl(id)  { document.getElementById(id).style.display = ''; }
   function hideEl(id)  { document.getElementById(id).style.display = 'none'; }
+
+  // Lowercase + strip diacritics so "munoz" matches "MUÑOZ".
+  function normalize(str) {
+    return String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
 
   function escHtml(str) {
     return String(str)
