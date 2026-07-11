@@ -853,6 +853,15 @@ img, svg { display: block; max-width: 100%; }
 }
 .pager-summary { margin: 0; }
 
+/* Pager rendered directly inside a card (e.g. below a full-bleed table):
+   give it footer-style padding so the summary isn't flush against the edge. */
+.card > .pager-bar {
+  margin-top: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-width-default) solid var(--color-neutral-200);
+  background: var(--bg-surface-alt);
+}
+
 .pagination {
   display: flex;
   align-items: center;

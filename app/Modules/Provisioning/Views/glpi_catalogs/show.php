@@ -67,7 +67,7 @@
         <tr>
           <th>Nombre</th>
           <th>Comentario</th>
-          <th style="width:160px; text-align:right;">Acciones</th>
+          <th style="width:100px; text-align:right;">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -87,13 +87,19 @@
                 <?php endif; ?>
               </td>
               <td class="text-muted text-sm"><?= esc($v['comment'] ?: '-') ?></td>
-              <td style="text-align:right;">
-                <a href="<?= route_to('provisioning.glpi-catalogs.edit', $slug, $v['id']) ?>" class="btn btn-tertiary btn-sm">Editar</a>
-                <form method="post" action="<?= route_to('provisioning.glpi-catalogs.destroy', $slug, $v['id']) ?>" style="display:inline;"
-                      onsubmit="return confirm('¿Eliminar el valor «<?= esc($v['name']) ?>»?');">
-                  <?= csrf_field() ?>
-                  <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Eliminar</button>
-                </form>
+              <td>
+                <div class="table-actions" style="justify-content:flex-end;">
+                  <a href="<?= route_to('provisioning.glpi-catalogs.edit', $slug, $v['id']) ?>" class="btn btn-tertiary btn-icon btn-sm" aria-label="Editar «<?= esc($v['name']) ?>»" title="Editar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </a>
+                  <form method="post" action="<?= route_to('provisioning.glpi-catalogs.destroy', $slug, $v['id']) ?>" style="display:inline;"
+                        onsubmit="return confirm('¿Eliminar el valor «<?= esc($v['name']) ?>»?');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-tertiary btn-icon btn-sm" style="color:var(--color-critical-default);" aria-label="Eliminar «<?= esc($v['name']) ?>»" title="Eliminar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
           <?php endforeach; ?>
