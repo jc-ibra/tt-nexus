@@ -7,6 +7,21 @@
     <p class="page-subtitle">Cada operación, en cada sistema, deja registro aquí.</p>
   </div>
   <div class="page-actions">
+    <?php if (service('access')->isSuperAdmin()): ?>
+      <?php
+        $exportQuery = array_filter([
+            'operation'   => $filters['operation']   ?? '',
+            'status'      => $filters['status']       ?? '',
+            'system_id'   => $filters['system_id']    ?? '',
+            'employee_id' => $filters['employee_id']  ?? '',
+        ], fn($v) => $v !== '' && $v !== null);
+        $exportUrl = route_to('provisioning.log.export') . ($exportQuery ? '?' . http_build_query($exportQuery) : '');
+      ?>
+      <a href="<?= esc($exportUrl) ?>" class="btn btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar CSV
+      </a>
+    <?php endif; ?>
     <a href="<?= route_to('provisioning.index') ?>" class="btn btn-secondary">Volver</a>
   </div>
 </div>

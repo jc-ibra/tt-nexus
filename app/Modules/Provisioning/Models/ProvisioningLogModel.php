@@ -64,4 +64,30 @@ class ProvisioningLogModel extends Model
         return $builder->orderBy('provisioning_log.created_at', 'DESC')
             ->paginate($perPage, 'default', $page);
     }
+
+    /**
+     * Same joins and filters as listRecent() but without pagination — used for CSV export.
+     */
+    public function listAllForExport(array $filters = []): array
+    {
+        $builder = $this->select('provisioning_log.*, s.name AS system_name, s.key AS system_key, e.name AS employee_name, e.lastname AS employee_lastname, e.employee_number, u.name AS executor_name')
+            ->join('provisioning_systems s', 's.id = provisioning_log.system_id', 'left')
+            ->join('employees_employees e',            'e.id = provisioning_log.employee_id', 'left')
+            ->join('core_users u',                'u.id = provisioning_log.executor_user_id', 'left');
+
+        if (! empty($filters['operation'])) {
+            $builder->where('provisioning_log.operation', $filters['operation']);
+        }
+        if (! empty($filters['status'])) {
+            $builder->where('provisioning_log.status', $filters['status']);
+        }
+        if (! empty($filters['system_id'])) {
+            $builder->where('provisioning_log.system_id', (int) $filters['system_id']);
+        }
+        if (! empty($filters['employee_id'])) {
+            $builder->where('provisioning_log.employee_id', (int) $filters['employee_id']);
+        }
+
+        return $builder->orderBy('provisioning_log.created_at', 'DESC')->findAll();
+    }
 }

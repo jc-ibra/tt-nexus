@@ -17,6 +17,8 @@ $routes->group('provisioning', [
 
     // Audit log
     $routes->get('log', 'Provisioning::log', ['as' => 'provisioning.log']);
+    // CSV export — SuperAdmin only (additional filter on top of the group's auth + module access)
+    $routes->get('log/export', 'Provisioning::exportLog', ['as' => 'provisioning.log.export', 'filter' => 'super_admin']);
 
     // Retry queue
     $routes->get('retries',                  'Provisioning::retries',          ['as' => 'provisioning.retries']);

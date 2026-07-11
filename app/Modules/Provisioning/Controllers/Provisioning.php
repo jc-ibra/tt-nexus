@@ -58,6 +58,62 @@ class Provisioning extends BaseController
         ]);
     }
 
+    /**
+     * CSV export of the audit log (respects the same filters as the log view).
+     * SuperAdmin only — enforced by the route filter and re-checked here.
+     */
+    public function exportLog(): ResponseInterface
+    {
+        if (! service('access')->isSuperAdmin()) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $filters = [
+            'operation'   => $this->request->getGet('operation'),
+            'status'      => $this->request->getGet('status'),
+            'system_id'   => $this->request->getGet('system_id'),
+            'employee_id' => $this->request->getGet('employee_id'),
+        ];
+
+        $rows = (new ProvisioningLogModel())->listAllForExport($filters);
+
+        $statusLabels = ['success' => 'Éxito', 'error' => 'Error', 'pending' => 'Pendiente'];
+
+        $handle = fopen('php://temp', 'r+');
+        fputcsv($handle, [
+            'Fecha', 'Empleado', 'Número empleado', 'Sistema', 'Operación',
+            'Estado', 'Mensaje', 'Código error', 'ID externo', 'Ejecutor', 'IP',
+        ]);
+
+        foreach ($rows as $r) {
+            $employee = trim(($r['employee_name'] ?? '') . ' ' . ($r['employee_lastname'] ?? ''));
+            fputcsv($handle, [
+                date('d/m/Y H:i:s', strtotime($r['created_at'])),
+                $employee !== '' ? $employee : '-',
+                $r['employee_number'] ?? '',
+                $r['system_name'] ?: '-',
+                $r['operation'] ?? '',
+                $statusLabels[$r['status']] ?? ($r['status'] ?? ''),
+                $r['message'] ?? '',
+                $r['error_code'] ?? '',
+                $r['external_id'] ?? '',
+                $r['executor_name'] ?: '-',
+                $r['ip_address'] ?? '',
+            ]);
+        }
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        $filename = 'bitacora_aprovisionamiento_' . date('Y-m-d_His') . '.csv';
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody("\xEF\xBB\xBF" . $csv); // UTF-8 BOM for Excel
+    }
+
     public function retries(): string
     {
         $retries = (new ProvisioningRetryQueueModel())->listAll();
