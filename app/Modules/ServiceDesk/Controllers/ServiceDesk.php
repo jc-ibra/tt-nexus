@@ -86,6 +86,12 @@ class ServiceDesk extends BaseController
                 ->with('error', 'La importación está deshabilitada por el administrador.');
         }
 
+        $name = trim((string) $this->request->getPost('name'));
+        if ($name === '') {
+            return redirect()->back()->withInput()
+                ->with('error', 'Indica un nombre para la carga (ej. el lote o periodo que importas).');
+        }
+
         $file = $this->request->getFile('file');
         if ($file === null || ! $file->isValid()) {
             return redirect()->to(route_to('servicedesk.index'))
@@ -113,7 +119,7 @@ class ServiceDesk extends BaseController
         // Create the job, then move the file into its own folder.
         $imports = new ServiceDeskImportModel();
         $importId = $imports->insert([
-            'name'            => $this->request->getPost('name') ?: $file->getClientName(),
+            'name'            => $name,
             'source_filename' => $file->getClientName(),
             'status'          => 'pending',
             'total_rows'      => (int) ($validation->data['totalRows'] ?? 0),

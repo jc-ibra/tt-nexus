@@ -210,12 +210,8 @@ $moduleSubnav = [
         Sistemas
       </a>
       <a href="<?= route_to('servicedesk.settings') ?>" role="listitem"
-         class="nav-subitem <?= $currentPath === '/admin/servicedesk/settings' ? 'is-active' : '' ?>">
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/servicedesk') ? 'is-active' : '' ?>">
         Service Desk
-      </a>
-      <a href="<?= route_to('servicedesk.categories') ?>" role="listitem"
-         class="nav-subitem <?= str_starts_with($currentPath, '/admin/servicedesk/categories') ? 'is-active' : '' ?>">
-        SD · Categorías
       </a>
     </div>
   </div>

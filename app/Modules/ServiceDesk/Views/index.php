@@ -1,4 +1,17 @@
 <?= $this->extend('App\Modules\Core\Views\layouts\main') ?>
+
+<?= $this->section('head') ?>
+<style>
+  .sd-prog { position:relative; height:20px; min-width:130px; border-radius:999px; overflow:hidden;
+    background: var(--color-neutral-200, #e5e7eb); }
+  .sd-prog-seg { position:absolute; top:0; height:100%; }
+  .sd-prog-ok  { left:0; background: var(--color-success-default, #2e7d32); }
+  .sd-prog-err { background: var(--color-critical-default, #c62828); }
+  .sd-prog-label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:600; color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.35); white-space:nowrap; }
+</style>
+<?= $this->endSection() ?>
+
 <?= $this->section('content') ?>
 
 <?php
@@ -11,6 +24,27 @@ $statusBadge = static function (string $state): string {
     ];
     [$class, $label] = $map[$state] ?? ['badge-neutral', $state];
     return '<span class="badge ' . $class . '">' . esc($label) . '</span>';
+};
+
+$progressBar = static function (array $imp): string {
+    $total = max(0, (int) $imp['total_rows']);
+    $ok    = (int) $imp['succeeded_rows'];
+    $err   = (int) $imp['failed_rows'];
+    if ($total === 0) {
+        return '<span class="text-muted text-sm">—</span>';
+    }
+    $okPct  = min(100, round($ok / $total * 100));
+    $errPct = min(100 - $okPct, round($err / $total * 100));
+    $label  = $ok . '/' . $total . ($err > 0 ? ' · ' . $err . ' err' : '');
+    $title  = $ok . ' exitosos, ' . $err . ' con error de ' . $total;
+
+    $html  = '<div class="sd-prog" title="' . esc($title, 'attr') . '">';
+    $html .= '<div class="sd-prog-seg sd-prog-ok" style="width:' . $okPct . '%"></div>';
+    if ($err > 0) {
+        $html .= '<div class="sd-prog-seg sd-prog-err" style="left:' . $okPct . '%;width:' . $errPct . '%"></div>';
+    }
+    $html .= '<span class="sd-prog-label">' . esc($label) . '</span></div>';
+    return $html;
 };
 ?>
 
@@ -89,8 +123,9 @@ $statusBadge = static function (string $state): string {
           <form action="<?= route_to('servicedesk.imports.upload') ?>" method="post" enctype="multipart/form-data">
             <?= csrf_field() ?>
             <div class="field" style="margin-bottom: var(--space-3);">
-              <label class="field-label" for="name">Nombre de la carga (opcional)</label>
-              <input type="text" id="name" name="name" class="input" maxlength="200" placeholder="Ej: Envíos marzo 2026">
+              <label class="field-label" for="name">Nombre de la carga <span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="name" name="name" class="input" maxlength="200" required
+                     value="<?= esc(old('name')) ?>" placeholder="Ej: Envíos marzo 2026 · Sucursales norte">
             </div>
             <div class="field" style="margin-bottom: var(--space-3);">
               <label class="field-label" for="file">Archivo .xlsx <span class="required" aria-hidden="true">*</span></label>
@@ -122,7 +157,7 @@ $statusBadge = static function (string $state): string {
                 <td class="text-sm"><?= esc($imp['name'] ?: $imp['source_filename']) ?></td>
                 <td class="text-sm"><?= ! empty($imp['uploaded_by_name']) ? esc($imp['uploaded_by_name']) : '<span class="text-muted">API / sistema</span>' ?></td>
                 <td><?= $statusBadge($imp['status']) ?></td>
-                <td class="text-sm"><?= (int) $imp['succeeded_rows'] ?>/<?= (int) $imp['total_rows'] ?> ok<?= (int) $imp['failed_rows'] > 0 ? ', ' . (int) $imp['failed_rows'] . ' err' : '' ?></td>
+                <td><?= $progressBar($imp) ?></td>
                 <td class="text-muted text-sm"><?= esc($imp['created_at']) ?></td>
               </tr>
             <?php endforeach; ?>
