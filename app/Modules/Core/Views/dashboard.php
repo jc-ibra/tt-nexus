@@ -3,15 +3,24 @@
 <?= $this->section('head') ?>
 <style>
   .dash-hero {
-    background: linear-gradient(135deg, var(--color-primary-600, #135ba1) 0%, var(--color-primary-500, #1773C8) 100%);
-    color: #fff; border-radius: var(--radius-md); padding: var(--space-6) var(--space-6);
-    margin-bottom: var(--space-5);
+    padding: var(--space-2) 0 var(--space-6);
+    margin-bottom: var(--space-6);
+    border-bottom: var(--border-width-default) solid var(--color-neutral-200);
   }
-  .dash-hero h1 { color: #fff; margin: 0 0 var(--space-1); font-size: 1.6rem; }
-  .dash-hero p { color: rgba(255,255,255,.85); margin: 0; }
+  .dash-hero h1 {
+    color: var(--text-primary); margin: 0 0 var(--space-1);
+    font-size: var(--text-2xl); font-weight: var(--weight-semibold); letter-spacing: -0.01em;
+  }
+  .dash-hero p { color: var(--text-muted); margin: 0; font-size: var(--text-md); }
   .dash-hero .role-chip {
-    display:inline-block; margin-top: var(--space-3); padding: 2px 10px; border-radius: 999px;
-    background: rgba(255,255,255,.18); color:#fff; font-size: var(--text-sm); font-weight:600;
+    display:inline-flex; align-items:center; gap: var(--space-2);
+    margin-top: var(--space-4); padding: 4px 12px; border-radius: var(--radius-full);
+    background: var(--bg-surface-alt); border: var(--border-width-default) solid var(--color-neutral-200);
+    color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-medium);
+  }
+  .dash-hero .role-chip::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-blue-500); flex-shrink: 0;
   }
   .dash-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
   .dash-tile {
@@ -58,8 +67,6 @@
 <?php
 $name = trim((string) (session()->get('user_name') ?? '')) ?: 'usuario';
 $first = explode(' ', $name)[0];
-$h = (int) date('G');
-$greet = $h < 12 ? 'Buen día' : ($h < 19 ? 'Buena tarde' : 'Buena noche');
 
 $fallbackIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>';
 $icons = [
@@ -73,7 +80,7 @@ $icons = [
 ?>
 
 <div class="dash-hero">
-  <h1><?= esc($greet) ?>, <?= esc($first) ?></h1>
+  <h1>Hola, <?= esc($first) ?></h1>
   <p>Bienvenido a Nexus. Selecciona un módulo para comenzar a trabajar.</p>
   <?php if (! empty($activeRole['name'])): ?>
     <span class="role-chip"><?= esc($activeRole['name']) ?></span>

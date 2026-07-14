@@ -135,8 +135,7 @@ $moduleSubnav = [
 <?php
   $isSuperAdmin = service('access')->isSuperAdmin();
 
-  $adminOpen = $currentPath === '/admin/dashboard'
-      || str_starts_with($currentPath, '/admin/users')
+  $adminOpen = str_starts_with($currentPath, '/admin/users')
       || str_starts_with($currentPath, '/admin/roles');
 
   $configOpen = str_starts_with($currentPath, '/admin/settings/smtp')
@@ -146,6 +145,15 @@ $moduleSubnav = [
 ?>
 
 <nav aria-label="Navegación principal">
+  <a href="<?= route_to('dashboard') ?>"
+     class="nav-item <?= $currentPath === '/' ? 'is-active' : '' ?>">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 9.5L12 3l9 6.5"/><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10"/><path d="M9 21v-6h6v6"/>
+    </svg>
+    Inicio
+  </a>
+
+  <?php if ($isSuperAdmin): ?>
   <div class="nav-group <?= $adminOpen ? 'is-open' : '' ?>" data-nav-group>
     <button type="button"
             class="nav-item nav-group-toggle <?= $adminOpen ? 'is-active' : '' ?>"
@@ -164,11 +172,6 @@ $moduleSubnav = [
     </button>
 
     <div class="nav-subnav" role="list">
-      <a href="<?= route_to('dashboard') ?>" role="listitem"
-         class="nav-subitem <?= $currentPath === '/admin/dashboard' ? 'is-active' : '' ?>">
-        Dashboard
-      </a>
-      <?php if ($isSuperAdmin): ?>
       <a href="<?= route_to('admin.users.index') ?>" role="listitem"
          class="nav-subitem <?= str_starts_with($currentPath, '/admin/users') ? 'is-active' : '' ?>">
         Usuarios
@@ -177,9 +180,9 @@ $moduleSubnav = [
          class="nav-subitem <?= str_starts_with($currentPath, '/admin/roles') ? 'is-active' : '' ?>">
         Roles
       </a>
-      <?php endif; ?>
     </div>
   </div>
+  <?php endif; ?>
 
   <?php if ($isSuperAdmin): ?>
   <div class="nav-group <?= $configOpen ? 'is-open' : '' ?>" data-nav-group>

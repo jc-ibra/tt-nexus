@@ -8,7 +8,6 @@ use CodeIgniter\Router\RouteCollection;
 // Auth (public)
 // -----------------------------------------------------------------------
 $routes->group('', ['namespace' => 'App\Modules\Core\Controllers'], function (RouteCollection $routes): void {
-    $routes->get('/',      'Auth::redirectHome', ['as' => 'home']);
     $routes->get('login',  'Auth::login',        ['as' => 'login']);
     $routes->post('login', 'Auth::attempt',      ['as' => 'login.attempt']);
     $routes->get('logout', 'Auth::logout',       ['as' => 'logout']);
@@ -30,11 +29,18 @@ $routes->group('mfa', ['namespace' => 'App\Modules\Core\Controllers'], function 
 });
 
 // -----------------------------------------------------------------------
+// Home / Dashboard — entry point for every authenticated role (not admin-only)
+// -----------------------------------------------------------------------
+$routes->get('/', 'Dashboard::index', [
+    'namespace' => 'App\Modules\Core\Controllers',
+    'filter'    => 'auth',
+    'as'        => 'dashboard',
+]);
+
+// -----------------------------------------------------------------------
 // Admin — Core (protected)
 // -----------------------------------------------------------------------
 $routes->group('admin', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => 'auth'], function (RouteCollection $routes): void {
-    $routes->get('dashboard', 'Dashboard::index', ['as' => 'dashboard']);
-
     // Switch the active role (user must be authenticated; ownership validated in the service)
     $routes->post('switch-role', 'Auth::switchRole', ['as' => 'switch-role']);
 

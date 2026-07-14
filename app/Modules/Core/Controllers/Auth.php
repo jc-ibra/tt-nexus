@@ -8,19 +8,6 @@ use App\Controllers\BaseController;
 
 class Auth extends BaseController
 {
-    public function redirectHome(): \CodeIgniter\HTTP\RedirectResponse
-    {
-        // Toolbar background requests hit this route — skip session to avoid lock contention
-        $req = service('request');
-        if ($req->getGet('debugbar') !== null || $req->getGet('debugbar_time') !== null) {
-            return redirect()->to(route_to('login'));
-        }
-
-        return session()->get('user_id')
-            ? redirect()->to(route_to('dashboard'))
-            : redirect()->to(route_to('login'));
-    }
-
     public function login(): string|\CodeIgniter\HTTP\RedirectResponse
     {
         $session = session();
