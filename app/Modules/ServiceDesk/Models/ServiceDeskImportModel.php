@@ -20,6 +20,7 @@ class ServiceDeskImportModel extends Model
         'output_path',
         'log_path',
         'status',
+        'source',
         'total_rows',
         'processed_rows',
         'succeeded_rows',

@@ -2788,6 +2788,76 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "AI creator — chat (propose tickets)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Crea 3 tickets de incidencia para revisar la red en Polanco, Roma y Condesa. Estatus nuevo, fecha hoy 09:00.\",\n  \"containers\": [5],\n  \"history\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/creator/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "creator",
+                "chat"
+              ]
+            },
+            "description": "Turno conversacional con Claude. Devuelve reply, proposal (filas), columns e history actualizado. La conversación es stateless: reenvía el history recibido en la siguiente llamada."
+          },
+          "response": []
+        },
+        {
+          "name": "AI creator — create tickets (enqueue)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"containers\": [5],\n  \"name\": \"Revisión de red sucursales\",\n  \"rows\": [\n    {\n      \"TITULO\": \"Revisar conexión de red Polanco\",\n      \"TIPO\": \"INCIDENCIA\",\n      \"ESTATUS\": \"NUEVO\",\n      \"CATEGORIA\": \"Soporte / Hardware\",\n      \"FECHA_APERTURA\": \"2026-07-14 09:00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/creator/tickets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "creator",
+                "tickets"
+              ]
+            },
+            "description": "Valida las filas propuestas y las encola como job de importación (mismo pipeline que el importador masivo). Las claves de cada fila son los encabezados que devuelve schema/columns."
+          },
+          "response": []
         }
       ]
     }

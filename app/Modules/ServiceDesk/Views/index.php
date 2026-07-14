@@ -46,6 +46,12 @@ $progressBar = static function (array $imp): string {
     $html .= '<span class="sd-prog-label">' . esc($label) . '</span></div>';
     return $html;
 };
+
+$originBadge = static function (?string $source): string {
+    return ($source === 'ai_creator')
+        ? '<span class="badge badge-info">Creador IA</span>'
+        : '<span class="badge badge-neutral">Importador</span>';
+};
 ?>
 
 <div class="page-header">
@@ -149,12 +155,13 @@ $progressBar = static function (array $imp): string {
         <p class="text-muted" style="padding: var(--space-4);">Aún no hay importaciones.</p>
       <?php else: ?>
         <table class="table" style="width:100%;">
-          <thead><tr><th>#</th><th>Archivo</th><th>Solicitado por</th><th>Estado</th><th>Progreso</th><th>Fecha</th></tr></thead>
+          <thead><tr><th>#</th><th>Archivo</th><th>Origen</th><th>Solicitado por</th><th>Estado</th><th>Progreso</th><th>Fecha</th></tr></thead>
           <tbody>
             <?php foreach ($imports as $imp): ?>
               <tr>
                 <td><a href="<?= route_to('servicedesk.imports.show', $imp['id']) ?>">#<?= (int) $imp['id'] ?></a></td>
                 <td class="text-sm"><?= esc($imp['name'] ?: $imp['source_filename']) ?></td>
+                <td><?= $originBadge($imp['source'] ?? null) ?></td>
                 <td class="text-sm"><?= ! empty($imp['uploaded_by_name']) ? esc($imp['uploaded_by_name']) : '<span class="text-muted">API / sistema</span>' ?></td>
                 <td><?= $statusBadge($imp['status']) ?></td>
                 <td><?= $progressBar($imp) ?></td>

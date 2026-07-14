@@ -124,6 +124,11 @@ $moduleSubnav = [
             'active' => $currentPath === '/servicedesk',
         ],
         [
+            'label'  => 'Creador (IA)',
+            'url'    => base_url('servicedesk/creator'),
+            'active' => str_starts_with($currentPath, '/servicedesk/creator'),
+        ],
+        [
             'label'  => 'Historial',
             'url'    => base_url('servicedesk/imports'),
             'active' => str_starts_with($currentPath, '/servicedesk/imports'),

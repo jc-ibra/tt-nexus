@@ -12,6 +12,12 @@ $statusBadge = static function (string $state): string {
     [$class, $label] = $map[$state] ?? ['badge-neutral', $state];
     return '<span class="badge ' . $class . '">' . esc($label) . '</span>';
 };
+
+$originBadge = static function (?string $source): string {
+    return ($source === 'ai_creator')
+        ? '<span class="badge badge-info">Creador IA</span>'
+        : '<span class="badge badge-neutral">Importador</span>';
+};
 ?>
 
 <div class="page-header">
@@ -31,13 +37,14 @@ $statusBadge = static function (string $state): string {
     <?php else: ?>
       <table class="table" style="width:100%;">
         <thead>
-          <tr><th>#</th><th>Nombre</th><th>Solicitado por</th><th>Estado</th><th>Tickets</th><th>Exitosos</th><th>Errores</th><th>Fecha</th></tr>
+          <tr><th>#</th><th>Nombre</th><th>Origen</th><th>Solicitado por</th><th>Estado</th><th>Tickets</th><th>Exitosos</th><th>Errores</th><th>Fecha</th></tr>
         </thead>
         <tbody>
           <?php foreach ($imports as $imp): ?>
             <tr>
               <td><a href="<?= route_to('servicedesk.imports.show', $imp['id']) ?>">#<?= (int) $imp['id'] ?></a></td>
               <td class="text-sm"><?= esc($imp['name'] ?: $imp['source_filename']) ?></td>
+              <td><?= $originBadge($imp['source'] ?? null) ?></td>
               <td class="text-sm">
                 <?php if (! empty($imp['uploaded_by_name'])): ?>
                   <?= esc($imp['uploaded_by_name']) ?>

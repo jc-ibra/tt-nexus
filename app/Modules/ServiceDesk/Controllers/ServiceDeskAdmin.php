@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\ServiceDesk\Controllers;
 
 use App\Controllers\BaseController;
+use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
+use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -18,12 +20,17 @@ class ServiceDeskAdmin extends BaseController
     {
         $introspector = service('glpiSchemaIntrospector');
         $configured   = $introspector->isConfigured();
+        $settings     = service('serviceDeskSettings');
 
         return view('App\Modules\ServiceDesk\Views\settings', [
-            'pageTitle'  => 'Configuración · Service Desk',
-            'configured' => $configured,
-            'settings'   => service('serviceDeskSettings')->all(),
-            'containers' => $configured ? $introspector->containerOptions() : [],
+            'pageTitle'      => 'Configuración · Service Desk',
+            'configured'     => $configured,
+            'settings'       => $settings->all(),
+            'containers'     => $configured ? $introspector->containerOptions() : [],
+            'aiModels'       => ServiceDeskSettings::AI_MODELS,
+            'aiHasKey'       => $settings->aiHasApiKey(),
+            'aiInstructions' => $settings->aiSystemPrompt(),
+            'aiUsage'        => (new ServiceDeskAiUsageModel())->summary(30),
         ]);
     }
 
@@ -31,6 +38,16 @@ class ServiceDeskAdmin extends BaseController
     {
         $result = service('serviceDeskSettings')->save($this->request->getPost());
         return redirect()->to(route_to('servicedesk.settings'))
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /**
+     * Saves the AI creator configuration (Claude API key, model, limits).
+     */
+    public function saveAi(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveAi($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#ai')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 

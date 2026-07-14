@@ -48,12 +48,14 @@ use App\Modules\Provisioning\Services\GlpiDbConnection;
 use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
 use App\Modules\ServiceDesk\Config\ServiceDesk as ServiceDeskConfig;
+use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
+use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
 use App\Modules\ServiceDesk\Services\TicketTemplateBuilder;
 use CodeIgniter\Config\BaseService;
@@ -324,6 +326,20 @@ class Services extends BaseService
             new ServiceDeskImportModel(),
             new ServiceDeskConfig(),
             new ServiceDeskCategoryMapModel(),
+        );
+    }
+
+    public static function ticketCreatorService(bool $getShared = true): TicketCreatorService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('ticketCreatorService');
+        }
+        return new TicketCreatorService(
+            self::glpiSchemaIntrospector(),
+            self::serviceDeskSettings(),
+            self::ticketImportValidator(),
+            new ServiceDeskAiUsageModel(),
+            new ServiceDeskImportModel(),
         );
     }
 }
