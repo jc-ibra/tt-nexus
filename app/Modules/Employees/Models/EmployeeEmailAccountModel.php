@@ -43,6 +43,31 @@ class EmployeeEmailAccountModel extends Model
     }
 
     /**
+     * Returns the conflicting account (with the other employee's name/number) if
+     * the given email is already registered on a DIFFERENT employee, or null.
+     * Enforces that an institutional mailbox belongs to exactly one person.
+     * Case-insensitive. `exceptAccountId` skips a specific account (self, on edit).
+     */
+    public function findEmailOnOtherEmployee(string $email, int $employeeId, ?int $exceptAccountId = null): ?array
+    {
+        $sql = 'SELECT a.id, a.employee_id, a.type,
+                       e.name AS employee_name, e.lastname AS employee_lastname, e.employee_number
+                FROM employee_email_accounts a
+                LEFT JOIN employees_employees e ON e.id = a.employee_id
+                WHERE LOWER(a.email) = ? AND a.employee_id != ?';
+        $params = [strtolower(trim($email)), $employeeId];
+
+        if ($exceptAccountId !== null) {
+            $sql .= ' AND a.id != ?';
+            $params[] = $exceptAccountId;
+        }
+
+        $row = $this->db->query($sql, $params)->getRowArray();
+
+        return $row ?: null;
+    }
+
+    /**
      * Returns the employee's primary email account (is_primary = 1), or null.
      * This account is the institutional key replicated to GLPI/Intranet.
      */

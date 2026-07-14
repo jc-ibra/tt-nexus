@@ -325,6 +325,30 @@ class Provisioning extends BaseController
         return $this->response->setJSON(['status' => 'success', 'suggestion' => $suggestion]);
     }
 
+    /**
+     * AJAX: verify a Mailcow mailbox exists before registering it as an email
+     * account. Advisory only — EmployeeService re-checks server-side on save.
+     */
+    public function validateMailbox(): ResponseInterface
+    {
+        $email = trim((string) ($this->request->getGet('email') ?? ''));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->response->setJSON(['status' => 'error', 'exists' => false, 'message' => 'Correo inválido.']);
+        }
+
+        $res = service('mailboxesService')->mailboxExists($email);
+        if (! $res->success) {
+            return $this->response->setJSON(['status' => 'error', 'exists' => false, 'message' => $res->message ?: 'No se pudo consultar Mailcow.']);
+        }
+
+        $exists = ! empty($res->data['exists']);
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'exists'  => $exists,
+            'message' => $exists ? 'El buzón existe en Mailcow.' : 'El buzón no existe en Mailcow.',
+        ]);
+    }
+
     private function buildMailboxSuggestion(string $name, string $lastname): string
     {
         $normalize = function (string $str): string {

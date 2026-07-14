@@ -111,6 +111,34 @@ class MailboxesService
         return ServiceResult::ok($this->normalizeMailbox($data));
     }
 
+    /**
+     * Lightweight existence check for a specific mailbox. Mailcow's
+     * get/mailbox/{email} returns HTTP 200 with an empty array when the mailbox
+     * does not exist, so "not found" is NOT an API error — we detect it by the
+     * absence of a matching username. Returns fail only on a real connection /
+     * configuration error, so callers can distinguish "cannot verify" from
+     * "verified: does not exist".
+     */
+    public function mailboxExists(string $email): ServiceResult
+    {
+        $email  = trim($email);
+        $result = $this->api()->getMailbox($email);
+
+        if (! $result['success']) {
+            return ServiceResult::fail($result['error'] ?? 'No se pudo consultar Mailcow.');
+        }
+
+        $data = is_array($result['data']) ? $result['data'] : [];
+        if (isset($data[0])) {
+            $data = $data[0];
+        }
+
+        $username = strtolower(trim((string) ($data['username'] ?? '')));
+        $exists   = $username !== '' && $username === strtolower($email);
+
+        return ServiceResult::ok(['exists' => $exists]);
+    }
+
     public function getDomains(): ServiceResult
     {
         $result = $this->api()->getAllDomains();

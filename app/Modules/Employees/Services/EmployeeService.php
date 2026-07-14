@@ -172,7 +172,16 @@ class EmployeeService
             return ServiceResult::fail($built['error']);
         }
 
-        $fields                = $built['fields'];
+        $fields = $built['fields'];
+
+        if ($fields['type'] !== 'none' && ($err = $this->assertEmailNotOnOtherEmployee((string) $fields['email'], $employeeId)) !== null) {
+            return ServiceResult::fail($err);
+        }
+
+        if ($fields['type'] === 'mailcow' && ($err = $this->assertMailboxExists((string) $fields['email'])) !== null) {
+            return ServiceResult::fail($err);
+        }
+
         $fields['employee_id'] = $employeeId;
 
         $id = $this->emailAccountModel->addAccount($fields);
@@ -201,6 +210,14 @@ class EmployeeService
         }
 
         $fields = $built['fields'];
+
+        if ($fields['type'] !== 'none' && ($err = $this->assertEmailNotOnOtherEmployee((string) $fields['email'], $employeeId, $accountId)) !== null) {
+            return ServiceResult::fail($err);
+        }
+
+        if ($fields['type'] === 'mailcow' && ($err = $this->assertMailboxExists((string) $fields['email'])) !== null) {
+            return ServiceResult::fail($err);
+        }
 
         if (! $this->emailAccountModel->updateAccount($accountId, $employeeId, $fields)) {
             return ServiceResult::fail('No se pudo actualizar la cuenta de correo.');
@@ -250,6 +267,54 @@ class EmployeeService
             'is_primary'    => empty($data['is_primary']) ? 0 : 1,
             'notes'         => trim((string) ($data['notes'] ?? '')) ?: null,
         ]];
+    }
+
+    /**
+     * A Mailcow email account must reference a mailbox that already exists in
+     * Mailcow. Registering a non-existent buzón would desync provisioning: the
+     * "Alta en sistemas" flow adopts this mailbox into the operational registry
+     * so future baja/password act on it — and it can only adopt a real mailbox.
+     * Creating a brand-new mailbox is done via "Alta en sistemas" (Mailcow
+     * selected), never from here. Returns an error string, or null if it exists.
+     */
+    /**
+     * A given email address may belong to only ONE employee. Blocks registering
+     * (or editing to) an email already on another employee — a mailbox/account is
+     * 1:1 with a person, so sharing it would desync provisioning across employees.
+     * Returns an error string, or null if the email is free. `exceptAccountId`
+     * skips the account being edited so it never conflicts with itself.
+     */
+    private function assertEmailNotOnOtherEmployee(string $email, int $employeeId, ?int $exceptAccountId = null): ?string
+    {
+        $conflict = $this->emailAccountModel->findEmailOnOtherEmployee($email, $employeeId, $exceptAccountId);
+        if ($conflict === null) {
+            return null;
+        }
+
+        $who   = trim(($conflict['employee_name'] ?? '') . ' ' . ($conflict['employee_lastname'] ?? ''));
+        $num   = trim((string) ($conflict['employee_number'] ?? ''));
+        $label = $who !== '' ? $who . ($num !== '' ? " (#{$num})" : '') : ('empleado #' . ($conflict['employee_id'] ?? '?'));
+
+        return 'El correo ' . $email . ' ya está registrado en otro empleado: ' . $label
+            . '. Un buzón pertenece a una sola persona; no puede registrarse en dos empleados.';
+    }
+
+    private function assertMailboxExists(string $email): ?string
+    {
+        $res = $this->mailboxesService->mailboxExists($email);
+
+        if (! $res->success) {
+            return 'No se pudo validar el buzón contra Mailcow: ' . $res->message
+                . ' Intenta de nuevo cuando Mailcow esté disponible.';
+        }
+
+        if (empty($res->data['exists'])) {
+            return 'El buzón ' . $email . ' no existe en Mailcow. Verifica el correo. '
+                . 'Solo puedes registrar una cuenta Mailcow que ya exista; para crear un buzón nuevo '
+                . 'usa "Dar de alta en sistemas" con Mailcow seleccionado.';
+        }
+
+        return null;
     }
 
     public function removeEmailAccount(int $accountId, int $employeeId): ServiceResult

@@ -87,6 +87,14 @@ class AccessOrchestrator
                 );
             }
             $resolvedMailboxEmail = $primaryEmail;
+
+            // The employee already had a Mailcow mailbox (registered manually and
+            // marked primary) and Mailcow is NOT part of this alta. Adopt it into
+            // the operational registry so future baja/password/reactivación act on
+            // it. We never re-create it and never touch its password.
+            if (($primary['type'] ?? '') === 'mailcow') {
+                $this->adoptExistingMailcowMailbox($employeeId, $primaryEmail);
+            }
         }
 
         foreach ($systems as $system) {
@@ -354,6 +362,12 @@ class AccessOrchestrator
             }
             $userData['mailbox_email'] = $primaryEmail;
             $userData['email']         = $primaryEmail;
+
+            // Adopt a pre-existing Mailcow mailbox into the registry (see
+            // provisionEmployee). Only Mailcow is orchestrated; Microsoft is manual.
+            if (($primary['type'] ?? '') === 'mailcow') {
+                $this->adoptExistingMailcowMailbox($employeeId, $primaryEmail);
+            }
         }
 
         $result = $this->runCreate($system, $employee, $userData);
@@ -667,6 +681,54 @@ class AccessOrchestrator
         }
 
         $this->retries->enqueue($logId, (int) $employee['id'], (int) $system['id'], $operation, $payload, 60);
+    }
+
+    /**
+     * Register a pre-existing Mailcow mailbox in the operational registry
+     * (provisioning_external_accounts) so future baja / password / reactivación
+     * act on it. Used when GLPI/Intranet are provisioned on top of a Mailcow
+     * mailbox that already existed and was registered manually — not created here.
+     *
+     * The mailbox's real existence is guaranteed upstream: a Mailcow email
+     * account can only be saved after Nexus verifies it exists in Mailcow
+     * (EmployeeService::assertMailboxExists). So this records the link without
+     * re-hitting the API and never touches the password. Idempotent: it never
+     * overwrites an account that already carries an external_id.
+     */
+    private function adoptExistingMailcowMailbox(int $employeeId, string $email): void
+    {
+        $email = trim($email);
+        if ($email === '') {
+            return;
+        }
+
+        $mailcow = $this->systems->findByKey('mailcow');
+        if (! $mailcow) {
+            return;
+        }
+        $systemId = (int) $mailcow['id'];
+
+        $existing = $this->accounts->findFor($employeeId, $systemId);
+        if ($existing && ! empty($existing['external_id'])) {
+            return; // already managed — nothing to do
+        }
+
+        $this->accounts->upsert($employeeId, $systemId, [
+            'external_id'  => $email,
+            'status'       => 'active',
+            'last_message' => 'Buzón existente vinculado desde el alta (no creado por Nexus).',
+        ]);
+
+        $this->log->record([
+            'employee_id'      => $employeeId,
+            'system_id'        => $systemId,
+            'operation'        => 'link',
+            'status'           => 'success',
+            'message'          => 'Buzón Mailcow existente vinculado al aprovisionamiento: ' . $email,
+            'external_id'      => $email,
+            'executor_user_id' => session()->get('user_id') ?: null,
+            'ip_address'       => $this->ip(),
+        ]);
     }
 
     // =======================================================================

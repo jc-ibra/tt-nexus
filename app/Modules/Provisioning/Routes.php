@@ -39,6 +39,7 @@ $routes->group('provisioning', [
     // Mailcow AJAX helpers (used from employee panel, accessible to all provisioning users)
     $routes->get('mailcow-domains', 'Provisioning::mailcowDomains', ['as' => 'provisioning.mailcow-domains']);
     $routes->get('suggest-mailbox', 'Provisioning::suggestMailbox', ['as' => 'provisioning.suggest-mailbox']);
+    $routes->get('validate-mailbox', 'Provisioning::validateMailbox', ['as' => 'provisioning.validate-mailbox']);
 });
 
 // -----------------------------------------------------------------------

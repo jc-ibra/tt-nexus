@@ -246,6 +246,13 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
             <div class="field" id="ea-email-field">
               <label class="field-label" for="ea-email">Correo electrónico <span class="required">*</span></label>
               <input type="email" id="ea-email" name="email" class="input" placeholder="usuario@dominio.com" maxlength="255">
+              <div id="ea-mailcow-validate" style="display:none; align-items:center; gap:var(--space-2); margin-top:var(--space-1);">
+                <button type="button" id="ea-validate-btn" class="btn btn-tertiary btn-sm">Validar en Mailcow</button>
+                <span id="ea-validate-status" class="text-sm text-muted"></span>
+              </div>
+              <p id="ea-mailcow-hint" class="prov-field-hint" style="display:none; margin-top:var(--space-1);">
+                Registra un buzón que ya exista en Mailcow. Solo se vincula: no se crea ni se cambia su contraseña. Al dar de alta en GLPI e Intranet quedará ligado para futuras bajas y cambios de contraseña.
+              </p>
             </div>
 
             <div class="field" id="ea-license-field" style="display:none; grid-column:1/-1;">
@@ -576,19 +583,61 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
     const cancelBtn     = document.getElementById('ea-cancel-edit');
     const addAction     = eaForm.dataset.addAction;
     const updateBase    = eaForm.dataset.updateBase;
+    const validateWrap  = document.getElementById('ea-mailcow-validate');
+    const validateBtn   = document.getElementById('ea-validate-btn');
+    const validateStat  = document.getElementById('ea-validate-status');
+    const mailcowHint   = document.getElementById('ea-mailcow-hint');
+
+    const resetValidateStatus = function () {
+      if (validateStat) { validateStat.textContent = ''; validateStat.style.color = ''; }
+    };
 
     const updateEaFields = function () {
       const t = typeSelect.value;
       const showEmail   = t === 'mailcow' || t === 'microsoft';
       const showLicense = t === 'microsoft';
+      const isMailcow   = t === 'mailcow';
 
       emailField.style.display   = showEmail   ? '' : 'none';
       licenseField.style.display = showLicense ? '' : 'none';
       emailInput.required    = showEmail;
       licenseSelect.required = showLicense;
+
+      if (validateWrap) validateWrap.style.display = isMailcow ? 'flex' : 'none';
+      if (mailcowHint)  mailcowHint.style.display  = isMailcow ? '' : 'none';
+      resetValidateStatus();
     };
     typeSelect.addEventListener('change', updateEaFields);
     updateEaFields();
+
+    // A changed address invalidates any prior "Existe/No existe" result.
+    emailInput.addEventListener('input', resetValidateStatus);
+
+    if (validateBtn) {
+      validateBtn.addEventListener('click', async function () {
+        const email = emailInput.value.trim();
+        validateStat.style.color = '';
+        if (! email) { validateStat.textContent = 'Escribe un correo primero.'; return; }
+        validateStat.textContent = 'Validando...';
+        try {
+          const res  = await fetch('<?= base_url('provisioning/validate-mailbox') ?>?email=' + encodeURIComponent(email), { credentials: 'same-origin' });
+          const json = await res.json();
+          if (json.status === 'success' && json.exists) {
+            validateStat.textContent = 'Existe en Mailcow';
+            validateStat.style.color = 'var(--color-success-default)';
+          } else if (json.status === 'success') {
+            validateStat.textContent = 'No existe en Mailcow';
+            validateStat.style.color = 'var(--color-critical-default)';
+          } else {
+            validateStat.textContent = json.message || 'No se pudo validar';
+            validateStat.style.color = 'var(--color-critical-default)';
+          }
+        } catch (_) {
+          validateStat.textContent = 'Error de conexión al validar';
+          validateStat.style.color = 'var(--color-critical-default)';
+        }
+      });
+    }
 
     let openingForEdit = false;
 
