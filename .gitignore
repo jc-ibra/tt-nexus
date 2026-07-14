@@ -126,3 +126,6 @@ _modules/*
 
 /results/
 /phpunit.xml
+
+# servicedesk uploads
+/writable/servicedesk

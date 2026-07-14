@@ -2630,6 +2630,166 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Service Desk — Import",
+      "item": [
+        {
+          "name": "List containers / schema",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/schema?container=3",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "schema"
+              ],
+              "query": [
+                {
+                  "key": "container",
+                  "value": "3",
+                  "description": "ID del contenedor; omite para listar todos"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download template",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/template?containers=1,3",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "template"
+              ],
+              "query": [
+                {
+                  "key": "containers",
+                  "value": "1,3",
+                  "description": "IDs de contenedor separados por coma"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create import (upload xlsx)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "name",
+                  "value": "Importación API",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/imports",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "imports"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List imports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/imports",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "imports"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Show import",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/imports/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "imports",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

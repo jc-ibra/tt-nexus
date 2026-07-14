@@ -47,6 +47,15 @@ use App\Modules\Provisioning\Services\GlpiCatalogService;
 use App\Modules\Provisioning\Services\GlpiDbConnection;
 use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
+use App\Modules\ServiceDesk\Config\ServiceDesk as ServiceDeskConfig;
+use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
+use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
+use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
+use App\Modules\ServiceDesk\Services\TicketBulkImporter;
+use App\Modules\ServiceDesk\Services\TicketImportValidator;
+use App\Modules\ServiceDesk\Services\TicketTemplateBuilder;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -258,5 +267,63 @@ class Services extends BaseService
             return static::getSharedInstance('glpiCatalogService');
         }
         return new GlpiCatalogService(self::glpiDbConnection(), new GlpiCatalogs(), new GlpiCatalogPrefModel());
+    }
+
+    // -----------------------------------------------------------------------
+    // Service Desk module
+    // -----------------------------------------------------------------------
+
+    public static function serviceDeskSettings(bool $getShared = true): ServiceDeskSettings
+    {
+        if ($getShared) {
+            return static::getSharedInstance('serviceDeskSettings');
+        }
+        return new ServiceDeskSettings(new ServiceDeskSettingsModel());
+    }
+
+    public static function glpiSchemaIntrospector(bool $getShared = true): GlpiSchemaIntrospector
+    {
+        if ($getShared) {
+            return static::getSharedInstance('glpiSchemaIntrospector');
+        }
+        return new GlpiSchemaIntrospector(
+            self::glpiDbConnection(),
+            self::glpiCatalogService(),
+            new ServiceDeskConfig(),
+            new ServiceDeskCategoryMapModel(),
+        );
+    }
+
+    public static function ticketTemplateBuilder(bool $getShared = true): TicketTemplateBuilder
+    {
+        if ($getShared) {
+            return static::getSharedInstance('ticketTemplateBuilder');
+        }
+        return new TicketTemplateBuilder(self::glpiSchemaIntrospector());
+    }
+
+    public static function ticketImportValidator(bool $getShared = true): TicketImportValidator
+    {
+        if ($getShared) {
+            return static::getSharedInstance('ticketImportValidator');
+        }
+        return new TicketImportValidator(self::glpiSchemaIntrospector(), self::serviceDeskSettings());
+    }
+
+    public static function serviceDeskImporter(bool $getShared = true): TicketBulkImporter
+    {
+        if ($getShared) {
+            return static::getSharedInstance('serviceDeskImporter');
+        }
+        return new TicketBulkImporter(
+            self::glpiSchemaIntrospector(),
+            self::glpiDbConnection(),
+            self::glpiCatalogService(),
+            self::connectorFactory(),
+            self::serviceDeskSettings(),
+            new ServiceDeskImportModel(),
+            new ServiceDeskConfig(),
+            new ServiceDeskCategoryMapModel(),
+        );
     }
 }

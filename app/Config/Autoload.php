@@ -45,6 +45,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\Mailboxes'        => APPPATH . 'Modules/Mailboxes',
         'App\Modules\Employees'        => APPPATH . 'Modules/Employees',
         'App\Modules\Provisioning'     => APPPATH . 'Modules/Provisioning',
+        'App\Modules\ServiceDesk'      => APPPATH . 'Modules/ServiceDesk',
     ];
 
     /**

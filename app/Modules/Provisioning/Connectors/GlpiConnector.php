@@ -219,6 +219,64 @@ class GlpiConnector implements SystemConnector
     }
 
     // -----------------------------------------------------------------------
+    // Tickets (bulk import — Service Desk module)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Opens an API session for reuse across many createTicket() calls.
+     * Returns ['success'=>bool, 'token'=>?string, 'error'=>?string].
+     * Callers MUST closeApiSession() the returned token when done.
+     */
+    public function openApiSession(): array
+    {
+        return $this->initSession();
+    }
+
+    public function closeApiSession(string $sessionToken): void
+    {
+        $this->killSession($sessionToken);
+    }
+
+    /**
+     * Creates a Ticket via the REST API and returns its id in externalId.
+     *
+     * When $sessionToken is given the call reuses that session (efficient for
+     * bulk loops); otherwise it opens and closes its own session, consistent
+     * with the user-management methods above.
+     *
+     * @param array $input GLPI Ticket input fields already mapped to GLPI keys
+     *                     (name, content, type, status, date, entities_id, ...).
+     */
+    public function createTicket(array $input, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $resp = $this->request('POST', 'Ticket', ['input' => $input], $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_TICKET_CREATE_FAILED', $this->buildDebug($resp));
+        }
+
+        $ticketId = $this->extractId($resp['data']);
+        if ($ticketId === null) {
+            return ConnectorResult::fail('GLPI no devolvió un id del ticket creado.', 'GLPI_NO_ID', $resp['data']);
+        }
+
+        return ConnectorResult::ok("Ticket creado en GLPI (id={$ticketId}).", (string) $ticketId, $resp['data']);
+    }
+
+    // -----------------------------------------------------------------------
     // Session
     // -----------------------------------------------------------------------
 
