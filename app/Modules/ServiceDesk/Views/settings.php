@@ -267,10 +267,18 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
         <input type="number" id="widget_requester_user_id" name="widget_requester_user_id" class="input" min="0"
                value="<?= $val('widget_requester_user_id', '0') ?>">
       </div>
-      <div class="field" style="margin-bottom: var(--space-4);">
+      <div class="field" style="margin-bottom: var(--space-3);">
         <label class="field-label" for="widget_entities_id">Entidad (entities_id, vacío = usar la de importación)</label>
         <input type="number" id="widget_entities_id" name="widget_entities_id" class="input" min="0"
                value="<?= $val('widget_entities_id') ?>">
+      </div>
+      <div class="field" style="margin-bottom: var(--space-4);">
+        <label class="field-label" for="widget_request_source_id">Origen de la solicitud en GLPI (requesttypes_id, 0 = predeterminado de GLPI)</label>
+        <input type="number" id="widget_request_source_id" name="widget_request_source_id" class="input" min="0"
+               value="<?= $val('widget_request_source_id', '0') ?>">
+        <p class="text-muted text-sm" style="margin-top: var(--space-1);">
+          Crea un origen de la solicitud en GLPI para el widget y pega aquí su id; cada ticket del widget se marcará con ese origen.
+        </p>
       </div>
 
       <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-3);">

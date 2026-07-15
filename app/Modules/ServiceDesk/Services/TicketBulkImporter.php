@@ -249,6 +249,7 @@ class TicketBulkImporter
 
         $entities   = isset($opts['entities'])  ? (int) $opts['entities']  : $this->settings->entitiesId();
         $requester  = isset($opts['requester']) ? (int) $opts['requester'] : $this->settings->requesterUserId();
+        $requestSource = isset($opts['requesttypes_id']) ? (int) $opts['requesttypes_id'] : 0;
         $autocreate = $this->settings->autocreateCatalogValues();
 
         $connector = $this->connectors->buildByKey('glpi');
@@ -264,6 +265,9 @@ class TicketBulkImporter
 
         try {
             $payload = $this->buildTicketPayload($row, $baseCols, $entities, $requester, $sucursalHeader);
+            if ($requestSource > 0) {
+                $payload['requesttypes_id'] = $requestSource;
+            }
             $result  = $connector->createTicket($payload, $token);
             if (! $result->success || $result->externalId === null) {
                 return ServiceResult::fail($result->message !== '' ? $result->message : 'GLPI no devolvió el id del ticket.');

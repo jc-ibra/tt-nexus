@@ -7,6 +7,25 @@
   var PRIMARY = "#1773C8";
   var open = false;
 
+  // Requester identity supplied by the host (intranet session). Set BEFORE this
+  // loader runs, e.g.:
+  //   window.ttSupportWidgetUser = { nombre: "Ana López", correo: "ana@...", numero_empleado: "1010" };
+  // Forwarded to the iframe so the assistant greets by name and no longer asks
+  // for these; they are appended to the ticket detail on creation.
+  function withIdentity(url) {
+    var u = window.ttSupportWidgetUser;
+    if (!u || typeof u !== "object") { return url; }
+    var parts = [];
+    ["nombre", "correo", "numero_empleado"].forEach(function (k) {
+      var v = u[k];
+      if (v !== undefined && v !== null && String(v) !== "") {
+        parts.push(k + "=" + encodeURIComponent(String(v)));
+      }
+    });
+    if (!parts.length) { return url; }
+    return url + (url.indexOf("?") === -1 ? "?" : "&") + parts.join("&");
+  }
+
   function el(tag, style) {
     var node = document.createElement(tag);
     if (style) { node.style.cssText = style; }
@@ -40,7 +59,7 @@
 
   function setOpen(next) {
     open = next;
-    if (open && !iframe.src) { iframe.src = FRAME_URL; }
+    if (open && !iframe.src) { iframe.src = withIdentity(FRAME_URL); }
     panel.style.display = open ? "block" : "none";
     btn.textContent = open ? "Cerrar" : "Soporte";
     btn.setAttribute("aria-label", open ? "Cerrar asistente de soporte" : "Abrir asistente de soporte");

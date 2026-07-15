@@ -332,6 +332,15 @@ TXT;
         return $raw === '' ? $this->entitiesId() : max(0, (int) $raw);
     }
 
+    /**
+     * GLPI request source (requesttypes_id) stamped on every widget ticket, so
+     * they are traceable to the widget in GLPI. 0 = leave it to GLPI's default.
+     */
+    public function widgetRequestSourceId(): int
+    {
+        return max(0, (int) $this->model->get('widget_request_source_id', '0'));
+    }
+
     public function widgetSystemPrompt(): string
     {
         $v = trim($this->model->get('widget_system_prompt', ''));
@@ -406,6 +415,7 @@ TXT;
             'widget_field_categoria'     => trim((string) ($input['widget_field_categoria'] ?? '')),
             'widget_requester_user_id'   => (string) max(0, (int) ($input['widget_requester_user_id'] ?? 0)),
             'widget_entities_id'         => $entitiesRaw === '' ? '' : (string) max(0, (int) $entitiesRaw),
+            'widget_request_source_id'   => (string) max(0, (int) ($input['widget_request_source_id'] ?? 0)),
             'widget_rate_limit_per_hour' => (string) max(0, (int) ($input['widget_rate_limit_per_hour'] ?? 20)),
         ];
 

@@ -6,6 +6,7 @@ namespace App\Modules\ServiceDesk\Services;
 
 use Anthropic\Client as AnthropicClient;
 use App\Modules\Core\Services\ServiceResult;
+use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 
@@ -55,6 +56,7 @@ class WidgetTicketService
         private TicketBulkImporter $importer,
         private ServiceDeskAiUsageModel $usage,
         private ServiceDeskImportModel $imports,
+        private ProvisioningExternalAccountModel $externalAccounts,
     ) {}
 
     // ------------------------------------------------------------------
@@ -83,9 +85,12 @@ class WidgetTicketService
      *
      * @param array  $history      prior messages (role/content arrays)
      * @param string $userMessage
+     * @param array  $identity     known requester {nombre,correo,numero_empleado}
+     *                             passed in by the host (intranet session). When
+     *                             present the assistant no longer asks for them.
      * @return array{ok:bool,error?:string,reply?:string,question?:?array,draft?:?array,history?:array}
      */
-    public function chat(array $history, string $userMessage): array
+    public function chat(array $history, string $userMessage, array $identity = []): array
     {
         if (! $this->settings->widgetReady()) {
             return ['ok' => false, 'error' => 'El asistente no está disponible en este momento.'];
@@ -102,6 +107,7 @@ class WidgetTicketService
         }
 
         $hw        = $this->hardwareMeta();
+        $idn       = $this->sanitizeIdentity($identity);
         $history[] = ['role' => 'user', 'content' => $userMessage];
 
         $model = $this->settings->aiModel();
@@ -112,11 +118,11 @@ class WidgetTicketService
                 model: $model,
                 system: [[
                     'type'         => 'text',
-                    'text'         => $this->systemPrompt($hw),
+                    'text'         => $this->systemPrompt($hw, $idn),
                     'cacheControl' => ['type' => 'ephemeral'],
                 ]],
                 messages: $history,
-                tools: [$this->askTool(), $this->submitTool($hw)],
+                tools: [$this->askTool(), $this->submitTool($hw, $idn)],
             );
         } catch (\Throwable $e) {
             log_message('error', '[ServiceDesk][widget] chat failed: ' . $e->getMessage());
@@ -151,6 +157,13 @@ class WidgetTicketService
 
         if ($submitId !== null) {
             $draft     = $this->normalizeDraft(is_array($submitInput) ? $submitInput : [], $hw);
+            // Show the known requester identity on the confirmation card; the
+            // ticket writer takes these from $identity, not from the AI.
+            if ($idn['nombre'] !== '') {
+                $draft['solicitante'] = $idn['nombre'];
+            }
+            $draft['correo']          = $idn['correo'];
+            $draft['numero_empleado'] = $idn['numero_empleado'];
             $history[] = $this->toolResult($submitId, 'El resumen del ticket se mostró al usuario para su confirmación. Espera a que confirme o pida cambios; no vuelvas a llamar a submit_ticket a menos que cambien los datos.');
             if (trim($replyText) === '') {
                 $replyText = 'Con estos datos puedo crear tu ticket. Revísalos y confírmame para levantarlo.';
@@ -185,21 +198,30 @@ class WidgetTicketService
      * GLPI write to TicketBulkImporter::createOne().
      *
      * @param array<string,mixed> $draft
+     * @param array<string,mixed> $identity known requester {nombre,correo,numero_empleado}
      */
-    public function createTicket(array $draft): ServiceResult
+    public function createTicket(array $draft, array $identity = []): ServiceResult
     {
         if (! $this->settings->widgetReady()) {
             return ServiceResult::fail('El asistente no está disponible en este momento.');
         }
 
-        $hw = $this->hardwareMeta();
-        $d  = $this->normalizeDraft($draft, $hw);
+        $hw  = $this->hardwareMeta();
+        $d   = $this->normalizeDraft($draft, $hw);
+        $idn = $this->sanitizeIdentity($identity);
+
+        // The requester name is authoritative from the host identity; only fall
+        // back to whatever the AI captured when the host did not pass one.
+        $solicitante = $idn['nombre'] !== '' ? $idn['nombre'] : $d['solicitante'];
 
         $missing = [];
-        foreach (['titulo' => 'un título', 'descripcion' => 'la descripción', 'solicitante' => 'tu nombre', 'ubicacion' => 'tu ubicación'] as $k => $label) {
+        foreach (['titulo' => 'un título', 'descripcion' => 'la descripción', 'ubicacion' => 'tu ubicación'] as $k => $label) {
             if ($d[$k] === '') {
                 $missing[] = $label;
             }
+        }
+        if ($solicitante === '') {
+            $missing[] = 'tu nombre';
         }
         if ($missing !== []) {
             return ServiceResult::fail('Faltan datos para crear el ticket: ' . implode(', ', $missing) . '.');
@@ -217,10 +239,16 @@ class WidgetTicketService
             }
         }
 
-        $content = $d['descripcion']
-            . "\n\n----------\n"
-            . 'Solicitante: ' . $d['solicitante'] . "\n"
-            . 'Ubicación: ' . $d['ubicacion'];
+        $idLines   = ['Solicitante: ' . $solicitante];
+        if ($idn['correo'] !== '') {
+            $idLines[] = 'Correo: ' . $idn['correo'];
+        }
+        if ($idn['numero_empleado'] !== '') {
+            $idLines[] = 'No. de empleado: ' . $idn['numero_empleado'];
+        }
+        $idLines[] = 'Ubicación: ' . $d['ubicacion'];
+
+        $content = $d['descripcion'] . "\n\n----------\n" . implode("\n", $idLines);
 
         $row = [
             $baseHeader['name']    => $d['titulo'],
@@ -247,9 +275,21 @@ class WidgetTicketService
             }
         }
 
+        // Requester: if the employee number maps to an active GLPI user in
+        // Provisioning, file the ticket under that user so it shows up as their
+        // own in GLPI. Otherwise fall back to the panel-configured requester.
+        $requester = $this->settings->widgetRequesterUserId();
+        if ($idn['numero_empleado'] !== '') {
+            $glpiUserId = $this->externalAccounts->glpiUserIdByEmployeeNumber($idn['numero_empleado']);
+            if ($glpiUserId !== null) {
+                $requester = $glpiUserId;
+            }
+        }
+
         $res = $this->importer->createOne($containerIds, $row, [
-            'requester' => $this->settings->widgetRequesterUserId(),
-            'entities'  => $this->settings->widgetEntitiesId(),
+            'requester'       => $requester,
+            'entities'        => $this->settings->widgetEntitiesId(),
+            'requesttypes_id' => $this->settings->widgetRequestSourceId(),
         ]);
         if (! $res->success) {
             return $res;
@@ -305,6 +345,24 @@ class WidgetTicketService
     }
 
     /**
+     * Normalizes the host-supplied requester identity (intranet session data).
+     * These fields are authoritative and are never taken from the AI.
+     *
+     * @param array<string,mixed> $in
+     * @return array{nombre:string,correo:string,numero_empleado:string}
+     */
+    private function sanitizeIdentity(array $in): array
+    {
+        $clean = static fn(string $k, int $max): string => mb_substr(trim((string) ($in[$k] ?? '')), 0, $max);
+
+        return [
+            'nombre'          => $clean('nombre', 190),
+            'correo'          => $clean('correo', 190),
+            'numero_empleado' => $clean('numero_empleado', 40),
+        ];
+    }
+
+    /**
      * @param array<string,mixed> $in
      * @return array{text:string,options:string[],allowFreeText:bool}
      */
@@ -326,19 +384,43 @@ class WidgetTicketService
     // Prompt + tools
     // ------------------------------------------------------------------
 
-    private function systemPrompt(?array $hw): string
+    /**
+     * @param array<string,mixed>|null $hw
+     * @param array{nombre:string,correo:string,numero_empleado:string} $idn
+     */
+    private function systemPrompt(?array $hw, array $idn = ['nombre' => '', 'correo' => '', 'numero_empleado' => '']): string
     {
+        $knowsRequester = $idn['nombre'] !== '';
+
         $lines   = [];
         $lines[] = $this->settings->widgetSystemPrompt();
         $lines[] = '';
+
+        if ($knowsRequester) {
+            $lines[] = 'SOLICITANTE (ya identificado, NO lo preguntes):';
+            $lines[] = '- Nombre: ' . $idn['nombre'];
+            if ($idn['correo'] !== '') {
+                $lines[] = '- Correo: ' . $idn['correo'];
+            }
+            if ($idn['numero_empleado'] !== '') {
+                $lines[] = '- Número de empleado: ' . $idn['numero_empleado'];
+            }
+            $lines[] = 'Salúdalo por su nombre. Ya tienes su nombre, correo y número de empleado: NO los preguntes ni los pidas de nuevo; el sistema los adjunta al ticket automáticamente.';
+            $lines[] = '';
+        }
+
         $lines[] = 'CÓMO TRABAJAS:';
-        $lines[] = '1. Tu meta es reunir lo mínimo para levantar UN ticket: un título breve (descripción corta de la falla o solicitud), una descripción detallada, el nombre de quien reporta y su ubicación.';
+        $lines[] = $knowsRequester
+            ? '1. Tu meta es reunir lo mínimo para levantar UN ticket: un título breve (descripción corta de la falla o solicitud), una descripción detallada y la ubicación de la persona.'
+            : '1. Tu meta es reunir lo mínimo para levantar UN ticket: un título breve (descripción corta de la falla o solicitud), una descripción detallada, el nombre de quien reporta y su ubicación.';
         $lines[] = '2. Determina tú el TIPO: usa INCIDENCIA cuando algo falla o dejó de funcionar, y REQUERIMIENTO cuando es una petición o solicitud. Solo pregunta si de verdad no puedes deducirlo.';
         $lines[] = '3. Haz UNA sola pregunta a la vez con la herramienta ask_user. Para respuestas de pocas opciones, pásalas en "options" para elegir con un clic.';
         if ($hw !== null) {
             $lines[] = '4. Si el reporte involucra un equipo físico (computadora, impresora, teléfono, etc.), marca es_hardware y, de forma OPCIONAL y sin obligar, pide el equipo, el modelo y el número de serie. Si la persona no los tiene a la mano, continúa sin ellos.';
         }
-        $lines[] = '5. Cuando tengas título, descripción, nombre y ubicación, llama a submit_ticket con todos los datos. No describas el ticket en un mensaje de texto: pásalo por la herramienta para que la persona lo confirme.';
+        $lines[] = $knowsRequester
+            ? '5. Cuando tengas título, descripción y ubicación, llama a submit_ticket con todos los datos. No describas el ticket en un mensaje de texto: pásalo por la herramienta para que la persona lo confirme.'
+            : '5. Cuando tengas título, descripción, nombre y ubicación, llama a submit_ticket con todos los datos. No describas el ticket en un mensaje de texto: pásalo por la herramienta para que la persona lo confirme.';
         $lines[] = '';
         $lines[] = 'REGLAS ESTRICTAS:';
         $lines[] = '- No preguntes por la categoría, el estatus, la fecha ni la prioridad: el sistema los asigna automáticamente.';
@@ -389,16 +471,27 @@ class WidgetTicketService
         ];
     }
 
-    private function submitTool(?array $hw): array
+    /**
+     * @param array<string,mixed>|null $hw
+     * @param array{nombre:string,correo:string,numero_empleado:string} $idn
+     */
+    private function submitTool(?array $hw, array $idn = ['nombre' => '', 'correo' => '', 'numero_empleado' => '']): array
     {
+        $knowsRequester = $idn['nombre'] !== '';
+
         $props = [
             'titulo'      => ['type' => 'string', 'description' => 'Requerido. Título o descripción breve de la falla o solicitud.'],
             'descripcion' => ['type' => 'string', 'description' => 'Requerido. Descripción detallada de lo que ocurre o se solicita.'],
             'tipo'        => ['type' => 'string', 'enum' => ['INCIDENCIA', 'REQUERIMIENTO'], 'description' => 'Requerido. INCIDENCIA si algo falla; REQUERIMIENTO si es una petición o solicitud.'],
-            'solicitante' => ['type' => 'string', 'description' => 'Requerido. Nombre completo de la persona que reporta.'],
             'ubicacion'   => ['type' => 'string', 'description' => 'Requerido. Ubicación de la persona (sitio, área o sucursal).'],
         ];
-        $required = ['titulo', 'descripcion', 'tipo', 'solicitante', 'ubicacion'];
+        $required = ['titulo', 'descripcion', 'tipo', 'ubicacion'];
+
+        // Only ask the AI for the requester name when the host did not identify them.
+        if (! $knowsRequester) {
+            $props['solicitante'] = ['type' => 'string', 'description' => 'Requerido. Nombre completo de la persona que reporta.'];
+            $required[]           = 'solicitante';
+        }
 
         if ($hw !== null) {
             $props['es_hardware'] = ['type' => 'boolean', 'description' => 'true si el reporte involucra un equipo físico.'];

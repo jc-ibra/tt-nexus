@@ -41,9 +41,19 @@ class Widget extends Controller
         $key      = (string) $this->request->getGet('key');
         $bootstrap = service('widgetTicketService')->bootstrap();
 
+        // Requester identity forwarded by the host (intranet session): the
+        // assistant greets by name and never asks for these, and they are
+        // appended to the ticket detail on creation.
+        $identity = [
+            'nombre'          => (string) $this->request->getGet('nombre'),
+            'correo'          => (string) $this->request->getGet('correo'),
+            'numero_empleado' => (string) $this->request->getGet('numero_empleado'),
+        ];
+
         return view('App\Modules\ServiceDesk\Views\widget\frame', [
             'key'       => $key,
             'bootstrap' => $bootstrap,
+            'identity'  => $identity,
             'chatUrl'   => base_url('servicedesk/widget/chat?key=' . urlencode($key)),
             'ticketUrl' => base_url('servicedesk/widget/ticket?key=' . urlencode($key)),
         ]);
@@ -52,11 +62,12 @@ class Widget extends Controller
     /** One conversational turn. */
     public function chat(): ResponseInterface
     {
-        $body    = $this->request->getJSON(true) ?? [];
-        $history = is_array($body['history'] ?? null) ? $body['history'] : [];
-        $message = (string) ($body['message'] ?? '');
+        $body     = $this->request->getJSON(true) ?? [];
+        $history  = is_array($body['history'] ?? null) ? $body['history'] : [];
+        $message  = (string) ($body['message'] ?? '');
+        $identity = is_array($body['identity'] ?? null) ? $body['identity'] : [];
 
-        $result = service('widgetTicketService')->chat($history, $message);
+        $result = service('widgetTicketService')->chat($history, $message, $identity);
 
         if (! ($result['ok'] ?? false)) {
             return $this->response->setStatusCode(422)->setJSON([
@@ -79,10 +90,11 @@ class Widget extends Controller
     /** Creates the ticket from a confirmed draft. */
     public function ticket(): ResponseInterface
     {
-        $body  = $this->request->getJSON(true) ?? [];
-        $draft = is_array($body['draft'] ?? null) ? $body['draft'] : [];
+        $body     = $this->request->getJSON(true) ?? [];
+        $draft    = is_array($body['draft'] ?? null) ? $body['draft'] : [];
+        $identity = is_array($body['identity'] ?? null) ? $body['identity'] : [];
 
-        $result = service('widgetTicketService')->createTicket($draft);
+        $result = service('widgetTicketService')->createTicket($draft, $identity);
 
         if (! $result->success) {
             return $this->response->setStatusCode(422)->setJSON([

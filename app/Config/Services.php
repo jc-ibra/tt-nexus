@@ -355,6 +355,7 @@ class Services extends BaseService
             self::serviceDeskImporter(),
             new ServiceDeskAiUsageModel(),
             new ServiceDeskImportModel(),
+            new ProvisioningExternalAccountModel(),
         );
     }
 }
