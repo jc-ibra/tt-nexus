@@ -258,9 +258,15 @@ class Provisioning extends BaseController
 
     public function provisionEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
     {
-        $orch     = service('provisioningOrchestrator');
-        $password = (string) ($this->request->getPost('password') ?? '');
-        $result   = $orch->provisionOnSystem($employeeId, $systemId, $password !== '' ? $password : null);
+        $orch         = service('provisioningOrchestrator');
+        $password     = (string) ($this->request->getPost('password') ?? '');
+        $mailboxEmail = trim((string) ($this->request->getPost('mailbox_email') ?? ''));
+        $result       = $orch->provisionOnSystem(
+            $employeeId,
+            $systemId,
+            $password !== '' ? $password : null,
+            $mailboxEmail !== '' ? $mailboxEmail : null,
+        );
 
         $this->flashWithTemporaryPassword($result, 'Operación ejecutada.');
         return redirect()->to(route_to('employees.show', $employeeId));
@@ -334,6 +340,26 @@ class Provisioning extends BaseController
         $email = trim((string) ($this->request->getGet('email') ?? ''));
         if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->response->setJSON(['status' => 'error', 'exists' => false, 'message' => 'Correo inválido.']);
+        }
+
+        // Early warning: a mailbox belongs to a single person. If the address is
+        // already on another employee, surface it now (the server-side save also
+        // blocks it, this just fails fast in the UI).
+        $employeeId = (int) ($this->request->getGet('employee_id') ?? 0);
+        if ($employeeId > 0) {
+            $conflict = (new \App\Modules\Employees\Models\EmployeeEmailAccountModel())
+                ->findEmailOnOtherEmployee($email, $employeeId);
+            if ($conflict !== null) {
+                $who   = trim(($conflict['employee_name'] ?? '') . ' ' . ($conflict['employee_lastname'] ?? ''));
+                $num   = trim((string) ($conflict['employee_number'] ?? ''));
+                $label = $who !== '' ? $who . ($num !== '' ? " (#{$num})" : '') : ('empleado #' . ($conflict['employee_id'] ?? '?'));
+                return $this->response->setJSON([
+                    'status'       => 'success',
+                    'exists'       => true,
+                    'linked_other' => true,
+                    'message'      => 'Ya está ligado a otro empleado: ' . $label,
+                ]);
+            }
         }
 
         $res = service('mailboxesService')->mailboxExists($email);

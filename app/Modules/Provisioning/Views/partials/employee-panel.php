@@ -49,6 +49,14 @@ $showAlta       = ! $hasAnyAccount;
 $defaultReactiv = $canReactivate && ! $isProvisioned;
 // Has accounts, but none active → the employee is deprovisioned (dado de baja).
 $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
+
+// One Mailcow mailbox per employee: if a Mailcow email account already exists,
+// the alta must not offer to create another. Drives the lock on the Mailcow
+// system row below (the backend enforces the same rule in AccessOrchestrator).
+$hasMailcowMailbox = ! empty(array_filter(
+    $emailAccounts,
+    fn($a) => ($a['type'] ?? '') === 'mailcow' && trim((string) ($a['email'] ?? '')) !== ''
+));
 ?>
 
 <style>
@@ -322,7 +330,12 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
             // account. A system without an account must not be selectable so we
             // never attempt to change a password / disable on a nonexistent
             // account (which the backend now skips regardless).
-            $selectable = $isActiveSystem && ! ($isProvisioned && ! $hasAccount);
+            // One-mailbox lock: block selecting Mailcow for creation when the
+            // employee already has a Mailcow mailbox but no provisioning account
+            // for it yet (the alta would otherwise create a second one).
+            $isMailcowRow  = strtolower((string) ($s['key'] ?? '')) === 'mailcow';
+            $mailcowLocked = $isMailcowRow && $hasMailcowMailbox && ! $hasAccount;
+            $selectable    = $isActiveSystem && ! ($isProvisioned && ! $hasAccount) && ! $mailcowLocked;
           ?>
             <tr>
               <td style="padding-left:var(--space-4);">
@@ -332,6 +345,10 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
                          aria-label="Incluir <?= esc($s['name']) ?> en operaciones masivas">
                 <?php elseif (! $isActiveSystem): ?>
                   <input type="checkbox" disabled title="Sistema inactivo" aria-label="<?= esc($s['name']) ?> inactivo">
+                <?php elseif ($mailcowLocked): ?>
+                  <input type="checkbox" disabled
+                         title="Este empleado ya tiene un buzón Mailcow; no se puede crear otro. GLPI e Intranet usarán el buzón existente."
+                         aria-label="Mailcow: el empleado ya tiene un buzón, no se puede crear otro">
                 <?php else: ?>
                   <input type="checkbox" disabled title="Sin cuenta en este sistema; no aplica para cambiar contraseña ni dar de baja"
                          aria-label="<?= esc($s['name']) ?> sin cuenta">
@@ -341,6 +358,8 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
                 <strong><?= esc($s['name']) ?></strong>
                 <?php if (! $isActiveSystem): ?>
                   <br><span class="badge badge-neutral" style="font-size:var(--text-xs);">Inactivo en Nexus</span>
+                <?php elseif ($mailcowLocked): ?>
+                  <br><span class="badge badge-info" style="font-size:var(--text-xs);">Buzón ya registrado</span>
                 <?php endif; ?>
               </td>
               <td>
@@ -366,6 +385,23 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Desactivar</button>
                   </form>
+                <?php elseif ($status === 'error' && $isMailcowRow): ?>
+                  <details class="mc-retry" style="text-align:left;">
+                    <summary class="btn btn-tertiary btn-sm" style="display:inline-flex; list-style:none;">Reintentar alta</summary>
+                    <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>"
+                          class="mc-retry-form"
+                          style="margin-top:var(--space-2); display:flex; flex-direction:column; gap:var(--space-2); min-width:260px;">
+                      <?= csrf_field() ?>
+                      <p class="prov-field-hint" style="margin:0;">Correo del buzón a crear. Si ya existe, se usará nombre.apellido1, etc.</p>
+                      <div class="prov-mailbox-row">
+                        <input type="text" id="mc-retry-local" class="input" placeholder="nombre.apellido" autocomplete="off" spellcheck="false">
+                        <span class="prov-mailbox-at">@</span>
+                        <select id="mc-retry-domain" class="select"><option value="">Cargando dominios...</option></select>
+                      </div>
+                      <input type="hidden" name="mailbox_email" id="mc-retry-email">
+                      <button type="submit" class="btn btn-primary btn-sm">Crear buzón</button>
+                    </form>
+                  </details>
                 <?php elseif ($status === 'error'): ?>
                   <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>"
                         style="display:inline;">
@@ -620,9 +656,12 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
         if (! email) { validateStat.textContent = 'Escribe un correo primero.'; return; }
         validateStat.textContent = 'Validando...';
         try {
-          const res  = await fetch('<?= base_url('provisioning/validate-mailbox') ?>?email=' + encodeURIComponent(email), { credentials: 'same-origin' });
+          const res  = await fetch('<?= base_url('provisioning/validate-mailbox') ?>?email=' + encodeURIComponent(email) + '&employee_id=' + EMPLOYEE_ID, { credentials: 'same-origin' });
           const json = await res.json();
-          if (json.status === 'success' && json.exists) {
+          if (json.status === 'success' && json.linked_other) {
+            validateStat.textContent = json.message || 'Ya está ligado a otro empleado';
+            validateStat.style.color = 'var(--color-critical-default)';
+          } else if (json.status === 'success' && json.exists) {
             validateStat.textContent = 'Existe en Mailcow';
             validateStat.style.color = 'var(--color-success-default)';
           } else if (json.status === 'success') {
@@ -900,6 +939,47 @@ $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
       });
     });
   });
+
+  // ── Mailcow per-system "Reintentar alta": mailbox picker ───────────────────
+  (function initMailcowRetry() {
+    const local  = document.getElementById('mc-retry-local');
+    const domain = document.getElementById('mc-retry-domain');
+    const hidden = document.getElementById('mc-retry-email');
+    const form   = document.querySelector('.mc-retry-form');
+    if (! local || ! domain || ! hidden || ! form) return;
+
+    const assemble = function () {
+      const l = local.value.trim(), d = domain.value;
+      hidden.value = (l && d) ? l + '@' + d : '';
+    };
+    local.addEventListener('input', assemble);
+    domain.addEventListener('change', assemble);
+
+    form.addEventListener('submit', function (e) {
+      assemble();
+      if (! hidden.value) {
+        e.preventDefault();
+        alert('Indica el nombre del buzón y el dominio antes de crear.');
+      }
+    });
+
+    fetch(BASE + 'provisioning/mailcow-domains', { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(json => {
+        domain.innerHTML = (json.status === 'success' && json.data.length)
+          ? json.data.map(d => '<option value="' + d + '">' + d + '</option>').join('')
+          : '<option value="">Sin dominios</option>';
+        assemble();
+      })
+      .catch(() => { domain.innerHTML = '<option value="">Error al cargar</option>'; });
+
+    if (EMPLOYEE_ID > 0) {
+      fetch(BASE + 'provisioning/suggest-mailbox?employee_id=' + EMPLOYEE_ID, { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(json => { if (json.status === 'success' && json.suggestion) { local.value = json.suggestion; assemble(); } })
+        .catch(() => {});
+    }
+  }());
 
 }());
 </script>

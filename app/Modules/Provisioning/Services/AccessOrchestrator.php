@@ -52,7 +52,6 @@ class AccessOrchestrator
 
         $perSystem     = [];
         $emailAccModel = new EmployeeEmailAccountModel();
-        $now           = date('Y-m-d H:i:s');
 
         // Sort systems: Mailcow always runs first so its email can be passed to GLPI.
         $systems = $this->systems->listActive();
@@ -68,12 +67,31 @@ class AccessOrchestrator
         }
         $willCreateMailcow  = in_array('mailcow', $selectedKeys, true);
         $needsInstitutional = (bool) array_intersect(['glpi', 'intranet'], $selectedKeys);
+        $mailboxNote        = '';
+
+        // LOCK — one Mailcow mailbox per employee. If a Mailcow email account is
+        // already on file, Mailcow must NEVER create a second mailbox, even if the
+        // operator ticked it: doing so would build GLPI/Intranet on top of a
+        // brand-new mailbox instead of the one the employee already uses. We drop
+        // Mailcow from the creation set, adopt the existing mailbox into the
+        // operational registry, and let it stand as the institutional key.
+        // (This is the backend half of the UI lock that disables the Mailcow row.)
+        $existingMailcowAccount = $emailAccModel
+            ->where('employee_id', $employeeId)
+            ->where('type', 'mailcow')
+            ->orderBy('is_primary', 'DESC')
+            ->first();
+        $skipMailcowCreation = $willCreateMailcow && $existingMailcowAccount !== null;
+        if ($skipMailcowCreation) {
+            $willCreateMailcow = false;
+            $this->adoptExistingMailcowMailbox($employeeId, (string) $existingMailcowAccount['email']);
+            $mailboxNote = ' El empleado ya tenía un buzón Mailcow (' . $existingMailcowAccount['email'] . '); no se creó uno nuevo.';
+        }
 
         // When Mailcow is created here, its mailbox becomes the institutional key.
         // Otherwise GLPI/Intranet must ride on the primary institutional account
         // already on file — a personal email is never the key.
         $resolvedMailboxEmail = $willCreateMailcow ? $mailboxEmail : null;
-        $mailboxNote          = '';
 
         // Pre-flight availability check: when we are about to CREATE the Mailcow
         // mailbox, make sure the requested address is actually free BEFORE any
@@ -121,6 +139,12 @@ class AccessOrchestrator
                 continue;
             }
 
+            // Locked above: the employee already has a Mailcow mailbox, so never
+            // create a second one (it was adopted instead).
+            if ($skipMailcowCreation && $system['key'] === 'mailcow') {
+                continue;
+            }
+
             $effectiveData = $userData;
 
             if ($system['key'] === 'mailcow') {
@@ -144,26 +168,7 @@ class AccessOrchestrator
             if ($system['key'] === 'mailcow' && $result['success'] && empty($result['skipped'])) {
                 $createdEmail = $result['external_id'] ?? $resolvedMailboxEmail ?? $userData['email'];
                 $resolvedMailboxEmail = $createdEmail; // propagate to subsequent systems
-
-                $alreadyExists = $emailAccModel
-                    ->where('employee_id', $employeeId)
-                    ->where('type', 'mailcow')
-                    ->where('email', $createdEmail)
-                    ->countAllResults();
-
-                if (! $alreadyExists) {
-                    // Rule: a Mailcow mailbox is always the primary email account.
-                    // A personal email is never primary, so this new account takes over.
-                    $newId = $emailAccModel->addAccount([
-                        'employee_id' => $employeeId,
-                        'type'        => 'mailcow',
-                        'email'       => $createdEmail,
-                        'is_primary'  => 1,
-                        'created_at'  => $now,
-                        'updated_at'  => $now,
-                    ]);
-                    $emailAccModel->clearPrimary($employeeId, $newId);
-                }
+                $this->recordMailcowEmailAccount($employeeId, (string) $createdEmail);
             }
         }
 
@@ -354,7 +359,7 @@ class AccessOrchestrator
             : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem]);
     }
 
-    public function provisionOnSystem(int $employeeId, int $systemId, ?string $password = null): ServiceResult
+    public function provisionOnSystem(int $employeeId, int $systemId, ?string $password = null, ?string $mailboxEmail = null): ServiceResult
     {
         $employee = $this->loadEmployee($employeeId);
         $system   = $this->systems->find($systemId);
@@ -364,6 +369,40 @@ class AccessOrchestrator
 
         $password = $password ?? $this->generateTemporaryPassword();
         $userData = $this->mapEmployee($employee, $password);
+
+        // Mailcow (individual "Reintentar alta"): apply the same safeguards as the
+        // bulk alta so a per-system retry can never create a duplicate mailbox nor
+        // provision on the personal email.
+        if ($system['key'] === 'mailcow') {
+            // One mailbox per employee: if a Mailcow account already exists, adopt
+            // it and never create a second one.
+            $existing = (new EmployeeEmailAccountModel())
+                ->where('employee_id', $employeeId)
+                ->where('type', 'mailcow')
+                ->orderBy('is_primary', 'DESC')
+                ->first();
+            if ($existing) {
+                $this->adoptExistingMailcowMailbox($employeeId, (string) $existing['email']);
+                return ServiceResult::ok(
+                    ['skipped' => true, 'external_id' => $existing['email']],
+                    'El empleado ya tiene un buzón Mailcow (' . $existing['email'] . '); se vinculó al aprovisionamiento y no se creó otro.'
+                );
+            }
+
+            // Creating a new mailbox needs a target address — never the personal
+            // email. The retry form supplies it; without it we fail safely.
+            $mailboxEmail = trim((string) $mailboxEmail);
+            if ($mailboxEmail === '') {
+                return ServiceResult::fail(
+                    'Para (re)crear el buzón en Mailcow indica el correo del buzón (nombre.apellido@dominio). El reintento no usa el correo personal.'
+                );
+            }
+            $avail = $this->resolveAvailableMailboxEmail($mailboxEmail);
+            if (! $avail->success) {
+                return ServiceResult::fail($avail->message);
+            }
+            $userData['email'] = (string) $avail->data['email'];
+        }
 
         // GLPI/Intranet ride on the primary institutional account, never the
         // personal email. (Mailcow provisions its own mailbox, so it is exempt.)
@@ -390,6 +429,14 @@ class AccessOrchestrator
         }
 
         $result = $this->runCreate($system, $employee, $userData);
+
+        // Register the new Mailcow mailbox as the employee's primary email account,
+        // mirroring the bulk alta so the email registry stays consistent.
+        if ($system['key'] === 'mailcow' && $result['success'] && empty($result['skipped'])) {
+            $createdEmail = $result['external_id'] ?? $userData['email'];
+            $this->recordMailcowEmailAccount($employeeId, (string) $createdEmail);
+        }
+
         return $result['success']
             ? ServiceResult::ok($result + ['temporary_password' => $password], $result['message'])
             : ServiceResult::fail([$result['message']], $result);
@@ -484,6 +531,13 @@ class AccessOrchestrator
 
         switch ($row['operation']) {
             case 'create':
+                // Mailcow create cannot be auto-replayed: the mailbox address is
+                // not persisted (and must never fall back to the personal email).
+                // The operator retries manually from the panel, supplying it.
+                if ($system['key'] === 'mailcow') {
+                    $this->retries->update($row['id'], ['status' => 'abandoned', 'last_error' => 'Reintento automático de Mailcow no soportado (el correo del buzón no se guarda). Reintenta el alta manualmente desde el panel indicando el correo del buzón.']);
+                    return false;
+                }
                 // GLPI/Intranet need the institutional email as their key; a
                 // rebuilt payload must not fall back to the personal email.
                 if (in_array($system['key'], ['glpi', 'intranet'], true)) {
@@ -689,6 +743,13 @@ class AccessOrchestrator
 
     private function queueRetry(int $logId, array $employee, array $system, string $operation, array $userData, string $error): void
     {
+        // A failed Mailcow create is never auto-retried: the mailbox address is
+        // not persisted and must never fall back to the personal email. The
+        // operator retries manually from the panel, supplying the address.
+        if ($operation === 'create' && $system['key'] === 'mailcow') {
+            return;
+        }
+
         // Only queue idempotent operations. Connection-test failures and "skipped" never reach here.
         $payload = ['employee_id' => (int) $employee['id'], 'system_id' => (int) $system['id']];
         if (in_array($operation, ['create', 'password'], true) && ! empty($userData['password'])) {
@@ -700,6 +761,41 @@ class AccessOrchestrator
         }
 
         $this->retries->enqueue($logId, (int) $employee['id'], (int) $system['id'], $operation, $payload, 60);
+    }
+
+    /**
+     * Record a freshly-created Mailcow mailbox as the employee's PRIMARY email
+     * account (idempotent). A Mailcow mailbox is always primary by rule, so it
+     * takes over from any personal account. Shared by the bulk alta and the
+     * per-system Mailcow retry so both keep the email registry consistent.
+     */
+    private function recordMailcowEmailAccount(int $employeeId, string $email): void
+    {
+        $email = trim($email);
+        if ($email === '') {
+            return;
+        }
+
+        $emailAccModel = new EmployeeEmailAccountModel();
+        $exists = $emailAccModel
+            ->where('employee_id', $employeeId)
+            ->where('type', 'mailcow')
+            ->where('email', $email)
+            ->countAllResults();
+        if ($exists) {
+            return;
+        }
+
+        $now   = date('Y-m-d H:i:s');
+        $newId = $emailAccModel->addAccount([
+            'employee_id' => $employeeId,
+            'type'        => 'mailcow',
+            'email'       => $email,
+            'is_primary'  => 1,
+            'created_at'  => $now,
+            'updated_at'  => $now,
+        ]);
+        $emailAccModel->clearPrimary($employeeId, $newId);
     }
 
     /**
