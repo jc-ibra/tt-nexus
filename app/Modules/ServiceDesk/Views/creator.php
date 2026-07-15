@@ -59,6 +59,9 @@
   .sdc-opt:hover:not(:disabled) { background: var(--color-primary,#1773C8); color:#fff; }
   .sdc-opt:disabled { opacity:.5; cursor:default; }
   .sdc-opt-sel { background: var(--color-primary,#1773C8); color:#fff; }
+  .sdc-search { display:flex; gap:6px; margin-top:8px; }
+  .sdc-search-input { flex:1; font-size:12px; padding:5px 8px; }
+  .sdc-search .btn { white-space:nowrap; }
 </style>
 <?= $this->endSection() ?>
 
@@ -412,31 +415,83 @@
       log.scrollTop = log.scrollHeight;
     }
 
-    // Render a guided question with clickable option chips.
+    let qDlSeq = 0;
+    const AC_THRESHOLD = 35;
+
+    // Options for a question: from the named field's catalog (columns) or inline.
+    function questionOptions(q) {
+      if (q.field && columns) {
+        const c = columns.find(x => x.header === q.field);
+        if (c) return c.options || [];
+      }
+      return q.options || [];
+    }
+
+    // Chip row for short option lists (click = answer).
+    function buildChips(options) {
+      const opts = document.createElement('div');
+      opts.className = 'sdc-opts';
+      options.forEach(o => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'sdc-opt'; b.textContent = o;
+        b.addEventListener('click', () => {
+          opts.querySelectorAll('button').forEach(x => x.disabled = true);
+          b.classList.add('sdc-opt-sel');
+          send(o);
+        });
+        opts.appendChild(b);
+      });
+      return opts;
+    }
+
+    // Search box (select2-lite via datalist) for large catalogs.
+    function buildSearchBox(options) {
+      const wrap = document.createElement('div');
+      wrap.className = 'sdc-search';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'input sdc-search-input';
+      inp.placeholder = 'Escribe para buscar (' + options.length + ' opciones)...';
+      const dlId = 'sdc-q-dl-' + (qDlSeq++);
+      const dl = document.createElement('datalist'); dl.id = dlId;
+      options.forEach(o => { const op = document.createElement('option'); op.value = o; dl.appendChild(op); });
+      inp.setAttribute('list', dlId);
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn btn-primary btn-sm'; btn.textContent = 'Usar';
+      const submit = () => {
+        const v = inp.value.trim();
+        if (!v) { inp.focus(); return; }
+        inp.disabled = true; btn.disabled = true;
+        send(v);
+      };
+      btn.addEventListener('click', submit);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+      wrap.appendChild(inp); wrap.appendChild(dl); wrap.appendChild(btn);
+      return wrap;
+    }
+
+    // Render a guided question: chips for short lists, a search box for large
+    // catalogs, or plain free-text (answer in the main input).
     function renderQuestion(q) {
       const el = document.createElement('div');
       el.className = 'sdc-msg sdc-msg-ai';
       const txt = document.createElement('div');
       txt.textContent = q.text;
       el.appendChild(txt);
-      if (q.options && q.options.length) {
-        const opts = document.createElement('div');
-        opts.className = 'sdc-opts';
-        q.options.forEach(o => {
-          const b = document.createElement('button');
-          b.type = 'button'; b.className = 'sdc-opt'; b.textContent = o;
-          b.addEventListener('click', () => {
-            opts.querySelectorAll('button').forEach(x => x.disabled = true);
-            b.classList.add('sdc-opt-sel');
-            send(o);
-          });
-          opts.appendChild(b);
-        });
-        el.appendChild(opts);
+
+      const options = questionOptions(q);
+      let focusMain = true;
+      if (options.length) {
+        if (q.autocomplete || options.length > AC_THRESHOLD) {
+          el.appendChild(buildSearchBox(options));
+          focusMain = false;
+        } else {
+          el.appendChild(buildChips(options));
+          focusMain = !!q.allowFreeText;
+        }
       }
       log.appendChild(el);
       log.scrollTop = log.scrollHeight;
-      if (!q.options || !q.options.length || q.allowFreeText) input.focus();
+      if (focusMain) input.focus();
     }
 
     async function send(explicit) {
@@ -451,6 +506,7 @@
         if (!data.ok) {
           addMsg(data.error || 'No se pudo procesar el mensaje.', 'sdc-msg-sys');
         } else if (data.question) {
+          if (data.columns) columns = data.columns; // keep field-option lookup fresh
           renderQuestion(data.question);
         } else {
           if (data.reply) addMsg(data.reply, 'sdc-msg-ai');

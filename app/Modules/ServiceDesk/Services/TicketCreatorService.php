@@ -32,6 +32,9 @@ class TicketCreatorService
     /** Options listed verbatim in the system prompt before summarizing the rest. */
     private const PROMPT_OPTION_LIMIT = 60;
 
+    /** Above this many options, ask_user renders a search box instead of chips. */
+    private const AUTOCOMPLETE_THRESHOLD = 35;
+
     private const MAX_TOKENS = 4096;
 
     /**
@@ -200,15 +203,7 @@ class TicketCreatorService
                 $replyText = 'Preparé una propuesta de ' . count($proposal) . ' ticket(s). Revísala y ajústala en la tabla; cuando estés conforme, créalos.';
             }
         } elseif ($askId !== null) {
-            $options  = array_values(array_filter(array_map(
-                static fn($o) => trim((string) $o),
-                is_array($askInput['options'] ?? null) ? $askInput['options'] : [],
-            ), static fn($o) => $o !== ''));
-            $question = [
-                'text'          => trim((string) ($askInput['question'] ?? '')),
-                'options'       => $options,
-                'allowFreeText' => (bool) ($askInput['allow_free_text'] ?? ($options === [])),
-            ];
+            $question  = $this->buildQuestion(is_array($askInput) ? $askInput : [], $columns);
             $history[] = $this->toolResult($askId, 'La pregunta se mostró al usuario; espera su respuesta.');
             if ($question['text'] !== '') {
                 $replyText = $question['text']; // the question is the message shown
@@ -337,7 +332,7 @@ class TicketCreatorService
         $lines[] = '';
         $lines[] = 'CÓMO TRABAJAS:';
         $lines[] = '1. Reúne la información haciendo UNA sola pregunta a la vez con la herramienta ask_user. Nunca escribas listas largas de preguntas en un mensaje: resulta tedioso.';
-        $lines[] = '2. Cuando la respuesta venga de un conjunto acotado (un catálogo, sí/no, local/foráneo, un valor de una lista corta), incluye esas opciones en ask_user para que el operador elija con un clic. La pregunta va SOLO dentro de ask_user, no la repitas como texto.';
+        $lines[] = '2. Para listas CORTAS (sí/no, local/foráneo, pocos valores) incluye las opciones en ask_user para elegir con un clic. Para un CAMPO o CATÁLOGO del ticket (empleado IDS, estado, categoría, etc.), NO copies sus valores: pon el encabezado exacto del campo en "field" y deja "options" vacío; el sistema mostrará un buscador con autocompletado. La pregunta va SOLO dentro de ask_user, no la repitas como texto.';
         $lines[] = '3. Pregunta solo lo esencial para armar los tickets; no pidas campos opcionales salvo que el usuario los mencione. Agrupa cuando sea natural y sé eficiente para no gastar tokens de más.';
         $lines[] = '4. Cuando ya tengas lo necesario, llama a propose_tickets con la lista completa. No describas las filas en texto: pásalas por la herramienta. El operador las revisará y editará en una tabla antes de crearlas.';
         $lines[] = '';
@@ -394,16 +389,62 @@ class TicketCreatorService
     {
         return [
             'name'        => 'ask_user',
-            'description' => 'Haz UNA sola pregunta al operador para reunir lo que falta. Si la respuesta proviene de un conjunto acotado (un catálogo, sí/no, local/foráneo, un valor de una lista corta), incluye esas opciones en "options" para que elija con un clic. Usa esta herramienta en lugar de escribir listas largas de preguntas.',
+            'description' => 'Haz UNA sola pregunta al operador para reunir lo que falta. Usa esta herramienta en lugar de escribir listas largas de preguntas. Para elegir de un conjunto: si es una lista CORTA (sí/no, local/foráneo, pocos valores) pásalos en "options" para elegir con un clic. Si la respuesta corresponde a un CAMPO/CATÁLOGO del ticket (por ejemplo el empleado IDS, el estado, la categoría), NO copies el catálogo: pon en "field" el encabezado EXACTO de ese campo y deja "options" vacío; el sistema mostrará el buscador con los valores reales.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [
                     'question'        => ['type' => 'string', 'description' => 'La pregunta, breve y clara. Solo una pregunta.'],
-                    'options'         => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Opciones sugeridas para elegir con un clic. Déjalo vacío si la respuesta es texto libre.'],
+                    'field'           => ['type' => 'string', 'description' => 'Encabezado EXACTO de la columna/campo cuya respuesta pides (de la lista CAMPOS DISPONIBLES). Úsalo para catálogos grandes en vez de copiar sus valores en options.'],
+                    'options'         => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Opciones para elegir con un clic, SOLO para listas cortas. Déjalo vacío si usas "field" o si la respuesta es texto libre.'],
                     'allow_free_text' => ['type' => 'boolean', 'description' => 'true si, además de las opciones, el usuario también puede escribir su propia respuesta.'],
                 ],
                 'required'   => ['question'],
             ],
+        ];
+    }
+
+    /**
+     * Turns a raw ask_user tool input into the question payload the frontend
+     * renders. Key optimization: when the model names a `field` (a column
+     * header), the real catalog is resolved from the plan here instead of the
+     * model re-emitting it — that keeps large lists out of the conversation
+     * history (smaller session, fewer tokens) and lets the UI autocomplete
+     * against the real values. Large lists become a search box, not chips.
+     *
+     * @return array{text:string,options:string[],field:?string,autocomplete:bool,allowFreeText:bool}
+     */
+    private function buildQuestion(array $askInput, array $columns): array
+    {
+        $modelOptions = array_values(array_filter(array_map(
+            static fn($o) => trim((string) $o),
+            is_array($askInput['options'] ?? null) ? $askInput['options'] : [],
+        ), static fn($o) => $o !== ''));
+
+        // Resolve the named field to a real column (case-insensitive header match).
+        $field        = null;
+        $fieldOptions = [];
+        $rawField     = trim((string) ($askInput['field'] ?? ''));
+        if ($rawField !== '') {
+            $needle = mb_strtoupper($rawField);
+            foreach ($columns as $c) {
+                if (mb_strtoupper($c['header']) === $needle) {
+                    $field        = $c['header'];
+                    $fieldOptions = array_values($c['options'] ?? []);
+                    break;
+                }
+            }
+        }
+
+        // The frontend reads a resolved field's options from `columns` (already
+        // sent), so we don't duplicate a large list in the question payload.
+        $effectiveCount = $field !== null ? count($fieldOptions) : count($modelOptions);
+
+        return [
+            'text'          => trim((string) ($askInput['question'] ?? '')),
+            'options'       => $field !== null ? [] : $modelOptions,
+            'field'         => $field,
+            'autocomplete'  => $effectiveCount > self::AUTOCOMPLETE_THRESHOLD,
+            'allowFreeText' => (bool) ($askInput['allow_free_text'] ?? ($effectiveCount === 0)),
         ];
     }
 
