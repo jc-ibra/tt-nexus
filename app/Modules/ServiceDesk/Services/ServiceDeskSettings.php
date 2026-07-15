@@ -42,6 +42,23 @@ ESTILO:
 - Haz preguntas concretas solo cuando falte información para armar los tickets.
 TXT;
 
+    /**
+     * Persona/scope/style block of the SELF-SERVICE WIDGET assistant. The widget
+     * faces end users (not operators), so the tone is warmer and the goal is a
+     * single ticket. Technical rules and catalogs are appended by code.
+     */
+    public const WIDGET_DEFAULT_INSTRUCTIONS = <<<'TXT'
+Eres el asistente de autoservicio de la mesa de ayuda. Ayudas a las personas de la organización a levantar UN ticket de soporte de forma rápida y amable.
+
+ALCANCE (estricto):
+- Solo ayudas a reportar una falla o a solicitar un requerimiento de TI y a levantar un único ticket.
+- Si preguntan otra cosa (conocimiento general, temas ajenos), declina en una frase de forma amable y pide que describan su problema o su solicitud.
+
+ESTILO:
+- Español, cálido, claro y breve. Sin tecnicismos, sin emojis, sin encabezados Markdown.
+- Haz una sola pregunta a la vez y solo cuando de verdad falte información.
+TXT;
+
     private ?CredentialCipher $cipher = null;
 
     public function __construct(
@@ -224,6 +241,182 @@ TXT;
         $this->model->setMany($data);
 
         return ServiceResult::ok(null, 'Configuración de IA guardada.');
+    }
+
+    // ------------------------------------------------------------------
+    // Self-service widget (embeddable chat -> single ticket)
+    // ------------------------------------------------------------------
+
+    public function widgetEnabled(): bool
+    {
+        return $this->model->get('widget_enabled', '0') === '1';
+    }
+
+    /**
+     * Public site key that identifies this widget install. Generated (and
+     * persisted) lazily the first time it is needed so the admin never sees an
+     * empty value.
+     */
+    public function widgetSiteKey(): string
+    {
+        $key = trim($this->model->get('widget_site_key', ''));
+        if ($key === '') {
+            $key = 'wgt_' . bin2hex(random_bytes(16));
+            $this->model->set('widget_site_key', $key);
+        }
+        return $key;
+    }
+
+    /**
+     * Origins the widget may be embedded from, in origin form
+     * (scheme://host[:port]). Empty means "nowhere but same-origin".
+     *
+     * @return string[]
+     */
+    public function widgetAllowedOrigins(): array
+    {
+        $raw   = (string) $this->model->get('widget_allowed_origins', '');
+        $out   = [];
+        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $part) {
+            $part = rtrim(trim($part), '/');
+            if ($part !== '') {
+                $out[] = $part;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    /** Hardware plugin container id (0 = hardware capture disabled). */
+    public function widgetContainerId(): int
+    {
+        return max(0, (int) $this->model->get('widget_container_id', '0'));
+    }
+
+    public function widgetFieldEquipo(): string
+    {
+        return trim($this->model->get('widget_field_equipo', ''));
+    }
+
+    public function widgetFieldModelo(): string
+    {
+        return trim($this->model->get('widget_field_modelo', ''));
+    }
+
+    public function widgetFieldSerie(): string
+    {
+        return trim($this->model->get('widget_field_serie', ''));
+    }
+
+    public function widgetFieldCategoria(): string
+    {
+        return trim($this->model->get('widget_field_categoria', ''));
+    }
+
+    /** Fixed ITIL category id every widget ticket is filed under (0 = none). */
+    public function widgetItilCategoryId(): int
+    {
+        return max(0, (int) $this->model->get('widget_itil_category_id', '0'));
+    }
+
+    /** Generic GLPI requester for widget tickets (falls back to the import default). */
+    public function widgetRequesterUserId(): int
+    {
+        $v = (int) $this->model->get('widget_requester_user_id', '0');
+        return $v > 0 ? $v : $this->requesterUserId();
+    }
+
+    /** Destination entity for widget tickets (falls back to the import default). */
+    public function widgetEntitiesId(): int
+    {
+        $raw = trim((string) $this->model->get('widget_entities_id', ''));
+        return $raw === '' ? $this->entitiesId() : max(0, (int) $raw);
+    }
+
+    public function widgetSystemPrompt(): string
+    {
+        $v = trim($this->model->get('widget_system_prompt', ''));
+        return $v !== '' ? $v : self::WIDGET_DEFAULT_INSTRUCTIONS;
+    }
+
+    /** Max widget requests per IP per hour (0 = unlimited). */
+    public function widgetRateLimitPerHour(): int
+    {
+        return max(0, (int) $this->model->get('widget_rate_limit_per_hour', '20'));
+    }
+
+    public function widgetTitle(): string
+    {
+        $v = trim($this->model->get('widget_title', ''));
+        return $v !== '' ? $v : 'Soporte';
+    }
+
+    public function widgetWelcome(): string
+    {
+        $v = trim($this->model->get('widget_welcome', ''));
+        return $v !== '' ? $v : 'Hola, cuéntame qué problema tienes y te ayudo a levantar un ticket de soporte.';
+    }
+
+    /** Whether hardware capture is fully configured (container + at least the equipo field). */
+    public function widgetHardwareConfigured(): bool
+    {
+        return $this->widgetContainerId() > 0 && $this->widgetFieldEquipo() !== '';
+    }
+
+    /**
+     * Whether the widget can actually create tickets: enabled, the AI is ready,
+     * and a fixed ITIL category has been chosen.
+     */
+    public function widgetReady(): bool
+    {
+        return $this->widgetEnabled() && $this->aiReady() && $this->widgetItilCategoryId() > 0;
+    }
+
+    /** Sets the fixed widget ITIL category (called from the categories screen). */
+    public function setWidgetCategory(int $categoryId): void
+    {
+        $this->model->set('widget_itil_category_id', (string) max(0, $categoryId));
+    }
+
+    /**
+     * Persists the widget configuration form. The API key/model are shared with
+     * the AI creator (saveAi), so they are not touched here.
+     */
+    public function saveWidget(array $input): ServiceResult
+    {
+        $origins = [];
+        foreach (preg_split('/[\r\n,]+/', (string) ($input['widget_allowed_origins'] ?? '')) ?: [] as $o) {
+            $o = rtrim(trim($o), '/');
+            if ($o !== '') {
+                $origins[] = $o;
+            }
+        }
+
+        $entitiesRaw = trim((string) ($input['widget_entities_id'] ?? ''));
+
+        $data = [
+            'widget_enabled'             => ! empty($input['widget_enabled']) ? '1' : '0',
+            'widget_title'               => trim((string) ($input['widget_title'] ?? '')),
+            'widget_welcome'             => trim((string) ($input['widget_welcome'] ?? '')),
+            'widget_system_prompt'       => trim((string) ($input['widget_system_prompt'] ?? '')),
+            'widget_allowed_origins'     => implode("\n", array_values(array_unique($origins))),
+            'widget_container_id'        => (string) max(0, (int) ($input['widget_container_id'] ?? 0)),
+            'widget_field_equipo'        => trim((string) ($input['widget_field_equipo'] ?? '')),
+            'widget_field_modelo'        => trim((string) ($input['widget_field_modelo'] ?? '')),
+            'widget_field_serie'         => trim((string) ($input['widget_field_serie'] ?? '')),
+            'widget_field_categoria'     => trim((string) ($input['widget_field_categoria'] ?? '')),
+            'widget_requester_user_id'   => (string) max(0, (int) ($input['widget_requester_user_id'] ?? 0)),
+            'widget_entities_id'         => $entitiesRaw === '' ? '' : (string) max(0, (int) $entitiesRaw),
+            'widget_rate_limit_per_hour' => (string) max(0, (int) ($input['widget_rate_limit_per_hour'] ?? 20)),
+        ];
+
+        // Regenerate the site key on request (invalidates every existing embed).
+        if (! empty($input['regenerate_site_key'])) {
+            $data['widget_site_key'] = 'wgt_' . bin2hex(random_bytes(16));
+        }
+
+        $this->model->setMany($data);
+
+        return ServiceResult::ok(null, 'Configuración del widget guardada.');
     }
 
     private function cipher(): CredentialCipher

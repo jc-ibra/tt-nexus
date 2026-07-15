@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ServiceDesk\Services;
 
+use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Provisioning\Connectors\GlpiConnector;
 use App\Modules\Provisioning\Services\ConnectorFactory;
 use App\Modules\Provisioning\Services\GlpiCatalogService;
@@ -227,6 +228,59 @@ class TicketBulkImporter
         (new XlsxWriter($spreadsheet))->save($outputPath);
 
         return ['processed' => $processed, 'succeeded' => $succeeded, 'failed' => $failed, 'outputPath' => $outputPath];
+    }
+
+    /**
+     * Creates ONE ticket synchronously in GLPI and returns its id, reusing the
+     * exact payload/plugin-write rules of the bulk importer but skipping all the
+     * Excel/job machinery. Used by the self-service widget, which files a single
+     * ticket on the spot instead of enqueuing a batch.
+     *
+     * @param int[]               $containerIds plugin containers to write (may be empty)
+     * @param array<string,mixed> $row          values keyed by plan header (as buildPlan emits them)
+     * @param array{entities?:int,requester?:int} $opts overrides for the GLPI targets
+     * @return ServiceResult data['ticketId'] on success
+     */
+    public function createOne(array $containerIds, array $row, array $opts = []): ServiceResult
+    {
+        $plan = $this->introspector->buildPlan($containerIds, false);
+        [$baseCols, $pluginByContainer] = $this->splitColumns($plan['columns']);
+        $sucursalHeader = $this->findSucursalHeader($plan['columns']);
+
+        $entities   = isset($opts['entities'])  ? (int) $opts['entities']  : $this->settings->entitiesId();
+        $requester  = isset($opts['requester']) ? (int) $opts['requester'] : $this->settings->requesterUserId();
+        $autocreate = $this->settings->autocreateCatalogValues();
+
+        $connector = $this->connectors->buildByKey('glpi');
+        if (! $connector instanceof GlpiConnector) {
+            return ServiceResult::fail('El conector de GLPI no está disponible.');
+        }
+
+        $session = $connector->openApiSession();
+        if (! $session['success']) {
+            return ServiceResult::fail('No se pudo iniciar sesión con la API de GLPI: ' . ($session['error'] ?? ''));
+        }
+        $token = $session['token'];
+
+        try {
+            $payload = $this->buildTicketPayload($row, $baseCols, $entities, $requester, $sucursalHeader);
+            $result  = $connector->createTicket($payload, $token);
+            if (! $result->success || $result->externalId === null) {
+                return ServiceResult::fail($result->message !== '' ? $result->message : 'GLPI no devolvió el id del ticket.');
+            }
+            $ticketId = (int) $result->externalId;
+
+            foreach ($pluginByContainer as $containerId => $planCols) {
+                $this->writePluginRow($containerId, $planCols, $row, $ticketId, $entities, $autocreate);
+            }
+
+            return ServiceResult::ok(['ticketId' => $ticketId], "Ticket #{$ticketId} creado.");
+        } catch (\Throwable $e) {
+            log_message('error', '[ServiceDesk][widget] createOne failed: ' . $e->getMessage());
+            return ServiceResult::fail('No se pudo crear el ticket: ' . $e->getMessage());
+        } finally {
+            $connector->closeApiSession($token);
+        }
     }
 
     // ------------------------------------------------------------------

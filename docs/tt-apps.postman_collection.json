@@ -2860,6 +2860,80 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Service Desk — Widget (público)",
+      "description": "Endpoints públicos del widget de autoservicio. NO usan Bearer: se validan con la clave pública del widget (query ?key= o header X-Widget-Key), la allowlist de orígenes y un rate limit por IP. El estatus del ticket es siempre NUEVO y la categoría es la fija configurada en el panel.",
+      "item": [
+        {
+          "name": "Widget — loader (embed.js)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/servicedesk/widget/embed.js?key={{widget_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["servicedesk", "widget", "embed.js"],
+              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+            },
+            "description": "Script que la intranet inserta con un <script src>. Inyecta el botón flotante y el iframe del chat."
+          },
+          "response": []
+        },
+        {
+          "name": "Widget — frame (UI del chat)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/servicedesk/widget/frame?key={{widget_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["servicedesk", "widget", "frame"],
+              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+            },
+            "description": "HTML del chat que vive dentro del iframe (mismo origen que Nexus)."
+          },
+          "response": []
+        },
+        {
+          "name": "Widget — chat (turno conversacional)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"history\": [],\n  \"message\": \"No me funciona la impresora de recepción\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/servicedesk/widget/chat?key={{widget_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["servicedesk", "widget", "chat"],
+              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+            },
+            "description": "Un turno de conversación. Devuelve reply, question (opcional), draft (opcional, ticket listo para confirmar) e history actualizado que debe reenviarse en el siguiente turno."
+          },
+          "response": []
+        },
+        {
+          "name": "Widget — ticket (crear, síncrono)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"draft\": {\n    \"titulo\": \"Impresora de recepción no imprime\",\n    \"descripcion\": \"La impresora marca error de papel aunque tiene hojas\",\n    \"tipo\": \"INCIDENCIA\",\n    \"solicitante\": \"Ana López\",\n    \"ubicacion\": \"Recepción, piso 1\",\n    \"es_hardware\": true,\n    \"equipo\": \"Impresora\",\n    \"modelo\": \"HP M404\",\n    \"serie\": \"VNB1234567\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/servicedesk/widget/ticket?key={{widget_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["servicedesk", "widget", "ticket"],
+              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+            },
+            "description": "Crea el ticket en GLPI de inmediato (estatus NUEVO, categoría fija, fecha actual, nombre y ubicación concatenados en la descripción, hardware a campos plugin) y devuelve data.ticketId."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

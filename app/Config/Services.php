@@ -58,6 +58,7 @@ use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
 use App\Modules\ServiceDesk\Services\TicketTemplateBuilder;
+use App\Modules\ServiceDesk\Services\WidgetTicketService;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -338,6 +339,20 @@ class Services extends BaseService
             self::glpiSchemaIntrospector(),
             self::serviceDeskSettings(),
             self::ticketImportValidator(),
+            new ServiceDeskAiUsageModel(),
+            new ServiceDeskImportModel(),
+        );
+    }
+
+    public static function widgetTicketService(bool $getShared = true): WidgetTicketService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('widgetTicketService');
+        }
+        return new WidgetTicketService(
+            self::glpiSchemaIntrospector(),
+            self::serviceDeskSettings(),
+            self::serviceDeskImporter(),
             new ServiceDeskAiUsageModel(),
             new ServiceDeskImportModel(),
         );

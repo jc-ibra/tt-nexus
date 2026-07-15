@@ -31,6 +31,8 @@ class ServiceDeskAdmin extends BaseController
             'aiHasKey'       => $settings->aiHasApiKey(),
             'aiInstructions' => $settings->aiSystemPrompt(),
             'aiUsage'        => (new ServiceDeskAiUsageModel())->summary(30),
+            'widgetSiteKey'  => $settings->widgetSiteKey(),
+            'widgetPrompt'   => $settings->widgetSystemPrompt(),
         ]);
     }
 
@@ -38,6 +40,17 @@ class ServiceDeskAdmin extends BaseController
     {
         $result = service('serviceDeskSettings')->save($this->request->getPost());
         return redirect()->to(route_to('servicedesk.settings'))
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /**
+     * Saves the self-service widget configuration (enable, site key, allowed
+     * origins, hardware container + field mapping, generic requester, limits).
+     */
+    public function saveWidget(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveWidget($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#widget')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 
@@ -61,10 +74,11 @@ class ServiceDeskAdmin extends BaseController
         $configured   = $introspector->isConfigured();
 
         return view('App\Modules\ServiceDesk\Views\categories', [
-            'pageTitle'  => 'Categorías · Service Desk',
-            'configured' => $configured,
-            'categories' => $configured ? $introspector->categories() : [],
-            'map'        => (new ServiceDeskCategoryMapModel())->all(),
+            'pageTitle'       => 'Categorías · Service Desk',
+            'configured'      => $configured,
+            'categories'      => $configured ? $introspector->categories() : [],
+            'map'             => (new ServiceDeskCategoryMapModel())->all(),
+            'widgetCategoryId' => service('serviceDeskSettings')->widgetItilCategoryId(),
         ]);
     }
 
@@ -85,6 +99,9 @@ class ServiceDeskAdmin extends BaseController
         }
 
         (new ServiceDeskCategoryMapModel())->saveAll($rows);
+
+        // The single ITIL category the self-service widget files tickets under.
+        service('serviceDeskSettings')->setWidgetCategory((int) ($this->request->getPost('widget_category') ?? 0));
 
         return redirect()->to(route_to('servicedesk.categories'))
             ->with('success', 'Mapeo de categorías guardado.');

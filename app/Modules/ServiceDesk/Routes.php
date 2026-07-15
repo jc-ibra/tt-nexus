@@ -49,11 +49,28 @@ $routes->group('admin/servicedesk', [
     $routes->post('settings',      'ServiceDeskAdmin::saveSettings', ['as' => 'servicedesk.settings.save']);
     // AI creator config (Claude API key, model, budget) + usage log.
     $routes->post('ai',            'ServiceDeskAdmin::saveAi',        ['as' => 'servicedesk.ai.save']);
+    // Self-service widget config (embed, origins, hardware mapping, limits).
+    $routes->post('widget',        'ServiceDeskAdmin::saveWidget',    ['as' => 'servicedesk.widget.save']);
     // Category -> CLIENTE mapping + supported categories for the template.
     $routes->get('categories',     'ServiceDeskAdmin::categories',     ['as' => 'servicedesk.categories']);
     $routes->post('categories',    'ServiceDeskAdmin::saveCategories', ['as' => 'servicedesk.categories.save']);
     // Live preview of the introspected plugin containers/fields.
     $routes->get('schema',         'ServiceDeskAdmin::schema',       ['as' => 'servicedesk.schema']);
+});
+
+// -----------------------------------------------------------------------
+// Self-service widget — PUBLIC (no auth). Gated by widget_access:
+// site key + origin allowlist + per-IP rate limit. Embeddable in the intranet.
+// -----------------------------------------------------------------------
+$routes->group('servicedesk/widget', [
+    'namespace' => 'App\Modules\ServiceDesk\Controllers',
+    'filter'    => 'widget_access',
+], function (RouteCollection $routes): void {
+    $routes->get('embed.js', 'Widget::embed',  ['as' => 'servicedesk.widget.embed']);
+    $routes->get('frame',    'Widget::frame',   ['as' => 'servicedesk.widget.frame']);
+    $routes->post('chat',    'Widget::chat',    ['as' => 'servicedesk.widget.chat']);
+    $routes->post('ticket',  'Widget::ticket',  ['as' => 'servicedesk.widget.ticket']);
+    $routes->options('(:any)', 'Widget::frame'); // CORS preflight (short-circuited by the filter)
 });
 
 // -----------------------------------------------------------------------
