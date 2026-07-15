@@ -100,9 +100,11 @@ La API key vive cifrada en `provisioning_system_credentials`, fuera del reposito
 > de login, la administra Nexus). Nexus **ya no** envía datos de organigrama
 > (`puesto`, `area`, `departamento`, `jefe_directo`); envía sólo la información
 > mínima de la cuenta. El identificador de recurso es **`nexus_id`** (derivado del
-> id de Nexus, p. ej. `NX-42`), **no** `no_empleado`. El `id_usuario` (`INT-<n>`)
-> que devuelve la Intranet es informativo: todas las operaciones posteriores usan
-> `nexus_id`.
+> id de Nexus, p. ej. `NX-42`), **no** `numero_empleado`. Aun así Nexus envía el
+> **`numero_empleado`** como atributo del usuario (para reutilizarlo en la
+> Intranet); no es la llave de recurso, sólo un dato que se persiste. El
+> `id_usuario` (`INT-<n>`) que devuelve la Intranet es informativo: todas las
+> operaciones posteriores usan `nexus_id`.
 
 ### `POST /api/v1/usuarios` — Crear usuario
 
@@ -110,6 +112,7 @@ Request:
 ```json
 {
   "nexus_id": "NX-42",
+  "numero_empleado": "1024",
   "nombre": "Ana",
   "apellidos": "Lopez Garcia",
   "correo": "ana.lopez@trantortechnologies.mx",
@@ -145,7 +148,7 @@ Respuesta:
 
 ### `PUT /api/v1/usuarios/{nexus_id}` — Actualizar (parcial)
 
-Request: sólo los campos que cambian (`nombre`, `apellidos`, `correo`, `estado`, `password`). Respuesta: mismo formato.
+Request: sólo los campos que cambian (`numero_empleado`, `nombre`, `apellidos`, `correo`, `estado`, `password`). Respuesta: mismo formato.
 
 ### `GET /api/v1/ping` (opcional, recomendado)
 

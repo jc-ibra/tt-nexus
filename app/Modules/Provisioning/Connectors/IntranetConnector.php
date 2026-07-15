@@ -16,8 +16,8 @@ namespace App\Modules\Provisioning\Connectors;
  *
  * Endpoints (resource key is `nexus_id`, e.g. "NX-42"):
  *   GET    /api/v1/ping
- *   POST   /api/v1/usuarios                          { nexus_id, nombre, apellidos, correo, password, estado?, foto_base64?, foto_mime? }
- *   PUT    /api/v1/usuarios/{nexus_id}               partial: nombre?, apellidos?, correo?, estado?, password?, foto_base64?, foto_mime?
+ *   POST   /api/v1/usuarios                          { nexus_id, numero_empleado, nombre, apellidos, correo, password, estado?, foto_base64?, foto_mime? }
+ *   PUT    /api/v1/usuarios/{nexus_id}               partial: numero_empleado?, nombre?, apellidos?, correo?, estado?, password?, foto_base64?, foto_mime?
  *   POST   /api/v1/usuarios/{nexus_id}/desactivar
  *   POST   /api/v1/usuarios/{nexus_id}/password      { password }
  *
@@ -73,12 +73,13 @@ class IntranetConnector implements SystemConnector
         }
 
         $payload = [
-            'nexus_id'  => $nexusId,
-            'nombre'    => (string) ($userData['name'] ?? ''),
-            'apellidos' => (string) ($userData['lastname'] ?? ''),
-            'correo'    => $correo,
-            'password'  => (string) ($userData['password'] ?? ''),
-            'estado'    => 'activo',
+            'nexus_id'        => $nexusId,
+            'numero_empleado' => (string) ($userData['employee_number'] ?? ''),
+            'nombre'          => (string) ($userData['name'] ?? ''),
+            'apellidos'       => (string) ($userData['lastname'] ?? ''),
+            'correo'          => $correo,
+            'password'        => (string) ($userData['password'] ?? ''),
+            'estado'          => 'activo',
         ];
 
         // Ship the employee photo (if any) in the same call, base64-encoded.
@@ -117,6 +118,9 @@ class IntranetConnector implements SystemConnector
         // Partial update: only send the fields actually provided, so a
         // profile-only sync (name/lastname/photo) never blanks the email.
         $payload = [];
+        if (array_key_exists('employee_number', $userData) && trim((string) $userData['employee_number']) !== '') {
+            $payload['numero_empleado'] = (string) $userData['employee_number'];
+        }
         if (array_key_exists('name', $userData)) {
             $payload['nombre'] = (string) $userData['name'];
         }
