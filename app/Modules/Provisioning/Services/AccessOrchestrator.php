@@ -73,6 +73,25 @@ class AccessOrchestrator
         // Otherwise GLPI/Intranet must ride on the primary institutional account
         // already on file — a personal email is never the key.
         $resolvedMailboxEmail = $willCreateMailcow ? $mailboxEmail : null;
+        $mailboxNote          = '';
+
+        // Pre-flight availability check: when we are about to CREATE the Mailcow
+        // mailbox, make sure the requested address is actually free BEFORE any
+        // system is touched. If it is taken, walk nombre.apellido1,
+        // nombre.apellido2, … until Mailcow reports one free, and use THAT as the
+        // institutional key for every system. This must happen up front: an
+        // "object_exists" mid-alta would otherwise leave GLPI/Intranet pointing at
+        // a mailbox Nexus never created — the exact cascade we are fixing.
+        if ($willCreateMailcow && $resolvedMailboxEmail !== null && $resolvedMailboxEmail !== '') {
+            $avail = $this->resolveAvailableMailboxEmail($resolvedMailboxEmail);
+            if (! $avail->success) {
+                return ServiceResult::fail($avail->message);
+            }
+            $resolvedMailboxEmail = (string) $avail->data['email'];
+            if (! empty($avail->data['changed'])) {
+                $mailboxNote = ' El buzón "' . $avail->data['original'] . '" ya existía; se asignó "' . $resolvedMailboxEmail . '".';
+            }
+        }
 
         if (! $willCreateMailcow && $needsInstitutional) {
             $primary         = $emailAccModel->getPrimary($employeeId);
@@ -172,8 +191,8 @@ class AccessOrchestrator
 
         $allOk = ! in_array(false, array_map(fn($r) => $r['success'], $perSystem), true);
         return $allOk
-            ? ServiceResult::ok(['results' => $perSystem, 'temporary_password' => $password], 'Empleado aprovisionado.')
-            : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.'], ['results' => $perSystem, 'temporary_password' => $password]);
+            ? ServiceResult::ok(['results' => $perSystem, 'temporary_password' => $password], 'Empleado aprovisionado.' . $mailboxNote)
+            : ServiceResult::fail(['Algunos sistemas fallaron. Revisa la bitácora.' . $mailboxNote], ['results' => $perSystem, 'temporary_password' => $password]);
     }
 
     public function deprovisionEmployee(int $employeeId, ?array $systemIds = null): ServiceResult
@@ -729,6 +748,63 @@ class AccessOrchestrator
             'executor_user_id' => session()->get('user_id') ?: null,
             'ip_address'       => $this->ip(),
         ]);
+    }
+
+    /**
+     * Resolve a FREE Mailcow mailbox address before any account is created.
+     *
+     * The operator submits a desired address whose local part is "nombre.apellido".
+     * If Mailcow already has it, we append an incrementing numeric suffix on the
+     * local part (nombre.apellido1, nombre.apellido2, …) and re-check until Mailcow
+     * reports one free — honouring the UI promise "Si ya existe se usará
+     * nombre.apellido1, etc.".
+     *
+     * Contract:
+     *   - ok(['email' => resolved, 'changed' => bool, 'original' => requested])
+     *   - fail(reason) when Mailcow cannot be reached (we must NOT guess an address
+     *     we could not verify) or no free slot is found within the cap. A fail
+     *     aborts the whole alta so GLPI/Intranet are never provisioned on a mailbox
+     *     that does not actually exist.
+     */
+    private function resolveAvailableMailboxEmail(string $requestedEmail): ServiceResult
+    {
+        $requestedEmail = trim($requestedEmail);
+        $at             = strrpos($requestedEmail, '@');
+        if ($at === false || $at === 0 || $at === strlen($requestedEmail) - 1) {
+            return ServiceResult::fail('El correo de buzón "' . $requestedEmail . '" no es válido.');
+        }
+
+        $localBase = substr($requestedEmail, 0, $at);
+        $domain    = substr($requestedEmail, $at + 1);
+        $mailboxes = service('mailboxesService');
+        $maxTries  = 50;
+
+        for ($i = 0; $i <= $maxTries; $i++) {
+            $candidate = ($i === 0 ? $localBase : $localBase . $i) . '@' . $domain;
+
+            $check = $mailboxes->mailboxExists($candidate);
+            if (! $check->success) {
+                // Could not verify — abort rather than risk the object_exists cascade.
+                return ServiceResult::fail(
+                    'No se pudo verificar la disponibilidad del buzón en Mailcow (' .
+                    ($check->message ?: 'error de conexión') .
+                    '). No se dio de alta ningún sistema; inténtalo de nuevo.'
+                );
+            }
+
+            if (empty($check->data['exists'])) {
+                return ServiceResult::ok([
+                    'email'    => $candidate,
+                    'changed'  => $i > 0,
+                    'original' => $requestedEmail,
+                ]);
+            }
+        }
+
+        return ServiceResult::fail(
+            'No se encontró un buzón disponible para "' . $localBase . '@' . $domain .
+            '" tras ' . $maxTries . ' intentos. Revisa el nombre propuesto en Mailcow.'
+        );
     }
 
     // =======================================================================
