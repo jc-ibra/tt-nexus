@@ -129,3 +129,6 @@ _modules/*
 
 # servicedesk uploads
 /writable/servicedesk
+
+# Documentación local de reset de BD (no debe viajar al repositorio)
+/RESET-DB.md

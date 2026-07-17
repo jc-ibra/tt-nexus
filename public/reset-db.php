@@ -13,10 +13,10 @@
  *                       transaccionales/de prueba y CONSERVA:
  *                         - Todas las tablas de Core (core_*, ci_sessions, migrations)
  *                         - Las tablas de settings / credenciales:
- *                             provisioning_settings, mailboxes_settings,
- *                             servicedesk_settings, servicedesk_category_map,
- *                             provisioning_system_credentials, provisioning_systems,
- *                             provisioning_glpi_catalog_prefs
+ *                             provisioning_settings, provisioning_system_credentials,
+ *                             provisioning_systems, provisioning_glpi_catalog_prefs,
+ *                             mailboxes_settings, servicedesk_settings,
+ *                             servicedesk_category_map, servicedesk_backlog_areas
  *                       Después re-ejecuta los seeders (idempotentes) para restaurar
  *                       catálogos por defecto (licencias MS, coordinadores GLPI) y el
  *                       registro de módulos/roles. NO toca el esquema (no migra).
@@ -89,14 +89,25 @@ $SEEDERS = [
 
 // ── Tablas de settings/credenciales que el reset SUAVE conserva ──────────────────
 // (además de todas las tablas de Core: core_*, ci_sessions y migrations).
+//
+// Regla de oro: aquí van las tablas que guardan CONFIGURACIÓN hecha a mano por el
+// admin (settings, credenciales, mapeos). NO van las de datos transaccionales,
+// telemetría ni bitácoras de auditoría (esas se vacían y punto). Ver RESET-DB.md.
 $PRESERVE_SETTINGS = [
+    // Provisioning
     'provisioning_settings',
-    'mailboxes_settings',
-    'servicedesk_settings',
-    'servicedesk_category_map',
     'provisioning_system_credentials',
     'provisioning_systems',
     'provisioning_glpi_catalog_prefs',
+    // Mailboxes
+    'mailboxes_settings',
+    // Service Desk — settings del importador + widget + creador IA + reporte de backlog
+    'servicedesk_settings',
+    // Service Desk — mapeo categoría GLPI → plantilla + regional/IDC/cliente del backlog
+    'servicedesk_category_map',
+    // Service Desk — mapeo categoría raíz GLPI → área de negocio del reporte de backlog
+    // (asignado a mano por el SuperAdmin; NO se puede re-derivar con un seeder).
+    'servicedesk_backlog_areas',
 ];
 
 $mode    = (string) ($_GET['mode'] ?? '');

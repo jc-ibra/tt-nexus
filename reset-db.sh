@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
-# reset-db.sh — Reinicia por completo la base de datos de tt-nexus (SOLO PARA TEST)
+# reset-db.sh — Reinicia la base de datos de tt-nexus (SOLO PARA TEST)
 #
-# Elimina TODOS los registros: hace DROP + CREATE de la base y vuelve a correr
-# migraciones y seeders (reutilizando setup.sh). Pensado para entornos de prueba.
+# Tiene DOS modos (ver documentación completa en RESET-DB.md, solo local):
+#
+#   (por defecto) HARD reset  -> Borra TODO: hace DROP + CREATE de la base y vuelve
+#                                a correr migraciones + seeders (reutilizando setup.sh).
+#                                Se pierde login, RBAC, credenciales y configuración.
+#
+#   --soft        Reset SUAVE  -> Vacía (TRUNCATE) solo los datos transaccionales /
+#                                telemetría / bitácoras. CONSERVA las tablas de Core
+#                                (core_*, ci_sessions, migrations) y las de settings /
+#                                credenciales / mapeos de configuración. No toca el
+#                                esquema (no migra); re-ejecuta los seeders idempotentes.
 #
 # Uso:
-#   ./reset-db.sh              # modo local (mysql/php en el host)
+#   ./reset-db.sh              # HARD reset, modo local (mysql/php en el host)
+#   ./reset-db.sh --soft       # reset SUAVE (conserva Core + settings + configs)
 #   ./reset-db.sh --docker     # modo Docker (docker compose exec ...)
 #   ./reset-db.sh --yes        # no pide confirmación interactiva
 #   ./reset-db.sh --force      # omite los seguros de host/baseURL (NO recomendado)
@@ -30,13 +40,18 @@ step() { echo -e "\n${BOLD}${CYAN}==> $*${RESET}"; }
 DOCKER=false
 ASSUME_YES=false
 FORCE=false
+MODE="hard"   # hard = DROP+CREATE (por defecto);  soft = TRUNCATE conservando config
 for arg in "$@"; do
     case "$arg" in
         --docker) DOCKER=true ;;
+        --soft)   MODE="soft" ;;
+        --hard)   MODE="hard" ;;
         --yes|-y) ASSUME_YES=true ;;
         --force)  FORCE=true ;;
         -h|--help)
-            echo "Uso: $0 [--docker] [--yes] [--force]"
+            echo "Uso: $0 [--soft|--hard] [--docker] [--yes] [--force]"
+            echo "  --soft     Reset SUAVE: vacía datos pero CONSERVA Core + settings + configs"
+            echo "  --hard     Reset DURO (por defecto): DROP + CREATE de toda la base"
             echo "  --docker   Corre los comandos dentro del contenedor / servicio db"
             echo "  --yes,-y   No pide confirmación interactiva"
             echo "  --force    Omite los seguros de host/baseURL (peligroso)"
@@ -44,6 +59,24 @@ for arg in "$@"; do
         *) fail "Argumento desconocido: $arg" ;;
     esac
 done
+
+# ── Tablas de settings/credenciales/config que el reset SUAVE conserva ───────────
+# (además de todas las tablas de Core: core_*, ci_sessions y migrations).
+# Debe mantenerse sincronizado con $PRESERVE_SETTINGS en public/reset-db.php.
+# Ver RESET-DB.md para la justificación de cada tabla (solo vive en local).
+PRESERVE_SETTINGS=(
+    # Provisioning
+    provisioning_settings
+    provisioning_system_credentials
+    provisioning_systems
+    provisioning_glpi_catalog_prefs
+    # Mailboxes
+    mailboxes_settings
+    # Service Desk: settings (importador + widget + IA + backlog), mapeos de categorías
+    servicedesk_settings
+    servicedesk_category_map
+    servicedesk_backlog_areas
+)
 
 # ── Directorio raíz del proyecto ───────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -112,11 +145,40 @@ fi
 
 # ── Wrapper mysql: local o Docker ──────────────────────────────────────────────
 mysql_exec() {
-    # $1 = SQL a ejecutar
+    # $1 = SQL a ejecutar (contra el servidor; sin base seleccionada)
     if $DOCKER; then
         docker compose exec -T db mysql -u"$DB_USER" -p"$DB_PASS" -e "$1"
     else
         mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -e "$1"
+    fi
+}
+
+# Consulta en modo batch (sin encabezados/formato) contra la base objetivo.
+mysql_query() {
+    # $1 = SQL; imprime una fila por línea, sin decoración.
+    if $DOCKER; then
+        docker compose exec -T db mysql -N -B -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$1"
+    else
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -N -B "$DB_NAME" -e "$1"
+    fi
+}
+
+# ── Wrapper spark: local o Docker (para re-seedear en el reset suave) ────────────
+spark() {
+    if $DOCKER; then
+        docker compose exec app php spark "$@"
+    else
+        php spark "$@"
+    fi
+}
+
+run_seeder() {
+    local CLASS="$1" LABEL="${2:-$1}"
+    info "Seeder: $LABEL"
+    if spark db:seed "$CLASS" >/dev/null 2>&1; then
+        ok "$LABEL"
+    else
+        warn "Falló el seeder $LABEL (puede ser que ya existan los datos)"
     fi
 }
 
@@ -137,28 +199,79 @@ else
     command -v mysql &>/dev/null || fail "El cliente 'mysql' no está en el PATH (usa --docker o instálalo)."
 fi
 
+info "Modo           : ${BOLD}$( [[ "$MODE" == soft ]] && echo 'SUAVE (conserva Core + settings + configs)' || echo 'DURO (DROP + CREATE de toda la base)' )${RESET}"
+
 # ── Confirmación ───────────────────────────────────────────────────────────────
 if ! $ASSUME_YES; then
     echo ""
-    warn "Esto ${BOLD}ELIMINARÁ POR COMPLETO${RESET}${YELLOW} la base de datos '${BOLD}$DB_NAME${RESET}${YELLOW}' y la recreará vacía."
+    if [[ "$MODE" == soft ]]; then
+        warn "Esto ${BOLD}VACIARÁ los datos${RESET}${YELLOW} de '${BOLD}$DB_NAME${RESET}${YELLOW}' pero CONSERVARÁ Core, settings y configuraciones."
+    else
+        warn "Esto ${BOLD}ELIMINARÁ POR COMPLETO${RESET}${YELLOW} la base de datos '${BOLD}$DB_NAME${RESET}${YELLOW}' y la recreará vacía."
+    fi
     read -rp "  Escribe el nombre de la base de datos para confirmar: " CONFIRM
     [[ "$CONFIRM" == "$DB_NAME" ]] || fail "El nombre no coincide ('$CONFIRM' != '$DB_NAME'). Abortado."
 fi
 
-# ── DROP + CREATE ──────────────────────────────────────────────────────────────
-step "Reiniciando la base de datos"
-info "DROP DATABASE \`$DB_NAME\`"
-mysql_exec "DROP DATABASE IF EXISTS \`$DB_NAME\`;" || fail "No se pudo eliminar la base de datos."
-info "CREATE DATABASE \`$DB_NAME\`"
-mysql_exec "CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || fail "No se pudo recrear la base de datos."
-ok "Base de datos '$DB_NAME' recreada vacía"
+if [[ "$MODE" == soft ]]; then
+    # ── RESET SUAVE: TRUNCATE de datos, conservando Core + settings/config ──────
+    step "Reset suave — vaciando datos (conservando Core, settings y configuraciones)"
 
-# ── Re-migrar y re-seedear reutilizando setup.sh ───────────────────────────────
-step "Re-aplicando migraciones y seeders (setup.sh)"
-if $DOCKER; then
-    ./setup.sh --docker
+    # Conjunto a conservar: migrations, ci_sessions, cualquier tabla core_* y la
+    # lista explícita de settings/config.
+    declare -A PRESERVE=( [migrations]=1 [ci_sessions]=1 )
+    for t in "${PRESERVE_SETTINGS[@]}"; do PRESERVE["$t"]=1; done
+
+    TABLES="$(mysql_query 'SHOW TABLES;')" || fail "No pude listar las tablas de '$DB_NAME'."
+    [[ -n "$TABLES" ]] || fail "La base '$DB_NAME' no tiene tablas. ¿Quisiste un --hard reset?"
+
+    TRUNC_SQL="SET FOREIGN_KEY_CHECKS = 0;"
+    truncated=0; kept=0; kept_list=""
+    while IFS= read -r t; do
+        [[ -z "$t" ]] && continue
+        if [[ -n "${PRESERVE[$t]:-}" || "$t" == core_* ]]; then
+            kept=$((kept+1)); kept_list+="${kept_list:+, }$t"; continue
+        fi
+        TRUNC_SQL+="TRUNCATE TABLE \`$t\`;"
+        info "TRUNCATE $t"
+        truncated=$((truncated+1))
+    done <<< "$TABLES"
+    TRUNC_SQL+="SET FOREIGN_KEY_CHECKS = 1;"
+
+    if (( truncated > 0 )); then
+        mysql_query "$TRUNC_SQL" || fail "Falló el vaciado de tablas."
+    fi
+    ok "$truncated tabla(s) vaciada(s)."
+    info "Conservadas ($kept): $kept_list"
+
+    # Re-seed idempotente: restaura catálogos por defecto y el registro módulos/roles.
+    # Mismo orden que setup.sh (no migramos: el esquema queda intacto).
+    step "Re-ejecutando seeders (restaurar catálogos por defecto)"
+    run_seeder "App\Database\Seeds\CoreSeeder"                                         "CoreSeeder"
+    run_seeder "App\Modules\Employees\Database\Seeders\EmployeesModuleSeeder"          "EmployeesModuleSeeder"
+    run_seeder "App\Modules\KPIsOperativos\Database\Seeders\KPIsOperativosModuleSeeder" "KPIsOperativosModuleSeeder"
+    run_seeder "App\Modules\KPIsOperativos\Database\Seeders\GlpiCoordinatorsSeeder"    "GlpiCoordinatorsSeeder"
+    run_seeder "App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder"          "MailboxesModuleSeeder"
+    run_seeder "App\Modules\Provisioning\Database\Seeders\ProvisioningModuleSeeder"    "ProvisioningModuleSeeder"
+    run_seeder "App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder"            "MsLicensesSeeder"
+    run_seeder "App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder"      "ServiceDeskModuleSeeder"
+
+    echo -e "\n${BOLD}${GREEN}  Reset suave completo.${RESET} Se conservaron Core, settings y configuraciones.\n"
 else
-    ./setup.sh
-fi
+    # ── HARD RESET: DROP + CREATE, luego re-migrar + re-seedear vía setup.sh ─────
+    step "Reiniciando la base de datos (hard reset)"
+    info "DROP DATABASE \`$DB_NAME\`"
+    mysql_exec "DROP DATABASE IF EXISTS \`$DB_NAME\`;" || fail "No se pudo eliminar la base de datos."
+    info "CREATE DATABASE \`$DB_NAME\`"
+    mysql_exec "CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || fail "No se pudo recrear la base de datos."
+    ok "Base de datos '$DB_NAME' recreada vacía"
 
-echo -e "\n${BOLD}${GREEN}  Reset completo.${RESET} La base '$DB_NAME' quedó limpia y con datos semilla.\n"
+    step "Re-aplicando migraciones y seeders (setup.sh)"
+    if $DOCKER; then
+        ./setup.sh --docker
+    else
+        ./setup.sh
+    fi
+
+    echo -e "\n${BOLD}${GREEN}  Reset completo.${RESET} La base '$DB_NAME' quedó limpia y con datos semilla.\n"
+fi
