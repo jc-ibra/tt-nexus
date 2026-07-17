@@ -33,6 +33,14 @@ Frecuencia: cada 5 minutos (`*/5 * * * *`)
 /usr/local/bin/php /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/spark provisioning:process-retries >> /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/writable/logs/provisioning-retries.log 2>&1
 ```
 
+## 4. Service Desk — reporte diario de backlog
+
+Frecuencia: cada 5 minutos (`*/5 * * * *`). El comando se auto-gatilla: solo envía al llegar la hora de corte configurada en `/admin/servicedesk/settings#backlog` y una sola vez al día. No edites el crontab para cambiar la hora, cámbiala desde la UI.
+
+```
+/usr/local/bin/php /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/spark servicedesk:send-backlog-report >> /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/writable/logs/servicedesk-backlog.log 2>&1
+```
+
 # Test
 
 App: `/home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx`
@@ -59,4 +67,12 @@ Frecuencia: cada 5 minutos (`*/5 * * * *`)
 
 ```
 /usr/local/bin/php /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/spark provisioning:process-retries >> /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/writable/logs/provisioning-retries.log 2>&1
+```
+
+## 4. Service Desk — reporte diario de backlog
+
+Frecuencia: cada 5 minutos (`*/5 * * * *`). Auto-gatillado por la hora de corte configurada en la UI.
+
+```
+/usr/local/bin/php /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/spark servicedesk:send-backlog-report >> /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/writable/logs/servicedesk-backlog.log 2>&1
 ```

@@ -2858,6 +2858,68 @@
             "description": "Valida las filas propuestas y las encola como job de importación (mismo pipeline que el importador masivo). Las claves de cada fila son los encabezados que devuelve schema/columns."
           },
           "response": []
+        },
+        {
+          "name": "Backlog report — preview (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/backlog/preview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "backlog",
+                "preview"
+              ]
+            },
+            "description": "Devuelve los datos agregados del reporte diario de backlog (KPIs, áreas, buckets de antigüedad) leídos en vivo de GLPI, sin enviar correo. Omite el volcado completo de filas."
+          },
+          "response": []
+        },
+        {
+          "name": "Backlog report — send now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"test_email\": \"tu-correo@empresa.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/backlog/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "backlog",
+                "send"
+              ]
+            },
+            "description": "Genera y envía el reporte de backlog ahora. Con test_email envía una prueba solo a esa dirección; sin él, envía a la audiencia configurada (Para + CC) como envío manual."
+          },
+          "response": []
         }
       ]
     },

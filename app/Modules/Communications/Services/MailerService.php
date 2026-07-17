@@ -57,6 +57,57 @@ class MailerService
         }
     }
 
+    /**
+     * Sends one HTML report to several recipients with CC and file attachments,
+     * using a custom From (report identity) over the shared SMTP transport.
+     *
+     * @param string[] $to          direct recipient addresses
+     * @param string[] $cc          copied recipient addresses
+     * @param array<int,array{path:string,name?:string}> $attachments files to attach
+     * @return array{success: bool, error: string}
+     */
+    public function sendReport(
+        array $to,
+        array $cc,
+        string $fromEmail,
+        string $fromName,
+        string $subject,
+        string $htmlBody,
+        array $attachments = []
+    ): array {
+        if ($to === []) {
+            return ['success' => false, 'error' => 'Sin destinatarios directos.'];
+        }
+
+        try {
+            $this->mailer->clear(true); // true also clears attachments between sends
+            $this->mailer->setFrom($fromEmail, $fromName);
+            $this->mailer->setTo($to);
+            if ($cc !== []) {
+                $this->mailer->setCC($cc);
+            }
+            $this->mailer->setSubject($subject);
+            $this->mailer->setMessage($htmlBody);
+            $this->mailer->setMailType('html');
+
+            foreach ($attachments as $att) {
+                $path = (string) ($att['path'] ?? '');
+                if ($path !== '' && is_file($path)) {
+                    $name = trim((string) ($att['name'] ?? ''));
+                    $this->mailer->attach($path, '', $name !== '' ? $name : null);
+                }
+            }
+
+            if ($this->mailer->send(false)) {
+                return ['success' => true, 'error' => ''];
+            }
+
+            return ['success' => false, 'error' => $this->extractError()];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
     // -----------------------------------------------------------------------
     // SMTP configuration — reads from app_settings DB table (SuperAdmin),
     // falls back to Config/Email.php (.env values) if not configured.

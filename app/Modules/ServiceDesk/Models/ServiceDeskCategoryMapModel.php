@@ -25,19 +25,67 @@ class ServiceDeskCategoryMapModel
     /**
      * All rows keyed by GLPI category id.
      *
-     * @return array<int, array{cliente:string, is_supported:bool, category_name:string}>
+     * @return array<int, array{cliente:string, is_supported:bool, backlog_regional:bool, category_name:string}>
      */
     public function all(): array
     {
         $out = [];
         foreach ($this->db->table('servicedesk_category_map')->get()->getResultArray() as $row) {
             $out[(int) $row['glpi_category_id']] = [
-                'cliente'       => (string) ($row['cliente'] ?? ''),
-                'is_supported'  => (int) ($row['is_supported'] ?? 0) === 1,
-                'category_name' => (string) ($row['category_name'] ?? ''),
+                'cliente'          => (string) ($row['cliente'] ?? ''),
+                'is_supported'     => (int) ($row['is_supported'] ?? 0) === 1,
+                'backlog_regional' => (int) ($row['backlog_regional'] ?? 0) === 1,
+                'backlog_idc'      => (int) ($row['backlog_idc'] ?? 0) === 1,
+                'backlog_cliente'  => (int) ($row['backlog_cliente'] ?? 0) === 1,
+                'category_name'    => (string) ($row['category_name'] ?? ''),
             ];
         }
         return $out;
+    }
+
+    /**
+     * GLPI category ids flagged to count in the backlog "POR REGIONAL" table.
+     * Empty = no restriction (all categories count).
+     *
+     * @return int[]
+     */
+    public function regionalIds(): array
+    {
+        $rows = $this->db->table('servicedesk_category_map')
+            ->select('glpi_category_id')
+            ->where('backlog_regional', 1)
+            ->get()->getResultArray();
+        return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
+    }
+
+    /**
+     * GLPI category ids the "Sin IDC" metric applies to (subtree match).
+     * Empty = no restriction (all categories count).
+     *
+     * @return int[]
+     */
+    public function idcScopeIds(): array
+    {
+        $rows = $this->db->table('servicedesk_category_map')
+            ->select('glpi_category_id')
+            ->where('backlog_idc', 1)
+            ->get()->getResultArray();
+        return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
+    }
+
+    /**
+     * GLPI category ids the backlog "POR CLIENTE" table counts (subtree match).
+     * The client name comes from the `cliente` column. Empty = all categories.
+     *
+     * @return int[]
+     */
+    public function clienteScopeIds(): array
+    {
+        $rows = $this->db->table('servicedesk_category_map')
+            ->select('glpi_category_id')
+            ->where('backlog_cliente', 1)
+            ->get()->getResultArray();
+        return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
     }
 
     /**
@@ -91,7 +139,7 @@ class ServiceDeskCategoryMapModel
     /**
      * Replaces the full mapping from an admin form.
      *
-     * @param array<int, array{cliente?:string, is_supported?:bool, category_name?:string}> $rows
+     * @param array<int, array{cliente?:string, is_supported?:bool, backlog_regional?:bool, category_name?:string}> $rows
      *        keyed by glpi_category_id
      */
     public function saveAll(array $rows): void
@@ -104,10 +152,13 @@ class ServiceDeskCategoryMapModel
             }
             $cliente     = trim((string) ($data['cliente'] ?? ''));
             $isSupported = ! empty($data['is_supported']) ? 1 : 0;
+            $isRegional  = ! empty($data['backlog_regional']) ? 1 : 0;
+            $isIdc       = ! empty($data['backlog_idc']) ? 1 : 0;
+            $isCliente   = ! empty($data['backlog_cliente']) ? 1 : 0;
             $name        = (string) ($data['category_name'] ?? '');
 
-            // Drop rows that carry no information (not supported, no cliente).
-            if ($isSupported === 0 && $cliente === '') {
+            // Drop rows that carry no information (not supported, no cliente, no flags).
+            if ($isSupported === 0 && $cliente === '' && $isRegional === 0 && $isIdc === 0 && $isCliente === 0) {
                 $this->db->table('servicedesk_category_map')->where('glpi_category_id', $categoryId)->delete();
                 continue;
             }
@@ -119,10 +170,13 @@ class ServiceDeskCategoryMapModel
                 $this->db->table('servicedesk_category_map')
                     ->where('glpi_category_id', $categoryId)
                     ->update([
-                        'category_name' => $name,
-                        'cliente'       => $cliente,
-                        'is_supported'  => $isSupported,
-                        'updated_at'    => $now,
+                        'category_name'    => $name,
+                        'cliente'          => $cliente,
+                        'is_supported'     => $isSupported,
+                        'backlog_regional' => $isRegional,
+                        'backlog_idc'      => $isIdc,
+                        'backlog_cliente'  => $isCliente,
+                        'updated_at'       => $now,
                     ]);
             } else {
                 $this->db->table('servicedesk_category_map')->insert([
@@ -130,6 +184,9 @@ class ServiceDeskCategoryMapModel
                     'category_name'    => $name,
                     'cliente'          => $cliente,
                     'is_supported'     => $isSupported,
+                    'backlog_regional' => $isRegional,
+                    'backlog_idc'      => $isIdc,
+                    'backlog_cliente'  => $isCliente,
                     'created_at'       => $now,
                     'updated_at'       => $now,
                 ]);

@@ -78,6 +78,10 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
           aria-selected="false" aria-controls="sd-panel-widget" tabindex="-1" data-panel="sd-panel-widget" data-hash="widget">
     Widget
   </button>
+  <button type="button" class="sd-tab" id="sd-tab-backlog" role="tab"
+          aria-selected="false" aria-controls="sd-panel-backlog" tabindex="-1" data-panel="sd-panel-backlog" data-hash="backlog">
+    Reporte de Backlog
+  </button>
 </div>
 
 <!-- Tab: Importación -->
@@ -375,6 +379,235 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
   </form>
 </div><!-- /sd-panel-widget -->
 
+<!-- Tab: Reporte de Backlog -->
+<?php
+$bArea    = $backlogAreaMap ?? [];
+$bAreas   = $backlogAreas ?? [];
+$bRoots   = $backlogRoots ?? [];
+$bRuns    = $backlogRuns ?? [];
+$bIdcCont = (int) ($s['backlog_idc_container_id'] ?? 0);
+$bRegCont = (int) ($s['backlog_regional_container_id'] ?? 0);
+?>
+<div id="sd-panel-backlog" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-backlog" style="display:none;">
+
+  <form id="sd-backlog" action="<?= route_to('servicedesk.backlog.save') ?>" method="post" style="max-width: 760px;"
+        data-schema-url="<?= route_to('servicedesk.schema') ?>"
+        data-idc="<?= esc($s['backlog_idc_field'] ?? '', 'attr') ?>"
+        data-regional="<?= esc($s['backlog_regional_field'] ?? '', 'attr') ?>">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Reporte diario de backlog</h2>
+        <button type="submit" class="btn btn-primary">Guardar reporte</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-4);">
+          Envía por correo, a una hora de corte, un resumen del backlog de tickets abiertos de GLPI (KPIs y antigüedad por área)
+          con el detalle completo en un archivo Excel adjunto. Usa el SMTP global con el remitente que definas aquí.
+        </p>
+
+        <label class="field-check" style="margin-bottom: var(--space-4);">
+          <input type="checkbox" name="backlog_enabled" value="1" <?= ($s['backlog_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>Habilitar el envío automático del reporte</span>
+        </label>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="backlog_send_hour">Hora de corte y envío</label>
+            <input type="time" id="backlog_send_hour" name="backlog_send_hour" class="input" value="<?= $val('backlog_send_hour', '08:00') ?>">
+            <p class="field-help">Zona horaria del servidor. El cron dispara al llegar esta hora.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_critical_days">Umbral de "crítico" (días)</label>
+            <input type="number" id="backlog_critical_days" name="backlog_critical_days" class="input" min="1" value="<?= $val('backlog_critical_days', '30') ?>">
+          </div>
+        </div>
+
+        <label class="field-check" style="margin-bottom: var(--space-3);">
+          <input type="checkbox" name="backlog_weekends" value="1" <?= ($s['backlog_weekends'] ?? '1') === '1' ? 'checked' : '' ?>>
+          <span>Enviar también sábados y domingos</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Remitente y destinatarios</h2></div>
+      <div class="card-body">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="backlog_from_name">Nombre del remitente</label>
+            <input type="text" id="backlog_from_name" name="backlog_from_name" class="input" maxlength="80"
+                   value="<?= $val('backlog_from_name', 'Mesa de Ayuda') ?>" placeholder="Mesa de Ayuda">
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_from_email">Correo del remitente</label>
+            <input type="email" id="backlog_from_email" name="backlog_from_email" class="input"
+                   value="<?= $val('backlog_from_email') ?>" placeholder="mesadeayuda@empresa.com">
+            <p class="field-help">Vacío = usar el From del SMTP global.</p>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom: var(--space-3);">
+          <label class="field-label" for="backlog_to">Destinatarios directos (Para)</label>
+          <textarea id="backlog_to" name="backlog_to" class="input" rows="2"
+                    placeholder="uno@empresa.com, otro@empresa.com"><?= esc($s['backlog_to'] ?? '') ?></textarea>
+          <p class="field-help">Separados por coma o salto de línea.</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="backlog_cc">En copia (CC)</label>
+          <textarea id="backlog_cc" name="backlog_cc" class="input" rows="2"
+                    placeholder="copia@empresa.com"><?= esc($s['backlog_cc'] ?? '') ?></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Contenido y campos del plugin (IDC y Regional)</h2></div>
+      <div class="card-body">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="backlog_org_label">Etiqueta de la organización</label>
+            <input type="text" id="backlog_org_label" name="backlog_org_label" class="input" maxlength="80"
+                   value="<?= $val('backlog_org_label', 'Mesa de Ayuda') ?>">
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_subject_prefix">Asunto del correo</label>
+            <input type="text" id="backlog_subject_prefix" name="backlog_subject_prefix" class="input" maxlength="120"
+                   value="<?= $val('backlog_subject_prefix', 'Reporte Diario de Backlog') ?>">
+            <p class="field-help">Se le agrega " - DD/MM/AAAA" automáticamente.</p>
+          </div>
+        </div>
+
+        <p class="text-muted text-sm" style="margin-bottom: var(--space-3);">
+          "Sin IDC" cuenta los tickets cuyo campo del contenedor está vacío. Elige el contenedor y el campo que representa el IDC;
+          si el campo está vacío en un ticket, se considera sin IDC. Deja el contenedor en "Ninguno" para ocultar este KPI.
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="backlog_idc_container_id">Contenedor del campo IDC</label>
+            <select id="backlog_idc_container_id" name="backlog_idc_container_id" class="input">
+              <option value="0">Ninguno (ocultar KPI Sin IDC)</option>
+              <?php foreach ($containers as $c): ?>
+                <option value="<?= (int) $c['id'] ?>" <?= $bIdcCont === (int) $c['id'] ? 'selected' : '' ?>>
+                  <?= esc($c['label']) ?> · id <?= (int) $c['id'] ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_idc_field">Campo IDC</label>
+            <select id="backlog_idc_field" name="backlog_idc_field" class="input" data-role="idc"><option value="">—</option></select>
+          </div>
+        </div>
+
+        <p class="text-muted text-sm" style="margin:var(--space-4) 0 var(--space-3) 0;">
+          "Por regional" agrupa el backlog por el valor de un campo del plugin (tickets, promedio de días abiertos y sin IDC por regional).
+          Elige el contenedor y el campo que representa la regional. Deja el contenedor en "Ninguno" para ocultar esta sección.
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="backlog_regional_container_id">Contenedor del campo Regional</label>
+            <select id="backlog_regional_container_id" name="backlog_regional_container_id" class="input">
+              <option value="0">Ninguno (ocultar sección Por regional)</option>
+              <?php foreach ($containers as $c): ?>
+                <option value="<?= (int) $c['id'] ?>" <?= $bRegCont === (int) $c['id'] ? 'selected' : '' ?>>
+                  <?= esc($c['label']) ?> · id <?= (int) $c['id'] ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_regional_field">Campo Regional</label>
+            <select id="backlog_regional_field" name="backlog_regional_field" class="input" data-role="regional"><option value="">—</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- Area mapping (separate form: root ITIL category -> area) -->
+  <form action="<?= route_to('servicedesk.backlog.areas.save') ?>" method="post" style="max-width: 760px;">
+    <?= csrf_field() ?>
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; gap: var(--space-3);">
+        <h2 class="card-title" style="margin:0;">Áreas (Administración / Operaciones)</h2>
+        <button type="submit" class="btn btn-primary">Guardar áreas</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-3);">
+          Asigna cada categoría raíz de GLPI a un área. Los tickets heredan el área de la raíz de su categoría; las subcategorías
+          del "Resumen por área" salen del segundo nivel de la categoría.
+        </p>
+        <?php if (empty($bRoots)): ?>
+          <p class="text-muted">No hay categorías raíz para mostrar (revisa la conexión a GLPI).</p>
+        <?php else: ?>
+          <table class="table" style="width:100%;">
+            <thead><tr><th>Categoría raíz</th><th style="width:240px;">Área</th></tr></thead>
+            <tbody>
+              <?php foreach ($bRoots as $c): $id = (int) $c['id']; $cur = $bArea[$id]['area'] ?? ''; ?>
+                <tr>
+                  <td class="text-sm"><?= esc($c['name']) ?> <span class="text-muted">· id <?= $id ?></span></td>
+                  <td>
+                    <select name="area[<?= $id ?>]" class="input">
+                      <option value="">Sin clasificar</option>
+                      <?php foreach ($bAreas as $k => $label): ?>
+                        <option value="<?= esc($k, 'attr') ?>" <?= $cur === $k ? 'selected' : '' ?>><?= esc($label) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php endif; ?>
+      </div>
+    </div>
+  </form>
+
+  <!-- Test send + recent runs -->
+  <div class="card" style="margin-bottom: var(--space-4); max-width: 760px;">
+    <div class="card-header"><h2 class="card-title">Enviar prueba e historial</h2></div>
+    <div class="card-body">
+      <form action="<?= route_to('servicedesk.backlog.test') ?>" method="post"
+            style="display:flex; gap: var(--space-2); align-items:flex-end; margin-bottom: var(--space-4); flex-wrap:wrap;">
+        <?= csrf_field() ?>
+        <div class="field" style="flex:1; min-width:240px; margin:0;">
+          <label class="field-label" for="test_email">Enviar reporte de prueba a</label>
+          <input type="email" id="test_email" name="test_email" class="input" placeholder="tu-correo@empresa.com (vacío = lista Para)">
+        </div>
+        <button type="submit" class="btn btn-secondary">Enviar prueba ahora</button>
+      </form>
+
+      <?php if (empty($bRuns)): ?>
+        <p class="text-muted text-sm" style="margin:0;">Aún no se ha enviado ningún reporte.</p>
+      <?php else: ?>
+        <table class="table" style="width:100%;">
+          <thead><tr><th>Fecha</th><th>Origen</th><th>Estado</th><th style="text-align:right;">Tickets</th></tr></thead>
+          <tbody>
+            <?php foreach ($bRuns as $run): ?>
+              <tr>
+                <td class="text-sm"><?= esc((string) ($run['created_at'] ?? '')) ?></td>
+                <td class="text-sm"><?= esc((string) ($run['trigger'] ?? '')) ?></td>
+                <td>
+                  <?php if (($run['status'] ?? '') === 'ok'): ?>
+                    <span class="badge badge-success">Enviado</span>
+                  <?php else: ?>
+                    <span class="badge badge-critical" title="<?= esc((string) ($run['error'] ?? ''), 'attr') ?>">Falló</span>
+                  <?php endif; ?>
+                </td>
+                <td class="text-sm" style="text-align:right;"><?= number_format((int) ($run['total_open'] ?? 0)) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    </div>
+  </div>
+
+</div><!-- /sd-panel-backlog -->
+
 <script>
 (function () {
   'use strict';
@@ -460,6 +693,54 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
 
   containerSel.addEventListener('change', function () { load(this.value); });
   load(containerSel.value);
+})();
+</script>
+
+<script>
+// Backlog plugin-field pickers (IDC and Regional): each fills its field select
+// from the chosen container's live schema (reuses the schema AJAX endpoint).
+(function () {
+  var form = document.getElementById('sd-backlog');
+  if (!form) return;
+  var schemaUrl = form.dataset.schemaUrl;
+
+  var pairs = [
+    { container: 'backlog_idc_container_id',      field: 'backlog_idc_field',      saved: form.dataset.idc || '' },
+    { container: 'backlog_regional_container_id', field: 'backlog_regional_field', saved: form.dataset.regional || '' }
+  ];
+
+  pairs.forEach(function (p) {
+    var containerSel = document.getElementById(p.container);
+    var fieldSel = document.getElementById(p.field);
+    if (!containerSel || !fieldSel) return;
+
+    function fill(fields) {
+      fieldSel.innerHTML = '<option value="">—</option>';
+      fields.forEach(function (f) {
+        var opt = document.createElement('option');
+        opt.value = f.field;
+        opt.textContent = f.header + (f.type ? ' (' + f.type + ')' : '');
+        if (f.field === p.saved) opt.selected = true;
+        fieldSel.appendChild(opt);
+      });
+    }
+
+    function load(cid) {
+      if (!cid || cid === '0') { fill([]); return; }
+      fetch(schemaUrl + '?container=' + encodeURIComponent(cid), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var cols = (j && j.data) || [];
+          var fields = cols.filter(function (c) { return c.kind === 'plugin'; })
+            .map(function (c) { return { field: c.field, header: c.header, type: c.type }; });
+          fill(fields);
+        })
+        .catch(function () { fill([]); });
+    }
+
+    containerSel.addEventListener('change', function () { load(this.value); });
+    load(containerSel.value);
+  });
 })();
 </script>
 

@@ -429,6 +429,200 @@ TXT;
         return ServiceResult::ok(null, 'Configuración del widget guardada.');
     }
 
+    // ------------------------------------------------------------------
+    // Backlog report (daily GLPI open-ticket digest by email)
+    // ------------------------------------------------------------------
+
+    public function backlogEnabled(): bool
+    {
+        return $this->model->get('backlog_enabled', '0') === '1';
+    }
+
+    /** Cut-off hour in the app timezone, normalized to HH:MM. */
+    public function backlogSendHour(): string
+    {
+        $raw = trim($this->model->get('backlog_send_hour', '08:00'));
+        if (! preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $raw, $m)) {
+            return '08:00';
+        }
+        return sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+    }
+
+    /** Whether the report is also sent on Saturdays and Sundays. */
+    public function backlogWeekends(): bool
+    {
+        return $this->model->get('backlog_weekends', '1') === '1';
+    }
+
+    /** Last business date a scheduled/manual report was sent (YYYY-MM-DD or ''). */
+    public function backlogLastSentDate(): string
+    {
+        return trim($this->model->get('backlog_last_sent_date', ''));
+    }
+
+    public function setBacklogLastSentDate(string $date): void
+    {
+        $this->model->set('backlog_last_sent_date', $date);
+    }
+
+    public function backlogFromName(): string
+    {
+        $v = trim($this->model->get('backlog_from_name', ''));
+        return $v !== '' ? $v : 'Mesa de Ayuda';
+    }
+
+    /** Report sender address; falls back to the SMTP From address when unset. */
+    public function backlogFromEmail(): string
+    {
+        $v = trim($this->model->get('backlog_from_email', ''));
+        if ($v !== '') {
+            return $v;
+        }
+        try {
+            return (string) service('appSettings')->getSmtp()['smtp_from_email'] ?: (string) config('Email')->fromEmail;
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    public function backlogSubjectPrefix(): string
+    {
+        $v = trim($this->model->get('backlog_subject_prefix', ''));
+        return $v !== '' ? $v : 'Reporte Diario de Backlog';
+    }
+
+    public function backlogOrgLabel(): string
+    {
+        $v = trim($this->model->get('backlog_org_label', ''));
+        return $v !== '' ? $v : 'Mesa de Ayuda';
+    }
+
+    /** Age (days) at/over which an open ticket counts as "crítico". */
+    public function backlogCriticalDays(): int
+    {
+        return max(1, (int) $this->model->get('backlog_critical_days', '30'));
+    }
+
+    /** Direct recipients (To). @return string[] */
+    public function backlogTo(): array
+    {
+        return $this->parseEmails($this->model->get('backlog_to', ''));
+    }
+
+    /** Copied recipients (CC). @return string[] */
+    public function backlogCc(): array
+    {
+        return $this->parseEmails($this->model->get('backlog_cc', ''));
+    }
+
+    /** Plugin container id whose field marks IDC (0 = IDC KPI disabled). */
+    public function backlogIdcContainerId(): int
+    {
+        return max(0, (int) $this->model->get('backlog_idc_container_id', '0'));
+    }
+
+    /** Plugin field name holding IDC; empty value on a ticket => "sin IDC". */
+    public function backlogIdcField(): string
+    {
+        return trim($this->model->get('backlog_idc_field', ''));
+    }
+
+    /** Whether the "Sin IDC" KPI can be computed (container + field chosen). */
+    public function backlogIdcConfigured(): bool
+    {
+        return $this->backlogIdcContainerId() > 0 && $this->backlogIdcField() !== '';
+    }
+
+    /** Plugin container id whose field marks the Regional (0 = section disabled). */
+    public function backlogRegionalContainerId(): int
+    {
+        return max(0, (int) $this->model->get('backlog_regional_container_id', '0'));
+    }
+
+    /** Plugin field name holding the Regional; its value groups the "POR REGIONAL" table. */
+    public function backlogRegionalField(): string
+    {
+        return trim($this->model->get('backlog_regional_field', ''));
+    }
+
+    /** Whether the "POR REGIONAL" section can be built (container + field chosen). */
+    public function backlogRegionalConfigured(): bool
+    {
+        return $this->backlogRegionalContainerId() > 0 && $this->backlogRegionalField() !== '';
+    }
+
+    /**
+     * Whether the report can actually be sent: enabled, has an audience, and a
+     * sender address is resolvable.
+     */
+    public function backlogReady(): bool
+    {
+        return $this->backlogEnabled()
+            && $this->backlogTo() !== []
+            && $this->backlogFromEmail() !== '';
+    }
+
+    /**
+     * Persists the backlog report configuration form.
+     */
+    public function saveBacklog(array $input): ServiceResult
+    {
+        $fromEmail = trim((string) ($input['backlog_from_email'] ?? ''));
+        if ($fromEmail !== '' && ! filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+            return ServiceResult::fail('El correo del remitente no es válido.');
+        }
+
+        $data = [
+            'backlog_enabled'          => ! empty($input['backlog_enabled']) ? '1' : '0',
+            'backlog_send_hour'        => $this->normalizeHour((string) ($input['backlog_send_hour'] ?? '08:00')),
+            'backlog_weekends'         => ! empty($input['backlog_weekends']) ? '1' : '0',
+            'backlog_from_name'        => trim((string) ($input['backlog_from_name'] ?? '')),
+            'backlog_from_email'       => $fromEmail,
+            'backlog_to'               => implode(', ', $this->parseEmails((string) ($input['backlog_to'] ?? ''))),
+            'backlog_cc'               => implode(', ', $this->parseEmails((string) ($input['backlog_cc'] ?? ''))),
+            'backlog_subject_prefix'   => trim((string) ($input['backlog_subject_prefix'] ?? '')),
+            'backlog_org_label'        => trim((string) ($input['backlog_org_label'] ?? '')),
+            'backlog_critical_days'    => (string) max(1, (int) ($input['backlog_critical_days'] ?? 30)),
+            'backlog_idc_container_id' => (string) max(0, (int) ($input['backlog_idc_container_id'] ?? 0)),
+            'backlog_idc_field'        => trim((string) ($input['backlog_idc_field'] ?? '')),
+            'backlog_regional_container_id' => (string) max(0, (int) ($input['backlog_regional_container_id'] ?? 0)),
+            'backlog_regional_field'        => trim((string) ($input['backlog_regional_field'] ?? '')),
+        ];
+
+        // Clearing a container also clears its field (keeps each pair coherent).
+        if ((int) $data['backlog_idc_container_id'] === 0) {
+            $data['backlog_idc_field'] = '';
+        }
+        if ((int) $data['backlog_regional_container_id'] === 0) {
+            $data['backlog_regional_field'] = '';
+        }
+
+        $this->model->setMany($data);
+
+        return ServiceResult::ok(null, 'Configuración del reporte de backlog guardada.');
+    }
+
+    /** Splits a free-text address list (commas/newlines/semicolons) into unique valid emails. */
+    private function parseEmails(string $raw): array
+    {
+        $out = [];
+        foreach (preg_split('/[\r\n,;]+/', $raw) ?: [] as $part) {
+            $part = trim($part);
+            if ($part !== '' && filter_var($part, FILTER_VALIDATE_EMAIL)) {
+                $out[strtolower($part)] = $part;
+            }
+        }
+        return array_values($out);
+    }
+
+    private function normalizeHour(string $raw): string
+    {
+        $raw = trim($raw);
+        return preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $raw, $m)
+            ? sprintf('%02d:%02d', (int) $m[1], (int) $m[2])
+            : '08:00';
+    }
+
     private function cipher(): CredentialCipher
     {
         return $this->cipher ??= new CredentialCipher();

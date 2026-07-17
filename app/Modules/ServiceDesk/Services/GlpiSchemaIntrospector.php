@@ -348,6 +348,37 @@ class GlpiSchemaIntrospector
     }
 
     /**
+     * ROOT ITIL categories only (no parent). For the backlog report's area
+     * mapping, where each root is assigned to Administración / Operaciones.
+     *
+     * @return array<int,array{id:int,name:string}>
+     */
+    public function rootCategories(): array
+    {
+        $db = $this->glpi->connection();
+        if (! $db->tableExists('glpi_itilcategories')) {
+            return [];
+        }
+        $cols = $db->getFieldNames('glpi_itilcategories');
+        $col  = in_array('completename', $cols, true) ? 'completename' : 'name';
+
+        $builder = $db->table('glpi_itilcategories')->select("id, {$col} AS n");
+        if (in_array('itilcategories_id', $cols, true)) {
+            $builder->where('itilcategories_id', 0);
+        }
+        $rows = $builder->orderBy($col, 'ASC')->get()->getResultArray();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $name = trim((string) $r['n']);
+            if ($name !== '') {
+                $out[] = ['id' => (int) $r['id'], 'name' => $name];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Category names offered in the template: only the SuperAdmin-supported ones
      * when any are configured; otherwise all (safe default before config).
      *

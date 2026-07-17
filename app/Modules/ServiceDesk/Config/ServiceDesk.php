@@ -139,4 +139,69 @@ class ServiceDesk extends BaseConfig
      * when that container is part of the import.
      */
     public string $sucursalFieldName = 'sucursalfield';
+
+    // ------------------------------------------------------------------
+    // Backlog report (daily GLPI open-ticket digest by email)
+    // ------------------------------------------------------------------
+
+    /**
+     * Business areas the open backlog is split into. key => display label.
+     * Root ITIL categories are mapped to one of these in servicedesk_backlog_areas.
+     */
+    public array $backlogAreas = [
+        'administracion' => 'Administración',
+        'operaciones'    => 'Operaciones',
+    ];
+
+    /**
+     * GLPI ticket statuses considered "open backlog" (label => id). Everything
+     * not solved/closed. Matches the SuperAdmin decision: Nuevo + En curso +
+     * Planificado + En espera.
+     */
+    public array $backlogOpenStatuses = [
+        'NUEVO'        => 1,
+        'EN CURSO'     => 2,
+        'PLANIFICADO'  => 3,
+        'EN ESPERA'    => 4,
+    ];
+
+    /** GLPI "pending / waiting" status id, surfaced as its own KPI. */
+    public int $backlogPendingStatus = 4;
+
+    /**
+     * Real GLPI ticket status labels (id => label) for display in the backlog
+     * export. Keeps each status distinct (does not lump "en curso"/"pendiente").
+     */
+    public array $glpiStatusLabels = [
+        1 => 'Nuevo',
+        2 => 'En curso',
+        3 => 'Planificada',
+        4 => 'Pendiente',
+        5 => 'Resuelto',
+        6 => 'Cerrado',
+    ];
+
+    /** GLPI ticket type labels (id => label) for the backlog export. */
+    public array $glpiTypeLabels = [
+        1 => 'Incidencia',
+        2 => 'Requerimiento',
+    ];
+
+    /**
+     * Age buckets for the "antigüedad por área" bar. Each: label, min days,
+     * max days (null = open ended), and the badge color (design-system aligned).
+     * Ordered youngest -> oldest.
+     *
+     * @return array<int,array{key:string,label:string,min:int,max:?int,color:string}>
+     */
+    public function backlogAgeBuckets(): array
+    {
+        return [
+            ['key' => 'b0',  'label' => '0-3d',   'min' => 0,  'max' => 3,    'color' => '#108043'],
+            ['key' => 'b4',  'label' => '4-7d',   'min' => 4,  'max' => 7,    'color' => '#eec200'],
+            ['key' => 'b8',  'label' => '8-15d',  'min' => 8,  'max' => 15,   'color' => '#f49342'],
+            ['key' => 'b16', 'label' => '16-30d', 'min' => 16, 'max' => 30,   'color' => '#de3618'],
+            ['key' => 'b30', 'label' => '+30d',   'min' => 31, 'max' => null, 'color' => '#8c0d00'],
+        ];
+    }
 }

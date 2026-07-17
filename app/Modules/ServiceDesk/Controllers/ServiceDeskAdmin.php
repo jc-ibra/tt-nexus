@@ -6,6 +6,8 @@ namespace App\Modules\ServiceDesk\Controllers;
 
 use App\Controllers\BaseController;
 use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskBacklogAreaModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskBacklogRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -33,7 +35,67 @@ class ServiceDeskAdmin extends BaseController
             'aiUsage'        => (new ServiceDeskAiUsageModel())->summary(30),
             'widgetSiteKey'  => $settings->widgetSiteKey(),
             'widgetPrompt'   => $settings->widgetSystemPrompt(),
+            // Backlog report tab.
+            'backlogAreas'   => (new \App\Modules\ServiceDesk\Config\ServiceDesk())->backlogAreas,
+            'backlogRoots'   => $configured ? $introspector->rootCategories() : [],
+            'backlogAreaMap' => (new ServiceDeskBacklogAreaModel())->all(),
+            'backlogRuns'    => (new ServiceDeskBacklogRunModel())->recent(8),
         ]);
+    }
+
+    /**
+     * Saves the backlog report configuration (sender, audience, cut-off hour,
+     * thresholds, and the plugin field that marks "IDC").
+     */
+    public function saveBacklog(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveBacklog($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#backlog')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /**
+     * Saves the root ITIL category -> business area mapping for the report.
+     */
+    public function saveBacklogAreas(): ResponseInterface
+    {
+        $roots  = service('glpiSchemaIntrospector')->rootCategories();
+        $areas  = (array) ($this->request->getPost('area') ?? []);
+        $valid  = array_keys((new \App\Modules\ServiceDesk\Config\ServiceDesk())->backlogAreas);
+
+        $rows = [];
+        foreach ($roots as $c) {
+            $id   = (int) $c['id'];
+            $area = trim((string) ($areas[$id] ?? ''));
+            $rows[$id] = [
+                'area'          => in_array($area, $valid, true) ? $area : '',
+                'category_name' => $c['name'],
+            ];
+        }
+        (new ServiceDeskBacklogAreaModel())->saveAll($rows);
+
+        return redirect()->to(route_to('servicedesk.settings') . '#backlog')
+            ->with('success', 'Mapeo de áreas guardado.');
+    }
+
+    /**
+     * Sends a one-off test report to a given address (or the configured To list).
+     */
+    public function sendBacklogTest(): ResponseInterface
+    {
+        $email = trim((string) $this->request->getPost('test_email'));
+        $to    = $email !== '' ? [$email] : [];
+
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return redirect()->to(route_to('servicedesk.settings') . '#backlog')
+                ->with('error', 'El correo de prueba no es válido.');
+        }
+
+        $userId = session()->get('user_id');
+        $result = service('backlogReportService')->send('test', $userId ? (int) $userId : null, $to);
+
+        return redirect()->to(route_to('servicedesk.settings') . '#backlog')
+            ->with($result->success ? 'success' : 'error', $result->message);
     }
 
     public function saveSettings(): ResponseInterface
@@ -87,14 +149,20 @@ class ServiceDeskAdmin extends BaseController
         $categories = service('glpiSchemaIntrospector')->categories();
         $clientes   = (array) ($this->request->getPost('cliente') ?? []);
         $supported  = (array) ($this->request->getPost('supported') ?? []);
+        $regional   = (array) ($this->request->getPost('backlog_regional') ?? []);
+        $idcScope   = (array) ($this->request->getPost('backlog_idc') ?? []);
+        $cliScope   = (array) ($this->request->getPost('backlog_cliente') ?? []);
 
         $rows = [];
         foreach ($categories as $c) {
             $id = (int) $c['id'];
             $rows[$id] = [
-                'category_name' => $c['name'],
-                'cliente'       => trim((string) ($clientes[$id] ?? '')),
-                'is_supported'  => isset($supported[$id]),
+                'category_name'    => $c['name'],
+                'cliente'          => trim((string) ($clientes[$id] ?? '')),
+                'is_supported'     => isset($supported[$id]),
+                'backlog_regional' => isset($regional[$id]),
+                'backlog_idc'      => isset($idcScope[$id]),
+                'backlog_cliente'  => isset($cliScope[$id]),
             ];
         }
 

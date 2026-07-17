@@ -54,6 +54,10 @@ $routes->group('admin/servicedesk', [
     // Category -> CLIENTE mapping + supported categories for the template.
     $routes->get('categories',     'ServiceDeskAdmin::categories',     ['as' => 'servicedesk.categories']);
     $routes->post('categories',    'ServiceDeskAdmin::saveCategories', ['as' => 'servicedesk.categories.save']);
+    // Daily backlog report: config, root category -> area mapping, and test send.
+    $routes->post('backlog',       'ServiceDeskAdmin::saveBacklog',      ['as' => 'servicedesk.backlog.save']);
+    $routes->post('backlog/areas', 'ServiceDeskAdmin::saveBacklogAreas', ['as' => 'servicedesk.backlog.areas.save']);
+    $routes->post('backlog/test',  'ServiceDeskAdmin::sendBacklogTest',  ['as' => 'servicedesk.backlog.test']);
     // Live preview of the introspected plugin containers/fields.
     $routes->get('schema',         'ServiceDeskAdmin::schema',       ['as' => 'servicedesk.schema']);
 });
@@ -85,6 +89,10 @@ $routes->group('api/v1/servicedesk', [
     $routes->get('imports',         'ServiceDeskApiController::listImports');
     $routes->post('imports',        'ServiceDeskApiController::createImport');
     $routes->get('imports/(:num)',  'ServiceDeskApiController::showImport/$1');
+
+    // Daily backlog report (mirror of the web action): preview data + trigger send.
+    $routes->get('backlog/preview', 'ServiceDeskApiController::backlogPreview');
+    $routes->post('backlog/send',   'ServiceDeskApiController::backlogSend');
 
     // AI ticket creator (mirror of the web actions; stateless conversation).
     $routes->post('creator/columns', 'TicketCreatorApiController::columns');

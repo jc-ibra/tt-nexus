@@ -49,9 +49,12 @@ use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
 use App\Modules\ServiceDesk\Config\ServiceDesk as ServiceDeskConfig;
 use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskBacklogAreaModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskBacklogRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
+use App\Modules\ServiceDesk\Services\BacklogReportService;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
@@ -356,6 +359,23 @@ class Services extends BaseService
             new ServiceDeskAiUsageModel(),
             new ServiceDeskImportModel(),
             new ProvisioningExternalAccountModel(),
+        );
+    }
+
+    public static function backlogReportService(bool $getShared = true): BacklogReportService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('backlogReportService');
+        }
+        return new BacklogReportService(
+            self::glpiDbConnection(),
+            self::glpiSchemaIntrospector(),
+            self::serviceDeskSettings(),
+            new ServiceDeskConfig(),
+            new ServiceDeskBacklogAreaModel(),
+            new ServiceDeskBacklogRunModel(),
+            self::mailerService(),
+            new ServiceDeskCategoryMapModel(),
         );
     }
 }

@@ -4,7 +4,7 @@
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Categorías · Service Desk</h1>
-    <p class="page-subtitle">Marca qué categorías de GLPI son válidas en el template, define el CLIENTE para el título (CLIENTE - SUCURSAL - TITULO) y elige la categoría con la que el widget de autoservicio crea sus tickets.</p>
+    <p class="page-subtitle">Marca qué categorías de GLPI son válidas en el template, define el CLIENTE para el título (CLIENTE - SUCURSAL - TITULO), elige la categoría del widget de autoservicio y marca cuáles categorías cuentan en las tablas "Por Regional", "Por Cliente" y en el KPI "Sin IDC" del reporte de backlog (columnas independientes; incluyen subcategorías; si no marcas ninguna, cuentan todas). "Por Cliente" agrupa por el valor de CLIENTE (para el título).</p>
   </div>
   <div class="page-actions">
     <a href="<?= route_to('servicedesk.settings') ?>" class="btn btn-secondary">Configuración</a>
@@ -41,16 +41,22 @@
             <tr>
               <th style="width:90px; text-align:center;">Soportada</th>
               <th style="width:90px; text-align:center;">Widget</th>
+              <th style="width:100px; text-align:center;">Backlog · Regional</th>
+              <th style="width:85px; text-align:center;">Backlog · IDC</th>
+              <th style="width:95px; text-align:center;">Backlog · Clientes</th>
               <th>Categoría</th>
-              <th style="width:35%;">CLIENTE (para el título)</th>
+              <th style="width:26%;">CLIENTE (para el título)</th>
             </tr>
           </thead>
           <tbody id="cat-rows">
             <?php foreach ($categories as $c):
-              $id      = (int) $c['id'];
-              $current = $map[$id] ?? null;
-              $checked = $current['is_supported'] ?? false;
-              $cliente = $current['cliente'] ?? '';
+              $id       = (int) $c['id'];
+              $current  = $map[$id] ?? null;
+              $checked  = $current['is_supported'] ?? false;
+              $regional = $current['backlog_regional'] ?? false;
+              $idcScope = $current['backlog_idc'] ?? false;
+              $cliScope = $current['backlog_cliente'] ?? false;
+              $cliente  = $current['cliente'] ?? '';
             ?>
               <tr data-name="<?= esc(mb_strtolower($c['name']), 'attr') ?>">
                 <td style="text-align:center;">
@@ -60,6 +66,21 @@
                 <td style="text-align:center;">
                   <input type="radio" name="widget_category" value="<?= $id ?>" <?= (int) ($widgetCategoryId ?? 0) === $id ? 'checked' : '' ?>
                          title="Categoría del widget de autoservicio"
+                         style="width:16px; height:16px; accent-color: var(--action-primary); cursor:pointer;">
+                </td>
+                <td style="text-align:center;">
+                  <input type="checkbox" name="backlog_regional[<?= $id ?>]" value="1" <?= $regional ? 'checked' : '' ?>
+                         title="Cuenta en la tabla Por Regional del reporte de backlog (incluye subcategorías)"
+                         style="width:16px; height:16px; accent-color: var(--action-primary); cursor:pointer;">
+                </td>
+                <td style="text-align:center;">
+                  <input type="checkbox" name="backlog_idc[<?= $id ?>]" value="1" <?= $idcScope ? 'checked' : '' ?>
+                         title="El KPI Sin IDC solo cuenta tickets de estas categorías (incluye subcategorías)"
+                         style="width:16px; height:16px; accent-color: var(--action-primary); cursor:pointer;">
+                </td>
+                <td style="text-align:center;">
+                  <input type="checkbox" name="backlog_cliente[<?= $id ?>]" value="1" <?= $cliScope ? 'checked' : '' ?>
+                         title="Cuenta en la tabla Por Cliente del reporte (agrupa por el CLIENTE del título; incluye subcategorías)"
                          style="width:16px; height:16px; accent-color: var(--action-primary); cursor:pointer;">
                 </td>
                 <td class="text-sm"><?= esc($c['name']) ?></td>

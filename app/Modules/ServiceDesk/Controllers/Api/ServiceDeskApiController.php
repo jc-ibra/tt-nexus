@@ -138,6 +138,48 @@ class ServiceDeskApiController extends BaseApiController
     }
 
     /**
+     * GET /api/v1/servicedesk/backlog/preview
+     * Returns the aggregated backlog report data (KPIs, areas, buckets) as JSON,
+     * without sending anything. Mirrors what the emailed report contains.
+     */
+    public function backlogPreview(): ResponseInterface
+    {
+        $service = service('backlogReportService');
+        if (! $service->isConfigured()) {
+            return $this->error('GLPI no está configurado.', 400);
+        }
+        try {
+            $data = $service->build();
+            unset($data['rows']); // omit the full dump from the preview payload
+            return $this->success($data);
+        } catch (\Throwable $e) {
+            return $this->error('No se pudo generar el reporte: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/servicedesk/backlog/send
+     * Generates and emails the backlog report now. Optional JSON body:
+     *   { "test_email": "a@b.com" }  -> one-off test to that address
+     * Otherwise sends to the configured audience (trigger = manual).
+     */
+    public function backlogSend(): ResponseInterface
+    {
+        $email = trim((string) ($this->request->getVar('test_email') ?? ''));
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->error('El correo de prueba no es válido.', 422);
+        }
+
+        $result = $email !== ''
+            ? service('backlogReportService')->send('test', null, [$email])
+            : service('backlogReportService')->send('manual', null);
+
+        return $result->success
+            ? $this->success(['message' => $result->message] + (array) $result->data)
+            : $this->error($result->message, 500);
+    }
+
+    /**
      * @return int[]
      */
     private function containerIds(): array
