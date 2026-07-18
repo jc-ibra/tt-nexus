@@ -314,6 +314,17 @@ class GlpiCatalogService
             return ServiceResult::fail('El elemento padre seleccionado no existe.');
         }
 
+        // Block accent/space-insensitive duplicates among siblings (same parent).
+        // A flat catalog (e.g. the IDS lists) has parent 0, so this rejects the
+        // accented/spaced twin; a tree catalog still allows the same leaf name
+        // under different branches.
+        $needle = $this->normalizeName($name);
+        foreach ($this->listValues($table) as $sibling) {
+            if ((int) $sibling['parent'] === $parent && $this->normalizeName($sibling['name']) === $needle) {
+                return ServiceResult::fail('Ya existe el valor "' . $sibling['name'] . '" (coincide ignorando acentos y espacios).');
+            }
+        }
+
         $insert = ['name' => $name];
         if (in_array('comment', $cols, true)) {
             $insert['comment'] = trim((string) ($data['comment'] ?? ''));
@@ -348,21 +359,52 @@ class GlpiCatalogService
     }
 
     /**
-     * Finds a value by name (case-insensitive, trimmed) within a catalog table.
-     * Used for duplicate detection before an automated insert.
+     * Finds a value by name within a catalog table for duplicate detection
+     * before an automated insert. The match is case-, accent- AND whitespace-
+     * insensitive: two names that differ only by Spanish accents (PÉREZ vs
+     * PEREZ) or by surrounding/repeated spaces collapse to the same entry. This
+     * lets provisioning reuse a pre-loaded GLPI list entry instead of creating
+     * an accented/spaced twin. See normalizeName().
      */
     public function findByName(string $table, string $name): ?array
     {
-        $needle = mb_strtolower(trim($name), 'UTF-8');
+        $needle = $this->normalizeName($name);
         if ($needle === '') {
             return null;
         }
         foreach ($this->listValues($table) as $row) {
-            if (mb_strtolower(trim($row['name']), 'UTF-8') === $needle) {
+            if ($this->normalizeName($row['name']) === $needle) {
                 return $row;
             }
         }
         return null;
+    }
+
+    /**
+     * Normalizes a catalog name into a comparison key for duplicate detection.
+     * Collapses every whitespace run to a single space, trims, lowercases and
+     * strips the accents of the common Spanish vowel set (á→a, é→e, í→i, ó→o,
+     * ú→u, plus diaeresis and other Latin variants).
+     *
+     * The letter ñ is deliberately PRESERVED: it is a distinct letter in
+     * Spanish, not an accented n, so folding it would wrongly merge genuinely
+     * different surnames (e.g. PEÑA vs PENA). Only accents and spacing — the
+     * two differences the business rule targets — are neutralized.
+     */
+    private function normalizeName(string $name): string
+    {
+        // Collapse whitespace (incl. tabs/newlines) to a single space, then trim.
+        $s = trim((string) preg_replace('/\s+/u', ' ', $name));
+        $s = mb_strtolower($s, 'UTF-8');
+
+        return strtr($s, [
+            'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a', 'å' => 'a',
+            'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+            'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+            'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+            'ç' => 'c',
+        ]);
     }
 
     /**
@@ -454,10 +496,10 @@ class GlpiCatalogService
         $isTree = in_array('completename', $cols, true);
         $now    = date('Y-m-d H:i:s');
 
-        // Existing names (lowercased) so we don't create duplicates.
+        // Existing names (accent/space-normalized) so we don't create duplicates.
         $existing = [];
         foreach ($db->table($table)->select('name')->get()->getResultArray() as $r) {
-            $existing[mb_strtolower(trim((string) $r['name']))] = true;
+            $existing[$this->normalizeName((string) $r['name'])] = true;
         }
 
         $created = 0;
@@ -468,7 +510,7 @@ class GlpiCatalogService
                 $skipped++;
                 continue;
             }
-            $key = mb_strtolower($name);
+            $key = $this->normalizeName($name);
             if (isset($existing[$key])) {
                 $skipped++;
                 continue;
