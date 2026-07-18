@@ -78,6 +78,20 @@ PRESERVE_SETTINGS=(
     servicedesk_backlog_areas
 )
 
+# ── Directorios de archivos generados que el reset LIMPIA (en ambos modos) ────────
+# El importador de Service Desk guarda en disco (no en la BD) las bitácoras, los
+# Excel de origen/resultado y las plantillas temporales. El nombre del archivo se
+# deriva del id del import (p. ej. writable/servicedesk/logs/import_2.log). Tras un
+# reset, el AUTO_INCREMENT de servicedesk_imports vuelve a 1, así que un import nuevo
+# REUTILIZA un archivo viejo y, como la bitácora se escribe con FILE_APPEND y nunca
+# se trunca, concatena corridas distintas en un mismo log. Por eso hay que borrarlos.
+# Rutas relativas a la raíz del proyecto. Sincronizar con $PURGE_DIRS en public/reset-db.php.
+PURGE_DIRS=(
+    writable/servicedesk/logs
+    writable/servicedesk/uploads
+    writable/servicedesk/tmp
+)
+
 # ── Directorio raíz del proyecto ───────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -182,6 +196,24 @@ run_seeder() {
     fi
 }
 
+# Borra los directorios de archivos generados (bitácoras / Excel del importador de
+# Service Desk). El siguiente import los recrea bajo demanda (ensureDir). Se corre en
+# ambos modos: servicedesk_imports se vacía tanto en hard como en soft reset.
+purge_generated_files() {
+    step "Limpiando archivos generados del importador (writable/)"
+    local dir count=0
+    for dir in "${PURGE_DIRS[@]}"; do
+        if $DOCKER; then
+            docker compose exec -T app rm -rf "$dir" >/dev/null 2>&1 || true
+            info "purgado (docker): $dir"; count=$((count+1))
+        elif [[ -d "$dir" ]]; then
+            rm -rf "${dir:?}"
+            info "purgado: $dir"; count=$((count+1))
+        fi
+    done
+    ok "$count directorio(s) de archivos generados limpiado(s)."
+}
+
 if $DOCKER; then
     command -v docker &>/dev/null || fail "Docker no está disponible en el PATH."
     if ! docker compose ps --status running | grep -q "tt-apps"; then
@@ -212,6 +244,10 @@ if ! $ASSUME_YES; then
     read -rp "  Escribe el nombre de la base de datos para confirmar: " CONFIRM
     [[ "$CONFIRM" == "$DB_NAME" ]] || fail "El nombre no coincide ('$CONFIRM' != '$DB_NAME'). Abortado."
 fi
+
+# Limpia los archivos generados en disco en ambos modos (evita bitácoras huérfanas
+# que se reusan al reiniciar el AUTO_INCREMENT de servicedesk_imports).
+purge_generated_files
 
 if [[ "$MODE" == soft ]]; then
     # ── RESET SUAVE: TRUNCATE de datos, conservando Core + settings/config ──────

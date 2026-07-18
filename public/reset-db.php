@@ -370,6 +370,43 @@ if ($mode === 'hard-reset') {
     }
 }
 
+// ── Limpieza de archivos generados en disco (ambos modos) ────────────────────────
+// El importador de Service Desk guarda en disco (no en la BD) las bitácoras, los
+// Excel de origen/resultado y las plantillas del importador. El nombre del archivo
+// se deriva del id del import (writable/servicedesk/logs/import_2.log), que NO vive
+// en la BD; tras un reset el AUTO_INCREMENT de servicedesk_imports vuelve a 1 y un
+// import nuevo reutiliza un archivo viejo — y como la bitácora se escribe con
+// FILE_APPEND y nunca se trunca, concatena corridas distintas. Por eso hay que
+// borrarlos aquí. Sincronizar con $PURGE_DIRS en reset-db.sh.
+step('Limpiando archivos generados del importador (writable/)');
+$PURGE_DIRS = [
+    WRITEPATH . 'servicedesk/logs',
+    WRITEPATH . 'servicedesk/uploads',
+    WRITEPATH . 'servicedesk/tmp',
+];
+$rmTree = static function (string $dir) use (&$rmTree): void {
+    if (! is_dir($dir)) {
+        return;
+    }
+    foreach (scandir($dir) ?: [] as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+        $p = $dir . DIRECTORY_SEPARATOR . $entry;
+        is_dir($p) && ! is_link($p) ? $rmTree($p) : @unlink($p);
+    }
+    @rmdir($dir);
+};
+$purged = 0;
+foreach ($PURGE_DIRS as $d) {
+    if (is_dir($d)) {
+        $rmTree($d);
+        info('purgado: ' . $d);
+        $purged++;
+    }
+}
+ok($purged . ' directorio(s) de archivos generados limpiado(s).');
+
 // ── Verificación de tablas ───────────────────────────────────────────────────────
 // Auto-derivamos la lista esperada leyendo los createTable() de cada migración
 // (misma lógica que db:verify-schema). Sirve sobre todo para el hard-reset.
