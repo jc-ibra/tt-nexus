@@ -31,3 +31,5 @@ Analiza los cambios mostrados arriba y genera un commit siguiendo estas reglas:
 feat: add user authentication module
 
 Si hay archivos ambiguos o cambios en múltiples módulos distintos, pregunta antes de hacer el commit si deben ir juntos o separados.
+
+EVITA COLOCARTE COMO CO AUTOR EN LOS COMMITS
