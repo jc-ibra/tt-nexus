@@ -50,6 +50,11 @@ $routes->group('admin/provisioning', [
     'namespace' => 'App\Modules\Provisioning\Controllers',
     'filter'    => ['auth', 'super_admin'],
 ], function (RouteCollection $routes): void {
+    // Welcome-email settings (toggle + editable copy)
+    $routes->get('settings',       'ProvisioningSettings::index',    ['as' => 'provisioning.settings']);
+    $routes->post('settings',      'ProvisioningSettings::update',   ['as' => 'provisioning.settings.update']);
+    $routes->post('settings/test', 'ProvisioningSettings::sendTest', ['as' => 'provisioning.settings.test']);
+
     $routes->get('systems',              'ProvisioningSystems::index',     ['as' => 'provisioning.systems.index']);
     $routes->get('systems/(:num)',       'ProvisioningSystems::show/$1',   ['as' => 'provisioning.systems.show']);
     $routes->get('systems/(:num)/edit',  'ProvisioningSystems::edit/$1',   ['as' => 'provisioning.systems.edit']);
@@ -91,6 +96,11 @@ $routes->group('api/v1/provisioning', [
     'namespace' => 'App\Modules\Provisioning\Controllers\Api',
     'filter'    => ['api_auth', 'module_access:provisioning'],
 ], function (RouteCollection $routes): void {
+
+    // Welcome-email settings
+    $routes->get('settings',                 'ProvisioningApiController::getSettings');
+    $routes->put('settings',                 'ProvisioningApiController::updateSettings');
+    $routes->post('settings/test',           'ProvisioningApiController::sendTestWelcome');
 
     // Systems
     $routes->get('systems',                  'ProvisioningApiController::listSystems');

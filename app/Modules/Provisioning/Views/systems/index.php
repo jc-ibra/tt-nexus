@@ -7,6 +7,7 @@
     <p class="page-subtitle">Configura URL, credenciales y opciones para cada sistema externo.</p>
   </div>
   <div class="page-actions">
+    <a href="<?= route_to('provisioning.settings') ?>" class="btn btn-secondary">Correo de bienvenida</a>
     <a href="<?= route_to('provisioning.ms-licenses.index') ?>" class="btn btn-secondary">Licencias Microsoft 365</a>
   </div>
 </div>

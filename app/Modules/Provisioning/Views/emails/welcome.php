@@ -13,7 +13,21 @@
  * @var string      $tempPassword
  * @var array       $systems        list of ['name' => string, 'url' => string]
  * @var string      $helpDeskEmail
+ * @var string      $heroEyebrow
+ * @var string      $heroTitle
+ * @var string      $heroIntro
+ * @var string      $securityNotice
+ * @var string      $supportIntro
+ * @var string      $footerText
  */
+
+// Configurable copy blocks (defensive defaults if the caller omits them).
+$heroEyebrow    = $heroEyebrow    ?? 'Te damos la bienvenida';
+$heroTitle      = $heroTitle      ?? ('Bienvenido a ' . $orgName);
+$heroIntro      = $heroIntro      ?? 'Nos da mucho gusto tenerte en el equipo. Ya dejamos listos tus accesos para que empieces con el pie derecho.';
+$securityNotice = $securityNotice ?? 'esta contrasena es temporal. Por tu seguridad, cambiala lo antes posible en cada sistema.';
+$supportIntro   = $supportIntro   ?? 'Si tienes algun problema con tus accesos, reportalo directamente a la mesa de ayuda central:';
+$footerText     = $footerText     ?? 'Este mensaje se genero automaticamente al crear tus cuentas. No es necesario responderlo.';
 $brand     = '#1773C8';
 $brandDark = '#125a9c';
 $brandSoft = '#e8f1fb';
@@ -52,9 +66,9 @@ if ($initials === '') {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:12px;background-color:<?= $brand ?>;background-image:radial-gradient(circle at 92% -20%, rgba(255,255,255,0.20) 0, rgba(255,255,255,0.20) 95px, transparent 96px),radial-gradient(circle at 6% 130%, rgba(255,255,255,0.14) 0, rgba(255,255,255,0.14) 78px, transparent 79px);">
               <tr>
                 <td style="padding:34px 32px;">
-                  <div style="color:#ffffff;font-size:13px;letter-spacing:1px;text-transform:uppercase;opacity:0.9;margin-bottom:8px;">Te damos la bienvenida</div>
-                  <div style="color:#ffffff;font-size:28px;font-weight:800;line-height:1.2;">Bienvenido a <?= esc($orgName) ?></div>
-                  <div style="color:#ffffff;font-size:15px;line-height:1.6;opacity:0.92;margin-top:10px;max-width:420px;">Nos da mucho gusto tenerte en el equipo. Ya dejamos listos tus accesos para que empieces con el pie derecho.</div>
+                  <div style="color:#ffffff;font-size:13px;letter-spacing:1px;text-transform:uppercase;opacity:0.9;margin-bottom:8px;"><?= esc($heroEyebrow) ?></div>
+                  <div style="color:#ffffff;font-size:28px;font-weight:800;line-height:1.2;"><?= esc($heroTitle) ?></div>
+                  <div style="color:#ffffff;font-size:15px;line-height:1.6;opacity:0.92;margin-top:10px;max-width:420px;"><?= esc($heroIntro) ?></div>
                 </td>
               </tr>
             </table>
@@ -101,7 +115,7 @@ if ($initials === '') {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff7e6;border:1px solid #ffe1a8;border-radius:10px;">
               <tr>
                 <td style="padding:14px 18px;color:#8a5a00;font-size:14px;line-height:1.55;">
-                  <strong>Importante:</strong> esta contrasena es temporal. Por tu seguridad, cambiala lo antes posible en cada sistema.
+                  <strong>Importante:</strong> <?= esc($securityNotice) ?>
                 </td>
               </tr>
             </table>
@@ -156,7 +170,7 @@ if ($initials === '') {
               <tr>
                 <td style="padding:18px 22px;">
                   <div style="color:#ffffff;font-size:14px;font-weight:700;margin-bottom:4px;">Soporte</div>
-                  <div style="color:#c9ced3;font-size:13.5px;line-height:1.6;">Si tienes algun problema con tus accesos, reportalo directamente a la mesa de ayuda central:</div>
+                  <div style="color:#c9ced3;font-size:13.5px;line-height:1.6;"><?= esc($supportIntro) ?></div>
                   <a href="mailto:<?= esc($helpDeskEmail, 'attr') ?>" style="display:inline-block;margin-top:8px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;"><?= esc($helpDeskEmail) ?></a>
                 </td>
               </tr>
@@ -180,7 +194,7 @@ if ($initials === '') {
       </table>
 
       <div style="max-width:600px;margin:16px auto 0;color:<?= $muted ?>;font-size:12px;line-height:1.5;text-align:center;">
-        Este mensaje se genero automaticamente al crear tus cuentas. No es necesario responderlo.
+        <?= esc($footerText) ?>
       </div>
     </td>
   </tr>

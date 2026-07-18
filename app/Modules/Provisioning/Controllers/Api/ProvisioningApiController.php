@@ -9,6 +9,7 @@ use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
 use App\Modules\Provisioning\Models\ProvisioningLogModel;
 use App\Modules\Provisioning\Models\ProvisioningRetryQueueModel;
 use App\Modules\Provisioning\Models\ProvisioningSystemModel;
+use App\Modules\Provisioning\Services\WelcomeMailService;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class ProvisioningApiController extends BaseApiController
@@ -204,5 +205,64 @@ class ProvisioningApiController extends BaseApiController
     {
         $count = (new ProvisioningRetryQueueModel())->clearPending();
         return $this->success(['deleted' => $count]);
+    }
+
+    // ----- Welcome-email settings -----
+
+    public function getSettings(): ResponseInterface
+    {
+        $stored   = service('provisioningSettings')->getAll();
+        $defaults = WelcomeMailService::defaults();
+
+        $out = [];
+        foreach ($defaults as $key => $default) {
+            $v         = trim((string) ($stored[$key] ?? ''));
+            $out[$key] = $v !== '' ? $v : $default;
+        }
+
+        return $this->success($out);
+    }
+
+    public function updateSettings(): ResponseInterface
+    {
+        $in = $this->request->getJSON(true);
+        if (! is_array($in)) {
+            $in = $this->request->getRawInput();
+        }
+
+        $data = [];
+        foreach (array_keys(WelcomeMailService::defaults()) as $key) {
+            if (! array_key_exists($key, $in)) {
+                continue;
+            }
+            $data[$key] = $key === 'welcome_email_enabled'
+                ? (! empty($in[$key]) ? '1' : '0')
+                : trim((string) $in[$key]);
+        }
+
+        if ($data === []) {
+            return $this->error('No se recibio ningun campo de configuracion valido.');
+        }
+
+        service('provisioningSettings')->setMany($data);
+        return $this->success(['updated' => array_keys($data)]);
+    }
+
+    public function sendTestWelcome(): ResponseInterface
+    {
+        $in = $this->request->getJSON(true);
+        if (! is_array($in)) {
+            $in = $this->request->getRawInput();
+        }
+
+        $to = trim((string) ($in['test_email'] ?? ''));
+        if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return $this->error('Indica un correo valido para la prueba.');
+        }
+
+        $res = (new WelcomeMailService())->sendTest($to);
+        return $res['success']
+            ? $this->success(['sent' => true])
+            : $this->error($res['error'] ?? 'No se pudo enviar la prueba.');
     }
 }
