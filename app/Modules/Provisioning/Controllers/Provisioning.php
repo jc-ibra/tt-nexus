@@ -185,6 +185,13 @@ class Provisioning extends BaseController
         return redirect()->to(route_to('provisioning.retries'));
     }
 
+    public function clearPendingRetries(): ResponseInterface
+    {
+        $count = (new ProvisioningRetryQueueModel())->clearPending();
+        session()->setFlashdata('success', sprintf('%d reintentos pendientes vaciados de la cola.', $count));
+        return redirect()->to(route_to('provisioning.retries'));
+    }
+
     // -----------------------------------------------------------------------
     // Operations triggered from the employee detail page
     // -----------------------------------------------------------------------

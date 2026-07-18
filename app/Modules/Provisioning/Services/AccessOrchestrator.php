@@ -36,6 +36,14 @@ class AccessOrchestrator
         private ConnectorFactory $factory,
     ) {}
 
+    /**
+     * True while a retry row is being reprocessed. The retry lifecycle is owned
+     * by processRetry()/markFailure(); queueRetry() must NOT insert a fresh row
+     * during a replay, or every failed pass spawns a duplicate and the queue
+     * grows without bound.
+     */
+    private bool $processingRetry = false;
+
     // =======================================================================
     // High-level operations
     // =======================================================================
@@ -520,6 +528,16 @@ class AccessOrchestrator
 
     private function processRetry(array $row): bool
     {
+        $this->processingRetry = true;
+        try {
+            return $this->doProcessRetry($row);
+        } finally {
+            $this->processingRetry = false;
+        }
+    }
+
+    private function doProcessRetry(array $row): bool
+    {
         $employee = $this->employees->find((int) $row['employee_id']);
         $system   = $this->systems->find((int) $row['system_id']);
         if (! $employee || ! $system) {
@@ -743,23 +761,28 @@ class AccessOrchestrator
 
     private function queueRetry(int $logId, array $employee, array $system, string $operation, array $userData, string $error): void
     {
-        // A failed Mailcow create is never auto-retried: the mailbox address is
-        // not persisted and must never fall back to the personal email. The
-        // operator retries manually from the panel, supplying the address.
-        if ($operation === 'create' && $system['key'] === 'mailcow') {
+        // Never enqueue while reprocessing a retry: processRetry() already owns
+        // the row's lifecycle (attempts++/backoff/abandon via markFailure). Doing
+        // so here would insert a brand-new duplicate row on every failed pass —
+        // the root cause of the runaway queue growth.
+        if ($this->processingRetry) {
             return;
         }
 
-        // Only queue idempotent operations. Connection-test failures and "skipped" never reach here.
-        $payload = ['employee_id' => (int) $employee['id'], 'system_id' => (int) $system['id']];
-        if (in_array($operation, ['create', 'password'], true) && ! empty($userData['password'])) {
-            // SECURITY: password is encrypted into the cipher only after we decide it must persist.
-            // Holding it in payload as plain JSON would break our "never persist plain password" rule —
-            // so we DO NOT enqueue password retries with the password attached. Instead we mark the row
-            // and require operator-triggered manual retry.
-            $payload['password_attached'] = false;
+        // Only auto-retry operations that (a) are idempotent and (b) need no
+        // secret we deliberately never persist. By security rule the plain
+        // password is held in memory only — never written to the queue payload —
+        // so create/password/enable can NEVER succeed on an automatic replay
+        // (the connector rejects them without a password). Those failures live
+        // in the bitácora; the operator re-runs the alta / password change /
+        // reactivación from the panel. Mailcow create was already excluded for
+        // the same family of reasons. Connection tests and "skipped" never reach
+        // here.
+        if (! in_array($operation, ['disable', 'update'], true)) {
+            return;
         }
 
+        $payload = ['employee_id' => (int) $employee['id'], 'system_id' => (int) $system['id']];
         $this->retries->enqueue($logId, (int) $employee['id'], (int) $system['id'], $operation, $payload, 60);
     }
 

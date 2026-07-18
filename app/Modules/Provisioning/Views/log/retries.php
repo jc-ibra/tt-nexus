@@ -12,6 +12,10 @@
       <?= csrf_field() ?>
       <button type="submit" class="btn btn-secondary">Limpiar cola</button>
     </form>
+    <form method="post" action="<?= route_to('provisioning.retries.clear_pending') ?>" style="display:inline;" onsubmit="return confirm('¿Vaciar TODOS los reintentos pendientes de la cola? Esta acción no se puede deshacer.');">
+      <?= csrf_field() ?>
+      <button type="submit" class="btn btn-critical">Vaciar pendientes</button>
+    </form>
     <form method="post" action="<?= route_to('provisioning.retries.run') ?>" style="display:inline;">
       <?= csrf_field() ?>
       <button type="submit" class="btn btn-primary">Procesar pendientes ahora</button>

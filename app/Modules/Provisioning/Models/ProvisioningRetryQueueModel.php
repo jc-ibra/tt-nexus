@@ -20,6 +20,27 @@ class ProvisioningRetryQueueModel extends Model
 
     public function enqueue(int $logId, int $employeeId, int $systemId, string $operation, array $payload, int $delaySeconds = 60): int
     {
+        // Idempotent: a single target (employee + system + operation) may have at
+        // most one pending retry. Collapse onto the existing row instead of
+        // inserting a duplicate — this defends against repeated alta clicks and
+        // any accidental double-enqueue that would otherwise flood the queue.
+        $existing = $this->where('employee_id', $employeeId)
+            ->where('system_id', $systemId)
+            ->where('operation', $operation)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existing) {
+            $this->update((int) $existing['id'], [
+                'log_id'          => $logId,
+                'payload'         => json_encode($payload),
+                'last_error'      => null,
+                'next_attempt_at' => date('Y-m-d H:i:s', time() + $delaySeconds),
+            ]);
+
+            return (int) $existing['id'];
+        }
+
         $this->insert([
             'log_id'          => $logId,
             'employee_id'     => $employeeId,
@@ -89,6 +110,18 @@ class ProvisioningRetryQueueModel extends Model
     {
         $count = $this->whereIn('status', ['completed', 'abandoned'])->countAllResults();
         $this->whereIn('status', ['completed', 'abandoned'])->delete();
+        return $count;
+    }
+
+    /**
+     * Purge every pending retry outright. Used to drain a queue that filled up
+     * (e.g. a batch of non-replayable failures) — `clearFinished()` only removes
+     * already-finished rows and cannot clear these.
+     */
+    public function clearPending(): int
+    {
+        $count = $this->where('status', 'pending')->countAllResults();
+        $this->where('status', 'pending')->delete();
         return $count;
     }
 }

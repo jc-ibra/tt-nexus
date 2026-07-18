@@ -199,4 +199,10 @@ class ProvisioningApiController extends BaseApiController
         $count = (new ProvisioningRetryQueueModel())->clearFinished();
         return $this->success(['deleted' => $count]);
     }
+
+    public function clearPendingRetries(): ResponseInterface
+    {
+        $count = (new ProvisioningRetryQueueModel())->clearPending();
+        return $this->success(['deleted' => $count]);
+    }
 }
