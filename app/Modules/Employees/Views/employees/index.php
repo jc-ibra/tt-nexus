@@ -88,6 +88,7 @@ $canManageEmployees = service('access')->canAccessModule('employees');
           <th>Área</th>
           <th>Correo</th>
           <th>Estado</th>
+          <?php if ($canProvision): ?><th>Accesos</th><?php endif; ?>
           <th></th>
         </tr>
       </thead>
@@ -133,6 +134,49 @@ $canManageEmployees = service('access')->canAccessModule('employees');
                 <span class="badge badge-warning">Inactivo</span>
               <?php endif; ?>
             </td>
+            <?php if ($canProvision): ?>
+            <td>
+              <?php
+                // Fixed display order; color encodes the account state per system.
+                $byKey = [];
+                foreach (($provisioning[$e['id']] ?? []) as $a) {
+                    $byKey[$a['system_key']] = $a;
+                }
+                $systemsDisplay = ['mailcow' => 'Mailcow', 'glpi' => 'GLPI', 'intranet' => 'Intranet'];
+                $accessBadges   = [];
+                foreach ($systemsDisplay as $sysKey => $sysLabel) {
+                    $status = $byKey[$sysKey]['status'] ?? null;
+                    // A registered Mailcow mailbox counts as a Mailcow account even
+                    // if the employee has not been formally dado de alta in systems.
+                    if ($sysKey === 'mailcow' && $status === null && ! empty($e['has_mailbox'])) {
+                        $status = 'active';
+                    }
+                    if ($status === null) {
+                        continue;
+                    }
+                    $accessBadges[] = ['label' => $sysLabel, 'status' => $status];
+                }
+              ?>
+              <?php if ($accessBadges === []): ?>
+                <span class="text-muted text-sm">Sin accesos</span>
+              <?php else: ?>
+                <div style="display:flex; flex-wrap:wrap; gap:var(--space-1);">
+                  <?php foreach ($accessBadges as $b): ?>
+                    <?php
+                      if ($b['status'] === 'active') {
+                          $cls = 'badge badge-success'; $stateText = 'cuenta activa';
+                      } elseif ($b['status'] === 'pending') {
+                          $cls = 'badge badge-warning'; $stateText = 'alta en proceso';
+                      } else {
+                          $cls = 'badge badge-neutral'; $stateText = 'cuenta deshabilitada';
+                      }
+                    ?>
+                    <span class="<?= $cls ?>" title="<?= esc($b['label'] . ': ' . $stateText) ?>"><?= esc($b['label']) ?></span>
+                  <?php endforeach; ?>
+                </div>
+              <?php endif; ?>
+            </td>
+            <?php endif; ?>
             <td>
               <div class="table-actions">
                 <a href="<?= route_to('employees.show', $e['id']) ?>" class="btn btn-tertiary btn-sm" aria-label="Ver <?= esc(trim(($e['name'] ?? '') . ' ' . ($e['lastname'] ?? ''))) ?>">

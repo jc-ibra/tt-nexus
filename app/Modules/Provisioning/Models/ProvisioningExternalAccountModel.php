@@ -60,6 +60,34 @@ class ProvisioningExternalAccountModel extends Model
             ->findAll();
     }
 
+    /**
+     * Accounts for many employees at once, grouped by employee_id. Lets the
+     * employee directory render the "Accesos" column without an N+1 query.
+     *
+     * @param int[] $employeeIds
+     * @return array<int, array<int, array<string,mixed>>>
+     */
+    public function mapForEmployees(array $employeeIds): array
+    {
+        $employeeIds = array_values(array_unique(array_filter(array_map('intval', $employeeIds))));
+        if ($employeeIds === []) {
+            return [];
+        }
+
+        $rows = $this->select('provisioning_external_accounts.employee_id, provisioning_external_accounts.status, provisioning_external_accounts.external_id, s.key AS system_key, s.name AS system_name')
+            ->join('provisioning_systems s', 's.id = provisioning_external_accounts.system_id', 'left')
+            ->whereIn('provisioning_external_accounts.employee_id', $employeeIds)
+            ->orderBy('s.name', 'ASC')
+            ->findAll();
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int) $r['employee_id']][] = $r;
+        }
+
+        return $map;
+    }
+
     public function upsert(int $employeeId, int $systemId, array $data): void
     {
         $existing = $this->findFor($employeeId, $systemId);

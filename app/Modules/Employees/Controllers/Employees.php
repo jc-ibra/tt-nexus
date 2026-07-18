@@ -26,16 +26,30 @@ class Employees extends BaseController
             'active'        => $this->request->getGet('active'),
         ];
 
+        $employees = $svc->paginate($filters, $perPage, $page);
+
+        // The "Accesos" column (systems where the employee has an account) is
+        // only relevant — and only visible — to the Provisioning role. Fetch the
+        // accounts for the current page in a single query to avoid an N+1.
+        $canProvision = service('access')->canAccessModule('provisioning');
+        $provisioning = [];
+        if ($canProvision && $employees !== []) {
+            $provisioning = (new \App\Modules\Provisioning\Models\ProvisioningExternalAccountModel())
+                ->mapForEmployees(array_column($employees, 'id'));
+        }
+
         return view('App\Modules\Employees\Views\employees\index', [
-            'pageTitle'   => 'Empleados',
-            'employees'   => $svc->paginate($filters, $perPage, $page),
-            'total'       => $svc->total($filters),
-            'page'        => $page,
-            'perPage'     => $perPage,
-            'filters'     => $filters,
-            'areas'       => $catalogSvc->listActiveAreas(),
-            'departments' => $catalogSvc->listActiveDepartments(),
-            'positions'   => $catalogSvc->listActivePositions(),
+            'pageTitle'    => 'Empleados',
+            'employees'    => $employees,
+            'total'        => $svc->total($filters),
+            'page'         => $page,
+            'perPage'      => $perPage,
+            'filters'      => $filters,
+            'areas'        => $catalogSvc->listActiveAreas(),
+            'departments'  => $catalogSvc->listActiveDepartments(),
+            'positions'    => $catalogSvc->listActivePositions(),
+            'canProvision' => $canProvision,
+            'provisioning' => $provisioning,
         ]);
     }
 
