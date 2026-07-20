@@ -47,7 +47,20 @@ class SendBacklogReport extends BaseCommand
             foreach ($d['areaOrder'] as $k) {
                 $a = $d['areas'][$k];
                 if (($a['total'] ?? 0) > 0) {
-                    CLI::write(sprintf('  · %s: %d', $a['label'], $a['total']));
+                    CLI::write(sprintf('  · %s: %d abiertos · %d críticos · %d en espera · %s sin IDC',
+                        $a['label'], $a['total'], $a['critical'], $a['pending'],
+                        $d['idcConfigured'] ? (string) $a['sinIdc'] : 'n/a'));
+                }
+            }
+            if (! empty($d['daily'])) {
+                CLI::write(sprintf('  Actividad del día (%s):', $d['dailyLabel']), 'cyan');
+                foreach ($d['daily'] as $dk => $day) {
+                    if ($dk === 'sin_clasificar' && ((int) $day['created'] + (int) $day['closed']) === 0) {
+                        continue;
+                    }
+                    $net = (int) $day['net'];
+                    CLI::write(sprintf('    - %s: %d generados · %d cerrados · neto %s%d',
+                        $day['label'], $day['created'], $day['closed'], $net > 0 ? '+' : '', $net));
                 }
             }
             if (! empty($d['regionalConfigured'])) {

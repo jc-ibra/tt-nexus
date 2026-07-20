@@ -228,10 +228,20 @@ class BacklogReportService
         }
         $areas = [];
         $areaOrder = array_keys($this->config->backlogAreas);
+        $emptyArea = static fn(string $label, array $buckets): array => [
+            'label'         => $label,
+            'total'         => 0,
+            'critical'      => 0,
+            'pending'       => 0,
+            'sinIdc'        => 0,
+            'buckets'       => $buckets,
+            'subcategories' => [],
+            'oldest'        => [],
+        ];
         foreach ($this->config->backlogAreas as $key => $label) {
-            $areas[$key] = ['label' => $label, 'total' => 0, 'buckets' => $emptyBuckets, 'subcategories' => []];
+            $areas[$key] = $emptyArea($label, $emptyBuckets);
         }
-        $areas['sin_clasificar'] = ['label' => 'Sin clasificar', 'total' => 0, 'buckets' => $emptyBuckets, 'subcategories' => []];
+        $areas['sin_clasificar'] = $emptyArea('Sin clasificar', $emptyBuckets);
         $areaOrder[] = 'sin_clasificar';
 
         $total = count($tickets);
@@ -335,6 +345,29 @@ class BacklogReportService
             $sub = $subName !== '' ? $subName : ($leafName !== '' ? $leafName : 'Sin categoría');
             $areas[$areaKey]['subcategories'][$sub] = ($areas[$areaKey]['subcategories'][$sub] ?? 0) + 1;
 
+            // Per-area KPIs mirror the global ones so each area gets its own
+            // "cuadro resumen" (total, críticos, en espera, sin IDC).
+            if ($ageDays >= $criticalDays) {
+                $areas[$areaKey]['critical']++;
+            }
+            if ($status === $pendingId) {
+                $areas[$areaKey]['pending']++;
+            }
+            if ($countsForIdc && ! $hasIdc) {
+                $areas[$areaKey]['sinIdc']++;
+            }
+            // Tickets are fetched ordered by date ASC, so the first 5 seen per
+            // area are its 5 oldest open tickets (top-5 más antiguos).
+            if (count($areas[$areaKey]['oldest']) < 5) {
+                $areas[$areaKey]['oldest'][] = [
+                    'id'     => $id,
+                    'title'  => (string) $t['name'],
+                    'status' => $statusLabels[$status] ?? (string) $status,
+                    'age'    => $ageDays,
+                    'open'   => $open > 0 ? date('d/m/Y', $open) : '',
+                ];
+            }
+
             // Full ITIL completename for the export (e.g. "OP > CE > Pop Media").
             $categoryFull = $catId > 0 && isset($catIndex[$catId])
                 ? ($catIndex[$catId]['completename'] ?: $leafName)
@@ -400,6 +433,9 @@ class BacklogReportService
         }
         unset($a);
 
+        // Same-day activity per area (tickets created / closed today, net Δ).
+        $daily = $this->buildDailyActivity($db, $catIndex, $areaAssign, $now);
+
         return [
             'cutoffTs'      => $now,
             'cutoffLabel'   => date('d \d\e F \d\e Y', $now),
@@ -416,6 +452,8 @@ class BacklogReportService
             'clients'           => $clients,
             'areas'         => $areas,
             'areaOrder'     => $areaOrder,
+            'daily'         => $daily,
+            'dailyLabel'    => date('d/m/Y', $now),
             'buckets'       => $bucketDefs,
             'rows'          => $rows,
         ];
@@ -548,6 +586,88 @@ class BacklogReportService
         }
 
         return $memo[$catId] = $found;
+    }
+
+    /**
+     * Same-day activity per area: tickets CREATED and CLOSED between 00:00 today
+     * and the cut-off ($now). "Closed" = reached Resuelto(5) or Cerrado(6) with a
+     * solve/close timestamp inside the window (SuperAdmin decision). Net = created
+     * − closed, i.e. how much each area's backlog grew (+) or shrank (−) today.
+     *
+     * A separate query is required because build()'s ticket set only holds OPEN
+     * statuses, so same-day closures are not in it.
+     *
+     * @param array<int,array>  $catIndex   category index (id => [...,'parent'])
+     * @param array<int,string> $areaAssign rootCategoryId => areaKey
+     * @return array<string,array{label:string,created:int,closed:int,net:int}>
+     */
+    private function buildDailyActivity($db, array $catIndex, array $areaAssign, int $now): array
+    {
+        $startStr = date('Y-m-d 00:00:00', $now);
+        $endStr   = date('Y-m-d H:i:s', $now);
+
+        $daily = [];
+        foreach ($this->config->backlogAreas as $key => $label) {
+            $daily[$key] = ['label' => $label, 'created' => 0, 'closed' => 0, 'net' => 0];
+        }
+        $daily['sin_clasificar'] = ['label' => 'Sin clasificar', 'created' => 0, 'closed' => 0, 'net' => 0];
+
+        // Category id => area key, resolved via the root category (memoized).
+        $memo = [];
+        $areaKeyFor = function (int $catId) use ($catIndex, $areaAssign, &$memo, $daily): string {
+            if (isset($memo[$catId])) {
+                return $memo[$catId];
+            }
+            [$rootId] = $this->resolveCategory($catId, $catIndex);
+            $key = $areaAssign[$rootId] ?? 'sin_clasificar';
+            if (! isset($daily[$key])) {
+                $key = 'sin_clasificar';
+            }
+            return $memo[$catId] = $key;
+        };
+
+        // Created today (any status).
+        $created = $db->table('glpi_tickets')
+            ->select('itilcategories_id')
+            ->where('is_deleted', 0)
+            ->where('date >=', $startStr)
+            ->where('date <=', $endStr)
+            ->get()->getResultArray();
+        foreach ($created as $t) {
+            $daily[$areaKeyFor((int) $t['itilcategories_id'])]['created']++;
+        }
+
+        // Closed today: Resuelto/Cerrado with solve OR close date inside the window.
+        $cols     = $db->getFieldNames('glpi_tickets');
+        $hasSolve = in_array('solvedate', $cols, true);
+        $hasClose = in_array('closedate', $cols, true);
+        if ($hasSolve || $hasClose) {
+            $b = $db->table('glpi_tickets')
+                ->select('itilcategories_id')
+                ->where('is_deleted', 0)
+                ->whereIn('status', [5, 6])
+                ->groupStart();
+            $needOr = false;
+            if ($hasSolve) {
+                $b->groupStart()->where('solvedate >=', $startStr)->where('solvedate <=', $endStr)->groupEnd();
+                $needOr = true;
+            }
+            if ($hasClose) {
+                $inner = $needOr ? $b->orGroupStart() : $b->groupStart();
+                $inner->where('closedate >=', $startStr)->where('closedate <=', $endStr)->groupEnd();
+            }
+            $closed = $b->groupEnd()->get()->getResultArray();
+            foreach ($closed as $t) {
+                $daily[$areaKeyFor((int) $t['itilcategories_id'])]['closed']++;
+            }
+        }
+
+        foreach ($daily as &$a) {
+            $a['net'] = $a['created'] - $a['closed'];
+        }
+        unset($a);
+
+        return $daily;
     }
 
     private function bucketFor(int $ageDays, array $bucketDefs): string
