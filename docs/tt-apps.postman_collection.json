@@ -14,6 +14,16 @@
       "key": "api_token",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "widget_site_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "landing_site_key",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -2992,6 +3002,83 @@
               "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
             },
             "description": "Crea el ticket en GLPI de inmediato (estatus NUEVO, categoría fija, fecha actual, nombre y ubicación concatenados en la descripción, hardware a campos plugin) y devuelve data.ticketId."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Service Desk — Landing pública (/soporte)",
+      "description": "Página pública e independiente del widget embebido: única URL pública del sistema. NO usa Bearer; se valida con la clave propia de la landing (query ?key= o header X-Widget-Key), same-origin en los POST y un rate limit por IP. La identidad se captura en el formulario y el usuario ELIGE la categoría ITIL de la lista de soportadas (por eso el POST de ticket incluye categoryId).",
+      "item": [
+        {
+          "name": "Landing — página (form + chat)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/soporte",
+              "host": ["{{base_url}}"],
+              "path": ["soporte"]
+            },
+            "description": "HTML de la landing pública. Si está deshabilitada o sin categorías soportadas, devuelve un aviso."
+          },
+          "response": []
+        },
+        {
+          "name": "Landing — submit (formulario completo)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identity\": {\n    \"nombre\": \"Ana López\",\n    \"correo\": \"ana@empresa.com\",\n    \"numero_empleado\": \"1010\"\n  },\n  \"categoryId\": 5,\n  \"titulo\": \"Impresora de recepción no imprime\",\n  \"tipo\": \"INCIDENCIA\",\n  \"descripcion\": \"La impresora marca error de papel aunque tiene hojas\",\n  \"ubicacion\": \"Recepción, piso 1\",\n  \"fields\": {\n    \"SUCURSAL\": \"Matriz\",\n    \"EQUIPO\": \"Impresora\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/soporte/submit?key={{landing_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["soporte", "submit"],
+              "query": [{ "key": "key", "value": "{{landing_site_key}}" }]
+            },
+            "description": "Crea el ticket desde el formulario completo (sin IA): campos base + categoría soportada seleccionada + campos adicionales de los contenedores configurados por el admin (objeto fields keyed por encabezado). Devuelve data.ticketId."
+          },
+          "response": []
+        },
+        {
+          "name": "Landing — chat (turno conversacional)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"history\": [],\n  \"message\": \"No me funciona la impresora de recepción\",\n  \"identity\": {\n    \"nombre\": \"Ana López\",\n    \"correo\": \"ana@empresa.com\",\n    \"numero_empleado\": \"1010\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/soporte/chat?key={{landing_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["soporte", "chat"],
+              "query": [{ "key": "key", "value": "{{landing_site_key}}" }]
+            },
+            "description": "Un turno de conversación. La identidad viene del formulario de la landing. Devuelve reply, question (opcional), draft (opcional) e history actualizado."
+          },
+          "response": []
+        },
+        {
+          "name": "Landing — ticket (crear, síncrono)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"draft\": {\n    \"titulo\": \"Impresora de recepción no imprime\",\n    \"descripcion\": \"La impresora marca error de papel aunque tiene hojas\",\n    \"tipo\": \"INCIDENCIA\",\n    \"ubicacion\": \"Recepción, piso 1\",\n    \"es_hardware\": true,\n    \"equipo\": \"Impresora\",\n    \"modelo\": \"HP M404\",\n    \"serie\": \"VNB1234567\"\n  },\n  \"identity\": {\n    \"nombre\": \"Ana López\",\n    \"correo\": \"ana@empresa.com\",\n    \"numero_empleado\": \"1010\"\n  },\n  \"categoryId\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/soporte/ticket?key={{landing_site_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["soporte", "ticket"],
+              "query": [{ "key": "key", "value": "{{landing_site_key}}" }]
+            },
+            "description": "Crea el ticket en GLPI de inmediato bajo la categoría ITIL seleccionada (categoryId, que debe ser una categoría soportada). Estatus NUEVO, fecha actual, identidad concatenada en la descripción, hardware a campos plugin. Devuelve data.ticketId."
           },
           "response": []
         }

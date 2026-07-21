@@ -35,6 +35,10 @@ class ServiceDeskAdmin extends BaseController
             'aiUsage'        => (new ServiceDeskAiUsageModel())->summary(30),
             'widgetSiteKey'  => $settings->widgetSiteKey(),
             'widgetPrompt'   => $settings->widgetSystemPrompt(),
+            // Public self-service landing tab.
+            'landingSiteKey' => $settings->landingSiteKey(),
+            'landingReady'   => $settings->landingReady(),
+            'hasSupportedCats' => (new ServiceDeskCategoryMapModel())->hasSupported(),
             // Backlog report tab.
             'backlogAreas'   => (new \App\Modules\ServiceDesk\Config\ServiceDesk())->backlogAreas,
             'backlogRoots'   => $configured ? $introspector->rootCategories() : [],
@@ -123,6 +127,17 @@ class ServiceDeskAdmin extends BaseController
     {
         $result = service('serviceDeskSettings')->saveAi($this->request->getPost());
         return redirect()->to(route_to('servicedesk.settings') . '#ai')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /**
+     * Saves the public self-service landing configuration (enable, title/intro,
+     * key regeneration, rate limit). The landing lives at /soporte.
+     */
+    public function saveLanding(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveLanding($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#widget')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 

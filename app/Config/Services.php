@@ -359,6 +359,7 @@ class Services extends BaseService
             new ServiceDeskAiUsageModel(),
             new ServiceDeskImportModel(),
             new ProvisioningExternalAccountModel(),
+            new ServiceDeskCategoryMapModel(),
         );
     }
 

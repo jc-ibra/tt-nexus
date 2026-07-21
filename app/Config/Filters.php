@@ -7,6 +7,7 @@ use App\Modules\Core\Filters\ApiAuthFilter;
 use App\Modules\Core\Filters\ModuleAccessAnyFilter;
 use App\Modules\Core\Filters\ModuleAccessFilter;
 use App\Modules\Core\Filters\SuperAdminFilter;
+use App\Modules\ServiceDesk\Filters\LandingAccessFilter;
 use App\Modules\ServiceDesk\Filters\WidgetAccessFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
@@ -46,6 +47,7 @@ class Filters extends BaseFilters
         'module_access_any' => ModuleAccessAnyFilter::class,
         'super_admin'       => SuperAdminFilter::class,
         'widget_access'     => WidgetAccessFilter::class,
+        'landing_access'    => LandingAccessFilter::class,
     ];
 
     /**

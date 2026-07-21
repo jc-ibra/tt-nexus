@@ -377,6 +377,117 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
       </div>
     </div>
   </form>
+
+  <?php
+  $landingUrl = base_url('soporte');
+  $landingReady = $landingReady ?? false;
+  $hasSupportedCats = $hasSupportedCats ?? false;
+  ?>
+  <form id="sd-landing" action="<?= route_to('servicedesk.landing.save') ?>" method="post" style="max-width: 760px;">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Landing pública de autoservicio</h2>
+        <button type="submit" class="btn btn-primary">Guardar landing</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-4);">
+          Página pública e independiente del widget embebido: vive en una URL propia de Nexus, con su propia clave, y es
+          la única página pública del sistema. Muestra un <strong>formulario completo</strong> donde la persona captura sus datos,
+          <strong>elige la categoría ITIL</strong> (de las soportadas en Categorías) y llena los campos adicionales de los
+          contenedores que selecciones abajo. Encima del formulario aparece un <strong>chat flotante</strong> opcional (requiere IA)
+          para quien prefiera ser guiado. El formulario funciona sin IA.
+        </p>
+
+        <?php if (! $hasSupportedCats): ?>
+          <div class="banner banner-warning" role="alert" style="margin-bottom: var(--space-4);">
+            <div class="banner-body">
+              No hay categorías marcadas como soportadas todavía. La landing necesita al menos una:
+              defínelas en <a href="<?= route_to('servicedesk.categories') ?>">Categorías y CLIENTE</a>.
+            </div>
+          </div>
+        <?php endif; ?>
+
+        <label class="field-check" style="margin-bottom: var(--space-4);">
+          <input type="checkbox" name="landing_enabled" value="1" <?= ($s['landing_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>Habilitar la landing pública</span>
+        </label>
+
+        <div class="field" style="margin-bottom: var(--space-3);">
+          <label class="field-label">URL pública</label>
+          <div style="display:flex; gap: var(--space-2); flex-wrap:wrap;">
+            <input type="text" class="input" readonly value="<?= esc($landingUrl, 'attr') ?>"
+                   id="landing-url" style="flex:1; min-width:240px;" onclick="this.select()">
+            <button type="button" class="btn btn-secondary" onclick="navigator.clipboard&amp;&amp;navigator.clipboard.writeText(document.getElementById('landing-url').value)">Copiar</button>
+            <a href="<?= esc($landingUrl, 'attr') ?>" target="_blank" rel="noopener" class="btn btn-secondary">Abrir</a>
+          </div>
+          <p class="field-help">Comparte solo esta URL. El resto del sistema sigue protegido; únicamente esta página es pública.</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="landing_title">Título de la página</label>
+            <input type="text" id="landing_title" name="landing_title" class="input" maxlength="60"
+                   value="<?= $val('landing_title') ?>" placeholder="Mesa de Ayuda">
+          </div>
+          <div class="field">
+            <label class="field-label" for="landing_rate_limit_per_hour">Límite de solicitudes por IP por hora (0 = sin límite)</label>
+            <input type="number" id="landing_rate_limit_per_hour" name="landing_rate_limit_per_hour" class="input" min="0"
+                   value="<?= $val('landing_rate_limit_per_hour', '10') ?>">
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom: var(--space-3);">
+          <label class="field-label" for="landing_intro">Texto de bienvenida</label>
+          <textarea id="landing_intro" name="landing_intro" class="input" rows="2"
+                    placeholder="Completa tus datos, elige la categoría y cuéntame qué necesitas..."><?= esc($s['landing_intro'] ?? '') ?></textarea>
+          <p class="field-help">El asistente usa las mismas instrucciones (prompt) y la misma API de IA que el widget.</p>
+        </div>
+
+        <?php
+        $landingContainers = trim((string) ($s['landing_container_ids'] ?? ''));
+        $landingContSel    = $landingContainers === '' ? [] : array_map('intval', explode(',', $landingContainers));
+        ?>
+        <div class="field" style="margin-bottom: var(--space-3);">
+          <label class="field-label">Campos adicionales del formulario</label>
+          <p class="field-help" style="margin-top:0; margin-bottom: var(--space-2);">
+            Elige los contenedores cuyos campos adicionales pedirá el formulario público. Igual que en el creador de tickets:
+            si marcas un contenedor, sus campos se reflejan en el formulario. El título, la descripción, el tipo, la ubicación
+            y la categoría ya se piden siempre.
+          </p>
+          <?php if (empty($containers)): ?>
+            <p class="field-help">No hay contenedores disponibles (¿GLPI configurado?).</p>
+          <?php else: ?>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-2);">
+              <?php foreach ($containers as $c): ?>
+                <label class="field-check" style="margin:0;">
+                  <input type="checkbox" name="landing_container_ids[]" value="<?= (int) $c['id'] ?>"
+                         <?= in_array((int) $c['id'], $landingContSel, true) ? 'checked' : '' ?>>
+                  <span><?= esc($c['label']) ?> <span class="text-muted">· <?= (int) ($c['fieldCount'] ?? 0) ?> campos</span></span>
+                </label>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+
+        <label class="field-check" style="margin-bottom: var(--space-2);">
+          <input type="checkbox" name="regenerate_landing_key" value="1">
+          <span>Regenerar la clave de la landing (invalida la clave actual de la URL)</span>
+        </label>
+
+        <?php if ((($s['landing_enabled'] ?? '0') === '1') && ! $landingReady): ?>
+          <p class="field-help" style="color: var(--color-warning-text, #8a6d00);">
+            <?php if (! $hasSupportedCats): ?>
+              La landing está habilitada pero el formulario aún no puede crear tickets: falta al menos una categoría soportada.
+            <?php else: ?>
+              El formulario está listo. El chat flotante permanece oculto hasta configurar la IA (pestaña Creador con IA).
+            <?php endif; ?>
+          </p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </form>
 </div><!-- /sd-panel-widget -->
 
 <!-- Tab: Reporte de Backlog -->

@@ -8,6 +8,7 @@ use Anthropic\Client as AnthropicClient;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 
 /**
@@ -57,6 +58,7 @@ class WidgetTicketService
         private ServiceDeskAiUsageModel $usage,
         private ServiceDeskImportModel $imports,
         private ProvisioningExternalAccountModel $externalAccounts,
+        private ServiceDeskCategoryMapModel $categoryMap,
     ) {}
 
     // ------------------------------------------------------------------
@@ -86,13 +88,18 @@ class WidgetTicketService
      * @param array  $history      prior messages (role/content arrays)
      * @param string $userMessage
      * @param array  $identity     known requester {nombre,correo,numero_empleado}
-     *                             passed in by the host (intranet session). When
-     *                             present the assistant no longer asks for them.
+     *                             passed in by the host (intranet session) or by
+     *                             the public landing form. When present the
+     *                             assistant no longer asks for them.
+     * @param bool   $landing      true when the caller is the public landing
+     *                             (readiness is gated by landingReady() instead
+     *                             of widgetReady(): the category is user-picked,
+     *                             not fixed).
      * @return array{ok:bool,error?:string,reply?:string,question?:?array,draft?:?array,history?:array}
      */
-    public function chat(array $history, string $userMessage, array $identity = []): array
+    public function chat(array $history, string $userMessage, array $identity = [], bool $landing = false): array
     {
-        if (! $this->settings->widgetReady()) {
+        if (! ($landing ? $this->settings->landingReady() : $this->settings->widgetReady())) {
             return ['ok' => false, 'error' => 'El asistente no está disponible en este momento.'];
         }
 
@@ -198,12 +205,24 @@ class WidgetTicketService
      * GLPI write to TicketBulkImporter::createOne().
      *
      * @param array<string,mixed> $draft
-     * @param array<string,mixed> $identity known requester {nombre,correo,numero_empleado}
+     * @param array<string,mixed> $identity   known requester {nombre,correo,numero_empleado}
+     * @param int|null            $categoryId when provided (public landing), the
+     *                            ITIL category the USER selected; it must be one
+     *                            of the supported categories. When null (embedded
+     *                            widget) the fixed admin-configured category is used.
      */
-    public function createTicket(array $draft, array $identity = []): ServiceResult
+    public function createTicket(array $draft, array $identity = [], ?int $categoryId = null): ServiceResult
     {
-        if (! $this->settings->widgetReady()) {
+        $isLanding = $categoryId !== null;
+
+        if (! ($isLanding ? $this->settings->landingReady() : $this->settings->widgetReady())) {
             return ServiceResult::fail('El asistente no está disponible en este momento.');
+        }
+
+        // Landing: the user picks the category, so it must be one the SuperAdmin
+        // marked as supported. Re-validated here because the endpoint is public.
+        if ($isLanding && ! in_array($categoryId, $this->categoryMap->supportedIds(), true)) {
+            return ServiceResult::fail('La categoría seleccionada no es válida. Elige una de la lista.');
         }
 
         $hw  = $this->hardwareMeta();
@@ -258,7 +277,8 @@ class WidgetTicketService
             $baseHeader['date']    => date('Y-m-d H:i:s'),
         ];
 
-        $catName = $this->categoryName();
+        // Landing uses the user-selected category; the widget uses the fixed one.
+        $catName = $isLanding ? $this->categoryNameById($categoryId) : $this->categoryName();
         if ($catName !== '' && isset($baseHeader['itilcategories_id'])) {
             $row[$baseHeader['itilcategories_id']] = $catName;
         }
@@ -296,8 +316,173 @@ class WidgetTicketService
         }
 
         $ticketId = (int) ($res->data['ticketId'] ?? 0);
-        $this->recordImport($d['titulo'], $ticketId);
+        $this->recordImport($d['titulo'], $ticketId, $isLanding ? 'landing' : 'widget');
         $this->logUsage('create', $this->settings->aiModel(), null, 1);
+
+        return ServiceResult::ok(['ticketId' => $ticketId], "Tu ticket #{$ticketId} se creó correctamente.");
+    }
+
+    // ------------------------------------------------------------------
+    // Public landing: complete manual form -> single GLPI ticket
+    // ------------------------------------------------------------------
+
+    /**
+     * Field spec the public landing form renders: the additional plugin fields
+     * of the admin-selected containers, grouped by container. Base ticket fields
+     * (title, description, type, location, category) are fixed and rendered by
+     * the view; only the plugin fields are configurable.
+     *
+     * @return array<int,array{id:int,label:string,fields:array<int,array{header:string,type:string,required:bool,options:string[]}>}>
+     */
+    public function landingFormSpec(): array
+    {
+        $containerIds = $this->settings->landingContainerIds();
+        if ($containerIds === []) {
+            return [];
+        }
+
+        $cols   = $this->introspector->buildPlan($containerIds, true)['columns'];
+        $byId   = [];
+        $labels = [];
+        foreach ($cols as $c) {
+            if (($c['kind'] ?? '') !== 'plugin') {
+                continue;
+            }
+            $cid = (int) ($c['containerId'] ?? 0);
+            $labels[$cid] = (string) ($c['containerLabel'] ?? '');
+            $byId[$cid][] = [
+                'header'   => (string) $c['header'],
+                'type'     => (string) ($c['type'] ?? 'text'),
+                'required' => ! empty($c['required']),
+                'options'  => array_values($c['options'] ?? []),
+            ];
+        }
+
+        $out = [];
+        foreach ($containerIds as $cid) {
+            if (! empty($byId[$cid])) {
+                $out[] = ['id' => $cid, 'label' => $labels[$cid] ?? '', 'fields' => $byId[$cid]];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Creates ONE ticket from the complete landing form (no AI). Re-validates
+     * everything server-side (the endpoint is public), enforces the landing
+     * business rules, honors the user-selected supported category, and writes
+     * the admin-selected containers' additional fields. Delegates the GLPI write
+     * to TicketBulkImporter::createOne().
+     *
+     * @param array<string,mixed> $input {identity, categoryId, titulo, tipo,
+     *                                   descripcion, ubicacion, fields:{header:value}}
+     */
+    public function createFromForm(array $input): ServiceResult
+    {
+        if (! $this->settings->landingFormReady()) {
+            return ServiceResult::fail('La mesa de ayuda en línea no está disponible en este momento.');
+        }
+
+        $categoryId = (int) ($input['categoryId'] ?? 0);
+        if (! in_array($categoryId, $this->categoryMap->supportedIds(), true)) {
+            return ServiceResult::fail('La categoría seleccionada no es válida. Elige una de la lista.');
+        }
+
+        $idn         = $this->sanitizeIdentity(is_array($input['identity'] ?? null) ? $input['identity'] : []);
+        $titulo      = mb_substr(trim((string) ($input['titulo'] ?? '')), 0, 255);
+        $descripcion = trim((string) ($input['descripcion'] ?? ''));
+        $ubicacion   = mb_substr(trim((string) ($input['ubicacion'] ?? '')), 0, 190);
+        $tipo        = mb_strtoupper(trim((string) ($input['tipo'] ?? '')));
+        if (! in_array($tipo, ['INCIDENCIA', 'REQUERIMIENTO'], true)) {
+            $tipo = 'INCIDENCIA';
+        }
+
+        $missing = [];
+        if ($idn['nombre'] === '') { $missing[] = 'tu nombre'; }
+        if ($titulo === '')        { $missing[] = 'un asunto'; }
+        if ($descripcion === '')   { $missing[] = 'la descripción'; }
+        if ($ubicacion === '')     { $missing[] = 'tu ubicación'; }
+        if ($missing !== []) {
+            return ServiceResult::fail('Faltan datos para crear el ticket: ' . implode(', ', $missing) . '.');
+        }
+
+        // Base headers are container-independent, so an empty plan resolves them.
+        $baseHeader = [];
+        foreach ($this->introspector->buildPlan([], false)['columns'] as $c) {
+            if (($c['kind'] ?? '') === 'base') {
+                $baseHeader[$c['glpiKey']] = $c['header'];
+            }
+        }
+
+        $idLines = ['Solicitante: ' . $idn['nombre']];
+        if ($idn['correo'] !== '') {
+            $idLines[] = 'Correo: ' . $idn['correo'];
+        }
+        if ($idn['numero_empleado'] !== '') {
+            $idLines[] = 'No. de empleado: ' . $idn['numero_empleado'];
+        }
+        $idLines[] = 'Ubicación: ' . $ubicacion;
+        $content   = $descripcion . "\n\n----------\n" . implode("\n", $idLines);
+
+        $row = [
+            $baseHeader['name']    => $titulo,
+            $baseHeader['content'] => $content,
+            $baseHeader['type']    => $tipo,
+            $baseHeader['status']  => self::FORCED_STATUS,
+            $baseHeader['date']    => date('Y-m-d H:i:s'),
+        ];
+
+        $catName = $this->categoryNameById($categoryId);
+        if ($catName !== '' && isset($baseHeader['itilcategories_id'])) {
+            $row[$baseHeader['itilcategories_id']] = $catName;
+        }
+
+        // Additional fields: only the admin-selected containers, and only headers
+        // that actually belong to their live plan (the endpoint is public, so we
+        // never trust arbitrary posted headers).
+        $containerIds = $this->settings->landingContainerIds();
+        $postedFields = is_array($input['fields'] ?? null) ? $input['fields'] : [];
+        $missingReq   = [];
+
+        if ($containerIds !== []) {
+            foreach ($this->introspector->buildPlan($containerIds, true)['columns'] as $c) {
+                if (($c['kind'] ?? '') !== 'plugin') {
+                    continue;
+                }
+                $header = (string) $c['header'];
+                $value  = trim((string) ($postedFields[$header] ?? ''));
+                if ($value !== '') {
+                    $row[$header] = $value;
+                } elseif (! empty($c['required'])) {
+                    $missingReq[] = $header;
+                }
+            }
+        }
+
+        if ($missingReq !== []) {
+            return ServiceResult::fail('Faltan campos obligatorios: ' . implode(', ', $missingReq) . '.');
+        }
+
+        // Requester: map the employee number to a GLPI user when possible.
+        $requester = $this->settings->widgetRequesterUserId();
+        if ($idn['numero_empleado'] !== '') {
+            $glpiUserId = $this->externalAccounts->glpiUserIdByEmployeeNumber($idn['numero_empleado']);
+            if ($glpiUserId !== null) {
+                $requester = $glpiUserId;
+            }
+        }
+
+        $res = $this->importer->createOne($containerIds, $row, [
+            'requester'       => $requester,
+            'entities'        => $this->settings->widgetEntitiesId(),
+            'requesttypes_id' => $this->settings->widgetRequestSourceId(),
+        ]);
+        if (! $res->success) {
+            return $res;
+        }
+
+        $ticketId = (int) ($res->data['ticketId'] ?? 0);
+        $this->recordImport($titulo, $ticketId, 'landing');
 
         return ServiceResult::ok(['ticketId' => $ticketId], "Tu ticket #{$ticketId} se creó correctamente.");
     }
@@ -584,9 +769,15 @@ class WidgetTicketService
         return $this->hwCache = $meta;
     }
 
+    /** Fixed widget category name (embedded widget). */
     private function categoryName(): string
     {
-        $id = $this->settings->widgetItilCategoryId();
+        return $this->categoryNameById($this->settings->widgetItilCategoryId());
+    }
+
+    /** Resolves a GLPI ITIL category id to its (complete) name; '' when not found. */
+    private function categoryNameById(int $id): string
+    {
         if ($id <= 0) {
             return '';
         }
@@ -602,16 +793,21 @@ class WidgetTicketService
     // Bookkeeping
     // ------------------------------------------------------------------
 
-    /** Leaves a trace row in servicedesk_imports for the history screen. */
-    private function recordImport(string $titulo, int $ticketId): void
+    /**
+     * Leaves a trace row in servicedesk_imports for the history screen.
+     *
+     * @param string $source 'widget' (embedded) or 'landing' (public page).
+     */
+    private function recordImport(string $titulo, int $ticketId, string $source = 'widget'): void
     {
         try {
-            $now = date('Y-m-d H:i:s');
+            $now   = date('Y-m-d H:i:s');
+            $label = $source === 'landing' ? 'Landing' : 'Widget';
             $this->imports->insert([
-                'name'            => 'Widget: ' . mb_substr($titulo, 0, 110) . ($ticketId > 0 ? " (Ticket #{$ticketId})" : ''),
-                'source_filename' => 'widget',
+                'name'            => $label . ': ' . mb_substr($titulo, 0, 110) . ($ticketId > 0 ? " (Ticket #{$ticketId})" : ''),
+                'source_filename' => $source,
                 'status'          => 'ready',
-                'source'          => 'widget',
+                'source'          => $source,
                 'total_rows'      => 1,
                 'processed_rows'  => 1,
                 'succeeded_rows'  => 1,

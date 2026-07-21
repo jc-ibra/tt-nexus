@@ -6,6 +6,7 @@ namespace App\Modules\ServiceDesk\Services;
 
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Provisioning\Services\CredentialCipher;
+use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 
 /**
@@ -427,6 +428,136 @@ TXT;
         $this->model->setMany($data);
 
         return ServiceResult::ok(null, 'Configuración del widget guardada.');
+    }
+
+    // ------------------------------------------------------------------
+    // Public self-service landing (standalone page -> single ticket)
+    //
+    // A public page at /soporte, independent from the embeddable widget: it has
+    // its own enable toggle and site key, collects the requester identity in a
+    // form (there is no intranet session), and lets the user PICK the ITIL
+    // category from the supported list (unlike the widget's fixed category). It
+    // shares the AI brain and the synchronous create pipeline.
+    // ------------------------------------------------------------------
+
+    public function landingEnabled(): bool
+    {
+        return $this->model->get('landing_enabled', '0') === '1';
+    }
+
+    /**
+     * Public site key for the landing, independent from the widget's. Generated
+     * (and persisted) lazily the first time it is needed. It is rendered into
+     * the public page and required on the chat/ticket POSTs (kill-switch + a
+     * light guard against off-page callers, alongside the same-origin check).
+     */
+    public function landingSiteKey(): string
+    {
+        $key = trim($this->model->get('landing_site_key', ''));
+        if ($key === '') {
+            $key = 'lnd_' . bin2hex(random_bytes(16));
+            $this->model->set('landing_site_key', $key);
+        }
+        return $key;
+    }
+
+    public function landingTitle(): string
+    {
+        $v = trim($this->model->get('landing_title', ''));
+        return $v !== '' ? $v : 'Mesa de Ayuda';
+    }
+
+    public function landingIntro(): string
+    {
+        $v = trim($this->model->get('landing_intro', ''));
+        return $v !== '' ? $v : 'Completa tus datos, elige la categoría y cuéntame qué necesitas; te ayudo a levantar tu ticket de soporte.';
+    }
+
+    /** Max landing requests per IP per hour (0 = unlimited). Applies to POSTs. */
+    public function landingRateLimitPerHour(): int
+    {
+        return max(0, (int) $this->model->get('landing_rate_limit_per_hour', '10'));
+    }
+
+    /**
+     * Plugin container ids whose additional fields the public landing form
+     * requests (empty = no extra fields, only the base ticket fields). The
+     * SuperAdmin picks these, mirroring the /servicedesk/creator container list.
+     *
+     * @return int[]
+     */
+    public function landingContainerIds(): array
+    {
+        $raw = trim($this->model->get('landing_container_ids', ''));
+        if ($raw === '') {
+            return [];
+        }
+        return array_values(array_filter(array_map(
+            static fn($v) => (int) trim($v),
+            explode(',', $raw),
+        ), static fn($v) => $v > 0));
+    }
+
+    /**
+     * Whether the public landing's COMPLETE FORM can create tickets: enabled and
+     * at least one ITIL category is marked as supported (the user picks one).
+     * The manual form does not need the AI.
+     */
+    public function landingFormReady(): bool
+    {
+        return $this->landingEnabled()
+            && (new ServiceDeskCategoryMapModel())->hasSupported();
+    }
+
+    /**
+     * Whether the landing's FLOATING CHAT can create tickets: the form is ready
+     * AND the AI is configured. The chat is the optional assistant on top of the
+     * form.
+     */
+    public function landingChatReady(): bool
+    {
+        return $this->landingFormReady() && $this->aiReady();
+    }
+
+    /** Back-compat alias: the chat path (chat()/createTicket) gates on chat readiness. */
+    public function landingReady(): bool
+    {
+        return $this->landingChatReady();
+    }
+
+    /**
+     * Persists the landing configuration form. The API key/model are shared with
+     * the AI creator (saveAi) and the assistant prompt with the widget, so they
+     * are not touched here.
+     */
+    public function saveLanding(array $input): ServiceResult
+    {
+        // Normalize the container id list to a clean CSV of positive ints.
+        $containers = $input['landing_container_ids'] ?? '';
+        if (is_array($containers)) {
+            $containers = implode(',', $containers);
+        }
+        $containerCsv = implode(',', array_values(array_filter(array_map(
+            static fn($v) => (int) trim((string) $v),
+            explode(',', (string) $containers),
+        ), static fn($v) => $v > 0)));
+
+        $data = [
+            'landing_enabled'             => ! empty($input['landing_enabled']) ? '1' : '0',
+            'landing_title'               => trim((string) ($input['landing_title'] ?? '')),
+            'landing_intro'               => trim((string) ($input['landing_intro'] ?? '')),
+            'landing_rate_limit_per_hour' => (string) max(0, (int) ($input['landing_rate_limit_per_hour'] ?? 10)),
+            'landing_container_ids'       => $containerCsv,
+        ];
+
+        // Regenerate the site key on request (invalidates the current URL's key).
+        if (! empty($input['regenerate_landing_key'])) {
+            $data['landing_site_key'] = 'lnd_' . bin2hex(random_bytes(16));
+        }
+
+        $this->model->setMany($data);
+
+        return ServiceResult::ok(null, 'Configuración de la landing guardada.');
     }
 
     // ------------------------------------------------------------------

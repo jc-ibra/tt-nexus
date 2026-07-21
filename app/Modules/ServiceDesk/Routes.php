@@ -60,6 +60,8 @@ $routes->group('admin/servicedesk', [
     $routes->post('backlog/test',  'ServiceDeskAdmin::sendBacklogTest',  ['as' => 'servicedesk.backlog.test']);
     // Live preview of the introspected plugin containers/fields.
     $routes->get('schema',         'ServiceDeskAdmin::schema',       ['as' => 'servicedesk.schema']);
+    // Public self-service landing config (enable, title/intro, key, rate limit).
+    $routes->post('landing',       'ServiceDeskAdmin::saveLanding',   ['as' => 'servicedesk.landing.save']);
 });
 
 // -----------------------------------------------------------------------
@@ -75,6 +77,23 @@ $routes->group('servicedesk/widget', [
     $routes->post('chat',    'Widget::chat',    ['as' => 'servicedesk.widget.chat']);
     $routes->post('ticket',  'Widget::ticket',  ['as' => 'servicedesk.widget.ticket']);
     $routes->options('(:any)', 'Widget::frame'); // CORS preflight (short-circuited by the filter)
+});
+
+// -----------------------------------------------------------------------
+// Public self-service LANDING — PUBLIC (no auth), the ONLY public page.
+// Standalone chat + form on Nexus's own domain; the user fills their identity
+// and picks the ITIL category. Gated by landing_access: enabled + site key +
+// same-origin + per-IP rate limit. Independent from the embeddable widget.
+// -----------------------------------------------------------------------
+$routes->group('soporte', [
+    'namespace' => 'App\Modules\ServiceDesk\Controllers',
+    'filter'    => 'landing_access',
+], function (RouteCollection $routes): void {
+    $routes->get('/',       'Landing::index',  ['as' => 'servicedesk.landing']);
+    $routes->post('submit', 'Landing::submit', ['as' => 'servicedesk.landing.submit']); // complete manual form
+    $routes->post('chat',   'Landing::chat',   ['as' => 'servicedesk.landing.chat']);   // floating chat
+    $routes->post('ticket', 'Landing::ticket', ['as' => 'servicedesk.landing.ticket']); // floating chat -> create
+    $routes->options('(:any)', 'Landing::index'); // CORS preflight (short-circuited by the filter)
 });
 
 // -----------------------------------------------------------------------
