@@ -2944,9 +2944,20 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/servicedesk/widget/embed.js?key={{widget_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["servicedesk", "widget", "embed.js"],
-              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicedesk",
+                "widget",
+                "embed.js"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{widget_site_key}}"
+                }
+              ]
             },
             "description": "Script que la intranet inserta con un <script src>. Inyecta el botón flotante y el iframe del chat."
           },
@@ -2959,9 +2970,20 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/servicedesk/widget/frame?key={{widget_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["servicedesk", "widget", "frame"],
-              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicedesk",
+                "widget",
+                "frame"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{widget_site_key}}"
+                }
+              ]
             },
             "description": "HTML del chat que vive dentro del iframe (mismo origen que Nexus)."
           },
@@ -2971,16 +2993,32 @@
           "name": "Widget — chat (turno conversacional)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"history\": [],\n  \"message\": \"No me funciona la impresora de recepción\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/servicedesk/widget/chat?key={{widget_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["servicedesk", "widget", "chat"],
-              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicedesk",
+                "widget",
+                "chat"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{widget_site_key}}"
+                }
+              ]
             },
             "description": "Un turno de conversación. Devuelve reply, question (opcional), draft (opcional, ticket listo para confirmar) e history actualizado que debe reenviarse en el siguiente turno."
           },
@@ -2990,16 +3028,32 @@
           "name": "Widget — ticket (crear, síncrono)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"draft\": {\n    \"titulo\": \"Impresora de recepción no imprime\",\n    \"descripcion\": \"La impresora marca error de papel aunque tiene hojas\",\n    \"tipo\": \"INCIDENCIA\",\n    \"solicitante\": \"Ana López\",\n    \"ubicacion\": \"Recepción, piso 1\",\n    \"es_hardware\": true,\n    \"equipo\": \"Impresora\",\n    \"modelo\": \"HP M404\",\n    \"serie\": \"VNB1234567\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/servicedesk/widget/ticket?key={{widget_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["servicedesk", "widget", "ticket"],
-              "query": [{ "key": "key", "value": "{{widget_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicedesk",
+                "widget",
+                "ticket"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{widget_site_key}}"
+                }
+              ]
             },
             "description": "Crea el ticket en GLPI de inmediato (estatus NUEVO, categoría fija, fecha actual, nombre y ubicación concatenados en la descripción, hardware a campos plugin) y devuelve data.ticketId."
           },
@@ -3018,8 +3072,12 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/soporte",
-              "host": ["{{base_url}}"],
-              "path": ["soporte"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "soporte"
+              ]
             },
             "description": "HTML de la landing pública. Si está deshabilitada o sin categorías soportadas, devuelve un aviso."
           },
@@ -3029,16 +3087,31 @@
           "name": "Landing — submit (formulario completo)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"identity\": {\n    \"nombre\": \"Ana López\",\n    \"correo\": \"ana@empresa.com\",\n    \"numero_empleado\": \"1010\"\n  },\n  \"categoryId\": 5,\n  \"titulo\": \"Impresora de recepción no imprime\",\n  \"tipo\": \"INCIDENCIA\",\n  \"descripcion\": \"La impresora marca error de papel aunque tiene hojas\",\n  \"ubicacion\": \"Recepción, piso 1\",\n  \"fields\": {\n    \"SUCURSAL\": \"Matriz\",\n    \"EQUIPO\": \"Impresora\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/soporte/submit?key={{landing_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["soporte", "submit"],
-              "query": [{ "key": "key", "value": "{{landing_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "soporte",
+                "submit"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{landing_site_key}}"
+                }
+              ]
             },
             "description": "Crea el ticket desde el formulario completo (sin IA): campos base + categoría soportada seleccionada + campos adicionales de los contenedores configurados por el admin (objeto fields keyed por encabezado). Devuelve data.ticketId."
           },
@@ -3048,16 +3121,31 @@
           "name": "Landing — chat (turno conversacional)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"history\": [],\n  \"message\": \"No me funciona la impresora de recepción\",\n  \"identity\": {\n    \"nombre\": \"Ana López\",\n    \"correo\": \"ana@empresa.com\",\n    \"numero_empleado\": \"1010\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/soporte/chat?key={{landing_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["soporte", "chat"],
-              "query": [{ "key": "key", "value": "{{landing_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "soporte",
+                "chat"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{landing_site_key}}"
+                }
+              ]
             },
             "description": "Un turno de conversación. La identidad viene del formulario de la landing. Devuelve reply, question (opcional), draft (opcional) e history actualizado."
           },
@@ -3067,20 +3155,424 @@
           "name": "Landing — ticket (crear, síncrono)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"draft\": {\n    \"titulo\": \"Impresora de recepción no imprime\",\n    \"descripcion\": \"La impresora marca error de papel aunque tiene hojas\",\n    \"tipo\": \"INCIDENCIA\",\n    \"ubicacion\": \"Recepción, piso 1\",\n    \"es_hardware\": true,\n    \"equipo\": \"Impresora\",\n    \"modelo\": \"HP M404\",\n    \"serie\": \"VNB1234567\"\n  },\n  \"identity\": {\n    \"nombre\": \"Ana López\",\n    \"correo\": \"ana@empresa.com\",\n    \"numero_empleado\": \"1010\"\n  },\n  \"categoryId\": 5\n}"
             },
             "url": {
               "raw": "{{base_url}}/soporte/ticket?key={{landing_site_key}}",
-              "host": ["{{base_url}}"],
-              "path": ["soporte", "ticket"],
-              "query": [{ "key": "key", "value": "{{landing_site_key}}" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "soporte",
+                "ticket"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{landing_site_key}}"
+                }
+              ]
             },
             "description": "Crea el ticket en GLPI de inmediato bajo la categoría ITIL seleccionada (categoryId, que debe ser una categoría soportada). Estatus NUEVO, fecha actual, identidad concatenada en la descripción, hardware a campos plugin. Devuelve data.ticketId."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Despacho de Correo — MailDispatch",
+      "item": [
+        {
+          "name": "List conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations?filter=unassigned",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations"
+              ],
+              "query": [
+                {
+                  "key": "filter",
+                  "value": "unassigned"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Show conversation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Claim conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/claim",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "claim"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/assign",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "assign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent_id\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Change status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"en_atencion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Close conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/close",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "close"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"disposition_id\": 1,\n  \"glpi_folio\": \"12345\",\n  \"close_comment\": \"Atendido\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reopen conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/reopen",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "reopen"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add internal note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/note",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "note"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Nota interna\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reply to thread (F3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/reply",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "reply"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Gracias por su mensaje.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/metrics?from=2026-07-01&to=2026-07-22",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-07-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-07-22"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dispositions catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/dispositions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "dispositions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Active agents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "agents"
+              ]
+            }
+          }
         }
       ]
     }

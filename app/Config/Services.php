@@ -62,6 +62,21 @@ use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
 use App\Modules\ServiceDesk\Services\TicketTemplateBuilder;
 use App\Modules\ServiceDesk\Services\WidgetTicketService;
+use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
+use App\Modules\MailDispatch\Models\AgentModel as MailDispatchAgentModel;
+use App\Modules\MailDispatch\Models\ConversationModel as MailDispatchConversationModel;
+use App\Modules\MailDispatch\Models\DispositionModel as MailDispatchDispositionModel;
+use App\Modules\MailDispatch\Models\EventModel as MailDispatchEventModel;
+use App\Modules\MailDispatch\Models\MailDispatchSettingsModel;
+use App\Modules\MailDispatch\Models\MessageModel as MailDispatchMessageModel;
+use App\Modules\MailDispatch\Models\SyncRunModel as MailDispatchSyncRunModel;
+use App\Modules\MailDispatch\Models\SyncStateModel as MailDispatchSyncStateModel;
+use App\Modules\MailDispatch\Services\ConversationService as MailDispatchConversationService;
+use App\Modules\MailDispatch\Services\GraphMailService;
+use App\Modules\MailDispatch\Services\MailboxSyncService;
+use App\Modules\MailDispatch\Services\MailDispatchMetrics;
+use App\Modules\MailDispatch\Services\MailDispatchSettings;
+use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -377,6 +392,90 @@ class Services extends BaseService
             new ServiceDeskBacklogRunModel(),
             self::mailerService(),
             new ServiceDeskCategoryMapModel(),
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // MailDispatch module
+    // -----------------------------------------------------------------------
+
+    public static function mailDispatchSettings(bool $getShared = true): MailDispatchSettings
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchSettings');
+        }
+        return new MailDispatchSettings(new MailDispatchSettingsModel());
+    }
+
+    /**
+     * Graph client built from the stored settings. Not shared: credentials may
+     * change and the token is cached per-instance.
+     */
+    public static function graphMailService(bool $getShared = true): GraphMailService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('graphMailService');
+        }
+        $s = self::mailDispatchSettings();
+        return new GraphMailService(
+            $s->tenantId(),
+            $s->clientId(),
+            $s->clientSecret(),
+            $s->mailbox(),
+            new MailDispatchConfig(),
+        );
+    }
+
+    public static function mailDispatchConversations(bool $getShared = true): MailDispatchConversationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchConversations');
+        }
+        return new MailDispatchConversationService(
+            new MailDispatchConversationModel(),
+            new MailDispatchMessageModel(),
+            new MailDispatchEventModel(),
+            new MailDispatchDispositionModel(),
+            new MailDispatchAgentModel(),
+        );
+    }
+
+    public static function mailboxSyncService(bool $getShared = true): MailboxSyncService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailboxSyncService');
+        }
+        return new MailboxSyncService(
+            self::mailDispatchSettings(),
+            self::mailDispatchConversations(),
+            new MailDispatchSyncStateModel(),
+            new MailDispatchSyncRunModel(),
+        );
+    }
+
+    public static function mailDispatchMetrics(bool $getShared = true): MailDispatchMetrics
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchMetrics');
+        }
+        return new MailDispatchMetrics(
+            new MailDispatchConversationModel(),
+            new MailDispatchMessageModel(),
+            self::mailDispatchSettings(),
+        );
+    }
+
+    public static function mailDispatchReplyService(bool $getShared = true): MailDispatchReplyService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchReplyService');
+        }
+        return new MailDispatchReplyService(
+            self::mailDispatchSettings(),
+            self::graphMailService(),
+            new MailDispatchConversationModel(),
+            new MailDispatchMessageModel(),
+            new MailDispatchEventModel(),
         );
     }
 }

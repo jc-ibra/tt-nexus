@@ -9,6 +9,7 @@ $moduleIcons = [
     'employees'       => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     'provisioning'    => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
     'servicedesk'     => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 16a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h3z"/><path d="M3 16a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1H3z"/><path d="M12 18v1a3 3 0 0 1-3 3"/></svg>',
+    'mail_dispatch'   => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -134,6 +135,26 @@ $moduleSubnav = [
             'active' => str_starts_with($currentPath, '/servicedesk/imports'),
         ],
     ],
+    'mail_dispatch' => [
+        [
+            'label'  => 'Bandeja',
+            'url'    => base_url('dispatch'),
+            'active' => $currentPath === '/dispatch'
+                || (str_starts_with($currentPath, '/dispatch/')
+                    && ! str_starts_with($currentPath, '/dispatch/metrics')
+                    && ! str_starts_with($currentPath, '/dispatch/templates')),
+        ],
+        [
+            'label'  => 'Métricas',
+            'url'    => base_url('dispatch/metrics'),
+            'active' => str_starts_with($currentPath, '/dispatch/metrics'),
+        ],
+        [
+            'label'  => 'Plantillas',
+            'url'    => base_url('dispatch/templates'),
+            'active' => str_starts_with($currentPath, '/dispatch/templates'),
+        ],
+    ],
 ];
 ?>
 
@@ -146,7 +167,8 @@ $moduleSubnav = [
   $configOpen = str_starts_with($currentPath, '/admin/settings/smtp')
       || str_starts_with($currentPath, '/admin/mailboxes')
       || str_starts_with($currentPath, '/admin/provisioning')
-      || str_starts_with($currentPath, '/admin/servicedesk');
+      || str_starts_with($currentPath, '/admin/servicedesk')
+      || str_starts_with($currentPath, '/admin/dispatch');
 ?>
 
 <nav aria-label="Navegación principal">
@@ -220,6 +242,10 @@ $moduleSubnav = [
       <a href="<?= route_to('servicedesk.settings') ?>" role="listitem"
          class="nav-subitem <?= str_starts_with($currentPath, '/admin/servicedesk') ? 'is-active' : '' ?>">
         Service Desk
+      </a>
+      <a href="<?= route_to('dispatch.settings') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/dispatch') ? 'is-active' : '' ?>">
+        Despacho de Correo
       </a>
     </div>
   </div>

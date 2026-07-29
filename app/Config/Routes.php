@@ -17,3 +17,4 @@ require APPPATH . 'Modules/Mailboxes/Routes.php';
 require APPPATH . 'Modules/Employees/Routes.php';
 require APPPATH . 'Modules/Provisioning/Routes.php';
 require APPPATH . 'Modules/ServiceDesk/Routes.php';
+require APPPATH . 'Modules/MailDispatch/Routes.php';

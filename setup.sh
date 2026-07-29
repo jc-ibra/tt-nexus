@@ -193,6 +193,9 @@ run_seeder "App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder"         
 # ServiceDesk
 run_seeder "App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder"     "ServiceDeskModuleSeeder"
 
+# MailDispatch
+run_seeder "App\Modules\MailDispatch\Database\Seeders\MailDispatchModuleSeeder"   "MailDispatchModuleSeeder"
+
 # ── Verificación de esquema ────────────────────────────────────────────────────
 # Confirma que CADA tabla declarada por las migraciones exista físicamente. Es la
 # red de seguridad contra el problema recurrente de "tablas faltantes": si algo
