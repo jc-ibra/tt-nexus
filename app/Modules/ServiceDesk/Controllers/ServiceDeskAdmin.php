@@ -24,11 +24,31 @@ class ServiceDeskAdmin extends BaseController
         $configured   = $introspector->isConfigured();
         $settings     = service('serviceDeskSettings');
 
+        // GLPI is an EXTERNAL DB. If it is enabled but unreachable, the schema
+        // introspection throws — but this config page is exactly where the admin
+        // goes to fix/disable that connection, so it must not 500. Degrade to
+        // empty pickers plus a banner instead of crashing.
+        $containers   = [];
+        $backlogRoots = [];
+        $glpiError    = null;
+        if ($configured) {
+            try {
+                $containers   = $introspector->containerOptions();
+                $backlogRoots = $introspector->rootCategories();
+            } catch (\Throwable $e) {
+                $glpiError = 'No se pudo conectar a la base de datos de GLPI. '
+                    . 'Verifica que el servidor de GLPI esté disponible y que los datos en «Aprovisionamiento → Sistemas» sean correctos. '
+                    . 'Detalle: ' . $e->getMessage();
+                log_message('error', '[ServiceDeskAdmin] GLPI DB unreachable on settings: ' . $e->getMessage());
+            }
+        }
+
         return view('App\Modules\ServiceDesk\Views\settings', [
             'pageTitle'      => 'Configuración · Service Desk',
             'configured'     => $configured,
+            'glpiError'      => $glpiError,
             'settings'       => $settings->all(),
-            'containers'     => $configured ? $introspector->containerOptions() : [],
+            'containers'     => $containers,
             'aiModels'       => ServiceDeskSettings::AI_MODELS,
             'aiHasKey'       => $settings->aiHasApiKey(),
             'aiInstructions' => $settings->aiSystemPrompt(),
@@ -41,7 +61,7 @@ class ServiceDeskAdmin extends BaseController
             'hasSupportedCats' => (new ServiceDeskCategoryMapModel())->hasSupported(),
             // Backlog report tab.
             'backlogAreas'   => (new \App\Modules\ServiceDesk\Config\ServiceDesk())->backlogAreas,
-            'backlogRoots'   => $configured ? $introspector->rootCategories() : [],
+            'backlogRoots'   => $backlogRoots,
             'backlogAreaMap' => (new ServiceDeskBacklogAreaModel())->all(),
             'backlogRuns'    => (new ServiceDeskBacklogRunModel())->recent(8),
         ]);
