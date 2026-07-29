@@ -35,12 +35,13 @@ class AiFormatterService
      * Returns a structured result. On any problem it degrades to the original
      * text with ok=false — callers should still offer that text to the user.
      *
-     * @return array{ok:bool,formatted:string,original:string,tokens:int,error:?string}
+     * @return array{ok:bool,formatted:string,original:string,tokens:int,input:int,output:int,model:string,error:?string}
      */
     public function format(string $rawText): array
     {
         $rawText = trim($rawText);
-        $fallback = ['ok' => false, 'formatted' => $rawText, 'original' => $rawText, 'tokens' => 0, 'error' => null];
+        $model   = $this->serviceDeskSettings->aiModel();
+        $fallback = ['ok' => false, 'formatted' => $rawText, 'original' => $rawText, 'tokens' => 0, 'input' => 0, 'output' => 0, 'model' => $model, 'error' => null];
 
         if ($rawText === '' || ! $this->isAvailable()) {
             return $fallback;
@@ -50,7 +51,7 @@ class AiFormatterService
             $client  = new AnthropicClient(apiKey: $this->serviceDeskSettings->aiApiKey());
             $message = $client->messages->create(
                 maxTokens: $this->settings->aiMaxTokens(),
-                model: $this->serviceDeskSettings->aiModel(),
+                model: $model,
                 system: [[
                     'type' => 'text',
                     'text' => $this->settings->aiSystemPrompt(),
@@ -62,8 +63,11 @@ class AiFormatterService
             );
         } catch (\Throwable $e) {
             log_message('error', '[TechBot][AI] format failed: ' . $e->getMessage());
-            return ['ok' => false, 'formatted' => $rawText, 'original' => $rawText, 'tokens' => 0, 'error' => $e->getMessage()];
+            return ['ok' => false, 'formatted' => $rawText, 'original' => $rawText, 'tokens' => 0, 'input' => 0, 'output' => 0, 'model' => $model, 'error' => $e->getMessage()];
         }
+
+        $input  = (int) ($message->usage->inputTokens ?? 0);
+        $output = (int) ($message->usage->outputTokens ?? 0);
 
         $formatted = '';
         foreach ($message->content as $block) {
@@ -76,8 +80,15 @@ class AiFormatterService
             return $fallback;
         }
 
-        $tokens = (int) (($message->usage->inputTokens ?? 0) + ($message->usage->outputTokens ?? 0));
-
-        return ['ok' => true, 'formatted' => $formatted, 'original' => $rawText, 'tokens' => $tokens, 'error' => null];
+        return [
+            'ok'        => true,
+            'formatted' => $formatted,
+            'original'  => $rawText,
+            'tokens'    => $input + $output,
+            'input'     => $input,
+            'output'    => $output,
+            'model'     => $model,
+            'error'     => null,
+        ];
     }
 }

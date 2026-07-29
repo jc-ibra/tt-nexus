@@ -8,6 +8,9 @@
   .tb-kpi-label { color:var(--text-subdued); font-size:var(--font-size-sm); margin-top:4px; }
   .tb-cols { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); align-items:start; }
   @media (max-width: 900px){ .tb-cols { grid-template-columns:1fr; } }
+  .tb-ai { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:var(--space-4); }
+  .tb-ai-value { font-size:var(--font-size-xl,22px); font-weight:700; color:var(--text-primary); }
+  .tb-ai-label { color:var(--text-subdued); font-size:var(--font-size-sm); margin-top:2px; }
 </style>
 <?= $this->endSection() ?>
 
@@ -37,6 +40,20 @@
   <div class="tb-kpi"><div class="tb-kpi-value"><?= (int) $actionsWeek ?></div><div class="tb-kpi-label">Esta semana</div></div>
   <div class="tb-kpi"><div class="tb-kpi-value"><?= (int) $actionsMonth ?></div><div class="tb-kpi-label">Este mes</div></div>
   <div class="tb-kpi"><div class="tb-kpi-value"><?= (int) $errorsToday ?></div><div class="tb-kpi-label">Errores hoy</div></div>
+</div>
+
+<?php $ai = $aiUsage ?? ['calls' => 0, 'input' => 0, 'output' => 0, 'cost' => 0, 'accepted' => 0]; ?>
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header"><h2 class="card-title">Uso de IA (últimos 30 días)</h2></div>
+  <div class="card-body">
+    <div class="tb-ai">
+      <div><div class="tb-ai-value"><?= number_format((int) $ai['calls']) ?></div><div class="tb-ai-label">Formateos (llamadas)</div></div>
+      <div><div class="tb-ai-value"><?= number_format((int) $ai['input']) ?></div><div class="tb-ai-label">Tokens entrada</div></div>
+      <div><div class="tb-ai-value"><?= number_format((int) $ai['output']) ?></div><div class="tb-ai-label">Tokens salida</div></div>
+      <div><div class="tb-ai-value">$<?= number_format((float) $ai['cost'], 4) ?></div><div class="tb-ai-label">Costo estimado</div></div>
+      <div><div class="tb-ai-value"><?= number_format((int) $ai['accepted']) ?></div><div class="tb-ai-label">Formateos aceptados</div></div>
+    </div>
+  </div>
 </div>
 
 <div class="tb-cols">

@@ -6,6 +6,7 @@ namespace App\Modules\TechBot\Controllers;
 
 use App\Controllers\BaseController;
 use App\Modules\TechBot\Models\ActivityLogModel;
+use App\Modules\TechBot\Models\AiUsageModel;
 use App\Modules\TechBot\Models\TelegramLinkModel;
 use App\Modules\TechBot\Services\TemplateService;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -40,6 +41,7 @@ class TechBot extends BaseController
             'recentErrors'   => $activity->recentErrors(6),
             'recentActivity' => $activity->recentWithEmployee([], 10),
             'botReady'       => service('techBotSettings')->botReady(),
+            'aiUsage'        => (new AiUsageModel())->summary(30),
         ]);
     }
 

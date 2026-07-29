@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\TechBot\Services;
 
 use App\Modules\TechBot\Models\ActivityLogModel;
+use App\Modules\TechBot\Models\AiUsageModel;
 use App\Modules\TechBot\Models\ConversationStateModel;
 
 /**
@@ -38,6 +39,7 @@ class ConversationService
         private AiFormatterService $ai,
         private ConversationStateModel $states,
         private ActivityLogModel $activity,
+        private AiUsageModel $aiUsage,
     ) {}
 
     /**
@@ -488,12 +490,26 @@ class ConversationService
         // AI formatting (optional, non-blocking).
         if (! empty($field['ai']) && $this->ai->isAvailable()) {
             $result = $this->ai->format($raw);
+
+            // Log the call the moment it succeeds — tokens are spent regardless
+            // of which text the technician ends up keeping.
+            $usageId = null;
+            if ($result['ok']) {
+                $usageId = $this->aiUsage->record(
+                    (int) $link['employee_id'],
+                    (string) $result['model'],
+                    (int) $result['input'],
+                    (int) $result['output'],
+                );
+            }
+
             if ($result['ok'] && $result['formatted'] !== $raw) {
                 $context['_fmt'] = [
                     'field'     => $field['key'],
                     'original'  => $raw,
                     'formatted' => $result['formatted'],
                     'tokens'    => $result['tokens'],
+                    'usage_id'  => $usageId,
                 ];
                 $ticketId = (int) ($context['ticket']['id'] ?? $this->currentTicketId($chatId));
                 $this->states->saveState($chatId, self::S_CHOOSE_FORMAT, $context, $ticketId);
@@ -525,6 +541,11 @@ class ConversationService
         $context['data'][$fmt['field']] = $choice === 'ai' ? $fmt['formatted'] : $fmt['original'];
         $context['ai_used']    = $choice === 'ai';
         $context['ai_tokens']  = $choice === 'ai' ? (int) $fmt['tokens'] : (int) ($context['ai_tokens'] ?? 0) + (int) $fmt['tokens'];
+
+        // Mark the usage row as accepted when the technician keeps the AI text.
+        if ($choice === 'ai' && ! empty($fmt['usage_id'])) {
+            $this->aiUsage->markAccepted((int) $fmt['usage_id']);
+        }
         unset($context['_fmt']);
         array_shift($context['queue']);
         $this->advance($link, $chatId, $context);

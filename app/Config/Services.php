@@ -78,6 +78,7 @@ use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
 use App\Modules\TechBot\Models\ActivityLogModel as TechBotActivityLogModel;
+use App\Modules\TechBot\Models\AiUsageModel as TechBotAiUsageModel;
 use App\Modules\TechBot\Models\ConversationStateModel as TechBotConversationStateModel;
 use App\Modules\TechBot\Models\TechBotSettingsModel;
 use App\Modules\TechBot\Models\TelegramLinkModel;
@@ -551,6 +552,7 @@ class Services extends BaseService
             self::techBotAiFormatter(),
             new TechBotConversationStateModel(),
             new TechBotActivityLogModel(),
+            new TechBotAiUsageModel(),
         );
     }
 
