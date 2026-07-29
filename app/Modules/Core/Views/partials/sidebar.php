@@ -10,6 +10,7 @@ $moduleIcons = [
     'provisioning'    => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
     'servicedesk'     => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 16a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h3z"/><path d="M3 16a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1H3z"/><path d="M12 18v1a3 3 0 0 1-3 3"/></svg>',
     'mail_dispatch'   => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+    'techbot'         => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M8 13h.01"/><path d="M16 13h.01"/><path d="M9 17h6"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -153,6 +154,28 @@ $moduleSubnav = [
             'label'  => 'Plantillas',
             'url'    => base_url('dispatch/templates'),
             'active' => str_starts_with($currentPath, '/dispatch/templates'),
+        ],
+    ],
+    'techbot' => [
+        [
+            'label'  => 'Panel',
+            'url'    => base_url('techbot'),
+            'active' => $currentPath === '/techbot',
+        ],
+        [
+            'label'  => 'Técnicos',
+            'url'    => base_url('techbot/links'),
+            'active' => str_starts_with($currentPath, '/techbot/links'),
+        ],
+        [
+            'label'  => 'Actividad',
+            'url'    => base_url('techbot/activity'),
+            'active' => str_starts_with($currentPath, '/techbot/activity'),
+        ],
+        [
+            'label'  => 'Configuración',
+            'url'    => base_url('techbot/settings'),
+            'active' => str_starts_with($currentPath, '/techbot/settings'),
         ],
     ],
 ];

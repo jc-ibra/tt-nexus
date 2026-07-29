@@ -47,15 +47,17 @@ app/Modules/
   Mailboxes/         # Mailcow mailbox admin via API. Routes /mailboxes/*, key `mailboxes` (UI display "Buzones")
   Provisioning/      # Identity lifecycle orchestrator → GLPI, Mailcow, Intranet. Routes /aprovisionamiento/*, key `provisioning` (UI display "Aprovisionamiento")
   ServiceDesk/       # Bulk ticket import into GLPI with plugin additional-fields. Routes /servicedesk/*, key `servicedesk` (UI display "Service Desk")
+  MailDispatch/      # Shared M365 mailbox dispatching via Graph. Routes /dispatch/*, key `mail_dispatch`
+  TechBot/           # Telegram bot for field technicians to document GLPI tickets. Routes /techbot/*, key `techbot`
 ```
 
 **Core Principles:**
-- Each module registers its namespace in `app/Config/Autoload.php` (`$psr4` array — currently all seven above)
+- Each module registers its namespace in `app/Config/Autoload.php` (`$psr4` array — currently all nine above)
 - Routes are declared in each module's `Routes.php`
 - Migrations are module-scoped
 - Module registration via `modules` table tracks which roles can access which modules
 - **Critical:** Module access is never hardcoded; it's validated at runtime via filters against the user's roles
-- **Table naming:** every table carries its module prefix baked into the literal `createTable()` name (`core_`, `comms_`, `employees_`, `kpi_glpi_`, `mailboxes_`, `provisioning_`, `servicedesk_`), even though `DBPrefix` is empty in `Database.php`. A `Table '…' doesn't exist` error is usually a hardcoded name missing its prefix in raw SQL, **not** a missing migration — `grep` the exact name first before suspecting setup.
+- **Table naming:** every table carries its module prefix baked into the literal `createTable()` name (`core_`, `comms_`, `employees_`, `kpi_glpi_`, `mailboxes_`, `provisioning_`, `servicedesk_`, `techbot_`), even though `DBPrefix` is empty in `Database.php`. A `Table '…' doesn't exist` error is usually a hardcoded name missing its prefix in raw SQL, **not** a missing migration — `grep` the exact name first before suspecting setup.
 - **Cross-module reuse via services only:** e.g. Provisioning reuses Mailboxes' `MailcowApi` without modifying it.
 
 ### Authentication & Authorization

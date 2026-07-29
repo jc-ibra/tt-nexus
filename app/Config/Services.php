@@ -77,6 +77,17 @@ use App\Modules\MailDispatch\Services\MailboxSyncService;
 use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
+use App\Modules\TechBot\Models\ActivityLogModel as TechBotActivityLogModel;
+use App\Modules\TechBot\Models\ConversationStateModel as TechBotConversationStateModel;
+use App\Modules\TechBot\Models\TechBotSettingsModel;
+use App\Modules\TechBot\Models\TelegramLinkModel;
+use App\Modules\TechBot\Services\AiFormatterService as TechBotAiFormatterService;
+use App\Modules\TechBot\Services\ConversationService as TechBotConversationService;
+use App\Modules\TechBot\Services\GlpiFieldService;
+use App\Modules\TechBot\Services\TechBotSettingsService;
+use App\Modules\TechBot\Services\TelegramApiService;
+use App\Modules\TechBot\Services\TelegramWebhookService;
+use App\Modules\TechBot\Services\TemplateService as TechBotTemplateService;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -476,6 +487,85 @@ class Services extends BaseService
             new MailDispatchConversationModel(),
             new MailDispatchMessageModel(),
             new MailDispatchEventModel(),
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // TechBot module (Telegram bot for field technicians)
+    // -----------------------------------------------------------------------
+
+    public static function techBotSettings(bool $getShared = true): TechBotSettingsService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotSettings');
+        }
+        return new TechBotSettingsService(new TechBotSettingsModel());
+    }
+
+    public static function techBotTelegramApi(bool $getShared = true): TelegramApiService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotTelegramApi');
+        }
+        return new TelegramApiService(self::techBotSettings());
+    }
+
+    public static function techBotGlpiField(bool $getShared = true): GlpiFieldService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotGlpiField');
+        }
+        return new GlpiFieldService(
+            new ProvisioningSystemModel(),
+            new ProvisioningSystemCredentialModel(),
+            self::credentialCipher(),
+        );
+    }
+
+    public static function techBotTemplates(bool $getShared = true): TechBotTemplateService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotTemplates');
+        }
+        return new TechBotTemplateService();
+    }
+
+    public static function techBotAiFormatter(bool $getShared = true): TechBotAiFormatterService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotAiFormatter');
+        }
+        return new TechBotAiFormatterService(self::techBotSettings(), self::serviceDeskSettings());
+    }
+
+    public static function techBotConversation(bool $getShared = true): TechBotConversationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotConversation');
+        }
+        return new TechBotConversationService(
+            self::techBotTelegramApi(),
+            self::techBotSettings(),
+            self::techBotTemplates(),
+            self::techBotGlpiField(),
+            self::techBotAiFormatter(),
+            new TechBotConversationStateModel(),
+            new TechBotActivityLogModel(),
+        );
+    }
+
+    public static function techBotWebhook(bool $getShared = true): TelegramWebhookService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('techBotWebhook');
+        }
+        return new TelegramWebhookService(
+            self::techBotSettings(),
+            self::techBotTelegramApi(),
+            self::techBotConversation(),
+            new TelegramLinkModel(),
+            new EmployeeModel(),
+            new ProvisioningExternalAccountModel(),
         );
     }
 }

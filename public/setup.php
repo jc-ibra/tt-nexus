@@ -73,6 +73,7 @@ $SEEDERS = [
     ['App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder', 'MsLicensesSeeder'],
     ['App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder', 'ServiceDeskModuleSeeder'],
     ['App\Modules\MailDispatch\Database\Seeders\MailDispatchModuleSeeder', 'MailDispatchModuleSeeder'],
+    ['App\Modules\TechBot\Database\Seeders\TechBotModuleSeeder', 'TechBotModuleSeeder'],
 ];
 
 $only = $_GET['only'] ?? '';
