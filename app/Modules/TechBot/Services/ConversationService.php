@@ -603,18 +603,22 @@ class ConversationService
 
         $text = $this->renderText($link, $flow, $ticketId);
 
-        // Create the followup/solution.
+        // Create the followup/solution, attributed to the technician.
         $followupId = match ($meta['type']) {
-            TemplateService::TYPE_FOLLOWUP => $this->glpi->addFollowup($ticketId, $text, true),
-            TemplateService::TYPE_PENDING  => $this->glpi->addFollowupAndWait($ticketId, $text),
-            TemplateService::TYPE_SOLUTION => $this->glpi->addSolution($ticketId, $text),
+            TemplateService::TYPE_FOLLOWUP => $this->glpi->addFollowup($ticketId, $text, true, $glpiUser),
+            TemplateService::TYPE_PENDING  => $this->glpi->addFollowupAndWait($ticketId, $text, $glpiUser),
+            TemplateService::TYPE_SOLUTION => $this->glpi->addSolution($ticketId, $text, $glpiUser),
             default => null,
         };
 
         if ($followupId === null) {
-            $this->log($link, $chatId, $ticketId, $action, $meta, null, $statusBefore, $statusBefore, $flow, 'error', 'GLPI rechazó la operación.');
+            $reason = $this->glpi->lastError ?: 'GLPI rechazó la operación.';
+            $this->log($link, $chatId, $ticketId, $action, $meta, null, $statusBefore, $statusBefore, $flow, 'error', $reason);
             $this->states->reset($chatId);
-            $this->telegram->sendMessage($chatId, 'No se pudo registrar la acción en GLPI. Intenta de nuevo más tarde o contacta a Mesa de Ayuda.');
+            $this->telegram->sendMessage(
+                $chatId,
+                "No se pudo registrar la acción en GLPI.\nMotivo: " . $reason . "\n\nIntenta de nuevo o contacta a Mesa de Ayuda."
+            );
             return;
         }
 

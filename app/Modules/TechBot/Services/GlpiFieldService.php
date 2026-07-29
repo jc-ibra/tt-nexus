@@ -54,6 +54,12 @@ class GlpiFieldService
 
     private ?array $config = null;
 
+    /**
+     * Last error message from a failed write (followup/solution/attach). Callers
+     * read this to surface the real GLPI reason instead of a generic message.
+     */
+    public ?string $lastError = null;
+
     public function __construct(
         private ProvisioningSystemModel $systemModel,
         private ProvisioningSystemCredentialModel $credentialModel,
@@ -198,10 +204,12 @@ class GlpiFieldService
      * "waiting" (4), it is moved back to "processing" (3) FIRST so the SLA
      * resumes (spec §8.5.1). Returns the created followup id or null.
      */
-    public function addFollowup(int $ticketId, string $content, bool $resumeSla = true): ?int
+    public function addFollowup(int $ticketId, string $content, bool $resumeSla = true, ?int $authorUserId = null): ?int
     {
+        $this->lastError = null;
         $session = $this->openSession();
         if (! $session['ok']) {
+            $this->lastError = $session['error'];
             return null;
         }
         $token = $session['token'];
@@ -213,14 +221,19 @@ class GlpiFieldService
             }
         }
 
+        $input = ['content' => $content, 'is_private' => 0];
+        if ($authorUserId !== null && $authorUserId > 0) {
+            $input['users_id'] = $authorUserId; // attribute to the technician
+        }
         $resp = $this->request('POST', 'Ticket/' . $ticketId . '/ITILFollowup', [
-            'input' => ['content' => $content, 'is_private' => 0],
+            'input' => $input,
         ], $token);
 
         $this->closeSession($token);
 
         if (! $resp['ok']) {
-            log_message('error', '[TechBot][GLPI] addFollowup failed: ' . ($resp['error'] ?? ''));
+            $this->lastError = $resp['error'] ?? 'GLPI rechazó el followup.';
+            log_message('error', '[TechBot][GLPI] addFollowup failed: ' . $this->lastError);
             return null;
         }
         return $this->extractId($resp['data']);
@@ -231,21 +244,28 @@ class GlpiFieldService
      * (spec §8.5.2: create the followup FIRST, then change status). Returns the
      * followup id or null.
      */
-    public function addFollowupAndWait(int $ticketId, string $content): ?int
+    public function addFollowupAndWait(int $ticketId, string $content, ?int $authorUserId = null): ?int
     {
+        $this->lastError = null;
         $session = $this->openSession();
         if (! $session['ok']) {
+            $this->lastError = $session['error'];
             return null;
         }
         $token = $session['token'];
 
+        $input = ['content' => $content, 'is_private' => 0];
+        if ($authorUserId !== null && $authorUserId > 0) {
+            $input['users_id'] = $authorUserId;
+        }
         $resp = $this->request('POST', 'Ticket/' . $ticketId . '/ITILFollowup', [
-            'input' => ['content' => $content, 'is_private' => 0],
+            'input' => $input,
         ], $token);
 
         if (! $resp['ok']) {
             $this->closeSession($token);
-            log_message('error', '[TechBot][GLPI] addFollowupAndWait followup failed: ' . ($resp['error'] ?? ''));
+            $this->lastError = $resp['error'] ?? 'GLPI rechazó el followup.';
+            log_message('error', '[TechBot][GLPI] addFollowupAndWait followup failed: ' . $this->lastError);
             return null;
         }
 
@@ -261,22 +281,29 @@ class GlpiFieldService
      * "solved" (5) when a solution is created, so no extra PUT is needed
      * (spec §8.3, §8.5.3). Returns the solution id or null.
      */
-    public function addSolution(int $ticketId, string $content): ?int
+    public function addSolution(int $ticketId, string $content, ?int $authorUserId = null): ?int
     {
+        $this->lastError = null;
         $session = $this->openSession();
         if (! $session['ok']) {
+            $this->lastError = $session['error'];
             return null;
         }
         $token = $session['token'];
 
+        $input = ['content' => $content];
+        if ($authorUserId !== null && $authorUserId > 0) {
+            $input['users_id'] = $authorUserId;
+        }
         $resp = $this->request('POST', 'Ticket/' . $ticketId . '/ITILSolution', [
-            'input' => ['content' => $content],
+            'input' => $input,
         ], $token);
 
         $this->closeSession($token);
 
         if (! $resp['ok']) {
-            log_message('error', '[TechBot][GLPI] addSolution failed: ' . ($resp['error'] ?? ''));
+            $this->lastError = $resp['error'] ?? 'GLPI rechazó la solución.';
+            log_message('error', '[TechBot][GLPI] addSolution failed: ' . $this->lastError);
             return null;
         }
         return $this->extractId($resp['data']);
