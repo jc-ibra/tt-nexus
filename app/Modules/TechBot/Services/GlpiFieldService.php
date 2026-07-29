@@ -200,6 +200,27 @@ class GlpiFieldService
     // ------------------------------------------------------------------
 
     /**
+     * Builds the ITILFollowup input. GLPI's REST API creates sub-items on the
+     * TOP-LEVEL endpoint (POST /ITILFollowup) with the parent linked via
+     * itemtype + items_id — the nested POST /Ticket/{id}/ITILFollowup does not
+     * associate the parent, so GLPI cannot validate rights and returns
+     * ERROR_RIGHT_MISSING even for a super-admin token.
+     */
+    private function followupInput(int $ticketId, string $content, ?int $authorUserId): array
+    {
+        $input = [
+            'itemtype'   => 'Ticket',
+            'items_id'   => $ticketId,
+            'content'    => $content,
+            'is_private' => 0,
+        ];
+        if ($authorUserId !== null && $authorUserId > 0) {
+            $input['users_id'] = $authorUserId; // attribute to the technician
+        }
+        return $input;
+    }
+
+    /**
      * Adds a followup to a ticket. When $resumeSla is true and the ticket sits in
      * "waiting" (4), it is moved back to "processing" (3) FIRST so the SLA
      * resumes (spec §8.5.1). Returns the created followup id or null.
@@ -221,12 +242,8 @@ class GlpiFieldService
             }
         }
 
-        $input = ['content' => $content, 'is_private' => 0];
-        if ($authorUserId !== null && $authorUserId > 0) {
-            $input['users_id'] = $authorUserId; // attribute to the technician
-        }
-        $resp = $this->request('POST', 'Ticket/' . $ticketId . '/ITILFollowup', [
-            'input' => $input,
+        $resp = $this->request('POST', 'ITILFollowup', [
+            'input' => $this->followupInput($ticketId, $content, $authorUserId),
         ], $token);
 
         $this->closeSession($token);
@@ -254,12 +271,8 @@ class GlpiFieldService
         }
         $token = $session['token'];
 
-        $input = ['content' => $content, 'is_private' => 0];
-        if ($authorUserId !== null && $authorUserId > 0) {
-            $input['users_id'] = $authorUserId;
-        }
-        $resp = $this->request('POST', 'Ticket/' . $ticketId . '/ITILFollowup', [
-            'input' => $input,
+        $resp = $this->request('POST', 'ITILFollowup', [
+            'input' => $this->followupInput($ticketId, $content, $authorUserId),
         ], $token);
 
         if (! $resp['ok']) {
@@ -291,11 +304,15 @@ class GlpiFieldService
         }
         $token = $session['token'];
 
-        $input = ['content' => $content];
+        $input = [
+            'itemtype' => 'Ticket',
+            'items_id' => $ticketId,
+            'content'  => $content,
+        ];
         if ($authorUserId !== null && $authorUserId > 0) {
             $input['users_id'] = $authorUserId;
         }
-        $resp = $this->request('POST', 'Ticket/' . $ticketId . '/ITILSolution', [
+        $resp = $this->request('POST', 'ITILSolution', [
             'input' => $input,
         ], $token);
 
@@ -457,8 +474,11 @@ class GlpiFieldService
 
         $data = json_decode((string) $response, true);
         if ($httpCode >= 400) {
-            $msg = is_array($data) && isset($data[1]) ? (string) $data[1] : "HTTP {$httpCode}";
-            return ['ok' => false, 'data' => $data, 'error' => $msg];
+            // GLPI errors come back as ["ERROR_CODE", "human message"].
+            $code = is_array($data) && isset($data[0]) ? (string) $data[0] : '';
+            $msg  = is_array($data) && isset($data[1]) ? (string) $data[1] : "HTTP {$httpCode}";
+            $full = $code !== '' && $code !== $msg ? "{$msg} ({$code})" : $msg;
+            return ['ok' => false, 'data' => $data, 'error' => $full];
         }
         return ['ok' => true, 'data' => $data, 'error' => null];
     }
