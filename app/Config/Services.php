@@ -57,6 +57,26 @@ use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use App\Modules\ServiceDesk\Services\BacklogReportService;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
+use App\Modules\HelpdeskSupervisor\Models\HelpdeskSupervisorSettingsModel;
+use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
+use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
+use App\Modules\HelpdeskSupervisor\Models\CoordinatorMapModel;
+use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
+use App\Modules\HelpdeskSupervisor\Models\AgentRunStatsModel;
+use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorSettings;
+use App\Modules\HelpdeskSupervisor\Services\GlpiAuditQueryService;
+use App\Modules\HelpdeskSupervisor\Services\AuditRunnerService;
+use App\Modules\HelpdeskSupervisor\Services\NotificationDraftService;
+use App\Modules\HelpdeskSupervisor\Services\NotificationExcelService;
+use App\Modules\HelpdeskSupervisor\Services\NotificationSenderService;
+use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorBridge;
+use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
+use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
+use App\Modules\AgentKpis\Models\MonthlyEvaluationModel;
+use App\Modules\AgentKpis\Models\QualitativeScoreModel;
+use App\Modules\AgentKpis\Models\KpiSnapshotModel;
+use App\Modules\AgentKpis\Services\KpiCalculationService;
+use App\Modules\AgentKpis\Services\QualitativeEvaluationService;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
@@ -568,6 +588,97 @@ class Services extends BaseService
             new TelegramLinkModel(),
             new EmployeeModel(),
             new ProvisioningExternalAccountModel(),
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // HelpdeskSupervisor
+    // ------------------------------------------------------------------
+
+    public static function helpdeskSupervisorSettings(bool $getShared = true): HelpdeskSupervisorSettings
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskSupervisorSettings');
+        }
+        return new HelpdeskSupervisorSettings(new HelpdeskSupervisorSettingsModel());
+    }
+
+    public static function helpdeskAuditQuery(bool $getShared = true): GlpiAuditQueryService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskAuditQuery');
+        }
+        return new GlpiAuditQueryService(self::glpiDbConnection(), self::glpiSchemaIntrospector());
+    }
+
+    public static function helpdeskAuditRunner(bool $getShared = true): AuditRunnerService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskAuditRunner');
+        }
+        return new AuditRunnerService(
+            self::helpdeskSupervisorSettings(),
+            self::helpdeskAuditQuery(),
+            self::glpiSchemaIntrospector(),
+            new RuleRegistry(),
+            new CoordinatorMapModel(),
+            new AuditRunModel(),
+            new DeviationModel(),
+            new AgentRunStatsModel(),
+        );
+    }
+
+    public static function agentKpisCalculation(bool $getShared = true): KpiCalculationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('agentKpisCalculation');
+        }
+        return new KpiCalculationService(new MonthlyEvaluationModel(), new KpiSnapshotModel());
+    }
+
+    public static function agentKpisQualitative(bool $getShared = true): QualitativeEvaluationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('agentKpisQualitative');
+        }
+        return new QualitativeEvaluationService(new MonthlyEvaluationModel(), new QualitativeScoreModel());
+    }
+
+    public static function helpdeskBridge(bool $getShared = true): HelpdeskSupervisorBridge
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskBridge');
+        }
+        return new HelpdeskSupervisorBridge(new DeviationModel(), new EscalationModel(), new AuditRunModel(), new AgentRunStatsModel());
+    }
+
+    public static function helpdeskNotificationDraft(bool $getShared = true): NotificationDraftService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskNotificationDraft');
+        }
+        return new NotificationDraftService(self::helpdeskSupervisorSettings(), new DeviationModel(), new AuditRunModel());
+    }
+
+    public static function helpdeskNotificationExcel(bool $getShared = true): NotificationExcelService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskNotificationExcel');
+        }
+        return new NotificationExcelService(new DeviationModel(), new AuditRunModel());
+    }
+
+    public static function helpdeskNotificationSender(bool $getShared = true): NotificationSenderService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskNotificationSender');
+        }
+        return new NotificationSenderService(
+            self::helpdeskNotificationDraft(),
+            self::helpdeskNotificationExcel(),
+            self::helpdeskSupervisorSettings(),
+            new NotificationModel(),
+            new AuditRunModel(),
         );
     }
 }

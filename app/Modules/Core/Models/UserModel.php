@@ -10,7 +10,7 @@ class UserModel extends Model
 {
     protected $table         = 'core_users';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'email', 'password', 'status', 'mfa_secret', 'mfa_enabled'];
+    protected $allowedFields = ['name', 'email', 'password', 'status', 'mfa_secret', 'mfa_enabled', 'glpi_user_id'];
     protected $useTimestamps  = true;
     protected $returnType    = 'array';
 

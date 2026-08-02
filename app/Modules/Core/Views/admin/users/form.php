@@ -53,6 +53,15 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
         </div>
 
         <div class="field">
+          <label class="field-label" for="glpi_user_id">ID de usuario en GLPI</label>
+          <input type="number" id="glpi_user_id" name="glpi_user_id" min="1" step="1"
+                 class="input <?= $hasErr('glpi_user_id') ? 'is-error' : '' ?>"
+                 value="<?= esc($old('glpi_user_id')) ?>" inputmode="numeric">
+          <p class="field-help">Identificador numérico del usuario en GLPI. Solo necesario para agentes que serán auditados por el Supervisor de Mesa. Déjalo vacío si no aplica.</p>
+          <?php if ($hasErr('glpi_user_id')): ?><p class="field-error"><?= esc($errors['glpi_user_id']) ?></p><?php endif; ?>
+        </div>
+
+        <div class="field">
           <label class="field-label">Roles <span class="required" aria-hidden="true">*</span></label>
           <?php
           $selectedRoleIds = old('role_ids', $user['role_ids'] ?? []);

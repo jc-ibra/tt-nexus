@@ -2,6 +2,16 @@
 $currentPath = current_url(true)->getPath();
 $modules     = service('access')->getAccessibleModules();
 
+// Current user's GLPI mapping: gates the agent self-view ("Mi desempeño") in the
+// Service Desk submenu — only auditable users (with a glpi_user_id) see it.
+$currentUserGlpiId = 0;
+$sessionUserId = (int) (session()->get('user_id') ?? 0);
+if ($sessionUserId > 0) {
+    $glpiRow = \Config\Database::connect()->table('core_users')
+        ->select('glpi_user_id')->where('id', $sessionUserId)->get()->getRow();
+    $currentUserGlpiId = (int) ($glpiRow->glpi_user_id ?? 0);
+}
+
 $moduleIcons = [
     'communications' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
     'kpis_operativos' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>',
@@ -11,6 +21,8 @@ $moduleIcons = [
     'servicedesk'     => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 16a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h3z"/><path d="M3 16a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1H3z"/><path d="M12 18v1a3 3 0 0 1-3 3"/></svg>',
     'mail_dispatch'   => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
     'techbot'         => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M8 13h.01"/><path d="M16 13h.01"/><path d="M9 17h6"/></svg>',
+    'helpdesk_supervisor' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    'agent_kpis'          => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 22l5-3 5 3-1.5-9.5"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -156,6 +168,47 @@ $moduleSubnav = [
             'active' => str_starts_with($currentPath, '/dispatch/templates'),
         ],
     ],
+    'helpdesk_supervisor' => [
+        [
+            'label'  => 'Tablero',
+            'url'    => base_url('helpdesk-supervisor'),
+            'active' => $currentPath === '/helpdesk-supervisor'
+                || (str_starts_with($currentPath, '/helpdesk-supervisor/agents')
+                    || str_starts_with($currentPath, '/helpdesk-supervisor/rules')),
+        ],
+        [
+            'label'  => 'Auditorías',
+            'url'    => base_url('helpdesk-supervisor/audit/runs'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/audit'),
+        ],
+        [
+            'label'  => 'Escalaciones',
+            'url'    => base_url('helpdesk-supervisor/escalations'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/escalations'),
+        ],
+        [
+            'label'  => 'Notificaciones',
+            'url'    => base_url('helpdesk-supervisor/notifications'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/notifications'),
+        ],
+        [
+            'label'  => 'Configuración',
+            'url'    => base_url('helpdesk-supervisor/settings'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/settings'),
+        ],
+    ],
+    'agent_kpis' => [
+        [
+            'label'  => 'Evaluaciones',
+            'url'    => base_url('agent-kpis'),
+            'active' => $currentPath === '/agent-kpis' || str_starts_with($currentPath, '/agent-kpis/evaluations'),
+        ],
+        [
+            'label'  => 'Historial',
+            'url'    => base_url('agent-kpis/history'),
+            'active' => str_starts_with($currentPath, '/agent-kpis/history') || str_starts_with($currentPath, '/agent-kpis/agents'),
+        ],
+    ],
     'techbot' => [
         [
             'label'  => 'Panel',
@@ -179,6 +232,15 @@ $moduleSubnav = [
         ],
     ],
 ];
+
+// Auditable agents (glpi_user_id set) get a self-view inside Service Desk.
+if ($currentUserGlpiId > 0) {
+    $moduleSubnav['servicedesk'][] = [
+        'label'  => 'Mi desempeño',
+        'url'    => base_url('servicedesk/mi-desempeno'),
+        'active' => str_starts_with($currentPath, '/servicedesk/mi-desempeno'),
+    ];
+}
 ?>
 
 <?php

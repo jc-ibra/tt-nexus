@@ -19,3 +19,5 @@ require APPPATH . 'Modules/Provisioning/Routes.php';
 require APPPATH . 'Modules/ServiceDesk/Routes.php';
 require APPPATH . 'Modules/MailDispatch/Routes.php';
 require APPPATH . 'Modules/TechBot/Routes.php';
+require APPPATH . 'Modules/HelpdeskSupervisor/Routes.php';
+require APPPATH . 'Modules/AgentKpis/Routes.php';
