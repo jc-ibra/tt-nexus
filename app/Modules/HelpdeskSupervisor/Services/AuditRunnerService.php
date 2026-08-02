@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\HelpdeskSupervisor\Services;
 
 use App\Modules\Core\Services\ServiceResult;
+use App\Modules\HelpdeskSupervisor\Models\AgentRunStatsModel;
 use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\CoordinatorMapModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
@@ -41,6 +42,7 @@ class AuditRunnerService
         private CoordinatorMapModel $coordinatorMap,
         private AuditRunModel $runModel,
         private DeviationModel $deviationModel,
+        private AgentRunStatsModel $statsModel,
     ) {}
 
     /**
@@ -72,6 +74,7 @@ class AuditRunnerService
             $totalDeviations = 0;
             $agentsAudited = 0;
             $deviationRows = [];
+            $statsRows = [];
 
             foreach ($agents as $agent) {
                 $agentsAudited++;
@@ -91,6 +94,23 @@ class AuditRunnerService
 
                 $agentUserName = $this->query->agentUserName($glpiId);
                 $agentName     = $agent['name'] !== '' ? $agent['name'] : $this->query->agentDisplayName($glpiId);
+
+                // Per-agent ticket stats (denominators for the KPI module).
+                $openCount = 0;
+                foreach ($tickets as $tk) {
+                    if (in_array((int) $tk['status'], GlpiAuditQueryService::OPEN_STATUSES, true)) {
+                        $openCount++;
+                    }
+                }
+                $statsRows[] = [
+                    'audit_run_id'  => $runId,
+                    'glpi_user_id'  => $glpiId,
+                    'nexus_user_id' => $agent['nexus_user_id'],
+                    'agent_name'    => mb_substr($agentName, 0, 150),
+                    'total_tickets' => count($ticketIds),
+                    'open_tickets'  => $openCount,
+                    'created_at'    => $now,
+                ];
 
                 foreach ($tickets as $ticketId => $base) {
                     $ticket = $base + [
@@ -137,6 +157,10 @@ class AuditRunnerService
                 foreach (array_chunk($deviationRows, 500) as $chunk) {
                     $this->deviationModel->insertBatch($chunk);
                 }
+            }
+
+            if ($statsRows !== []) {
+                $this->statsModel->insertBatch($statsRows);
             }
 
             $this->runModel->update($runId, [

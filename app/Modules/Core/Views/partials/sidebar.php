@@ -2,6 +2,16 @@
 $currentPath = current_url(true)->getPath();
 $modules     = service('access')->getAccessibleModules();
 
+// Current user's GLPI mapping: gates the agent self-view ("Mi desempeño") in the
+// Service Desk submenu — only auditable users (with a glpi_user_id) see it.
+$currentUserGlpiId = 0;
+$sessionUserId = (int) (session()->get('user_id') ?? 0);
+if ($sessionUserId > 0) {
+    $glpiRow = \Config\Database::connect()->table('core_users')
+        ->select('glpi_user_id')->where('id', $sessionUserId)->get()->getRow();
+    $currentUserGlpiId = (int) ($glpiRow->glpi_user_id ?? 0);
+}
+
 $moduleIcons = [
     'communications' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
     'kpis_operativos' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>',
@@ -209,6 +219,15 @@ $moduleSubnav = [
         ],
     ],
 ];
+
+// Auditable agents (glpi_user_id set) get a self-view inside Service Desk.
+if ($currentUserGlpiId > 0) {
+    $moduleSubnav['servicedesk'][] = [
+        'label'  => 'Mi desempeño',
+        'url'    => base_url('servicedesk/mi-desempeno'),
+        'active' => str_starts_with($currentPath, '/servicedesk/mi-desempeno'),
+    ];
+}
 ?>
 
 <?php

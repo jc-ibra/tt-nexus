@@ -16,6 +16,7 @@ $routes->group('helpdesk-supervisor', [
     // Dashboard + drill-downs
     $routes->get('/',                 'Dashboard::index',   ['as' => 'helpdesk.index']);
     $routes->get('agents/(:num)',     'Dashboard::agent/$1', ['as' => 'helpdesk.agent']);   // $1 = glpi_user_id
+    $routes->post('agents/(:num)/confirm', 'Dashboard::confirmAgent/$1', ['as' => 'helpdesk.agent.confirm']);
     $routes->get('rules/([a-z_]+)',   'Dashboard::rule/$1', ['as' => 'helpdesk.rule']);
 
     // Audit runs

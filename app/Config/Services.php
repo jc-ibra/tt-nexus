@@ -62,12 +62,15 @@ use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\CoordinatorMapModel;
 use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
+use App\Modules\HelpdeskSupervisor\Models\AgentRunStatsModel;
 use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorSettings;
 use App\Modules\HelpdeskSupervisor\Services\GlpiAuditQueryService;
 use App\Modules\HelpdeskSupervisor\Services\AuditRunnerService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationDraftService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationExcelService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationSenderService;
+use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorBridge;
+use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
 use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
@@ -616,7 +619,16 @@ class Services extends BaseService
             new CoordinatorMapModel(),
             new AuditRunModel(),
             new DeviationModel(),
+            new AgentRunStatsModel(),
         );
+    }
+
+    public static function helpdeskBridge(bool $getShared = true): HelpdeskSupervisorBridge
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskBridge');
+        }
+        return new HelpdeskSupervisorBridge(new DeviationModel(), new EscalationModel(), new AuditRunModel(), new AgentRunStatsModel());
     }
 
     public static function helpdeskNotificationDraft(bool $getShared = true): NotificationDraftService

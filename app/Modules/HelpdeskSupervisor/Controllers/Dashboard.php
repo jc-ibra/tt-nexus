@@ -100,6 +100,25 @@ class Dashboard extends BaseController
         ]);
     }
 
+    /** Marks which of an agent's deviations "proceden" (visible to the agent). */
+    public function confirmAgent(int $glpiUserId): \CodeIgniter\HTTP\RedirectResponse
+    {
+        $start = (string) $this->request->getPost('period_start');
+        $end   = (string) $this->request->getPost('period_end');
+        $run   = $this->runs->latestCompletedForPeriod($start, $end);
+        $back  = route_to('helpdesk.agent', $glpiUserId) . '?period_start=' . $start . '&period_end=' . $end;
+
+        if ($run === null) {
+            return redirect()->to($back)->with('error', 'No hay auditoría para el período.');
+        }
+
+        $ids = (array) ($this->request->getPost('confirmed') ?? []);
+        $uid = session()->get('user_id');
+        $n   = $this->deviations->setConfirmedForAgentRun((int) $run['id'], $glpiUserId, $ids, $uid !== null ? (int) $uid : null);
+
+        return redirect()->to($back)->with('success', "Se marcaron {$n} desviación(es) como procedentes (visibles para el agente).");
+    }
+
     public function rule(string $ruleKey): string
     {
         [$start, $end] = $this->period();
