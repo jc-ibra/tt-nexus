@@ -121,7 +121,7 @@ class NotificationSenderService
             $attachments[] = ['path' => $n['excel_path'], 'name' => basename($n['excel_path'])];
         }
 
-        $result = service('mailer')->sendReport([$to], array_values($cc), $fromEmail, $fromName, $subject, $body, $attachments);
+        $result = service('mailerService')->sendReport([$to], array_values($cc), $fromEmail, $fromName, $subject, $body, $attachments);
 
         if (! $result['success']) {
             $this->model->update($notificationId, ['status' => 'failed', 'final_body' => $body, 'error_message' => mb_substr($result['error'], 0, 2000)]);
