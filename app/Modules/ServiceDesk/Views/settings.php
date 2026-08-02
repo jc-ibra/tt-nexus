@@ -135,6 +135,16 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
         <div class="field" style="margin-bottom: var(--space-3);">
           <label class="field-label" for="glpi_requester_user_id">Solicitante por defecto (users_id, 0 = ninguno)</label>
           <input type="number" id="glpi_requester_user_id" name="glpi_requester_user_id" class="input" min="0" value="<?= $val('glpi_requester_user_id', '0') ?>">
+          <p class="text-muted text-sm" style="margin-top: var(--space-1);">
+            Se usa como respaldo: si el usuario de Nexus que sube la importación tiene un GLPI user asignado, ese será el solicitante.
+          </p>
+        </div>
+        <div class="field" style="margin-bottom: var(--space-3);">
+          <label class="field-label" for="glpi_request_source_id">Origen de la solicitud en GLPI (requesttypes_id, 0 = predeterminado de GLPI)</label>
+          <input type="number" id="glpi_request_source_id" name="glpi_request_source_id" class="input" min="0" value="<?= $val('glpi_request_source_id', '0') ?>">
+          <p class="text-muted text-sm" style="margin-top: var(--space-1);">
+            Crea un origen de la solicitud en GLPI para las importaciones y pega aquí su id; cada ticket importado se marcará con ese origen.
+          </p>
         </div>
         <label class="field-check">
           <input type="checkbox" name="autocreate_catalog_values" value="1" <?= ($s['autocreate_catalog_values'] ?? '0') === '1' ? 'checked' : '' ?>>
@@ -213,6 +223,14 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
         <div class="field" style="margin-bottom: var(--space-3);">
           <label class="field-label" for="ai_daily_token_budget">Presupuesto diario de tokens (0 = sin límite)</label>
           <input type="number" id="ai_daily_token_budget" name="ai_daily_token_budget" class="input" min="0" value="<?= $val('ai_daily_token_budget', '0') ?>">
+        </div>
+
+        <div class="field" style="margin-bottom: var(--space-3);">
+          <label class="field-label" for="ai_request_source_id">Origen de la solicitud en GLPI (requesttypes_id, 0 = predeterminado de GLPI)</label>
+          <input type="number" id="ai_request_source_id" name="ai_request_source_id" class="input" min="0" value="<?= $val('ai_request_source_id', '0') ?>">
+          <p class="text-muted text-sm" style="margin-top: var(--space-1);">
+            Crea un origen de la solicitud en GLPI para el creador con IA y pega aquí su id; cada ticket creado por IA se marcará con ese origen.
+          </p>
         </div>
 
         <div class="field">

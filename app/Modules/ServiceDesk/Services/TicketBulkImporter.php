@@ -106,6 +106,18 @@ class TicketBulkImporter
     }
 
     /**
+     * Resolves the GLPI request source (requesttypes_id) for a job: the AI
+     * creator (source 'ai_creator') uses its own configured source, everything
+     * else uses the bulk-import source. 0 means "leave it to GLPI's default".
+     */
+    private function resolveRequestSource(array $job): int
+    {
+        return ((string) ($job['source'] ?? 'import') === 'ai_creator')
+            ? $this->settings->aiRequestSourceId()
+            : $this->settings->requestSourceId();
+    }
+
+    /**
      * @return array{processed:int,succeeded:int,failed:int,outputPath:string}
      */
     private function process(int $importId, array $job): array
@@ -158,6 +170,7 @@ class TicketBulkImporter
         $pause     = $this->settings->batchPauseSeconds();
         $entities  = $this->settings->entitiesId();
         $requester = $this->resolveRequester($job);
+        $requestSource = $this->resolveRequestSource($job);
         $autocreate = $this->settings->autocreateCatalogValues();
 
         $connector = $this->connectors->buildByKey('glpi');
@@ -210,6 +223,9 @@ class TicketBulkImporter
 
                 try {
                     $payload  = $this->buildTicketPayload($f, $baseCols, $entities, $requester, $sucursalHeader);
+                    if ($requestSource > 0) {
+                        $payload['requesttypes_id'] = $requestSource;
+                    }
                     $result   = $connector->createTicket($payload, $token);
                     if (! $result->success || $result->externalId === null) {
                         throw new \RuntimeException($result->message !== '' ? $result->message : 'GLPI no devolvió id.');

@@ -97,6 +97,15 @@ TXT;
     }
 
     /**
+     * GLPI request source (requesttypes_id) stamped on bulk-imported tickets, so
+     * they are traceable to the importer in GLPI. 0 = leave it to GLPI's default.
+     */
+    public function requestSourceId(): int
+    {
+        return max(0, (int) $this->model->get('glpi_request_source_id', '0'));
+    }
+
+    /**
      * @return int[] container ids the admin allows (empty = all active).
      */
     public function includedContainerIds(): array
@@ -148,6 +157,7 @@ TXT;
             'import_batch_pause_sec'   => (string) $pause,
             'glpi_entities_id'         => (string) $entities,
             'glpi_requester_user_id'   => (string) $requester,
+            'glpi_request_source_id'   => (string) max(0, (int) ($input['glpi_request_source_id'] ?? 0)),
             'included_container_ids'   => $containerCsv,
             'autocreate_catalog_values' => ! empty($input['autocreate_catalog_values']) ? '1' : '0',
             'import_enabled'           => ! empty($input['import_enabled']) ? '1' : '0',
@@ -201,6 +211,15 @@ TXT;
     }
 
     /**
+     * GLPI request source (requesttypes_id) stamped on tickets created via the
+     * AI creator, so they are traceable to it in GLPI. 0 = GLPI's default.
+     */
+    public function aiRequestSourceId(): int
+    {
+        return max(0, (int) $this->model->get('ai_request_source_id', '0'));
+    }
+
+    /**
      * Whether the AI creator is fully usable: enabled, has a key, and the
      * cipher (encryption.key) is available to read it.
      */
@@ -228,6 +247,7 @@ TXT;
             'ai_model'                   => $model,
             'ai_max_tickets_per_request' => (string) max(1, (int) ($input['ai_max_tickets_per_request'] ?? 25)),
             'ai_daily_token_budget'      => (string) max(0, (int) ($input['ai_daily_token_budget'] ?? 0)),
+            'ai_request_source_id'       => (string) max(0, (int) ($input['ai_request_source_id'] ?? 0)),
             'ai_system_prompt'           => $instructions,
         ];
 
