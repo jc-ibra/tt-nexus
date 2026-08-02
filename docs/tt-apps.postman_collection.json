@@ -24,6 +24,18 @@
       "key": "landing_site_key",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "run_id",
+      "value": ""
+    },
+    {
+      "key": "glpi_user_id",
+      "value": ""
+    },
+    {
+      "key": "escalation_id",
+      "value": ""
     }
   ],
   "item": [
@@ -3570,6 +3582,289 @@
                 "v1",
                 "dispatch",
                 "agents"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Supervisor de Mesa — HelpdeskSupervisor",
+      "item": [
+        {
+          "name": "Ejecutar auditoría",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/audit/run",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "audit",
+                "run"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period_start\": \"2026-07-01\",\n  \"period_end\": \"2026-07-31\",\n  \"agent_glpi_user_id\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Historial de auditorías",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/audit/runs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "audit",
+                "runs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de auditoría",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/audit/runs/{{run_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "audit",
+                "runs",
+                "{{run_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Agentes de un run",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/runs/{{run_id}}/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "runs",
+                "{{run_id}}",
+                "agents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Desviaciones de un agente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/runs/{{run_id}}/agents/{{glpi_user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "runs",
+                "{{run_id}}",
+                "agents",
+                "{{glpi_user_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Desviaciones de una regla",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/runs/{{run_id}}/rules/title_format",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "runs",
+                "{{run_id}}",
+                "rules",
+                "title_format"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar escalaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/escalations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "escalations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear escalación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/escalations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "escalations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"glpi_ticket_id\": 1234,\n  \"glpi_user_id\": 50,\n  \"escalation_date\": \"2026-07-15\",\n  \"reason\": \"El agente no dio seguimiento y el cliente escaló.\",\n  \"reported_by\": \"Coordinador Zona 1\",\n  \"period_year\": 2026,\n  \"period_month\": 7,\n  \"is_valid\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Actualizar escalación",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/escalations/{{escalation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "escalations",
+                "{{escalation_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"glpi_ticket_id\": 1234,\n  \"glpi_user_id\": 50,\n  \"escalation_date\": \"2026-07-15\",\n  \"reason\": \"El agente no dio seguimiento y el cliente escaló.\",\n  \"reported_by\": \"Coordinador Zona 1\",\n  \"period_year\": 2026,\n  \"period_month\": 7,\n  \"is_valid\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar escalación",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/escalations/{{escalation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "escalations",
+                "{{escalation_id}}"
               ]
             }
           }

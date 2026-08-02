@@ -35,10 +35,11 @@ class UserService
     public function create(array $data): ServiceResult
     {
         $rules = [
-            'name'     => 'required|max_length[120]',
-            'email'    => 'required|valid_email|is_unique[core_users.email]',
-            'password' => 'required|min_length[8]',
-            'role_ids' => 'required',
+            'name'         => 'required|max_length[120]',
+            'email'        => 'required|valid_email|is_unique[core_users.email]',
+            'password'     => 'required|min_length[8]',
+            'role_ids'     => 'required',
+            'glpi_user_id' => 'permit_empty|is_natural_no_zero',
         ];
 
         $validation = service('validation')->setRules($rules);
@@ -48,10 +49,11 @@ class UserService
         }
 
         $userId = $this->userModel->insert([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
-            'password' => password_hash($data['password'], PASSWORD_DEFAULT),
-            'status'   => $data['status'] ?? 'active',
+            'name'         => $data['name'],
+            'email'        => $data['email'],
+            'password'     => password_hash($data['password'], PASSWORD_DEFAULT),
+            'status'       => $data['status'] ?? 'active',
+            'glpi_user_id' => $this->normalizeGlpiUserId($data['glpi_user_id'] ?? null),
         ]);
 
         if ($userId === false) {
@@ -73,8 +75,9 @@ class UserService
         }
 
         $rules = [
-            'name'  => 'required|max_length[120]',
-            'email' => "required|valid_email|is_unique[core_users.email,id,{$id}]",
+            'name'         => 'required|max_length[120]',
+            'email'        => "required|valid_email|is_unique[core_users.email,id,{$id}]",
+            'glpi_user_id' => 'permit_empty|is_natural_no_zero',
         ];
 
         if (! empty($data['password'])) {
@@ -92,6 +95,12 @@ class UserService
             'email'  => $data['email'],
             'status' => $data['status'] ?? $user['status'],
         ];
+
+        // Only touch the GLPI mapping when the field was submitted (web form and
+        // API always send it; partial API updates that omit it leave it intact).
+        if (array_key_exists('glpi_user_id', $data)) {
+            $updateData['glpi_user_id'] = $this->normalizeGlpiUserId($data['glpi_user_id']);
+        }
 
         if (! empty($data['password'])) {
             $updateData['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
@@ -121,5 +130,20 @@ class UserService
         $this->userModel->delete($id);
 
         return ServiceResult::ok();
+    }
+
+    /**
+     * Normalizes the optional GLPI user id to a positive int or null. Empty
+     * string / 0 / non-numeric all mean "unmapped".
+     */
+    private function normalizeGlpiUserId(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        $int = (int) $value;
+
+        return $int > 0 ? $int : null;
     }
 }

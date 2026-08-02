@@ -11,6 +11,7 @@ $moduleIcons = [
     'servicedesk'     => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 16a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h3z"/><path d="M3 16a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1H3z"/><path d="M12 18v1a3 3 0 0 1-3 3"/></svg>',
     'mail_dispatch'   => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
     'techbot'         => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M8 13h.01"/><path d="M16 13h.01"/><path d="M9 17h6"/></svg>',
+    'helpdesk_supervisor' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -154,6 +155,30 @@ $moduleSubnav = [
             'label'  => 'Plantillas',
             'url'    => base_url('dispatch/templates'),
             'active' => str_starts_with($currentPath, '/dispatch/templates'),
+        ],
+    ],
+    'helpdesk_supervisor' => [
+        [
+            'label'  => 'Tablero',
+            'url'    => base_url('helpdesk-supervisor'),
+            'active' => $currentPath === '/helpdesk-supervisor'
+                || (str_starts_with($currentPath, '/helpdesk-supervisor/agents')
+                    || str_starts_with($currentPath, '/helpdesk-supervisor/rules')),
+        ],
+        [
+            'label'  => 'Auditorías',
+            'url'    => base_url('helpdesk-supervisor/audit/runs'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/audit'),
+        ],
+        [
+            'label'  => 'Escalaciones',
+            'url'    => base_url('helpdesk-supervisor/escalations'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/escalations'),
+        ],
+        [
+            'label'  => 'Configuración',
+            'url'    => base_url('helpdesk-supervisor/settings'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/settings'),
         ],
     ],
     'techbot' => [

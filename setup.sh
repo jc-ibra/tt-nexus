@@ -179,6 +179,10 @@ run_seeder "App\Database\Seeds\CoreSeeder" "CoreSeeder"
 # Employees
 run_seeder "App\Modules\Employees\Database\Seeders\EmployeesModuleSeeder"          "EmployeesModuleSeeder"
 
+# HelpdeskSupervisor
+run_seeder "App\Modules\HelpdeskSupervisor\Database\Seeders\HelpdeskSupervisorModuleSeeder" "HelpdeskSupervisorModuleSeeder"
+run_seeder "App\Modules\HelpdeskSupervisor\Database\Seeders\CoordinatorMapSeeder"          "CoordinatorMapSeeder"
+
 # KPIsOperativos
 run_seeder "App\Modules\KPIsOperativos\Database\Seeders\KPIsOperativosModuleSeeder" "KPIsOperativosModuleSeeder"
 run_seeder "App\Modules\KPIsOperativos\Database\Seeders\GlpiCoordinatorsSeeder"    "GlpiCoordinatorsSeeder"

@@ -57,6 +57,14 @@ use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use App\Modules\ServiceDesk\Services\BacklogReportService;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
+use App\Modules\HelpdeskSupervisor\Models\HelpdeskSupervisorSettingsModel;
+use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
+use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
+use App\Modules\HelpdeskSupervisor\Models\CoordinatorMapModel;
+use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorSettings;
+use App\Modules\HelpdeskSupervisor\Services\GlpiAuditQueryService;
+use App\Modules\HelpdeskSupervisor\Services\AuditRunnerService;
+use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
@@ -568,6 +576,42 @@ class Services extends BaseService
             new TelegramLinkModel(),
             new EmployeeModel(),
             new ProvisioningExternalAccountModel(),
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // HelpdeskSupervisor
+    // ------------------------------------------------------------------
+
+    public static function helpdeskSupervisorSettings(bool $getShared = true): HelpdeskSupervisorSettings
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskSupervisorSettings');
+        }
+        return new HelpdeskSupervisorSettings(new HelpdeskSupervisorSettingsModel());
+    }
+
+    public static function helpdeskAuditQuery(bool $getShared = true): GlpiAuditQueryService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskAuditQuery');
+        }
+        return new GlpiAuditQueryService(self::glpiDbConnection(), self::glpiSchemaIntrospector());
+    }
+
+    public static function helpdeskAuditRunner(bool $getShared = true): AuditRunnerService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskAuditRunner');
+        }
+        return new AuditRunnerService(
+            self::helpdeskSupervisorSettings(),
+            self::helpdeskAuditQuery(),
+            self::glpiSchemaIntrospector(),
+            new RuleRegistry(),
+            new CoordinatorMapModel(),
+            new AuditRunModel(),
+            new DeviationModel(),
         );
     }
 }

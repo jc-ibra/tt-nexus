@@ -29,7 +29,7 @@ class Users extends BaseController
 
     public function store(): \CodeIgniter\HTTP\RedirectResponse
     {
-        $data   = $this->request->getPost(['name', 'email', 'password', 'status', 'role_ids']);
+        $data   = $this->request->getPost(['name', 'email', 'password', 'status', 'role_ids', 'glpi_user_id']);
         $result = service('userService')->create($data);
 
         if (! $result->success) {
@@ -70,7 +70,7 @@ class Users extends BaseController
 
     public function update(int $id): \CodeIgniter\HTTP\RedirectResponse
     {
-        $data   = $this->request->getPost(['name', 'email', 'password', 'status', 'role_ids']);
+        $data   = $this->request->getPost(['name', 'email', 'password', 'status', 'role_ids', 'glpi_user_id']);
         $result = service('userService')->update($id, $data);
 
         if (! $result->success) {
