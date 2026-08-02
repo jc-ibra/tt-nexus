@@ -49,6 +49,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\MailDispatch'     => APPPATH . 'Modules/MailDispatch',
         'App\Modules\TechBot'          => APPPATH . 'Modules/TechBot',
         'App\Modules\HelpdeskSupervisor' => APPPATH . 'Modules/HelpdeskSupervisor',
+        'App\Modules\AgentKpis'          => APPPATH . 'Modules/AgentKpis',
     ];
 
     /**

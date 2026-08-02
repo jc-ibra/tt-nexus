@@ -40,6 +40,10 @@
     {
       "key": "notification_id",
       "value": ""
+    },
+    {
+      "key": "evaluation_id",
+      "value": ""
     }
   ],
   "item": [
@@ -3985,6 +3989,162 @@
                 "helpdesk-supervisor",
                 "notifications",
                 "{{notification_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evaluación de Agentes — AgentKpis",
+      "item": [
+        {
+          "name": "Evaluaciones del mes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/agent-kpis/evaluations?year=2026&month=8",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-kpis",
+                "evaluations"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026"
+                },
+                {
+                  "key": "month",
+                  "value": "8"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Generar/recalcular evaluaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/agent-kpis/generate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-kpis",
+                "generate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period_year\": 2026,\n  \"period_month\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "Detalle de evaluación",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/agent-kpis/evaluations/{{evaluation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-kpis",
+                "evaluations",
+                "{{evaluation_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Guardar rúbrica cualitativa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/agent-kpis/evaluations/{{evaluation_id}}/qualitative",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-kpis",
+                "evaluations",
+                "{{evaluation_id}}",
+                "qualitative"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": {\"phone_service\":3,\"first_contact\":3,\"initiative\":3,\"responsibility\":3,\"communication\":3,\"technical_knowledge\":3,\"teamwork\":3,\"flexibility\":3},\n  \"evidence\": {}\n}"
+            }
+          }
+        },
+        {
+          "name": "Trayectoria del agente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/agent-kpis/agents/{{nexus_user_id}}/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-kpis",
+                "agents",
+                "{{nexus_user_id}}",
+                "history"
               ]
             }
           }

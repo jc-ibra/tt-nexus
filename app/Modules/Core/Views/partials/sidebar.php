@@ -22,6 +22,7 @@ $moduleIcons = [
     'mail_dispatch'   => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
     'techbot'         => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M8 13h.01"/><path d="M16 13h.01"/><path d="M9 17h6"/></svg>',
     'helpdesk_supervisor' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    'agent_kpis'          => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 22l5-3 5 3-1.5-9.5"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -194,6 +195,18 @@ $moduleSubnav = [
             'label'  => 'Configuración',
             'url'    => base_url('helpdesk-supervisor/settings'),
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/settings'),
+        ],
+    ],
+    'agent_kpis' => [
+        [
+            'label'  => 'Evaluaciones',
+            'url'    => base_url('agent-kpis'),
+            'active' => $currentPath === '/agent-kpis' || str_starts_with($currentPath, '/agent-kpis/evaluations'),
+        ],
+        [
+            'label'  => 'Historial',
+            'url'    => base_url('agent-kpis/history'),
+            'active' => str_starts_with($currentPath, '/agent-kpis/history') || str_starts_with($currentPath, '/agent-kpis/agents'),
         ],
     ],
     'techbot' => [

@@ -66,6 +66,7 @@ if (! is_string($token) || ! hash_equals($expectedToken, $token)) {
 $SEEDERS = [
     ['App\Database\Seeds\CoreSeeder', 'CoreSeeder'],
     ['App\Modules\Employees\Database\Seeders\EmployeesModuleSeeder', 'EmployeesModuleSeeder'],
+    ['App\Modules\AgentKpis\Database\Seeders\AgentKpisModuleSeeder', 'AgentKpisModuleSeeder'],
     ['App\Modules\HelpdeskSupervisor\Database\Seeders\HelpdeskSupervisorModuleSeeder', 'HelpdeskSupervisorModuleSeeder'],
     ['App\Modules\HelpdeskSupervisor\Database\Seeders\CoordinatorMapSeeder', 'CoordinatorMapSeeder'],
     ['App\Modules\KPIsOperativos\Database\Seeders\KPIsOperativosModuleSeeder', 'KPIsOperativosModuleSeeder'],

@@ -72,6 +72,11 @@ use App\Modules\HelpdeskSupervisor\Services\NotificationSenderService;
 use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorBridge;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
 use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
+use App\Modules\AgentKpis\Models\MonthlyEvaluationModel;
+use App\Modules\AgentKpis\Models\QualitativeScoreModel;
+use App\Modules\AgentKpis\Models\KpiSnapshotModel;
+use App\Modules\AgentKpis\Services\KpiCalculationService;
+use App\Modules\AgentKpis\Services\QualitativeEvaluationService;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
@@ -621,6 +626,22 @@ class Services extends BaseService
             new DeviationModel(),
             new AgentRunStatsModel(),
         );
+    }
+
+    public static function agentKpisCalculation(bool $getShared = true): KpiCalculationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('agentKpisCalculation');
+        }
+        return new KpiCalculationService(new MonthlyEvaluationModel(), new KpiSnapshotModel());
+    }
+
+    public static function agentKpisQualitative(bool $getShared = true): QualitativeEvaluationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('agentKpisQualitative');
+        }
+        return new QualitativeEvaluationService(new MonthlyEvaluationModel(), new QualitativeScoreModel());
     }
 
     public static function helpdeskBridge(bool $getShared = true): HelpdeskSupervisorBridge
