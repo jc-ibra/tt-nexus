@@ -44,14 +44,22 @@ $glpiBaseUrl = $glpiBaseUrl ?? '';
       </div>
       <div class="card-body" style="padding:0;">
         <table class="table">
-          <thead><tr><th>Procede</th><th>Ticket</th><th>Regla</th><th>Campo</th><th>Esperado</th><th>Encontrado</th><th>Severidad</th><th>Ref. manual</th></tr></thead>
+          <thead><tr>
+            <th style="text-align:center;">
+              <?php if ($deviations !== []): ?>
+                <input type="checkbox" id="hs-check-all" aria-label="Seleccionar todas las desviaciones">
+              <?php endif; ?>
+              <div class="text-sm">Procede</div>
+            </th>
+            <th>Ticket</th><th>Regla</th><th>Campo</th><th>Esperado</th><th>Encontrado</th><th>Severidad</th><th>Ref. manual</th>
+          </tr></thead>
           <tbody>
             <?php if ($deviations === []): ?>
               <tr><td colspan="8" class="text-muted" style="text-align:center;">Sin desviaciones para este agente.</td></tr>
             <?php else: foreach ($deviations as $d): ?>
               <tr>
                 <td style="text-align:center;">
-                  <input type="checkbox" name="confirmed[]" value="<?= (int) $d['id'] ?>" <?= (int) ($d['is_confirmed'] ?? 0) === 1 ? 'checked' : '' ?>>
+                  <input type="checkbox" class="hs-check-row" name="confirmed[]" value="<?= (int) $d['id'] ?>" <?= (int) ($d['is_confirmed'] ?? 0) === 1 ? 'checked' : '' ?>>
                 </td>
                 <td>
                   <a href="<?= esc($glpiBaseUrl) ?>/front/ticket.form.php?id=<?= (int) $d['glpi_ticket_id'] ?>" target="_blank" rel="noopener">
@@ -101,5 +109,26 @@ $glpiBaseUrl = $glpiBaseUrl ?? '';
   </div>
 
 <?php endif; ?>
+
+<script>
+(function () {
+  var master = document.getElementById('hs-check-all');
+  if (!master) return;
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.hs-check-row'));
+
+  function syncMaster() {
+    var total = rows.length;
+    var checked = rows.filter(function (c) { return c.checked; }).length;
+    master.checked = total > 0 && checked === total;
+    master.indeterminate = checked > 0 && checked < total;
+  }
+
+  master.addEventListener('change', function () {
+    rows.forEach(function (c) { c.checked = master.checked; });
+  });
+  rows.forEach(function (c) { c.addEventListener('change', syncMaster); });
+  syncMaster();
+})();
+</script>
 
 <?= $this->endSection() ?>
