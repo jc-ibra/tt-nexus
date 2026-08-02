@@ -63,6 +63,16 @@ class SendBacklogReport extends BaseCommand
                         $day['label'], $day['created'], $day['closed'], $net > 0 ? '+' : '', $net));
                 }
             }
+            if (! empty($d['typeSummary']['rows'])) {
+                CLI::write('  Resumen por tipo (total · atendidos hoy · backlog):', 'cyan');
+                foreach ($d['typeSummary']['rows'] as $ts) {
+                    CLI::write(sprintf('    - %s: %d · %d · %d',
+                        $ts['label'], $ts['total'], $ts['atendidos'], $ts['backlog']));
+                }
+                $f = $d['typeSummary']['folios'];
+                CLI::write(sprintf('    = %s: %d · %d · %d',
+                    $f['label'], $f['total'], $f['atendidos'], $f['backlog']));
+            }
             if (! empty($d['regionalConfigured'])) {
                 CLI::write(sprintf('  Regionales: %d', count($d['regionals'])));
                 foreach (array_slice($d['regionals'], 0, 8) as $reg) {

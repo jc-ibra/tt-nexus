@@ -248,6 +248,10 @@ class BacklogReportService
         $pending = 0;
         $critical = 0;
         $sinIdc = 0;
+        // Open backlog split by GLPI ticket type (1=Incidencia, 2=Requerimiento)
+        // for the "Resumen por tipo" matrix. These are the "backlog" column.
+        $backlogInc = 0;
+        $backlogReq = 0;
         $rows = [];
 
         foreach ($tickets as $t) {
@@ -268,6 +272,13 @@ class BacklogReportService
             }
             if ($ageDays >= $criticalDays) {
                 $critical++;
+            }
+
+            $type = (int) $t['type'];
+            if ($type === 1) {
+                $backlogInc++;
+            } elseif ($type === 2) {
+                $backlogReq++;
             }
 
             // "Sin IDC" only applies to tickets within the IDC category scope
@@ -436,6 +447,9 @@ class BacklogReportService
         // Same-day activity per area (tickets created / closed today, net Δ).
         $daily = $this->buildDailyActivity($db, $catIndex, $areaAssign, $now);
 
+        // Resumen por tipo (Folios/Incidencias/Requerimientos × Total/Atendidos/Backlog).
+        $typeSummary = $this->buildTypeSummary($db, $now, $backlogInc, $backlogReq);
+
         return [
             'cutoffTs'      => $now,
             'cutoffLabel'   => date('d \d\e F \d\e Y', $now),
@@ -454,6 +468,7 @@ class BacklogReportService
             'areaOrder'     => $areaOrder,
             'daily'         => $daily,
             'dailyLabel'    => date('d/m/Y', $now),
+            'typeSummary'   => $typeSummary,
             'buckets'       => $bucketDefs,
             'rows'          => $rows,
         ];
@@ -670,6 +685,102 @@ class BacklogReportService
         return $daily;
     }
 
+    /**
+     * "Resumen por tipo": matriz Folios/Incidencias/Requerimientos × Total/Atendidos/Backlog.
+     *
+     *   backlog   = tickets aún abiertos ahora (status 1-4), por tipo — ya contados en build().
+     *   atendidos = tickets cerrados/resueltos HOY (status 5-6, solve/close date en el día).
+     *   total     = backlog + atendidos = carga del día del backlog por tipo (= atendidos + backlog).
+     *   folios    = incidencias + requerimientos (fila de totales).
+     *
+     * GLPI type: 1 = Incidencia, 2 = Requerimiento.
+     *
+     * @return array{
+     *   rows: array<int,array{key:string,label:string,total:int,atendidos:int,backlog:int}>,
+     *   folios: array{label:string,total:int,atendidos:int,backlog:int}
+     * }
+     */
+    private function buildTypeSummary($db, int $now, int $backlogInc, int $backlogReq): array
+    {
+        $closed = $this->closedTodayByType($db, $now); // [1 => int, 2 => int]
+        $incAtt = $closed[1];
+        $reqAtt = $closed[2];
+
+        $labels = $this->config->glpiTypeLabels;
+        $rows = [
+            [
+                'key'       => 'incidencias',
+                'label'     => ($labels[1] ?? 'Incidencia') . 's',
+                'total'     => $backlogInc + $incAtt,
+                'atendidos' => $incAtt,
+                'backlog'   => $backlogInc,
+            ],
+            [
+                'key'       => 'requerimientos',
+                'label'     => ($labels[2] ?? 'Requerimiento') . 's',
+                'total'     => $backlogReq + $reqAtt,
+                'atendidos' => $reqAtt,
+                'backlog'   => $backlogReq,
+            ],
+        ];
+
+        return [
+            'rows'   => $rows,
+            'folios' => [
+                'label'     => 'Folios',
+                'total'     => $backlogInc + $backlogReq + $incAtt + $reqAtt,
+                'atendidos' => $incAtt + $reqAtt,
+                'backlog'   => $backlogInc + $backlogReq,
+            ],
+        ];
+    }
+
+    /**
+     * Tickets cerrados hoy por tipo GLPI. "Cerrado hoy" = status Resuelto(5)/
+     * Cerrado(6) con solvedate O closedate dentro de [00:00 hoy .. corte] — misma
+     * ventana y criterio que buildDailyActivity(), pero agrupado por `type`.
+     *
+     * @return array{1:int,2:int}  tipo => cerrados hoy
+     */
+    private function closedTodayByType($db, int $now): array
+    {
+        $out = [1 => 0, 2 => 0];
+
+        $startStr = date('Y-m-d 00:00:00', $now);
+        $endStr   = date('Y-m-d H:i:s', $now);
+
+        $cols     = $db->getFieldNames('glpi_tickets');
+        $hasSolve = in_array('solvedate', $cols, true);
+        $hasClose = in_array('closedate', $cols, true);
+        if (! $hasSolve && ! $hasClose) {
+            return $out;
+        }
+
+        $b = $db->table('glpi_tickets')
+            ->select('type')
+            ->where('is_deleted', 0)
+            ->whereIn('status', [5, 6])
+            ->groupStart();
+        $needOr = false;
+        if ($hasSolve) {
+            $b->groupStart()->where('solvedate >=', $startStr)->where('solvedate <=', $endStr)->groupEnd();
+            $needOr = true;
+        }
+        if ($hasClose) {
+            $inner = $needOr ? $b->orGroupStart() : $b->groupStart();
+            $inner->where('closedate >=', $startStr)->where('closedate <=', $endStr)->groupEnd();
+        }
+        $rows = $b->groupEnd()->get()->getResultArray();
+        foreach ($rows as $r) {
+            $type = (int) $r['type'];
+            if (isset($out[$type])) {
+                $out[$type]++;
+            }
+        }
+
+        return $out;
+    }
+
     private function bucketFor(int $ageDays, array $bucketDefs): string
     {
         foreach ($bucketDefs as $b) {
@@ -789,6 +900,38 @@ class BacklogReportService
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $sheet->freezePane('A2');
+
+        // "Resumen por tipo" as the first sheet (opens on top of the ticket dump).
+        if (! empty($data['typeSummary']['rows'])) {
+            $rs = $book->createSheet(0);
+            $rs->setTitle('Resumen');
+            $rs->fromArray(['TIPO', 'TOTAL', 'ATENDIDOS HOY', 'BACKLOG'], null, 'A1');
+            $rsHeader = $rs->getStyle('A1:D1');
+            $rsHeader->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $rsHeader->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1773C8');
+            $rsHeader->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $rr = 2;
+            foreach ($data['typeSummary']['rows'] as $ts) {
+                $rs->setCellValue("A{$rr}", $ts['label']);
+                $rs->setCellValue("B{$rr}", $ts['total']);
+                $rs->setCellValue("C{$rr}", $ts['atendidos']);
+                $rs->setCellValue("D{$rr}", $ts['backlog']);
+                $rr++;
+            }
+            if (! empty($data['typeSummary']['folios'])) {
+                $f = $data['typeSummary']['folios'];
+                $rs->setCellValue("A{$rr}", $f['label']);
+                $rs->setCellValue("B{$rr}", $f['total']);
+                $rs->setCellValue("C{$rr}", $f['atendidos']);
+                $rs->setCellValue("D{$rr}", $f['backlog']);
+                $rs->getStyle("A{$rr}:D{$rr}")->getFont()->setBold(true);
+            }
+            foreach (range('A', 'D') as $col) {
+                $rs->getColumnDimension($col)->setAutoSize(true);
+            }
+            $book->setActiveSheetIndex(0);
+        }
 
         $path = rtrim(sys_get_temp_dir(), '/') . '/backlog_' . date('Y-m-d', $data['cutoffTs']) . '_' . bin2hex(random_bytes(4)) . '.xlsx';
         (new Xlsx($book))->save($path);

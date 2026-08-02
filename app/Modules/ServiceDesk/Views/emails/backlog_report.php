@@ -14,6 +14,7 @@
  * @var array  $areaOrder
  * @var array  $daily         area key => ['label','created','closed','net']  (same-day activity)
  * @var string $dailyLabel    day the activity refers to (dd/mm/YYYY)
+ * @var array  $typeSummary   ['rows'=>[['label','total','atendidos','backlog'],...],'folios'=>[...]]
  * @var array  $buckets       config bucket defs (key,label,min,max,color)
  */
 $pct = static fn(int $n, int $d): int => $d > 0 ? (int) round($n / $d * 100) : 0;
@@ -115,6 +116,44 @@ $netText  = static fn(int $n): string => ($n > 0 ? '+' : '') . number_format($n)
           </td>
         </tr></table>
       </td></tr>
+
+      <?php
+      $typeSummary = $typeSummary ?? ['rows' => [], 'folios' => null];
+      if (! empty($typeSummary['rows'])):
+        $tsFolios = $typeSummary['folios'] ?? null;
+        $backlogColor = static fn(int $n): string => $n > 0 ? '#de3618' : '#108043';
+      ?>
+      <!-- Resumen por tipo (Incidencias / Requerimientos) -->
+      <tr><td style="padding:12px 28px 4px 28px;">
+        <div style="font-size:11px; letter-spacing:.06em; color:#454f5b; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Resumen por tipo</div>
+        <div style="font-size:10px; color:#919eab; margin-bottom:12px;">Total = abiertos + atendidos hoy · Atendidos = cerrados hoy (<?= esc($dailyLabel) ?>) · Backlog = siguen abiertos (foco)</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e1e4e8; border-radius:8px; overflow:hidden;">
+          <tr style="background:#f4f6f8;">
+            <td style="font-size:10px; letter-spacing:.05em; color:#637381; text-transform:uppercase; font-weight:bold; padding:8px 12px;">Tipo</td>
+            <td style="font-size:10px; letter-spacing:.05em; color:#637381; text-transform:uppercase; font-weight:bold; padding:8px 12px; text-align:right;">Total</td>
+            <td style="font-size:10px; letter-spacing:.05em; color:#637381; text-transform:uppercase; font-weight:bold; padding:8px 12px; text-align:right;">Atendidos hoy</td>
+            <td style="font-size:10px; letter-spacing:.05em; color:#637381; text-transform:uppercase; font-weight:bold; padding:8px 12px; text-align:right;">Backlog</td>
+          </tr>
+          <?php foreach ($typeSummary['rows'] as $ts): ?>
+            <tr>
+              <td style="font-size:12px; color:#212b36; font-weight:bold; padding:7px 12px; border-top:1px solid #f0f1f3;"><?= esc($ts['label']) ?></td>
+              <td style="font-size:12px; color:#212b36; font-weight:bold; padding:7px 12px; border-top:1px solid #f0f1f3; text-align:right;"><?= $nf($ts['total']) ?></td>
+              <td style="font-size:12px; color:#108043; font-weight:bold; padding:7px 12px; border-top:1px solid #f0f1f3; text-align:right;"><?= $nf($ts['atendidos']) ?></td>
+              <td style="font-size:12px; font-weight:bold; padding:7px 12px; border-top:1px solid #f0f1f3; text-align:right; color:<?= $backlogColor((int) $ts['backlog']) ?>;"><?= $nf($ts['backlog']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (! empty($tsFolios)): ?>
+          <tr style="background:#f4f6f8;">
+            <td style="font-size:12px; color:#212b36; font-weight:bold; padding:8px 12px; border-top:2px solid #e1e4e8;"><?= esc($tsFolios['label']) ?></td>
+            <td style="font-size:12px; color:#212b36; font-weight:bold; padding:8px 12px; border-top:2px solid #e1e4e8; text-align:right;"><?= $nf($tsFolios['total']) ?></td>
+            <td style="font-size:12px; color:#108043; font-weight:bold; padding:8px 12px; border-top:2px solid #e1e4e8; text-align:right;"><?= $nf($tsFolios['atendidos']) ?></td>
+            <td style="font-size:12px; font-weight:bold; padding:8px 12px; border-top:2px solid #e1e4e8; text-align:right; color:<?= $backlogColor((int) $tsFolios['backlog']) ?>;"><?= $nf($tsFolios['backlog']) ?></td>
+          </tr>
+          <?php endif; ?>
+        </table>
+        <div style="font-size:10px; color:#919eab; margin-top:8px;">El detalle completo de tickets del backlog está en el archivo Excel adjunto (hoja Resumen y hoja Backlog).</div>
+      </td></tr>
+      <?php endif; ?>
 
       <?php if ($dailyShown !== []): ?>
       <!-- Same-day activity by area -->
