@@ -61,9 +61,13 @@ use App\Modules\HelpdeskSupervisor\Models\HelpdeskSupervisorSettingsModel;
 use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\CoordinatorMapModel;
+use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
 use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorSettings;
 use App\Modules\HelpdeskSupervisor\Services\GlpiAuditQueryService;
 use App\Modules\HelpdeskSupervisor\Services\AuditRunnerService;
+use App\Modules\HelpdeskSupervisor\Services\NotificationDraftService;
+use App\Modules\HelpdeskSupervisor\Services\NotificationExcelService;
+use App\Modules\HelpdeskSupervisor\Services\NotificationSenderService;
 use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
@@ -612,6 +616,36 @@ class Services extends BaseService
             new CoordinatorMapModel(),
             new AuditRunModel(),
             new DeviationModel(),
+        );
+    }
+
+    public static function helpdeskNotificationDraft(bool $getShared = true): NotificationDraftService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskNotificationDraft');
+        }
+        return new NotificationDraftService(self::helpdeskSupervisorSettings(), new DeviationModel(), new AuditRunModel());
+    }
+
+    public static function helpdeskNotificationExcel(bool $getShared = true): NotificationExcelService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskNotificationExcel');
+        }
+        return new NotificationExcelService(new DeviationModel(), new AuditRunModel());
+    }
+
+    public static function helpdeskNotificationSender(bool $getShared = true): NotificationSenderService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskNotificationSender');
+        }
+        return new NotificationSenderService(
+            self::helpdeskNotificationDraft(),
+            self::helpdeskNotificationExcel(),
+            self::helpdeskSupervisorSettings(),
+            new NotificationModel(),
+            new AuditRunModel(),
         );
     }
 }

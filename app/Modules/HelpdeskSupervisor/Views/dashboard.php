@@ -41,6 +41,16 @@ $fmt = static fn(string $d) => $d !== '' ? date('d/m/Y', strtotime($d)) : '';
         </span>
       <?php endif; ?>
     </form>
+
+    <?php if ($run && $totalDeviations > 0): ?>
+      <form method="post" action="<?= route_to('helpdesk.notifications.prepareAll') ?>" style="margin-top:var(--space-3);">
+        <?= csrf_field() ?>
+        <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
+        <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
+        <button type="submit" class="btn btn-secondary">Preparar notificaciones masivas</button>
+        <a href="<?= route_to('helpdesk.notifications.index') ?>" class="btn btn-tertiary">Ver notificaciones</a>
+      </form>
+    <?php endif; ?>
   </div>
 </div>
 

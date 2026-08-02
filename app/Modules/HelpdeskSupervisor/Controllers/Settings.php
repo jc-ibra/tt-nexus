@@ -29,6 +29,7 @@ class Settings extends BaseController
             'all'        => $settings->all(),
             'containers' => $containers,
             'tabKeys'    => AuditRunnerService::TAB_KEYS,
+            'aiModels'   => \App\Modules\ServiceDesk\Services\ServiceDeskSettings::AI_MODELS,
         ]);
     }
 
@@ -49,6 +50,14 @@ class Settings extends BaseController
             return redirect()->back()->withInput()->with('error', $result->message);
         }
         return redirect()->to(route_to('helpdesk.settings'))->with('success', $result->message);
+    }
+
+    /** Saves the Fase 2 (IA notifications) settings section. */
+    public function saveNotifications(): RedirectResponse
+    {
+        $result = service('helpdeskSupervisorSettings')->saveNotifications($this->request->getPost());
+        return redirect()->to(route_to('helpdesk.settings'))
+            ->with($result->success ? 'success' : 'error', $result->message);
     }
 
     /** AJAX: tests the GLPI connection the audit will use. */

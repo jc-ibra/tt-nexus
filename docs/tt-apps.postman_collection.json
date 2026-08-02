@@ -36,6 +36,10 @@
     {
       "key": "escalation_id",
       "value": ""
+    },
+    {
+      "key": "notification_id",
+      "value": ""
     }
   ],
   "item": [
@@ -3865,6 +3869,122 @@
                 "helpdesk-supervisor",
                 "escalations",
                 "{{escalation_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Preparar notificación (borrador IA)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/notifications/prepare",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "notifications",
+                "prepare"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period_start\": \"2026-08-01\",\n  \"period_end\": \"2026-08-31\",\n  \"glpi_user_id\": 33\n}"
+            }
+          }
+        },
+        {
+          "name": "Enviar notificación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/notifications/{{notification_id}}/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "notifications",
+                "{{notification_id}}",
+                "send"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"agente@example.com\",\n  \"cc\": [\"supervisor@example.com\"],\n  \"subject\": \"Reporte de desviaciones\",\n  \"final_body\": \"<p>...</p>\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Descartar notificación",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/notifications/{{notification_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "notifications",
+                "{{notification_id}}"
               ]
             }
           }

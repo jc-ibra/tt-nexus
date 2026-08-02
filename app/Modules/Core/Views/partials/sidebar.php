@@ -176,6 +176,11 @@ $moduleSubnav = [
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/escalations'),
         ],
         [
+            'label'  => 'Notificaciones',
+            'url'    => base_url('helpdesk-supervisor/notifications'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/notifications'),
+        ],
+        [
             'label'  => 'Configuración',
             'url'    => base_url('helpdesk-supervisor/settings'),
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/settings'),

@@ -17,7 +17,15 @@ $glpiBaseUrl = $glpiBaseUrl ?? '';
   </div>
   <div class="page-actions">
     <a href="<?= route_to('helpdesk.index') ?>?period_start=<?= esc($periodStart) ?>&period_end=<?= esc($periodEnd) ?>" class="btn btn-secondary">Volver al tablero</a>
-    <a href="<?= route_to('helpdesk.escalations.create') ?>" class="btn btn-primary">Registrar escalación</a>
+    <?php if ($run !== null && $deviations !== []): ?>
+      <form method="post" action="<?= route_to('helpdesk.notifications.prepare', (int) $glpiUserId) ?>" style="display:inline;">
+        <?= csrf_field() ?>
+        <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
+        <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
+        <button type="submit" class="btn btn-primary">Preparar notificación</button>
+      </form>
+    <?php endif; ?>
+    <a href="<?= route_to('helpdesk.escalations.create') ?>" class="btn btn-secondary">Registrar escalación</a>
   </div>
 </div>
 

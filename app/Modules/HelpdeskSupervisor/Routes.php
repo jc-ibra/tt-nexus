@@ -31,10 +31,20 @@ $routes->group('helpdesk-supervisor', [
     $routes->post('escalations/(:num)',        'Escalations::update/$1', ['as' => 'helpdesk.escalations.update']);
     $routes->post('escalations/(:num)/delete', 'Escalations::destroy/$1', ['as' => 'helpdesk.escalations.destroy']);
 
+    // Notifications (Fase 2): IA draft -> review/edit -> send with Excel
+    $routes->get('notifications',                    'Notifications::index',       ['as' => 'helpdesk.notifications.index']);
+    $routes->post('notifications/prepare/(:num)',    'Notifications::prepare/$1',  ['as' => 'helpdesk.notifications.prepare']);   // $1 = glpi_user_id
+    $routes->post('notifications/prepare-all',       'Notifications::prepareAll',  ['as' => 'helpdesk.notifications.prepareAll']);
+    $routes->get('notifications/(:num)/review',      'Notifications::review/$1',   ['as' => 'helpdesk.notifications.review']);
+    $routes->post('notifications/(:num)/regenerate', 'Notifications::regenerate/$1', ['as' => 'helpdesk.notifications.regenerate']);
+    $routes->post('notifications/(:num)/send',       'Notifications::send/$1',     ['as' => 'helpdesk.notifications.send']);
+    $routes->post('notifications/(:num)/delete',     'Notifications::destroy/$1',  ['as' => 'helpdesk.notifications.delete']);
+
     // Settings
     $routes->get('settings',                 'Settings::index', ['as' => 'helpdesk.settings']);
     $routes->post('settings',                'Settings::save',  ['as' => 'helpdesk.settings.save']);
     $routes->post('settings/test-connection', 'Settings::testConnection', ['as' => 'helpdesk.settings.test']);
+    $routes->post('settings/notifications',  'Settings::saveNotifications', ['as' => 'helpdesk.settings.notifications']);
 });
 
 // -----------------------------------------------------------------------
@@ -60,4 +70,10 @@ $routes->group('api/v1/helpdesk-supervisor', [
     $routes->post('escalations',          'HelpdeskSupervisorApiController::escalationsCreate');
     $routes->put('escalations/(:num)',    'HelpdeskSupervisorApiController::escalationsUpdate/$1');
     $routes->delete('escalations/(:num)', 'HelpdeskSupervisorApiController::escalationsDelete/$1');
+
+    // Notifications (Fase 2)
+    $routes->get('notifications',                 'HelpdeskSupervisorApiController::notificationsIndex');
+    $routes->post('notifications/prepare',        'HelpdeskSupervisorApiController::notificationPrepare');
+    $routes->post('notifications/(:num)/send',    'HelpdeskSupervisorApiController::notificationSend/$1');
+    $routes->delete('notifications/(:num)',       'HelpdeskSupervisorApiController::notificationDelete/$1');
 });

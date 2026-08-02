@@ -118,6 +118,62 @@ $tabLabels = [
   </div>
 </form>
 
+<!-- Notificaciones IA (Fase 2) -->
+<form method="post" action="<?= route_to('helpdesk.settings.notifications') ?>">
+  <?= csrf_field() ?>
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card-header"><h2 class="card-title">Notificaciones IA</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="field-check">
+          <input type="checkbox" name="ai_api_key_reuse_servicedesk" value="1" <?= ($all['ai_api_key_reuse_servicedesk'] ?? '1') === '1' ? 'checked' : '' ?>>
+          <span>Reutilizar la API key de Service Desk</span>
+        </label>
+        <p class="field-help">Recomendado. Si lo desactivas, captura una API key propia abajo.</p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="ai_api_key">API key de Anthropic (propia)</label>
+        <input type="password" id="ai_api_key" name="ai_api_key" class="input" autocomplete="new-password" placeholder="Dejar vacío para conservar / usar la de Service Desk">
+      </div>
+
+      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+        <div class="field" style="flex:1; min-width:220px;">
+          <label class="field-label" for="ai_model">Modelo</label>
+          <select id="ai_model" name="ai_model" class="select">
+            <?php foreach (($aiModels ?? []) as $id => $label): ?>
+              <option value="<?= esc($id) ?>" <?= ($all['ai_model'] ?? 'claude-haiku-4-5') === $id ? 'selected' : '' ?>><?= esc($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="field" style="flex:1; min-width:160px;">
+          <label class="field-label" for="ai_max_tokens">Tokens máximos por correo</label>
+          <input type="number" min="256" id="ai_max_tokens" name="ai_max_tokens" class="input" value="<?= $g('ai_max_tokens', '2048') ?>">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+        <div class="field" style="flex:1; min-width:220px;">
+          <label class="field-label" for="notification_sender_name">Nombre del remitente</label>
+          <input type="text" id="notification_sender_name" name="notification_sender_name" class="input" value="<?= $g('notification_sender_name') ?>" placeholder="Ej: Gerencia de Service Desk">
+        </div>
+        <div class="field" style="flex:1; min-width:220px;">
+          <label class="field-label" for="notification_sender_email">Email del remitente</label>
+          <input type="email" id="notification_sender_email" name="notification_sender_email" class="input" value="<?= $g('notification_sender_email') ?>" placeholder="Vacío = usar el From del SMTP">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="notification_cc">CC por defecto</label>
+        <input type="text" id="notification_cc" name="notification_cc" class="input" value="<?= $g('notification_cc') ?>" placeholder="Separados por coma">
+      </div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary">Guardar notificaciones</button>
+    </div>
+  </div>
+</form>
+
 <script>
 document.getElementById('btn-test-conn')?.addEventListener('click', function () {
   const out = document.getElementById('test-result');

@@ -127,6 +127,121 @@ class HelpdeskSupervisorSettings
         return ServiceResult::ok(null, 'Configuración guardada.');
     }
 
+    // ------------------------------------------------------------------
+    // Fase 2: IA notifications
+    // ------------------------------------------------------------------
+
+    public function aiReuseServicedesk(): bool
+    {
+        return $this->model->get('ai_api_key_reuse_servicedesk', '1') === '1';
+    }
+
+    public function aiModel(): string
+    {
+        $v = trim($this->model->get('ai_model', 'claude-haiku-4-5'));
+        return $v !== '' ? $v : 'claude-haiku-4-5';
+    }
+
+    public function aiMaxTokens(): int
+    {
+        return max(256, (int) $this->model->get('ai_max_tokens', '2048'));
+    }
+
+    /**
+     * Decrypted Anthropic API key. Uses the module's own key when set; otherwise,
+     * when reuse is on, falls back to ServiceDesk's key. '' when none available.
+     */
+    public function aiApiKey(): string
+    {
+        $own = $this->cipher()->decrypt($this->model->get('ai_api_key', ''));
+        if ($own !== '') {
+            return $own;
+        }
+        if ($this->aiReuseServicedesk()) {
+            try {
+                return (string) service('serviceDeskSettings')->aiApiKey();
+            } catch (\Throwable) {
+                return '';
+            }
+        }
+        return '';
+    }
+
+    /** Whether IA drafting is usable: a key is resolvable and the cipher works. */
+    public function aiReady(): bool
+    {
+        return $this->aiApiKey() !== '' && $this->cipher()->isAvailable();
+    }
+
+    public function notificationSenderName(): string
+    {
+        return trim($this->model->get('notification_sender_name', ''));
+    }
+
+    public function notificationSenderEmail(): string
+    {
+        return trim($this->model->get('notification_sender_email', ''));
+    }
+
+    /** @return string[] optional CC recipients for every notification. */
+    public function notificationCc(): array
+    {
+        $out = [];
+        foreach (preg_split('/[\r\n,;]+/', $this->model->get('notification_cc', '')) ?: [] as $part) {
+            $part = trim($part);
+            if ($part !== '' && filter_var($part, FILTER_VALIDATE_EMAIL)) {
+                $out[strtolower($part)] = $part;
+            }
+        }
+        return array_values($out);
+    }
+
+    /**
+     * Persists the Fase 2 (IA notifications) settings form. The API key is stored
+     * encrypted and only overwritten when a new value is submitted.
+     */
+    public function saveNotifications(array $input): ServiceResult
+    {
+        $senderEmail = trim((string) ($input['notification_sender_email'] ?? ''));
+        if ($senderEmail !== '' && ! filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+            return ServiceResult::fail('El correo del remitente no es válido.');
+        }
+
+        $data = [
+            'ai_api_key_reuse_servicedesk' => ! empty($input['ai_api_key_reuse_servicedesk']) ? '1' : '0',
+            'ai_model'                     => trim((string) ($input['ai_model'] ?? 'claude-haiku-4-5')),
+            'ai_max_tokens'                => (string) max(256, (int) ($input['ai_max_tokens'] ?? 2048)),
+            'notification_sender_name'     => trim((string) ($input['notification_sender_name'] ?? '')),
+            'notification_sender_email'    => $senderEmail,
+            'notification_cc'              => implode(', ', $this->notificationCcFromRaw((string) ($input['notification_cc'] ?? ''))),
+        ];
+
+        $newKey = trim((string) ($input['ai_api_key'] ?? ''));
+        if ($newKey !== '') {
+            if (! $this->cipher()->isAvailable()) {
+                return ServiceResult::fail('No se puede cifrar la API key: falta encryption.key en el entorno.');
+            }
+            $data['ai_api_key'] = $this->cipher()->encrypt($newKey);
+        }
+
+        $this->model->setMany($data);
+
+        return ServiceResult::ok(null, 'Configuración de notificaciones guardada.');
+    }
+
+    /** @return string[] */
+    private function notificationCcFromRaw(string $raw): array
+    {
+        $out = [];
+        foreach (preg_split('/[\r\n,;]+/', $raw) ?: [] as $part) {
+            $part = trim($part);
+            if ($part !== '' && filter_var($part, FILTER_VALIDATE_EMAIL)) {
+                $out[strtolower($part)] = $part;
+            }
+        }
+        return array_values($out);
+    }
+
     private function cipher(): CredentialCipher
     {
         return $this->cipher ??= new CredentialCipher();

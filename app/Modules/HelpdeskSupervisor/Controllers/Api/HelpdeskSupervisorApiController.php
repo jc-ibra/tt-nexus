@@ -8,6 +8,7 @@ use App\Modules\Core\Controllers\Api\BaseApiController;
 use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
+use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -108,6 +109,47 @@ class HelpdeskSupervisorApiController extends BaseApiController
     public function escalationsDelete($id = null): ResponseInterface
     {
         (new EscalationModel())->delete((int) $id);
+        return $this->response->setStatusCode(204)->setBody('');
+    }
+
+    // ------------------------------------------------------------------
+    // Notifications (Fase 2)
+    // ------------------------------------------------------------------
+
+    public function notificationsIndex(): ResponseInterface
+    {
+        return $this->success((new NotificationModel())->recent(150));
+    }
+
+    public function notificationPrepare(): ResponseInterface
+    {
+        $body  = (array) $this->request->getJSON(true);
+        $runId = (int) ($body['audit_run_id'] ?? 0);
+        $glpi  = (int) ($body['glpi_user_id'] ?? 0);
+
+        if ($runId <= 0 && isset($body['period_start'], $body['period_end'])) {
+            $run   = (new AuditRunModel())->latestCompletedForPeriod((string) $body['period_start'], (string) $body['period_end']);
+            $runId = $run ? (int) $run['id'] : 0;
+        }
+        if ($runId <= 0 || $glpi <= 0) {
+            return $this->error('Se requiere audit_run_id (o period_start/period_end) y glpi_user_id.', 422);
+        }
+
+        $result = service('helpdeskNotificationSender')->prepare($runId, $glpi, (string) ($body['supervisor_name'] ?? ''));
+        return $result->success ? $this->success($result->data, $result->message) : $this->error($result->message, 422);
+    }
+
+    public function notificationSend($id = null): ResponseInterface
+    {
+        $body = (array) $this->request->getJSON(true);
+        $uid  = session()->get('user_id');
+        $result = service('helpdeskNotificationSender')->send((int) $id, $body, $uid !== null ? (int) $uid : null);
+        return $result->success ? $this->success($result->data, $result->message) : $this->error($result->message, 422);
+    }
+
+    public function notificationDelete($id = null): ResponseInterface
+    {
+        (new NotificationModel())->delete((int) $id);
         return $this->response->setStatusCode(204)->setBody('');
     }
 }
