@@ -17,8 +17,9 @@ $fmt = static fn(string $d) => $d !== '' ? date('d/m/Y', strtotime($d)) : '';
 
 <!-- Period + run controls -->
 <div class="card" style="margin-bottom: var(--space-4);">
-  <div class="card-body">
-    <form method="get" action="<?= route_to('helpdesk.index') ?>" style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end;">
+  <div class="card-body" style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end;">
+    <!-- Period selector -->
+    <form method="get" action="<?= route_to('helpdesk.index') ?>" style="display:flex; gap:var(--space-3); align-items:flex-end; margin:0;">
       <div class="field" style="margin:0;">
         <label class="field-label" for="period_start">Desde</label>
         <input type="date" id="period_start" name="period_start" class="input" value="<?= esc($periodStart) ?>">
@@ -30,26 +31,28 @@ $fmt = static fn(string $d) => $d !== '' ? date('d/m/Y', strtotime($d)) : '';
       <button type="submit" class="btn btn-secondary">Ver período</button>
     </form>
 
-    <form method="post" action="<?= route_to('helpdesk.audit.run') ?>" style="margin-top:var(--space-3);">
+    <!-- Primary action -->
+    <form method="post" action="<?= route_to('helpdesk.audit.run') ?>" style="margin:0;">
       <?= csrf_field() ?>
       <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
       <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
       <button type="submit" class="btn btn-primary">Ejecutar auditoría del período</button>
-      <?php if ($run): ?>
-        <span class="text-muted text-sm" style="margin-left:var(--space-2);">
-          Última auditoría: <?= esc(date('d/m/Y H:i', strtotime((string) $run['completed_at']))) ?>
-        </span>
-      <?php endif; ?>
     </form>
 
     <?php if ($run && $totalDeviations > 0): ?>
-      <form method="post" action="<?= route_to('helpdesk.notifications.prepareAll') ?>" style="margin-top:var(--space-3);">
+      <form method="post" action="<?= route_to('helpdesk.notifications.prepareAll') ?>" style="margin:0;">
         <?= csrf_field() ?>
         <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
         <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
         <button type="submit" class="btn btn-secondary">Preparar notificaciones masivas</button>
-        <a href="<?= route_to('helpdesk.notifications.index') ?>" class="btn btn-tertiary">Ver notificaciones</a>
       </form>
+      <a href="<?= route_to('helpdesk.notifications.index') ?>" class="btn btn-secondary">Ver notificaciones</a>
+    <?php endif; ?>
+
+    <?php if ($run): ?>
+      <span class="text-muted text-sm" style="margin-left:auto; align-self:center;">
+        Última auditoría: <?= esc(date('d/m/Y H:i', strtotime((string) $run['completed_at']))) ?>
+      </span>
     <?php endif; ?>
   </div>
 </div>
