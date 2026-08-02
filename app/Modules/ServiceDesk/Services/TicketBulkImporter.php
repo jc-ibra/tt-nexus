@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ServiceDesk\Services;
 
+use App\Modules\Core\Models\UserModel;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Provisioning\Connectors\GlpiConnector;
 use App\Modules\Provisioning\Services\ConnectorFactory;
@@ -84,6 +85,27 @@ class TicketBulkImporter
     }
 
     /**
+     * Resolves the GLPI requester (_users_id_requester) for a job. Prefers the
+     * GLPI user id mapped to the Nexus user who uploaded the import; falls back
+     * to the configured default requester when that user has no GLPI id (or the
+     * job carries no uploader). Applies to both /servicedesk bulk imports and
+     * /servicedesk/creator, since both flow through run().
+     */
+    private function resolveRequester(array $job): int
+    {
+        $uploadedBy = (int) ($job['uploaded_by'] ?? 0);
+        if ($uploadedBy > 0) {
+            $user   = model(UserModel::class)->find($uploadedBy);
+            $glpiId = (int) ($user['glpi_user_id'] ?? 0);
+            if ($glpiId > 0) {
+                return $glpiId;
+            }
+        }
+
+        return $this->settings->requesterUserId();
+    }
+
+    /**
      * @return array{processed:int,succeeded:int,failed:int,outputPath:string}
      */
     private function process(int $importId, array $job): array
@@ -135,7 +157,7 @@ class TicketBulkImporter
         $batch     = $this->settings->batchSize();
         $pause     = $this->settings->batchPauseSeconds();
         $entities  = $this->settings->entitiesId();
-        $requester = $this->settings->requesterUserId();
+        $requester = $this->resolveRequester($job);
         $autocreate = $this->settings->autocreateCatalogValues();
 
         $connector = $this->connectors->buildByKey('glpi');
