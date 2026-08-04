@@ -61,7 +61,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
                  role="button" tabindex="0" aria-label="Subir foto"
                  style="border:2px dashed var(--color-neutral-300); border-radius:var(--radius-md); padding:var(--space-4); text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; background:var(--color-neutral-50);">
               <p id="new-photo-label" style="margin:0; font-size:var(--text-sm); color:var(--text-muted);">Arrastra una imagen o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span></p>
-              <p style="margin:var(--space-1) 0 0; font-size:var(--text-xs); color:var(--text-muted);">JPG, PNG o WEBP · máximo 2 MB</p>
+              <p style="margin:var(--space-1) 0 0; font-size:var(--text-xs); color:var(--text-muted);">JPG, PNG o WEBP · máximo 1 MB</p>
             </div>
             <button type="button" id="new-photo-clear" class="btn btn-tertiary btn-sm" style="margin-top:var(--space-2); display:none;">Quitar foto</button>
           </div>
@@ -237,9 +237,17 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
   const wrap     = document.getElementById('new-photo-wrap');
   const clearBtn = document.getElementById('new-photo-clear');
   const DEFAULT_LABEL = 'Arrastra una imagen o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span>';
+  const MAX_BYTES = 1024 * 1024; // 1 MB
 
   function applyFile(file) {
     if (! file) return;
+
+    if (file.size > MAX_BYTES) {
+      resetField();
+      label.innerHTML = '<span style="color:var(--color-critical, #d72c0d); font-weight:500;">La imagen supera 1 MB. Elige un archivo más pequeño.</span>';
+      return;
+    }
+
     label.innerHTML = '<span style="font-weight:500; color:var(--text-primary);">' + file.name + '</span>';
     dropzone.style.borderColor = 'var(--color-primary)';
     dropzone.style.background  = '#f0f7ff';

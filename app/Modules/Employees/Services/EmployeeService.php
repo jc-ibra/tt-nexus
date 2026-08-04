@@ -382,8 +382,8 @@ class EmployeeService
             return ServiceResult::fail('Formato no permitido. Usa JPG, PNG o WEBP.');
         }
 
-        if ($file->getSize() > 2 * 1024 * 1024) {
-            return ServiceResult::fail('El archivo excede el tamaño máximo de 2 MB.');
+        if ($file->getSize() > 1024 * 1024) {
+            return ServiceResult::fail('El archivo excede el tamaño máximo de 1 MB.');
         }
 
         $dir = WRITEPATH . 'uploads/employees/' . $id;
