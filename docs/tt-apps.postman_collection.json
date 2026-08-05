@@ -3317,6 +3317,58 @@
           }
         },
         {
+          "name": "Verify conversation (autocierre)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "verify"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Move conversation to inbox (autocierre)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/to-inbox",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "to-inbox"
+              ]
+            }
+          }
+        },
+        {
           "name": "Assign conversation",
           "request": {
             "method": "POST",

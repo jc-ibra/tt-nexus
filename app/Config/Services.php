@@ -91,6 +91,7 @@ use App\Modules\MailDispatch\Models\EventModel as MailDispatchEventModel;
 use App\Modules\MailDispatch\Models\MailDispatchSettingsModel;
 use App\Modules\MailDispatch\Models\MessageModel as MailDispatchMessageModel;
 use App\Modules\MailDispatch\Models\MessageRefModel as MailDispatchMessageRefModel;
+use App\Modules\MailDispatch\Models\RuleModel as MailDispatchRuleModel;
 use App\Modules\MailDispatch\Models\SyncRunModel as MailDispatchSyncRunModel;
 use App\Modules\MailDispatch\Models\SyncStateModel as MailDispatchSyncStateModel;
 use App\Modules\MailDispatch\Services\AttachmentService as MailDispatchAttachmentService;
@@ -489,6 +490,7 @@ class Services extends BaseService
             self::mailDispatchAttachments(),
             new MailDispatchMessageRefModel(),
             self::mailDispatchSettings(),
+            new MailDispatchRuleModel(),
         );
     }
 

@@ -8,6 +8,7 @@ use App\Controllers\BaseController;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
+use App\Modules\MailDispatch\Models\RuleModel;
 use App\Modules\MailDispatch\Models\SyncRunModel;
 use App\Modules\MailDispatch\Models\SyncStateModel;
 use App\Modules\MailDispatch\Services\GraphMailService;
@@ -47,6 +48,7 @@ class MailDispatchAdmin extends BaseController
             'users'        => $users,
             'agentMap'     => $agentMap,
             'dispositions' => (new DispositionModel())->allOrdered(),
+            'rules'        => (new RuleModel())->allOrdered(),
             'syncRuns'     => (new SyncRunModel())->recent(12),
             'syncState'    => (new SyncStateModel())->where('mailbox_address', $settings->mailbox())->findAll(),
             'secretMask'   => MailDispatchSettings::SECRET_MASK,
@@ -121,6 +123,13 @@ class MailDispatchAdmin extends BaseController
     {
         $result = service('mailDispatchSettings')->saveAgents($this->request->getPost());
         return redirect()->to(route_to('dispatch.settings') . '#agentes')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    public function saveRules(): ResponseInterface
+    {
+        $result = service('mailDispatchSettings')->saveRules($this->request->getPost());
+        return redirect()->to(route_to('dispatch.settings') . '#reglas')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 

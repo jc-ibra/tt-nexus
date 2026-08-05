@@ -139,6 +139,36 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
   .md-file-list { list-style:none; margin:0 0 var(--space-2); padding:0; }
   .md-file-list li { font-size:var(--text-xs); color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
+  /* Editor de respuesta (acepta HTML: tablas, listas, formato, saltos). */
+  .md-editor-toolbar { display:flex; flex-wrap:wrap; gap:2px; padding:4px; border:1px solid var(--border-default);
+    border-bottom:0; border-radius:var(--radius-md) var(--radius-md) 0 0; background:var(--bg-surface-alt); }
+  .md-editor-toolbar button { display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:28px;
+    padding:0 6px; border:0; background:none; color:var(--text-secondary); border-radius:var(--radius-sm);
+    cursor:pointer; font-size:var(--text-sm); }
+  .md-editor-toolbar button:hover { background:var(--bg-surface); color:var(--text-primary); }
+  .md-editor { min-height:130px; max-height:340px; overflow-y:auto; text-align:left; margin-bottom:var(--space-2);
+    border-radius:0 0 var(--radius-md) var(--radius-md); background:var(--bg-surface); }
+  .md-editor:empty:before { content:attr(data-placeholder); color:var(--text-muted); }
+  .md-editor:focus { outline:2px solid var(--action-primary); outline-offset:-1px; }
+  .md-editor table { border-collapse:collapse; }
+  .md-editor td, .md-editor th { border:1px solid var(--border-default); padding:4px 8px; }
+  .md-editor p { margin:0 0 var(--space-2); }
+
+  /* Botones de ícono en el encabezado del composer. */
+  .md-reply-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border:0; background:none; color:var(--text-muted); border-radius:var(--radius-sm); cursor:pointer; }
+  .md-reply-iconbtn:hover { background:var(--bg-surface-alt); color:var(--text-primary); }
+  .md-reply-iconbtn svg { width:16px; height:16px; }
+
+  /* Expandido -> modal centrado con backdrop. */
+  .md-reply-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:60; display:none; }
+  .md-reply-backdrop.is-open { display:block; }
+  .md-reply-card.is-expanded { position:fixed; z-index:61; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:min(920px, 94vw); max-height:90vh; overflow:auto; box-shadow:var(--shadow-lg); margin:0; }
+  .md-reply-card.is-expanded .md-editor { min-height:52vh; max-height:64vh; }
+  .md-reply-card.is-expanded .ic-expand { display:none; }
+  .md-reply-card.is-expanded .ic-collapse { display:inline !important; }
+
   /* Barra derecha fija: permanece visible al hacer scroll del hilo. Si ella
      misma excede la pantalla, hace su propio scroll. */
   .md-side { position:sticky; top:var(--space-4); align-self:start; max-height:calc(100vh - var(--space-6)); overflow-y:auto; }
@@ -273,6 +303,30 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
 
   <!-- ============================ Sidebar ============================ -->
   <div class="md-side">
+    <?php if ($conv['status'] === 'autocierre'): ?>
+      <!-- Auto-triaged: verify (recorded) or push back to the normal inbox -->
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Autocierre</h2></div>
+        <div class="card-body">
+          <p class="text-sm" style="margin-bottom:var(--space-3);">Entró por una regla de autocierre, fuera de la bandeja principal.</p>
+          <?php if (empty($conv['verified_at'])): ?>
+            <form action="<?= route_to('dispatch.verify', $conv['id']) ?>" method="post" style="margin-bottom:var(--space-3);">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-primary" style="width:100%;">Verificar</button>
+            </form>
+          <?php else: ?>
+            <p class="text-sm" style="margin-bottom:var(--space-3); color:var(--color-success-strong);">
+              Verificado<?= ! empty($conv['verified_at']) ? ' el ' . esc(date('d/m/y H:i', strtotime((string) $conv['verified_at']))) : '' ?>.
+            </p>
+          <?php endif; ?>
+          <form action="<?= route_to('dispatch.toinbox', $conv['id']) ?>" method="post">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-secondary" style="width:100%;">Mover a la bandeja</button>
+          </form>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <!-- Ownership / claim / assign -->
     <div class="card">
       <div class="card-header"><h2 class="card-title">Asignación</h2></div>
@@ -326,12 +380,34 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
 
     <!-- Reply (phase 3) -->
     <?php if ($sendEnabled && ! $closed && ($mine || $canDispatch)): ?>
-    <div class="card">
-      <div class="card-header"><h2 class="card-title">Responder desde Nexus</h2></div>
+    <div class="md-reply-backdrop" id="md-reply-backdrop"></div>
+    <div class="card md-reply-card" id="md-reply-card">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2);">
+        <h2 class="card-title">Responder desde Nexus</h2>
+        <div style="display:flex; align-items:center; gap:var(--space-1);">
+          <a class="md-reply-iconbtn" href="<?= base_url('dispatch/signature') ?>" title="Editar mi firma" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19l7-7 3 3-7 7-3 0z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          </a>
+          <button type="button" class="md-reply-iconbtn" id="md-reply-expand" title="Expandir" aria-label="Expandir">
+            <svg class="ic-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+            <svg class="ic-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
+          </button>
+        </div>
+      </div>
       <div class="card-body">
-        <form action="<?= route_to('dispatch.reply', $conv['id']) ?>" method="post" enctype="multipart/form-data">
+        <form action="<?= route_to('dispatch.reply', $conv['id']) ?>" method="post" enctype="multipart/form-data" id="md-reply-form">
           <?= csrf_field() ?>
-          <textarea name="body" class="input" rows="5" style="margin-bottom:var(--space-2);" placeholder="Escribe la respuesta…" required></textarea>
+
+          <div class="md-editor-toolbar" role="toolbar" aria-label="Formato">
+            <button type="button" data-cmd="bold" title="Negrita" style="font-weight:700;">B</button>
+            <button type="button" data-cmd="italic" title="Cursiva" style="font-style:italic;">I</button>
+            <button type="button" data-cmd="underline" title="Subrayado" style="text-decoration:underline;">U</button>
+            <button type="button" data-cmd="insertUnorderedList" title="Lista con viñetas">&bull; Lista</button>
+            <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+            <button type="button" data-cmd="removeFormat" title="Quitar formato">Limpiar</button>
+          </div>
+          <div id="md-reply-editor" class="input md-editor" contenteditable="true" data-placeholder="Escribe la respuesta… (puedes pegar tablas con formato)"></div>
+          <input type="hidden" name="body" id="md-reply-body">
 
           <div class="md-file-row">
             <input type="file" id="md-reply-files" name="files[]" multiple class="input" style="padding:var(--space-2);">
@@ -485,6 +561,76 @@ window.addEventListener('resize', function () {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
   });
+})();
+
+// Editor de respuesta enriquecido (acepta HTML: tablas, listas, saltos).
+(function () {
+  var editor = document.getElementById('md-reply-editor');
+  var hidden = document.getElementById('md-reply-body');
+  var form   = document.getElementById('md-reply-form');
+  var bar    = document.querySelector('.md-editor-toolbar');
+  if (!editor || !hidden || !form) return;
+
+  if (bar) {
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-cmd]');
+      if (!b) return;
+      e.preventDefault();
+      editor.focus();
+      try { document.execCommand(b.dataset.cmd, false, null); } catch (err) {}
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    var html = editor.innerHTML.trim();
+    var text = (editor.textContent || '').trim();
+    // Vacío real (sin texto ni imágenes): bloquea el envío.
+    if (text === '' && editor.querySelectorAll('img').length === 0) {
+      e.preventDefault();
+      editor.focus();
+      editor.style.outline = '2px solid var(--color-critical-default)';
+      return;
+    }
+    hidden.value = html;
+  });
+
+  // Expandir el composer a modal. Se porta la tarjeta a <body> para que el
+  // position:fixed sea relativo al viewport (un ancestor con overflow/contexto
+  // de apilamiento capturaba el fixed y el modal no se centraba).
+  var card     = document.getElementById('md-reply-card');
+  var backdrop = document.getElementById('md-reply-backdrop');
+  var expand   = document.getElementById('md-reply-expand');
+  if (card && backdrop && expand) {
+    var placeholder = document.createComment('md-reply-card');
+    var expanded = false;
+
+    function setExpanded(on) {
+      if (on === expanded) return;
+      expanded = on;
+      if (on) {
+        card.parentNode.insertBefore(placeholder, card);   // recuerda su lugar
+        document.body.appendChild(backdrop);
+        document.body.appendChild(card);
+        card.classList.add('is-expanded');
+        backdrop.classList.add('is-open');
+        editor.focus();
+      } else {
+        card.classList.remove('is-expanded');
+        backdrop.classList.remove('is-open');
+        if (placeholder.parentNode) {
+          placeholder.parentNode.insertBefore(card, placeholder);  // regresa a su lugar
+          placeholder.parentNode.removeChild(placeholder);
+        }
+      }
+      expand.setAttribute('title', on ? 'Contraer' : 'Expandir');
+      expand.setAttribute('aria-label', on ? 'Contraer' : 'Expandir');
+    }
+    expand.addEventListener('click', function () { setExpanded(!expanded); });
+    backdrop.addEventListener('click', function () { setExpanded(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && expanded) setExpanded(false);
+    });
+  }
 })();
 
 // Lista de archivos elegidos en la respuesta.

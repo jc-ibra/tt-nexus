@@ -8,6 +8,7 @@ use App\Modules\Core\Services\ServiceResult;
 use App\Modules\MailDispatch\Models\AgentModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\MailDispatchSettingsModel;
+use App\Modules\MailDispatch\Models\RuleModel;
 
 /**
  * Typed accessor over maildispatch_settings. The SuperAdmin edits these; the
@@ -300,5 +301,50 @@ class MailDispatchSettings
         }
 
         return ServiceResult::ok(null, 'Catálogo de disposiciones actualizado.');
+    }
+
+    /**
+     * Upserts the auto-triage rules. Each row needs a name and at least one of
+     * sender/subject patterns; rows without a name are skipped. Rules are never
+     * hard-deleted (conversations reference them) — deactivate to disable.
+     */
+    public function saveRules(array $post): ServiceResult
+    {
+        $rows  = (array) ($post['rule'] ?? []);
+        $model = new RuleModel();
+        $order = 1;
+
+        foreach ($rows as $row) {
+            $name    = trim((string) ($row['name'] ?? ''));
+            $sender  = trim((string) ($row['sender_pattern'] ?? ''));
+            $subject = trim((string) ($row['subject_pattern'] ?? ''));
+            $id      = (int) ($row['id'] ?? 0);
+
+            // A blank row (no name, no patterns) is just an unused add-slot.
+            if ($name === '' && $sender === '' && $subject === '' && $id === 0) {
+                continue;
+            }
+            if ($name === '') {
+                return ServiceResult::fail('Cada regla necesita un nombre.');
+            }
+            if ($sender === '' && $subject === '') {
+                return ServiceResult::fail("La regla «{$name}» necesita al menos un patrón (remitente o asunto).");
+            }
+
+            $data = [
+                'name'            => $name,
+                'sender_pattern'  => $sender,
+                'subject_pattern' => $subject,
+                'is_active'       => ! empty($row['is_active']) ? 1 : 0,
+                'sort_order'      => $order++,
+            ];
+            if ($id > 0) {
+                $model->update($id, $data);
+            } else {
+                $model->insert($data);
+            }
+        }
+
+        return ServiceResult::ok(null, 'Reglas de autocierre actualizadas.');
     }
 }

@@ -11,6 +11,7 @@ use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
 use App\Modules\MailDispatch\Models\MessageRefModel;
+use App\Modules\MailDispatch\Models\RuleModel;
 
 /**
  * The heart of MailDispatch: turns synced Graph messages into threaded
@@ -32,8 +33,12 @@ class ConversationService
         private AgentModel $agents,
         private AttachmentService $attachments,
         private MessageRefModel $messageRefs,
-        private MailDispatchSettings $settings
+        private MailDispatchSettings $settings,
+        private RuleModel $rules
     ) {}
+
+    /** Lazily-loaded active auto-triage rules (cached for the sync batch). */
+    private ?array $activeRules = null;
 
     // =======================================================================
     // Ingestion (called by the sync)
@@ -99,13 +104,25 @@ class ConversationService
 
         $isOut = $f['direction'] === 'out';
 
+        // Auto-triage: an inbound message matching an admin rule is born in
+        // "autocierre" so it stays out of the main queue (still verifiable).
+        $status  = $isOut ? 'respondida' : 'nueva';
+        $rule    = null;
+        if (! $isOut) {
+            $rule = $this->matchRule((string) $f['from_email'], (string) $f['subject']);
+            if ($rule !== null) {
+                $status = 'autocierre';
+            }
+        }
+
         $convId = $this->conversations->insert([
             'conversation_id'   => $convKey,
             'mailbox_address'   => $f['mailbox'],
             'subject'           => $f['subject'],
             'requester_name'    => $isOut ? $f['to_name']  : $f['from_name'],
             'requester_email'   => $isOut ? $f['to_email'] : $f['from_email'],
-            'status'            => $isOut ? 'respondida' : 'nueva',
+            'status'            => $status,
+            'auto_rule_id'      => $rule['id'] ?? null,
             'message_count'     => 0,
             'received_at'       => $f['received_at'],
             'first_response_at' => $isOut ? $f['received_at'] : null,
@@ -115,6 +132,10 @@ class ConversationService
         $this->insertMessage((int) $convId, $f, $graphId);
         $this->conversations->set('message_count', 'message_count + 1', false)
             ->where('id', $convId)->update();
+
+        if ($rule !== null) {
+            $this->events->log((int) $convId, 'autoclose', null, 'nueva', 'autocierre', 'Regla: ' . $rule['name']);
+        }
 
         return 'created';
     }
@@ -321,6 +342,103 @@ class ConversationService
         $this->events->log($id, 'status', $userId, (string) $conv['status'], $status);
 
         return ServiceResult::ok(null, 'Estado actualizado.');
+    }
+
+    // =======================================================================
+    // Autocierre (auto-triaged bucket)
+    // =======================================================================
+
+    /**
+     * Marks an auto-triaged conversation as verified by an agent. It stays in the
+     * "autocierre" bucket (now flagged verified); this only records the sign-off.
+     */
+    public function verify(int $id, int $userId): ServiceResult
+    {
+        $conv = $this->conversations->find($id);
+        if ($conv === null) {
+            return ServiceResult::fail('La conversación no existe.');
+        }
+        if ((string) $conv['status'] !== 'autocierre') {
+            return ServiceResult::fail('Solo se pueden verificar conversaciones en autocierre.');
+        }
+        if (! empty($conv['verified_at'])) {
+            return ServiceResult::fail('Esta conversación ya fue verificada.');
+        }
+
+        $this->conversations->update($id, [
+            'verified_by' => $userId,
+            'verified_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->events->log($id, 'verify', $userId, null, null, 'Autocierre verificado por el agente.');
+
+        return ServiceResult::ok(null, 'Conversación verificada.');
+    }
+
+    /**
+     * Moves an auto-triaged conversation back into the normal inbox flow (status
+     * "nueva"), clearing the verification flag so it follows the standard cycle.
+     */
+    public function moveToInbox(int $id, int $userId): ServiceResult
+    {
+        $conv = $this->conversations->find($id);
+        if ($conv === null) {
+            return ServiceResult::fail('La conversación no existe.');
+        }
+        if ((string) $conv['status'] !== 'autocierre') {
+            return ServiceResult::fail('Solo aplica a conversaciones en autocierre.');
+        }
+
+        $this->conversations->update($id, [
+            'status'      => 'nueva',
+            'verified_by' => null,
+            'verified_at' => null,
+        ]);
+        $this->events->log($id, 'status', $userId, 'autocierre', 'nueva', 'Movida a la bandeja de entrada.');
+
+        return ServiceResult::ok(null, 'Conversación movida a la bandeja.');
+    }
+
+    /**
+     * Returns the first active rule matching the given sender/subject, or null.
+     * A rule matches when every non-empty pattern it defines matches; a rule with
+     * both patterns empty is ignored (never auto-triage everything by accident).
+     * A sender pattern starting with "@" matches by domain; otherwise substring.
+     */
+    private function matchRule(string $fromEmail, string $subject): ?array
+    {
+        if ($this->activeRules === null) {
+            $this->activeRules = $this->rules->active();
+        }
+        if ($this->activeRules === []) {
+            return null;
+        }
+
+        $email = mb_strtolower(trim($fromEmail));
+        $subj  = mb_strtolower(trim($subject));
+
+        foreach ($this->activeRules as $rule) {
+            $sp = mb_strtolower(trim((string) ($rule['sender_pattern'] ?? '')));
+            $tp = mb_strtolower(trim((string) ($rule['subject_pattern'] ?? '')));
+            if ($sp === '' && $tp === '') {
+                continue;
+            }
+
+            if ($sp !== '') {
+                $senderOk = $sp[0] === '@'
+                    ? str_ends_with($email, $sp)                 // domain match
+                    : ($email !== '' && str_contains($email, $sp));
+                if (! $senderOk) {
+                    continue;
+                }
+            }
+            if ($tp !== '' && ! str_contains($subj, $tp)) {
+                continue;
+            }
+
+            return $rule;
+        }
+
+        return null;
     }
 
     /** Closes a conversation; requires a disposition (and folio when demanded). */

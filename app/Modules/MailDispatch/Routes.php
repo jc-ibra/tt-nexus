@@ -24,6 +24,10 @@ $routes->group('dispatch', [
     $routes->get('metrics',      'Dispatch::metrics', ['as' => 'dispatch.metrics']);
     $routes->get('metrics/export', 'Dispatch::exportCsv', ['as' => 'dispatch.metrics.export']);
 
+    // Per-agent email signature (each agent configures their own).
+    $routes->get('signature',    'Dispatch::signature',     ['as' => 'dispatch.signature']);
+    $routes->post('signature',   'Dispatch::saveSignature', ['as' => 'dispatch.signature.save']);
+
     // Phase 3: reply templates (operational CRUD).
     $routes->get('templates',              'Templates::index',   ['as' => 'dispatch.templates']);
     $routes->post('templates',             'Templates::store',   ['as' => 'dispatch.templates.store']);
@@ -41,6 +45,8 @@ $routes->group('dispatch', [
     $routes->post('(:num)/claim',     'Dispatch::claim/$1',       ['as' => 'dispatch.claim']);
     $routes->post('(:num)/assign',    'Dispatch::assign/$1',      ['as' => 'dispatch.assign']);
     $routes->post('(:num)/status',    'Dispatch::changeStatus/$1', ['as' => 'dispatch.status']);
+    $routes->post('(:num)/verify',    'Dispatch::verify/$1',      ['as' => 'dispatch.verify']);    // autocierre
+    $routes->post('(:num)/to-inbox',  'Dispatch::moveToInbox/$1', ['as' => 'dispatch.toinbox']);   // autocierre
     $routes->post('(:num)/close',     'Dispatch::close/$1',       ['as' => 'dispatch.close']);
     $routes->post('(:num)/reopen',    'Dispatch::reopen/$1',      ['as' => 'dispatch.reopen']);
     $routes->post('(:num)/note',      'Dispatch::addNote/$1',     ['as' => 'dispatch.note']);
@@ -63,6 +69,8 @@ $routes->group('admin/dispatch', [
     $routes->post('agents',           'MailDispatchAdmin::saveAgents',    ['as' => 'dispatch.agents.save']);
     // Dispositions catalog.
     $routes->post('dispositions',     'MailDispatchAdmin::saveDispositions', ['as' => 'dispatch.dispositions.save']);
+    // Auto-triage rules (route matching mail to the autocierre bucket).
+    $routes->post('rules',            'MailDispatchAdmin::saveRules',      ['as' => 'dispatch.rules.save']);
 });
 
 // -----------------------------------------------------------------------
@@ -78,6 +86,8 @@ $routes->group('api/v1/dispatch', [
     $routes->post('conversations/(:num)/claim',  'DispatchApiController::claim/$1');
     $routes->post('conversations/(:num)/assign', 'DispatchApiController::assign/$1');
     $routes->post('conversations/(:num)/status', 'DispatchApiController::changeStatus/$1');
+    $routes->post('conversations/(:num)/verify', 'DispatchApiController::verify/$1');       // autocierre
+    $routes->post('conversations/(:num)/to-inbox', 'DispatchApiController::moveToInbox/$1'); // autocierre
     $routes->post('conversations/(:num)/close',  'DispatchApiController::close/$1');
     $routes->post('conversations/(:num)/reopen', 'DispatchApiController::reopen/$1');
     $routes->post('conversations/(:num)/note',   'DispatchApiController::addNote/$1');

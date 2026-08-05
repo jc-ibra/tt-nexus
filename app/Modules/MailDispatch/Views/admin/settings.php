@@ -44,6 +44,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <button type="button" class="md-tab is-active" role="tab" data-panel="md-conexion" data-hash="conexion">Conexión y sincronización</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-agentes" data-hash="agentes">Agentes</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-disposiciones" data-hash="disposiciones">Disposiciones</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Reglas de autocierre</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado de sincronización</button>
 </div>
 
@@ -318,6 +319,57 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
               <td><input type="text" name="disposition[<?= $n ?>][name]" class="input" placeholder="Nueva disposición…"></td>
               <td style="text-align:center;"><input type="checkbox" name="disposition[<?= $n ?>][requires_folio]" value="1"></td>
               <td style="text-align:center;"><input type="checkbox" name="disposition[<?= $n ?>][is_active]" value="1" checked></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ========================= Reglas de autocierre ========================= -->
+<div id="md-reglas" class="md-panel" role="tabpanel">
+  <form action="<?= route_to('dispatch.rules.save') ?>" method="post" style="max-width:900px;">
+    <?= csrf_field() ?>
+    <div class="card">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Reglas de autocierre</h2>
+        <button type="submit" class="btn btn-primary">Guardar reglas</button>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <p class="md-hint" style="padding:var(--space-4) var(--space-4) 0;">
+          Si un correo <strong>entrante nuevo</strong> coincide con una regla activa, entra directo al estado
+          <strong>Autocierre</strong> (fuera de la bandeja principal). Ahí cualquier agente puede
+          <strong>Verificar</strong> (queda registrado quién) o <strong>Mover a la bandeja</strong> para el flujo normal.
+          El <em>remitente</em> se compara contra el correo real (usa <code>@dominio.com</code> para todo un dominio);
+          el <em>asunto</em> por coincidencia parcial. Deja un patrón vacío para no filtrar por él (pero al menos uno es obligatorio).
+        </p>
+        <table class="table" style="width:100%;" id="md-rules-table">
+          <thead><tr>
+            <th>Nombre</th>
+            <th>Remitente contiene / @dominio</th>
+            <th>Asunto contiene</th>
+            <th style="text-align:center;">Activa</th>
+          </tr></thead>
+          <tbody>
+            <?php foreach (($rules ?? []) as $i => $r): ?>
+              <tr>
+                <td>
+                  <input type="hidden" name="rule[<?= $i ?>][id]" value="<?= (int) $r['id'] ?>">
+                  <input type="text" name="rule[<?= $i ?>][name]" class="input" value="<?= esc($r['name'], 'attr') ?>">
+                </td>
+                <td><input type="text" name="rule[<?= $i ?>][sender_pattern]" class="input" value="<?= esc($r['sender_pattern'], 'attr') ?>" placeholder="notificaciones@ o @dominio.com" autocomplete="off" spellcheck="false"></td>
+                <td><input type="text" name="rule[<?= $i ?>][subject_pattern]" class="input" value="<?= esc($r['subject_pattern'], 'attr') ?>" placeholder="Reporte Diario de Backlog" autocomplete="off" spellcheck="false"></td>
+                <td style="text-align:center;"><input type="checkbox" name="rule[<?= $i ?>][is_active]" value="1" <?= (int) $r['is_active'] === 1 ? 'checked' : '' ?>></td>
+              </tr>
+            <?php endforeach; ?>
+            <!-- fila vacía para agregar una regla -->
+            <?php $n = count($rules ?? []); ?>
+            <tr>
+              <td><input type="text" name="rule[<?= $n ?>][name]" class="input" placeholder="Nueva regla…"></td>
+              <td><input type="text" name="rule[<?= $n ?>][sender_pattern]" class="input" placeholder="notificaciones@ o @dominio.com" autocomplete="off" spellcheck="false"></td>
+              <td><input type="text" name="rule[<?= $n ?>][subject_pattern]" class="input" placeholder="texto del asunto" autocomplete="off" spellcheck="false"></td>
+              <td style="text-align:center;"><input type="checkbox" name="rule[<?= $n ?>][is_active]" value="1" checked></td>
             </tr>
           </tbody>
         </table>

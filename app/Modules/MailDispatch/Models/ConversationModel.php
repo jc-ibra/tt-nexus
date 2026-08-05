@@ -47,28 +47,38 @@ class ConversationModel extends Model
         $b = $this->select(
             'maildispatch_conversations.*,'
             . ' core_users.name AS agent_name,'
+            . ' vby.name AS verified_name,'
             . ' maildispatch_dispositions.name AS disposition_name'
         )
             // Whether the thread has any attachment (for the list icon).
             ->select('(SELECT MAX(mm2.has_attachments) FROM maildispatch_messages mm2 WHERE mm2.conversation_id = maildispatch_conversations.id) AS has_attachments', false)
             ->join('core_users', 'core_users.id = maildispatch_conversations.agent_id', 'left')
+            ->join('core_users vby', 'vby.id = maildispatch_conversations.verified_by', 'left')
             ->join('maildispatch_dispositions', 'maildispatch_dispositions.id = maildispatch_conversations.disposition_id', 'left');
 
         switch ($filter) {
             case 'unassigned':
                 $b->where('maildispatch_conversations.agent_id', null)
-                  ->where('maildispatch_conversations.status !=', 'cerrada');
+                  ->where('maildispatch_conversations.status !=', 'cerrada')
+                  ->where('maildispatch_conversations.status !=', 'autocierre');
                 break;
             case 'mine':
                 $b->where('maildispatch_conversations.agent_id', $userId)
-                  ->where('maildispatch_conversations.status !=', 'cerrada');
+                  ->where('maildispatch_conversations.status !=', 'cerrada')
+                  ->where('maildispatch_conversations.status !=', 'autocierre');
+                break;
+            case 'autocierre':
+                // Auto-triaged bucket: pending (unverified) first.
+                $b->where('maildispatch_conversations.status', 'autocierre')
+                  ->orderBy('maildispatch_conversations.verified_at IS NULL', 'DESC', false);
                 break;
             case 'closed':
                 $b->where('maildispatch_conversations.status', 'cerrada');
                 break;
             case 'all':
             default:
-                // everything, open first
+                // everything except the auto-triaged bucket, open first
+                $b->where('maildispatch_conversations.status !=', 'autocierre');
                 break;
         }
 
@@ -133,9 +143,11 @@ class ConversationModel extends Model
         };
 
         return [
-            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada'))->countAllResults(),
-            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada'))->countAllResults(),
-            'all'        => $search($this)->countAllResults(),
+            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autocierre'))->countAllResults(),
+            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autocierre'))->countAllResults(),
+            'all'        => $search($this->where('status !=', 'autocierre'))->countAllResults(),
+            // Actionable count = pending verification.
+            'autocierre' => $search($this->where('status', 'autocierre')->where('verified_at', null))->countAllResults(),
             'closed'     => $search($this->where('status', 'cerrada'))->countAllResults(),
         ];
     }

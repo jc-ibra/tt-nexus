@@ -11,6 +11,7 @@ $tabs = [
     'unassigned' => ['Sin asignar', 'M22 12h-6l-2 3h-4l-2-3H2'],
     'mine'       => ['Mías',       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
     'all'        => ['Todas',      'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01'],
+    'autocierre' => ['Autocierre', 'M21 8v13H3V8 M1 3h22v5H1z M10 12h4'],
     'closed'     => ['Cerradas',   'M20 6 9 17l-5-5'],
 ];
 
@@ -108,6 +109,13 @@ $initials = static function (?string $name, ?string $email): string {
     width:16px; height:16px; color:var(--text-muted); pointer-events:none; }
   .gm-search input { width:100%; padding-left:calc(var(--space-3) + 22px); }
   .gm-search-clear { color:var(--text-muted); text-decoration:none; font-size:var(--text-sm); white-space:nowrap; }
+  /* Recarga la vista (re-consulta la BD); NO sincroniza el buzón. */
+  .gm-refresh { flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+    border:1px solid var(--border-default); background:var(--bg-surface); color:var(--text-secondary);
+    border-radius:var(--radius-md); padding:6px 10px; font-size:var(--text-sm); font-weight:var(--weight-medium);
+    text-decoration:none; cursor:pointer; }
+  .gm-refresh:hover { background:var(--bg-surface-alt); color:var(--text-primary); border-color:var(--border-strong); }
+  .gm-refresh svg { width:15px; height:15px; }
 
   /* ---- Lista de conversaciones ---- */
   .gm-list { display:flex; flex-direction:column; }
@@ -144,8 +152,8 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-subject { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     font-size:var(--text-sm); color:var(--text-secondary); }
 
-  /* Sin leer -> negrita como en Gmail. */
-  .gm-row.is-unread .gm-sender, .gm-row.is-unread .gm-subject { font-weight:var(--weight-bold); }
+  /* Sin leer -> solo el remitente en negrita (el asunto queda en peso normal). */
+  .gm-row.is-unread .gm-sender { font-weight:var(--weight-bold); }
 
   /* Acción rápida (aparece al pasar el cursor). */
   .gm-claim { flex:0 0 auto; border:1px solid var(--border-default); background:var(--bg-surface); color:var(--action-primary);
@@ -153,6 +161,15 @@ $initials = static function (?string $name, ?string $email): string {
     cursor:pointer; opacity:0; transition:opacity .12s ease; white-space:nowrap; }
   .gm-row:hover .gm-claim { opacity:1; }
   .gm-claim:hover { border-color:var(--action-primary); background:var(--color-blue-50); }
+
+  /* Autocierre: acción Verificar (siempre visible) y sello de verificado. */
+  .gm-verify { flex:0 0 auto; border:1px solid var(--color-success-default); background:var(--color-success-surface);
+    color:var(--color-success-strong); font-size:var(--text-xs); font-weight:var(--weight-semibold);
+    border-radius:var(--radius-full); padding:2px 9px; cursor:pointer; white-space:nowrap; }
+  .gm-verify:hover { filter:brightness(0.97); }
+  .gm-verified { flex:0 0 auto; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;
+    font-size:var(--text-xs); font-weight:var(--weight-medium); color:var(--color-success-strong); }
+  .gm-verified svg { width:13px; height:13px; }
 
   .gm-empty { padding:var(--space-6); color:var(--text-muted); text-align:center; }
 
@@ -250,6 +267,10 @@ $initials = static function (?string $name, ?string $email): string {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Mis métricas</span>
     </a>
+    <a class="gm-rail-link" href="<?= base_url('dispatch/signature') ?>" title="Mi firma">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19l7-7 3 3-7 7-3 0z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      <span>Mi firma</span>
+    </a>
     <?php if (! empty($canDispatch)): ?>
       <a class="gm-rail-link" href="<?= base_url('dispatch/metrics') ?>" title="Métricas del equipo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3"/></svg>
@@ -268,6 +289,11 @@ $initials = static function (?string $name, ?string $email): string {
           <input type="search" name="q" class="input" value="<?= esc($q, 'attr') ?>" placeholder="Buscar por asunto, solicitante, correo o folio…" autocomplete="off" spellcheck="false">
         </div>
         <?php if ($q !== ''): ?><a class="gm-search-clear" href="<?= base_url('dispatch') ?>?filter=<?= esc($filter, 'attr') ?>">Limpiar</a><?php endif; ?>
+        <?php $reloadHref = base_url('dispatch') . '?' . http_build_query(array_filter(['filter' => $filter, 'q' => $q])); ?>
+        <a class="gm-refresh" href="<?= esc($reloadHref, 'attr') ?>" title="Recargar la lista (no consulta el buzón)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Refrescar</span>
+        </a>
       </form>
     </div>
 
@@ -276,7 +302,8 @@ $initials = static function (?string $name, ?string $email): string {
     <?php else: ?>
       <div class="gm-list">
         <?php foreach ($conversations as $c):
-            $isUnassigned = $c['agent_id'] === null && $c['status'] !== 'cerrada';
+            $isAuto  = $c['status'] === 'autocierre';
+            $isUnassigned = $c['agent_id'] === null && ! in_array($c['status'], ['cerrada', 'autocierre'], true);
             $breach  = $isUnassigned && $slaUnassigned > 0 && $minsOf($c['received_at']) > $slaUnassigned;
             $tone    = $statusTones[$c['status']] ?? 'neutral';
             $unread  = in_array($c['status'], ['nueva', 'esperando_agente'], true);
@@ -296,7 +323,17 @@ $initials = static function (?string $name, ?string $email): string {
               </span>
               <span class="gm-line2">
                 <span class="gm-subject"><?= $hl($c['subject'] ?: '(sin asunto)') ?></span>
-                <?php if ($isUnassigned): ?><button type="button" class="gm-claim" data-claim="<?= (int) $c['id'] ?>">Tomar</button><?php endif; ?>
+                <?php if ($isAuto): ?>
+                  <?php if (! empty($c['verified_at'])): ?>
+                    <span class="gm-verified" title="Verificado por <?= esc($c['verified_name'] ?? 'agente', 'attr') ?>">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Verificado
+                    </span>
+                  <?php else: ?>
+                    <button type="button" class="gm-verify" data-verify="<?= (int) $c['id'] ?>">Verificar</button>
+                  <?php endif; ?>
+                <?php elseif ($isUnassigned): ?>
+                  <button type="button" class="gm-claim" data-claim="<?= (int) $c['id'] ?>">Tomar</button>
+                <?php endif; ?>
               </span>
             </span>
           </a>
@@ -394,7 +431,7 @@ function mdFitFrame(f) {
   // Abrir en el panel (si está visible); si no, seguir el enlace al detalle.
   rows.forEach(function (row) {
     row.addEventListener('click', function (e) {
-      if (e.target.closest('.gm-claim')) return;         // el botón Tomar se maneja aparte
+      if (e.target.closest('.gm-claim') || e.target.closest('.gm-verify')) return; // acciones se manejan aparte
       if (!reader || getComputedStyle(reader).display === 'none') return; // móvil: ir al detalle
       e.preventDefault();
       loadPane(row);
@@ -431,6 +468,21 @@ function mdFitFrame(f) {
     quickPost('<?= base_url('dispatch') ?>/' + id + '/claim')
       .then(function () { location.hash = '#c' + id; location.reload(); })
       .catch(function () { btn.disabled = false; });
+  });
+
+  // Autocierre: Verificar / Mover a la bandeja (fila y panel de lectura).
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-verify], [data-toinbox]');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var verify = el.hasAttribute('data-verify');
+    var id  = verify ? el.dataset.verify : el.dataset.toinbox;
+    var act = verify ? 'verify' : 'to-inbox';
+    el.disabled = true;
+    quickPost('<?= base_url('dispatch') ?>/' + id + '/' + act)
+      .then(function () { if (verify) location.hash = '#c' + id; location.reload(); })
+      .catch(function () { el.disabled = false; });
   });
 
   // Cambio de estado desde el panel.

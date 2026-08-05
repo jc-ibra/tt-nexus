@@ -12,6 +12,7 @@ use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
+use App\Modules\MailDispatch\Models\SignatureModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -22,7 +23,7 @@ use CodeIgniter\HTTP\ResponseInterface;
  */
 class Dispatch extends BaseController
 {
-    private const FILTERS = ['unassigned', 'mine', 'all', 'closed'];
+    private const FILTERS = ['unassigned', 'mine', 'all', 'autocierre', 'closed'];
 
     // -----------------------------------------------------------------------
     // Inbox
@@ -128,6 +129,40 @@ class Dispatch extends BaseController
         $status = (string) ($this->request->getPost('status') ?? '');
         $result = service('mailDispatchConversations')->changeStatus($id, $status, $this->userId());
         return $this->respond($id, $result);
+    }
+
+    /** Autocierre: any agent signs off a rule-triaged conversation (recorded). */
+    public function verify(int $id): ResponseInterface
+    {
+        $result = service('mailDispatchConversations')->verify($id, $this->userId());
+        return $this->respond($id, $result);
+    }
+
+    /** Autocierre: send a rule-triaged conversation back into the normal inbox. */
+    public function moveToInbox(int $id): ResponseInterface
+    {
+        $result = service('mailDispatchConversations')->moveToInbox($id, $this->userId());
+        return $this->respond($id, $result);
+    }
+
+    // -----------------------------------------------------------------------
+    // Signature (per-agent, appended to replies)
+    // -----------------------------------------------------------------------
+
+    public function signature(): string
+    {
+        return view('App\Modules\MailDispatch\Views\signature', [
+            'pageTitle' => 'Mi firma · Despacho de Correo',
+            'signature' => (new SignatureModel())->forUser($this->userId()),
+        ]);
+    }
+
+    public function saveSignature(): ResponseInterface
+    {
+        $html = trim((string) ($this->request->getPost('body') ?? ''));
+        (new SignatureModel())->saveFor($this->userId(), $html);
+        return redirect()->to(route_to('dispatch.signature'))
+            ->with('success', 'Firma guardada.');
     }
 
     /**

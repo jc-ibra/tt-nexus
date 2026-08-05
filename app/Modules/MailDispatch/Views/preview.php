@@ -55,20 +55,29 @@ $attUrl = fn (int $id): string => base_url('dispatch/attachments/' . $id);
   </div>
 
   <div class="md-pane-actions">
-    <?php if (! $closed && $conv['agent_id'] === null): ?>
-      <button type="button" class="btn btn-primary md-qa" data-action="claim" data-id="<?= (int) $conv['id'] ?>">Tomar conversación</button>
-    <?php elseif ($mine && ! $closed): ?>
-      <span class="md-pane-tag">Asignada a ti · <?= esc($conv['agent_name'] ?? '') ?></span>
-    <?php elseif ($conv['agent_name']): ?>
-      <span class="md-pane-tag">Asignada a <?= esc($conv['agent_name']) ?></span>
-    <?php endif; ?>
+    <?php if ($conv['status'] === 'autocierre'): ?>
+      <?php if (empty($conv['verified_at'])): ?>
+        <button type="button" class="btn btn-primary" data-verify="<?= (int) $conv['id'] ?>">Verificar</button>
+      <?php else: ?>
+        <span class="md-pane-tag">Verificado<?= ! empty($conv['verified_at']) ? ' · ' . esc(date('d/m/y H:i', strtotime((string) $conv['verified_at']))) : '' ?></span>
+      <?php endif; ?>
+      <button type="button" class="btn btn-secondary" data-toinbox="<?= (int) $conv['id'] ?>">Mover a la bandeja</button>
+    <?php else: ?>
+      <?php if (! $closed && $conv['agent_id'] === null): ?>
+        <button type="button" class="btn btn-primary md-qa" data-action="claim" data-id="<?= (int) $conv['id'] ?>">Tomar conversación</button>
+      <?php elseif ($mine && ! $closed): ?>
+        <span class="md-pane-tag">Asignada a ti · <?= esc($conv['agent_name'] ?? '') ?></span>
+      <?php elseif ($conv['agent_name']): ?>
+        <span class="md-pane-tag">Asignada a <?= esc($conv['agent_name']) ?></span>
+      <?php endif; ?>
 
-    <?php if (! $closed && ($mine || $canDispatch)): ?>
-      <select class="input md-qa-status" data-id="<?= (int) $conv['id'] ?>" style="width:auto;">
-        <?php foreach ($manualStatuses as $st): ?>
-          <option value="<?= esc($st) ?>" <?= $conv['status'] === $st ? 'selected' : '' ?>><?= esc($statusLabels[$st] ?? $st) ?></option>
-        <?php endforeach; ?>
-      </select>
+      <?php if (! $closed && ($mine || $canDispatch)): ?>
+        <select class="input md-qa-status" data-id="<?= (int) $conv['id'] ?>" style="width:auto;">
+          <?php foreach ($manualStatuses as $st): ?>
+            <option value="<?= esc($st) ?>" <?= $conv['status'] === $st ? 'selected' : '' ?>><?= esc($statusLabels[$st] ?? $st) ?></option>
+          <?php endforeach; ?>
+        </select>
+      <?php endif; ?>
     <?php endif; ?>
 
     <a class="btn btn-secondary" href="<?= route_to('dispatch.show', $conv['id']) ?>">Ver detalle completo</a>

@@ -8,6 +8,7 @@ use App\Modules\Core\Services\ServiceResult;
 use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
+use App\Modules\MailDispatch\Models\SignatureModel;
 use Config\Email as EmailConfig;
 
 /**
@@ -67,7 +68,14 @@ class SmtpReplyService
         $validFiles = (array) $vres->data;
 
         $target = $this->latestReplyTarget($conversationId);
-        $html   = $this->toHtml($body);
+        // The agent's own message (HTML accepted; plain text keeps line breaks),
+        // followed by their configured signature. This pair is stored and shown
+        // in Nexus as the outbound message.
+        $replyHtml = $this->normalizeBody($body);
+        $bodyHtml  = $replyHtml . $this->signatureHtml($userId);
+        // What actually goes out also quotes the prior thread underneath, so it
+        // reads like a real reply sent from the mailbox (history is preserved).
+        $sendHtml  = $bodyHtml . $this->historyHtml($conversationId);
 
         // Our own Message-ID so the re-synced sent copy can be de-duplicated.
         $fromEmail = $this->settings->smtpFromEmail();
@@ -79,7 +87,7 @@ class SmtpReplyService
             $subject = 'Re: ' . $subject;
         }
 
-        $send = $this->send($to, $subject, $html, $messageId, $target, $validFiles);
+        $send = $this->send($to, $subject, $sendHtml, $messageId, $target, $validFiles);
         if (! $send->success) {
             return $send;
         }
@@ -96,8 +104,8 @@ class SmtpReplyService
             'from_email'          => $fromEmail,
             'to_recipients'       => $to,
             'subject'             => $subject,
-            'body_preview'        => mb_substr($body, 0, 255),
-            'body'                => $html,
+            'body_preview'        => mb_substr(trim((string) preg_replace('/\s+/', ' ', strip_tags($replyHtml))), 0, 255),
+            'body'                => $bodyHtml,
             'body_is_html'        => 1,
             'has_attachments'     => $validFiles !== [] ? 1 : 0,
             'received_at'         => $now,
@@ -158,11 +166,20 @@ class SmtpReplyService
             }
         }
 
-        // Attach the uploaded files (read from their temp path).
+        // Attach the uploaded files. Pass the raw bytes as a buffer (with a
+        // non-empty mime): CI4's Email::attach() treats the first arg as a file
+        // PATH only when $mime is ''. Previously we passed both a path AND a mime,
+        // so CI used the *path string* as the attachment content -> 0 KB / corrupt.
         foreach ($files as $file) {
-            if ($file instanceof \CodeIgniter\HTTP\Files\UploadedFile && $file->isValid()) {
-                $email->attach($file->getTempName(), '', $file->getClientName(), $file->getClientMimeType() ?: '');
+            if (! ($file instanceof \CodeIgniter\HTTP\Files\UploadedFile) || ! $file->isValid()) {
+                continue;
             }
+            $content = @file_get_contents($file->getTempName());
+            if ($content === false) {
+                continue;
+            }
+            $mime = $file->getClientMimeType() ?: 'application/octet-stream';
+            $email->attach($content, 'attachment', $file->getClientName(), $mime);
         }
 
         if (! $email->send(false)) {
@@ -191,8 +208,95 @@ class SmtpReplyService
             ->first();
     }
 
-    private function toHtml(string $text): string
+    /**
+     * Normalizes the composed body. If it already contains HTML (rich editor:
+     * tables, lists, formatting), it is sanitized and kept as-is. Otherwise it is
+     * plain text, escaped with line breaks preserved.
+     */
+    private function normalizeBody(string $raw): string
     {
-        return nl2br(esc($text));
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        // Looks like HTML if it carries a real tag.
+        if (preg_match('/<([a-z][a-z0-9]*)\b[^>]*>/i', $raw)) {
+            return $this->sanitizeHtml($raw);
+        }
+        return nl2br(esc($raw));
+    }
+
+    /**
+     * Minimal HTML sanitizer for agent-composed replies: strips scripts, styles,
+     * comments, event-handler attributes and javascript: URIs, while keeping
+     * formatting and tables intact. Agents are trusted; this guards the recipient.
+     */
+    private function sanitizeHtml(string $html): string
+    {
+        // Drop dangerous elements entirely (with their content).
+        $html = preg_replace('#<(script|style|iframe|object|embed|form)\b[^>]*>.*?</\1>#is', '', $html) ?? $html;
+        $html = preg_replace('#<(script|style|iframe|object|embed|form|link|meta)\b[^>]*/?>#is', '', $html) ?? $html;
+        // Strip HTML comments (can hide conditionals).
+        $html = preg_replace('/<!--.*?-->/s', '', $html) ?? $html;
+        // Remove inline event handlers: on*="..." / on*='...' / on*=value.
+        $html = preg_replace('/\son[a-z]+\s*=\s*"[^"]*"/i', '', $html) ?? $html;
+        $html = preg_replace("/\son[a-z]+\s*=\s*'[^']*'/i", '', $html) ?? $html;
+        $html = preg_replace('/\son[a-z]+\s*=\s*[^\s>]+/i', '', $html) ?? $html;
+        // Neutralize javascript: URIs in href/src.
+        $html = preg_replace('/(href|src)\s*=\s*(["\']?)\s*javascript:[^"\'>\s]*/i', '$1=$2#', $html) ?? $html;
+
+        return trim($html);
+    }
+
+    /** The replier's configured signature, sanitized, or '' when none is set. */
+    private function signatureHtml(int $userId): string
+    {
+        $raw = trim((new SignatureModel())->forUser($userId));
+        if ($raw === '') {
+            return '';
+        }
+        return '<br><div class="nexus-signature">' . $this->sanitizeHtml($raw) . '</div>';
+    }
+
+    /**
+     * Builds the quoted history appended below the reply: every prior message of
+     * the conversation, newest first, as "El <fecha>, <remitente> escribió:" plus
+     * a blockquote. Capped to keep the email a sensible size.
+     */
+    private function historyHtml(int $conversationId): string
+    {
+        $prev = $this->messages
+            ->where('conversation_id', $conversationId)
+            ->orderBy('received_at', 'DESC')->orderBy('id', 'DESC')
+            ->findAll(15);
+        if ($prev === []) {
+            return '';
+        }
+
+        $meses = [1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
+                  7 => 'jul', 8 => 'ago', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic'];
+
+        $blocks = '';
+        foreach ($prev as $m) {
+            $who  = trim((string) ($m['from_name'] ?? '')) ?: trim((string) ($m['from_email'] ?? '')) ?: 'Remitente';
+            $mail = trim((string) ($m['from_email'] ?? ''));
+            $ts   = strtotime((string) ($m['received_at'] ?? '')) ?: time();
+            $when = date('j', $ts) . ' ' . ($meses[(int) date('n', $ts)] ?? '') . ' ' . date('Y', $ts) . ' ' . date('H:i', $ts);
+
+            $header = 'El ' . esc($when) . ', ' . esc($who)
+                . ($mail !== '' ? ' &lt;' . esc($mail) . '&gt;' : '') . ' escribió:';
+
+            $bodyHtml = (int) ($m['body_is_html'] ?? 0) === 1 && trim((string) $m['body']) !== ''
+                ? $this->sanitizeHtml((string) $m['body'])
+                : nl2br(esc((string) ($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? ''))));
+
+            $blocks .= '<div style="margin-top:12px;">'
+                . '<div style="color:#6b7885; font-size:12px;">' . $header . '</div>'
+                . '<blockquote style="margin:6px 0 0; padding:0 0 0 12px; border-left:2px solid #d0d7de; color:#3c4a57;">'
+                . $bodyHtml
+                . '</blockquote></div>';
+        }
+
+        return '<br><div style="border-top:1px solid #e1e4e8; margin-top:16px; padding-top:8px;">' . $blocks . '</div>';
     }
 }
