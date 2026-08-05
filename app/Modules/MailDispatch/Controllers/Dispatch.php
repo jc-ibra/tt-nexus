@@ -34,15 +34,19 @@ class Dispatch extends BaseController
         }
 
         $userId  = $this->userId();
+        $q       = trim((string) ($this->request->getGet('q') ?? ''));
         $conv    = new ConversationModel();
-        $rows    = $conv->forQueue($filter, $userId);
+        $rows    = $conv->forQueue($filter, $userId, 25, $q);
         $config  = new MailDispatchConfig();
         $settings = service('mailDispatchSettings');
 
         return view('App\Modules\MailDispatch\Views\inbox', [
             'pageTitle'     => 'Bandeja · Despacho de Correo',
             'filter'        => $filter,
+            'q'             => $q,
             'conversations' => $rows,
+            'pager'         => $conv->pager,
+            'total'         => $conv->pager ? $conv->pager->getTotal('default') : count($rows),
             'statusLabels'  => $config->statusLabels,
             'statusTones'   => $config->statusTones,
             'slaUnassigned' => $settings->slaUnassignedMinutes(),

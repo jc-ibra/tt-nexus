@@ -42,7 +42,7 @@ class ConversationModel extends Model
      * Inbox query. $filter ∈ {unassigned, mine, all, open, closed}. Returns the
      * conversation rows joined with the assigned agent's name and disposition.
      */
-    public function forQueue(string $filter, ?int $userId, int $limit = 200): array
+    public function forQueue(string $filter, ?int $userId, int $perPage = 25, string $q = ''): array
     {
         $b = $this->select(
             'maildispatch_conversations.*,'
@@ -70,8 +70,22 @@ class ConversationModel extends Model
                 break;
         }
 
+        // Free-text search across subject, requester and GLPI folio. Grouped so
+        // the OR set does not break the filter's AND conditions above.
+        $q = trim($q);
+        if ($q !== '') {
+            $b->groupStart()
+              ->like('maildispatch_conversations.subject', $q)
+              ->orLike('maildispatch_conversations.requester_name', $q)
+              ->orLike('maildispatch_conversations.requester_email', $q)
+              ->orLike('maildispatch_conversations.glpi_folio', $q)
+              ->groupEnd();
+        }
+
+        // Paginated: the pager is available afterwards via $model->pager. The
+        // page number is read from the ?page= query param automatically.
         return $b->orderBy('maildispatch_conversations.last_activity_at', 'DESC')
-                 ->findAll($limit);
+                 ->paginate($perPage, 'default');
     }
 
     /** Conversation joined with agent + disposition names for the detail view. */
