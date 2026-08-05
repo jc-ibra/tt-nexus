@@ -28,10 +28,15 @@ class SmtpReplyService
         private MailDispatchSettings $settings,
         private ConversationModel $conversations,
         private MessageModel $messages,
-        private EventModel $events
+        private EventModel $events,
+        private AttachmentService $attachments
     ) {}
 
-    public function reply(int $conversationId, string $body, int $userId): ServiceResult
+    /**
+     * @param array $files UploadedFile[] posted with the reply (already the
+     *                     validated set, or raw — validated here defensively).
+     */
+    public function reply(int $conversationId, string $body, int $userId, array $files = []): ServiceResult
     {
         if (! $this->settings->isSendEnabled()) {
             return ServiceResult::fail('La respuesta desde Nexus está deshabilitada o el SMTP no está configurado.');
@@ -54,6 +59,13 @@ class SmtpReplyService
             return ServiceResult::fail('La conversación no tiene un correo de destinatario válido.');
         }
 
+        // Validate attachments before sending.
+        $vres = $this->attachments->validateUploads($files);
+        if (! $vres->success) {
+            return $vres;
+        }
+        $validFiles = (array) $vres->data;
+
         $target = $this->latestReplyTarget($conversationId);
         $html   = $this->toHtml($body);
 
@@ -67,14 +79,14 @@ class SmtpReplyService
             $subject = 'Re: ' . $subject;
         }
 
-        $send = $this->send($to, $subject, $html, $messageId, $target);
+        $send = $this->send($to, $subject, $html, $messageId, $target, $validFiles);
         if (! $send->success) {
             return $send;
         }
 
         $now = date('Y-m-d H:i:s');
 
-        $this->messages->insert([
+        $messageDbId = (int) $this->messages->insert([
             'conversation_id'     => $conversationId,
             'graph_id'            => 'nexus:' . bin2hex(random_bytes(10)),
             'internet_message_id' => $messageId,
@@ -87,9 +99,14 @@ class SmtpReplyService
             'body_preview'        => mb_substr($body, 0, 255),
             'body'                => $html,
             'body_is_html'        => 1,
-            'has_attachments'     => 0,
+            'has_attachments'     => $validFiles !== [] ? 1 : 0,
             'received_at'         => $now,
-        ]);
+        ], true);
+
+        // Keep a copy of the sent files in the thread.
+        if ($messageDbId > 0 && $validFiles !== []) {
+            $this->attachments->storeOutgoing($messageDbId, $conversationId, $validFiles);
+        }
 
         $fromStatus = (string) $conv['status'];
         $this->conversations->set('message_count', 'message_count + 1', false)
@@ -110,7 +127,7 @@ class SmtpReplyService
      * headers. Returns a ServiceResult; the SMTP debug output is logged, never
      * surfaced verbatim to the agent.
      */
-    private function send(string $to, string $subject, string $html, string $messageId, ?array $target): ServiceResult
+    private function send(string $to, string $subject, string $html, string $messageId, ?array $target, array $files = []): ServiceResult
     {
         $config = new EmailConfig();
         $config->protocol   = 'smtp';
@@ -138,6 +155,13 @@ class SmtpReplyService
                 $references = trim((string) ($target['references_header'] ?? ''));
                 $references = $references !== '' ? $references . ' ' . $inReplyTo : $inReplyTo;
                 $email->setHeader('References', $references);
+            }
+        }
+
+        // Attach the uploaded files (read from their temp path).
+        foreach ($files as $file) {
+            if ($file instanceof \CodeIgniter\HTTP\Files\UploadedFile && $file->isValid()) {
+                $email->attach($file->getTempName(), '', $file->getClientName(), $file->getClientMimeType() ?: '');
             }
         }
 

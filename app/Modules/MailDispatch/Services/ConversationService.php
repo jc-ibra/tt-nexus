@@ -10,6 +10,7 @@ use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
+use App\Modules\MailDispatch\Models\MessageRefModel;
 
 /**
  * The heart of MailDispatch: turns synced Graph messages into threaded
@@ -28,7 +29,9 @@ class ConversationService
         private MessageModel $messages,
         private EventModel $events,
         private DispositionModel $dispositions,
-        private AgentModel $agents
+        private AgentModel $agents,
+        private AttachmentService $attachments,
+        private MessageRefModel $messageRefs
     ) {}
 
     // =======================================================================
@@ -68,10 +71,10 @@ class ConversationService
             $conv = $this->conversations->findByGraphId($fields['conversation_id']);
         }
         if ($conv === null) {
-            // Fallback: In-Reply-To / References -> a stored internetMessageId.
-            $refConvId = $this->messages->conversationIdForReference(
-                array_merge($fields['in_reply_to_ids'], $fields['reference_ids'])
-            );
+            // Reference-overlap: any of this message's tokens (own Message-ID,
+            // In-Reply-To, References) already stored against another message.
+            // Threads replies AND forwarded chains that share ancestor ids.
+            $refConvId = $this->messageRefs->conversationByTokens($this->threadTokens($fields));
             if ($refConvId !== null) {
                 $conv = $this->conversations->find($refConvId);
             }
@@ -167,9 +170,9 @@ class ConversationService
         return 'appended';
     }
 
-    private function insertMessage(int $convId, array $f, string $graphId): void
+    private function insertMessage(int $convId, array $f, string $graphId): int
     {
-        $this->messages->insert([
+        $messageId = (int) $this->messages->insert([
             'conversation_id'     => $convId,
             'graph_id'            => $graphId,
             'internet_message_id' => $f['internet_message_id'] ?: null,
@@ -185,7 +188,30 @@ class ConversationService
             'body_is_html'        => $f['body_is_html'],
             'has_attachments'     => $f['has_attachments'],
             'received_at'         => $f['received_at'],
-        ]);
+        ], true);
+
+        // Persist the message's attachments (files + metadata rows).
+        if ($messageId > 0 && ! empty($f['attachments'])) {
+            $this->attachments->storeIncoming($messageId, $convId, $f['attachments']);
+        }
+
+        // Persist the message's thread tokens for reference-overlap matching.
+        if ($messageId > 0) {
+            $this->messageRefs->storeTokens($messageId, $this->threadTokens($f));
+        }
+
+        return $messageId;
+    }
+
+    /** All RFC message-id tokens a message carries: own id + In-Reply-To + References. */
+    private function threadTokens(array $f): array
+    {
+        $own = trim((string) ($f['internet_message_id'] ?? ''));
+        return array_merge(
+            $own !== '' ? [$own] : [],
+            $f['in_reply_to_ids'] ?? [],
+            $f['reference_ids'] ?? []
+        );
     }
 
     // =======================================================================
@@ -423,6 +449,7 @@ class ConversationService
             'body'                => (string) $body,
             'body_is_html'        => $bodyType === 'html' ? 1 : 0,
             'has_attachments'     => ! empty($m['hasAttachments']) ? 1 : 0,
+            'attachments'         => is_array($m['attachments'] ?? null) ? $m['attachments'] : [],
             'received_at'         => $this->parseDate((string) ($m['receivedDateTime'] ?? '')),
         ];
     }

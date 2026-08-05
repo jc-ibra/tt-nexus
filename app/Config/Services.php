@@ -84,13 +84,16 @@ use App\Modules\ServiceDesk\Services\TicketTemplateBuilder;
 use App\Modules\ServiceDesk\Services\WidgetTicketService;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel as MailDispatchAgentModel;
+use App\Modules\MailDispatch\Models\AttachmentModel as MailDispatchAttachmentModel;
 use App\Modules\MailDispatch\Models\ConversationModel as MailDispatchConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel as MailDispatchDispositionModel;
 use App\Modules\MailDispatch\Models\EventModel as MailDispatchEventModel;
 use App\Modules\MailDispatch\Models\MailDispatchSettingsModel;
 use App\Modules\MailDispatch\Models\MessageModel as MailDispatchMessageModel;
+use App\Modules\MailDispatch\Models\MessageRefModel as MailDispatchMessageRefModel;
 use App\Modules\MailDispatch\Models\SyncRunModel as MailDispatchSyncRunModel;
 use App\Modules\MailDispatch\Models\SyncStateModel as MailDispatchSyncStateModel;
+use App\Modules\MailDispatch\Services\AttachmentService as MailDispatchAttachmentService;
 use App\Modules\MailDispatch\Services\ConversationService as MailDispatchConversationService;
 use App\Modules\MailDispatch\Services\GraphMailService;
 use App\Modules\MailDispatch\Services\ImapMailService;
@@ -461,6 +464,17 @@ class Services extends BaseService
         );
     }
 
+    public static function mailDispatchAttachments(bool $getShared = true): MailDispatchAttachmentService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchAttachments');
+        }
+        return new MailDispatchAttachmentService(
+            new MailDispatchAttachmentModel(),
+            new MailDispatchConfig(),
+        );
+    }
+
     public static function mailDispatchConversations(bool $getShared = true): MailDispatchConversationService
     {
         if ($getShared) {
@@ -472,6 +486,8 @@ class Services extends BaseService
             new MailDispatchEventModel(),
             new MailDispatchDispositionModel(),
             new MailDispatchAgentModel(),
+            self::mailDispatchAttachments(),
+            new MailDispatchMessageRefModel(),
         );
     }
 
@@ -551,6 +567,7 @@ class Services extends BaseService
                 new MailDispatchConversationModel(),
                 new MailDispatchMessageModel(),
                 new MailDispatchEventModel(),
+                self::mailDispatchAttachments(),
             );
         }
         return new MailDispatchReplyService(

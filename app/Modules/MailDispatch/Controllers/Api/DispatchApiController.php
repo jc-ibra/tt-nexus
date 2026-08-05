@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\MailDispatch\Controllers\Api;
 
 use App\Modules\Core\Controllers\Api\BaseApiController;
+use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel;
+use App\Modules\MailDispatch\Models\AttachmentModel;
 use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
@@ -38,11 +40,44 @@ class DispatchApiController extends BaseApiController
         if ($conv === null) {
             return $this->notFound('Conversación no encontrada.');
         }
+        $messages = (new MessageModel())->forConversation($id);
+        $attModel = new AttachmentModel();
+        foreach ($messages as &$m) {
+            $m['attachments'] = $attModel->forMessage((int) $m['id']);
+        }
+        unset($m);
+
         return $this->success([
             'conversation' => $conv,
-            'messages'     => (new MessageModel())->forConversation($id),
+            'messages'     => $messages,
             'events'       => (new EventModel())->forConversation($id),
         ]);
+    }
+
+    /** Streams an attachment (bearer-authenticated + module access). */
+    public function downloadAttachment(int $id): ResponseInterface
+    {
+        $att = (new AttachmentModel())->find($id);
+        if ($att === null) {
+            return $this->notFound('Adjunto no encontrado.');
+        }
+        $svc  = service('mailDispatchAttachments');
+        $path = $svc->absolutePath($att);
+        if ($path === null || ! is_file($path)) {
+            return $this->notFound('El archivo del adjunto no está disponible.');
+        }
+
+        $mime = (string) ($att['mime_type'] ?? '') ?: 'application/octet-stream';
+        $ext  = strtolower(pathinfo((string) $att['filename'], PATHINFO_EXTENSION));
+        $forceDownload = in_array($ext, (new MailDispatchConfig())->blockedExtensions, true) || ! $svc->isInlineSafe($mime);
+        $safeName = preg_replace('/["\r\n]+/', '_', (string) $att['filename']) ?? 'archivo';
+
+        return $this->response
+            ->setHeader('Content-Type', $forceDownload ? 'application/octet-stream' : $mime)
+            ->setHeader('Content-Disposition', ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $safeName . '"')
+            ->setHeader('Content-Length', (string) filesize($path))
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody((string) file_get_contents($path));
     }
 
     public function claim(int $id): ResponseInterface
@@ -92,10 +127,12 @@ class DispatchApiController extends BaseApiController
 
     public function reply(int $id): ResponseInterface
     {
+        $files = $this->request->getFileMultiple('files') ?? [];
         return $this->fromResult(service('mailDispatchReplyService')->reply(
             $id,
             (string) ($this->request->getVar('body') ?? ''),
-            $this->userId()
+            $this->userId(),
+            $files
         ));
     }
 

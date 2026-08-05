@@ -213,7 +213,11 @@ class ImapMailService
         $isHtml = $msg->hasHTMLBody();
         $body   = $isHtml ? (string) $msg->getHTMLBody() : (string) $msg->getTextBody();
 
-        $preview = trim(mb_substr(trim(strip_tags($isHtml ? $body : $body)), 0, 255));
+        // Plain-text preview: strip tags, decode HTML entities and collapse
+        // whitespace so no raw "&nbsp;"/"&lt;" leaks into the UI.
+        $plain   = html_entity_decode(strip_tags($body), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain   = trim(preg_replace('/[\pZ\s]+/u', ' ', $plain) ?? $plain);
+        $preview = mb_substr($plain, 0, 255);
 
         $dateAttr = $msg->date;
         $iso = '';
@@ -225,6 +229,8 @@ class ImapMailService
             }
         }
 
+        $attachments = $this->extractAttachments($msg);
+
         return [
             'id'                     => 'imap:' . $uidValidity . ':' . $uid,
             'conversationId'         => '', // IMAP has no thread id; threading falls back to References/In-Reply-To
@@ -235,10 +241,59 @@ class ImapMailService
             'receivedDateTime'       => $iso,
             'bodyPreview'            => $preview,
             'body'                   => ['contentType' => $isHtml ? 'html' : 'text', 'content' => $body],
-            'hasAttachments'         => $msg->getAttachments()->count() > 0,
+            'hasAttachments'         => $attachments !== [],
+            'attachments'            => $attachments,
             'internetMessageHeaders' => $headers,
             'isDraft'                => false,
         ];
+    }
+
+    /**
+     * Extracts attachments into the normalized shape consumed by
+     * AttachmentService: name, content_type, size, raw content, content_id (for
+     * inline cid references) and is_inline.
+     */
+    private function extractAttachments(Message $msg): array
+    {
+        $out = [];
+        try {
+            $attachments = $msg->getAttachments();
+        } catch (\Throwable $e) {
+            log_message('warning', '[ImapMailService] getAttachments failed: ' . $e->getMessage());
+            return [];
+        }
+
+        foreach ($attachments as $att) {
+            try {
+                // Inline only when the part is explicitly inline. A content-id
+                // alone does not make it inline (Outlook assigns ids widely); the
+                // renderer decides by whether its cid: is actually referenced.
+                $disposition = strtolower((string) ($att->disposition ?? ''));
+                $contentId   = trim((string) ($att->id ?? ''));
+                $isInline    = $disposition === 'inline';
+
+                $content = null;
+                try {
+                    $content = $att->getContent();
+                } catch (\Throwable) {
+                    $content = null;
+                }
+                $size = is_string($content) ? strlen($content) : (int) ($att->getSize() ?: 0);
+
+                $out[] = [
+                    'name'         => (string) ($att->getName() ?: ''),
+                    'content_type' => (string) ($att->getContentType() ?: ($att->content_type ?? '')),
+                    'size'         => $size,
+                    'content'      => $content,
+                    'content_id'   => $contentId !== '' ? $contentId : null,
+                    'is_inline'    => $isInline ? 1 : 0,
+                ];
+            } catch (\Throwable $e) {
+                log_message('warning', '[ImapMailService] attachment parse failed: ' . $e->getMessage());
+            }
+        }
+
+        return $out;
     }
 
     /**

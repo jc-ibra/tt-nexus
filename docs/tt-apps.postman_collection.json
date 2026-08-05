@@ -3266,6 +3266,31 @@
           }
         },
         {
+          "name": "Download attachment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/attachments/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "attachments",
+                "1"
+              ]
+            }
+          }
+        },
+        {
           "name": "Claim conversation",
           "request": {
             "method": "POST",

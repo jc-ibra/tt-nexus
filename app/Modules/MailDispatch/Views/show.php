@@ -40,6 +40,16 @@ $initials = function (?string $name, ?string $email): string {
 };
 
 $msgCount = is_array($messages ?? null) ? count($messages) : 0;
+
+// Human-readable size.
+$fmtSize = static function (int $bytes): string {
+    if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
+    if ($bytes >= 1024)    return round($bytes / 1024) . ' KB';
+    return $bytes . ' B';
+};
+
+// URL to download/serve an attachment.
+$attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id);
 ?>
 
 <style>
@@ -86,11 +96,46 @@ $msgCount = is_array($messages ?? null) ? count($messages) : 0;
   .md-attach { display:inline-flex; align-items:center; gap:4px; font-size:var(--text-xs); color:var(--text-muted); }
   .md-attach svg { width:13px; height:13px; }
 
+  /* Contador de mensajes en el resumen (pill visible). */
+  .md-count { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:22px;
+    padding:0 var(--space-2); background:var(--color-blue-50); color:var(--color-blue-700);
+    border-radius:var(--radius-full); font-size:var(--text-sm); font-weight:var(--weight-bold); }
+
+  /* Mensajes colapsables. */
+  .md-msg-head { cursor:pointer; user-select:none; }
+  .md-msg-toggle { flex:0 0 auto; display:inline-flex; color:var(--text-muted); transition:transform .15s ease; }
+  .md-msg-toggle svg { width:18px; height:18px; }
+  .md-msg.is-collapsed .md-msg-toggle { transform:rotate(-90deg); }
+  .md-msg.is-collapsed .md-msg-collapsible { display:none; }
+  .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3);
+    color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; }
+  .md-msg.is-collapsed .md-msg-preview { display:block; }
+  .md-msg.is-collapsed { background:var(--bg-surface); }
+  .md-msg.is-collapsed .md-msg-head { border-bottom-color:transparent; }
+
   /* Alto acotado a la pantalla; el iframe hace scroll vertical propio si el
      correo es más alto, para que la barra derecha no se pierda. */
   .md-msg-body-frame { width:100%; border:0; min-height:280px; max-height:calc(100vh - 260px); background:#fff; display:block; }
   .md-msg-pre { white-space:pre-wrap; word-break:break-word; padding:var(--space-4); margin:0;
     font-family:inherit; font-size:var(--text-sm); color:var(--text-primary); line-height:1.55; }
+
+  /* ---- Adjuntos ---- */
+  .md-attachments { display:flex; flex-wrap:wrap; gap:var(--space-2); padding:var(--space-3) var(--space-4);
+    border-bottom:1px solid var(--border-default); background:var(--bg-page); }
+  .md-chip { display:inline-flex; align-items:center; gap:var(--space-2); max-width:100%;
+    padding:var(--space-2) var(--space-3); background:var(--bg-surface); border:1px solid var(--border-default);
+    border-radius:var(--radius-md); text-decoration:none; color:var(--text-primary); font-size:var(--text-sm); }
+  .md-chip:hover { border-color:var(--action-primary); text-decoration:none; }
+  .md-chip svg { width:16px; height:16px; color:var(--text-muted); flex:0 0 auto; }
+  .md-chip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; font-weight:var(--weight-medium); }
+  .md-chip-size { color:var(--text-muted); font-size:var(--text-xs); flex:0 0 auto; }
+
+  /* ---- Input de archivos en la respuesta ---- */
+  .md-file-row { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2); }
+  .md-file-hint { color:var(--text-muted); font-size:var(--text-xs); margin:0 0 var(--space-2); }
+  .md-file-list { list-style:none; margin:0 0 var(--space-2); padding:0; }
+  .md-file-list li { font-size:var(--text-xs); color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
   /* Barra derecha fija: permanece visible al hacer scroll del hilo. Si ella
      misma excede la pantalla, hace su propio scroll. */
@@ -128,7 +173,7 @@ $msgCount = is_array($messages ?? null) ? count($messages) : 0;
   <div class="md-meta-row">
     <div class="md-meta-item"><span class="md-meta-k">Recibido</span><span class="md-meta-v"><?= esc($fmtDate($conv['received_at'] ?? null)) ?></span></div>
     <div class="md-meta-item"><span class="md-meta-k">Última actividad</span><span class="md-meta-v"><?= esc($fmtDate($conv['last_activity_at'] ?? null)) ?></span></div>
-    <div class="md-meta-item"><span class="md-meta-k">Mensajes</span><span class="md-meta-v"><?= (int) $msgCount ?></span></div>
+    <div class="md-meta-item"><span class="md-meta-k">Mensajes</span><span class="md-count"><?= (int) $msgCount ?></span></div>
     <div class="md-meta-item"><span class="md-meta-k">Agente</span><span class="md-meta-v"><?= $conv['agent_name'] ? esc($conv['agent_name']) : 'Sin asignar' ?></span></div>
   </div>
 </div>
@@ -139,9 +184,10 @@ $msgCount = is_array($messages ?? null) ? count($messages) : 0;
     <?php if (empty($messages)): ?>
       <div class="card"><div class="card-body"><p class="text-muted">Sin mensajes en el hilo.</p></div></div>
     <?php endif; ?>
-    <?php foreach ($messages as $m): $out = $m['direction'] === 'out'; ?>
-      <div class="md-msg <?= $out ? 'out' : 'in' ?>">
-        <div class="md-msg-head">
+    <?php /* Más reciente arriba; el más reciente abierto, los demás colapsados. */ ?>
+    <?php foreach (array_reverse($messages) as $i => $m): $out = $m['direction'] === 'out'; $collapsed = $i > 0; ?>
+      <div class="md-msg <?= $out ? 'out' : 'in' ?><?= $collapsed ? ' is-collapsed' : '' ?>">
+        <div class="md-msg-head" role="button" tabindex="0" aria-expanded="<?= $collapsed ? 'false' : 'true' ?>">
           <span class="md-avatar <?= $out ? 'out' : 'in' ?>"><?= esc($initials($m['from_name'] ?? '', $m['from_email'] ?? '')) ?></span>
           <div class="md-msg-who">
             <div class="md-msg-name"><?= esc($m['from_name'] ?: ($m['from_email'] ?: 'Remitente desconocido')) ?></div>
@@ -159,14 +205,66 @@ $msgCount = is_array($messages ?? null) ? count($messages) : 0;
               </span>
             <?php endif; ?>
           </div>
+          <span class="md-msg-toggle" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
         </div>
-        <?php if ((int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== ''): ?>
-          <iframe class="md-msg-body-frame" sandbox="allow-same-origin" loading="lazy"
-                  srcdoc="<?= esc($m['body'], 'attr') ?>"
-                  onload="mdFitFrame(this)"></iframe>
-        <?php else: ?>
-          <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
-        <?php endif; ?>
+
+        <?php
+          // Preview en texto plano: decodifica entidades (&nbsp;, &lt;…) y colapsa
+          // espacios, para no mostrar símbolos crudos cuando está colapsado.
+          $preview = html_entity_decode(strip_tags((string) ($m['body_preview'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+          $preview = trim(preg_replace('/[\pZ\s]+/u', ' ', $preview) ?? $preview);
+        ?>
+        <div class="md-msg-preview"><?= esc(mb_substr($preview, 0, 160)) ?></div>
+
+        <?php
+          $atts   = is_array($m['attachments'] ?? null) ? $m['attachments'] : [];
+          $isHtml = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
+          $renderBody = (string) $m['body'];
+          // An attachment is embedded ONLY when its cid: is actually referenced
+          // in the body (rewrite to the authenticated URL); everything else is a
+          // downloadable chip. Robust against mailers that tag every part inline.
+          $files = [];
+          foreach ($atts as $a) {
+              $cid       = (string) ($a['content_id'] ?? '');
+              $embedded  = false;
+              if ($isHtml && $cid !== '' && ! empty($a['storage_path'])
+                  && stripos($renderBody, 'cid:' . $cid) !== false) {
+                  $renderBody = str_ireplace(
+                      ['cid:<' . $cid . '>', 'cid:' . $cid],
+                      $attUrl((int) $a['id']),
+                      $renderBody
+                  );
+                  $embedded = true;
+              }
+              if (! $embedded) {
+                  $files[] = $a;
+              }
+          }
+        ?>
+        <div class="md-msg-collapsible">
+          <?php if ($files !== []): ?>
+            <div class="md-attachments">
+              <?php foreach ($files as $a): ?>
+                <a class="md-chip" href="<?= esc($attUrl((int) $a['id']), 'attr') ?>" target="_blank" rel="noopener"
+                   <?= empty($a['storage_path']) ? 'aria-disabled="true" style="opacity:.55; pointer-events:none;"' : '' ?>>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                  <span class="md-chip-name"><?= esc($a['filename']) ?></span>
+                  <span class="md-chip-size"><?= esc($fmtSize((int) ($a['size_bytes'] ?? 0))) ?></span>
+                </a>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($isHtml): ?>
+            <iframe class="md-msg-body-frame" sandbox="allow-same-origin" loading="lazy"
+                    srcdoc="<?= esc($renderBody, 'attr') ?>"
+                    onload="mdFitFrame(this)"></iframe>
+          <?php else: ?>
+            <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
+          <?php endif; ?>
+        </div>
       </div>
     <?php endforeach; ?>
   </div>
@@ -229,9 +327,16 @@ $msgCount = is_array($messages ?? null) ? count($messages) : 0;
     <div class="card">
       <div class="card-header"><h2 class="card-title">Responder desde Nexus</h2></div>
       <div class="card-body">
-        <form action="<?= route_to('dispatch.reply', $conv['id']) ?>" method="post">
+        <form action="<?= route_to('dispatch.reply', $conv['id']) ?>" method="post" enctype="multipart/form-data">
           <?= csrf_field() ?>
           <textarea name="body" class="input" rows="5" style="margin-bottom:var(--space-2);" placeholder="Escribe la respuesta…" required></textarea>
+
+          <div class="md-file-row">
+            <input type="file" id="md-reply-files" name="files[]" multiple class="input" style="padding:var(--space-2);">
+          </div>
+          <p class="md-file-hint">Hasta <?= (int) ($replyMaxCount ?? 15) ?> archivos · máximo <?= (int) ($replyMaxMb ?? 25) ?> MB en total.</p>
+          <ul class="md-file-list" id="md-reply-file-list"></ul>
+
           <button type="submit" class="btn btn-primary" style="width:100%;">Enviar respuesta al hilo</button>
         </form>
       </div>
@@ -357,6 +462,43 @@ window.addEventListener('resize', function () {
   }
   sel.addEventListener('change', sync);
   sync();
+})();
+
+// Colapsar/expandir cada mensaje del hilo.
+(function () {
+  Array.prototype.forEach.call(document.querySelectorAll('.md-msg-head'), function (head) {
+    function toggle() {
+      var msg = head.closest('.md-msg');
+      if (!msg) return;
+      var collapsed = msg.classList.toggle('is-collapsed');
+      head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      if (!collapsed) {
+        // Al expandir, reajustar el iframe (estaba oculto al cargar).
+        var f = msg.querySelector('.md-msg-body-frame');
+        if (f) { setTimeout(function () { mdFitFrame(f); }, 30); }
+      }
+    }
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+})();
+
+// Lista de archivos elegidos en la respuesta.
+(function () {
+  var input = document.getElementById('md-reply-files');
+  var list  = document.getElementById('md-reply-file-list');
+  if (!input || !list) return;
+  input.addEventListener('change', function () {
+    list.innerHTML = '';
+    Array.prototype.forEach.call(input.files, function (f) {
+      var li = document.createElement('li');
+      var kb = f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.round(f.size / 1024) + ' KB';
+      li.textContent = f.name + ' · ' + kb;
+      list.appendChild(li);
+    });
+  });
 })();
 </script>
 <?= $this->endSection() ?>

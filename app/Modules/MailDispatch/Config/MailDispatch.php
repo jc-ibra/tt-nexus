@@ -44,4 +44,37 @@ class MailDispatch extends BaseConfig
 
     /** States an agent may set manually from the detail view. */
     public array $manualStatuses = ['asignada', 'en_atencion', 'respondida', 'esperando_agente'];
+
+    // -----------------------------------------------------------------------
+    // Attachments
+    // -----------------------------------------------------------------------
+
+    /** Max total size of the files attached to a single reply (25 MB). */
+    public int $maxTotalReplyBytes = 26214400;
+
+    /** Max number of files attached to a single reply. */
+    public int $maxReplyAttachments = 15;
+
+    /**
+     * Per-attachment cap when ingesting inbound mail. Attachments larger than
+     * this are recorded as metadata but their content is not stored, to avoid
+     * unbounded memory/disk use on the sync (0 = no cap).
+     */
+    public int $maxIngestAttachmentBytes = 26214400;
+
+    /**
+     * Extensions never served inline and never accepted on replies (executables
+     * and scripts). Inbound copies are still stored but always download-only.
+     */
+    public array $blockedExtensions = [
+        'exe', 'bat', 'cmd', 'com', 'msi', 'scr', 'pif', 'cpl', 'jar',
+        'js', 'jse', 'vbs', 'vbe', 'ws', 'wsf', 'wsh', 'ps1', 'psm1',
+        'sh', 'php', 'phtml', 'phar', 'hta', 'reg', 'lnk',
+    ];
+
+    /** MIME types safe to render inline in the browser (else forced download). */
+    public array $inlineSafeMimes = [
+        'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp',
+        'application/pdf', 'text/plain',
+    ];
 }

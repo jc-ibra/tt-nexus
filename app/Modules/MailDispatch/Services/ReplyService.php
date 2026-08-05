@@ -28,10 +28,14 @@ class ReplyService
         private EventModel $events
     ) {}
 
-    public function reply(int $conversationId, string $body, int $userId): ServiceResult
+    public function reply(int $conversationId, string $body, int $userId, array $files = []): ServiceResult
     {
         if (! $this->settings->isSendEnabled()) {
             return ServiceResult::fail('La respuesta desde Nexus está deshabilitada en la configuración.');
+        }
+        // Graph attachment sending is not implemented yet (phase B).
+        if ($files !== []) {
+            return ServiceResult::fail('El envío de adjuntos aún no está disponible en modo Microsoft Graph.');
         }
         $body = trim($body);
         if ($body === '') {

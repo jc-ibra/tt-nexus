@@ -27,6 +27,9 @@ $routes->group('dispatch', [
     $routes->post('templates/(:num)',      'Templates::update/$1', ['as' => 'dispatch.templates.update']);
     $routes->post('templates/(:num)/delete', 'Templates::delete/$1', ['as' => 'dispatch.templates.delete']);
 
+    // Attachment download (any dispatch agent; served from WRITEPATH).
+    $routes->get('attachments/(:num)', 'Dispatch::downloadAttachment/$1', ['as' => 'dispatch.attachment']);
+
     // Conversation detail + actions.
     $routes->get('(:num)',            'Dispatch::show/$1',        ['as' => 'dispatch.show']);
     $routes->post('(:num)/claim',     'Dispatch::claim/$1',       ['as' => 'dispatch.claim']);
@@ -65,6 +68,7 @@ $routes->group('api/v1/dispatch', [
 ], function (RouteCollection $routes): void {
     $routes->get('conversations',            'DispatchApiController::listConversations');
     $routes->get('conversations/(:num)',     'DispatchApiController::showConversation/$1');
+    $routes->get('attachments/(:num)',       'DispatchApiController::downloadAttachment/$1');
     $routes->post('conversations/(:num)/claim',  'DispatchApiController::claim/$1');
     $routes->post('conversations/(:num)/assign', 'DispatchApiController::assign/$1');
     $routes->post('conversations/(:num)/status', 'DispatchApiController::changeStatus/$1');

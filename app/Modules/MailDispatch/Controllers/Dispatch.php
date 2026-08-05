@@ -7,10 +7,12 @@ namespace App\Modules\MailDispatch\Controllers;
 use App\Controllers\BaseController;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel;
+use App\Modules\MailDispatch\Models\AttachmentModel;
 use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -72,10 +74,18 @@ class Dispatch extends BaseController
         $config      = new MailDispatchConfig();
         $canDispatch = $this->canDispatch();
 
+        // Enrich each message with its attachments.
+        $messages = (new MessageModel())->forConversation($id);
+        $attModel = new AttachmentModel();
+        foreach ($messages as &$m) {
+            $m['attachments'] = $attModel->forMessage((int) $m['id']);
+        }
+        unset($m);
+
         return view('App\Modules\MailDispatch\Views\show', [
             'pageTitle'    => 'Conversación · Despacho de Correo',
             'conv'         => $conv,
-            'messages'     => (new MessageModel())->forConversation($id),
+            'messages'     => $messages,
             'events'       => (new EventModel())->forConversation($id),
             'dispositions' => (new DispositionModel())->active(),
             'statusLabels' => $config->statusLabels,
@@ -85,6 +95,8 @@ class Dispatch extends BaseController
             'agents'       => $canDispatch ? (new AgentModel())->activeAgents() : [],
             'currentUserId' => $this->userId(),
             'sendEnabled'  => service('mailDispatchSettings')->isSendEnabled(),
+            'replyMaxMb'   => (int) round($config->maxTotalReplyBytes / 1048576),
+            'replyMaxCount' => $config->maxReplyAttachments,
         ]);
     }
 
@@ -143,15 +155,53 @@ class Dispatch extends BaseController
         return $this->back($id, $result);
     }
 
-    /** Phase 3: reply to the thread from Nexus. */
+    /** Phase 3: reply to the thread from Nexus (optionally with attachments). */
     public function reply(int $id): ResponseInterface
     {
+        $files  = $this->request->getFileMultiple('files') ?? [];
         $result = service('mailDispatchReplyService')->reply(
             $id,
             (string) ($this->request->getPost('body') ?? ''),
-            $this->userId()
+            $this->userId(),
+            $files
         );
         return $this->back($id, $result);
+    }
+
+    /**
+     * Streams an attachment. Access is already gated by auth + module_access on
+     * the route group (any dispatch agent may open any conversation, as in the
+     * inbox). Inline-safe types render in the browser; everything else — and any
+     * blocked/executable extension — is forced to download.
+     */
+    public function downloadAttachment(int $id): ResponseInterface
+    {
+        $att = (new AttachmentModel())->find($id);
+        if ($att === null) {
+            throw PageNotFoundException::forPageNotFound('Adjunto no encontrado.');
+        }
+
+        $svc  = service('mailDispatchAttachments');
+        $path = $svc->absolutePath($att);
+        if ($path === null || ! is_file($path)) {
+            throw PageNotFoundException::forPageNotFound('El archivo del adjunto no está disponible.');
+        }
+
+        $mime = (string) ($att['mime_type'] ?? '') ?: 'application/octet-stream';
+        $ext  = strtolower(pathinfo((string) $att['filename'], PATHINFO_EXTENSION));
+        $config = new MailDispatchConfig();
+        $forceDownload = in_array($ext, $config->blockedExtensions, true) || ! $svc->isInlineSafe($mime);
+        $disposition   = $forceDownload ? 'attachment' : 'inline';
+
+        // Filename sanitized for the header (no CR/LF, no quotes).
+        $safeName = preg_replace('/["\r\n]+/', '_', (string) $att['filename']) ?? 'archivo';
+
+        return $this->response
+            ->setHeader('Content-Type', $forceDownload ? 'application/octet-stream' : $mime)
+            ->setHeader('Content-Disposition', $disposition . '; filename="' . $safeName . '"')
+            ->setHeader('Content-Length', (string) filesize($path))
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody((string) file_get_contents($path));
     }
 
     // -----------------------------------------------------------------------

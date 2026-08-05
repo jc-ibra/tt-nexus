@@ -86,6 +86,59 @@ php spark maildispatch:sync-mailbox           # usa Graph o IMAP según configur
 
 ---
 
+## Hilado y agrupación de duplicados
+
+El buzón suele estar copiado en cadenas de correo, y los **reenvíos** (`RV:`/`FW:`)
+llegan con un `In-Reply-To` que apunta a message-ids externos que no tenemos,
+por lo que se partían en varias conversaciones del mismo hilo.
+
+**Solución — solapamiento de referencias:** cada mensaje guarda sus *tokens* de
+hilo (su propio `Message-ID` + cada id de `In-Reply-To` y `References`) en
+`maildispatch_message_refs`. Al ingerir un correo sin `conversationId` de Graph,
+si **cualquiera de sus tokens** ya existe contra otro mensaje, se **anexa** a esa
+conversación. Como los message-ids son únicos, el riesgo de agrupar de más es
+mínimo (no hay ventana de tiempo). Si la conversación ya está **asignada**, el
+nuevo correo la pasa a "esperando agente" y el agente asignado lo ve.
+
+**Fusión de duplicados ya existentes** (una vez, tras habilitar esto):
+
+```bash
+php spark maildispatch:merge-threads --dry-run   # previsualiza
+php spark maildispatch:merge-threads             # aplica
+```
+
+Agrupa por referencias compartidas y fusiona cada grupo en una superviviente
+(la **asignada** más antigua; si ninguna, la más antigua). La superviviente
+conserva su agente; los agentes de las otras quedan anotados en la bitácora.
+Mueve mensajes, eventos y adjuntos, y reabre la superviviente si estaba cerrada.
+
+---
+
+## Adjuntos
+
+Los correos entrantes se ingieren **con** sus adjuntos y los agentes pueden
+**adjuntar archivos en la respuesta**.
+
+- **Tabla `maildispatch_attachments`** (metadatos) + archivos en disco bajo
+  `WRITEPATH/maildispatch/attachments/{message_id}/` (ignorado en git).
+- **Ingesta:** `ImapMailService` extrae cada adjunto (nombre, tipo, tamaño,
+  contenido, content-id, inline) y `ConversationService` los persiste al crear el
+  mensaje. `AttachmentService` centraliza almacenamiento y validación. (Graph:
+  pendiente en fase B.)
+- **Ver/descargar:** ruta autenticada `GET /dispatch/attachments/{id}` (+ espejo
+  API). Tipos seguros (imágenes, PDF, texto) se sirven `inline`; el resto y las
+  extensiones peligrosas se fuerzan a descarga (`X-Content-Type-Options: nosniff`,
+  guarda anti path-traversal).
+- **Imágenes embebidas (cid:):** en el detalle, las referencias `cid:` del HTML se
+  reescriben a la URL autenticada del adjunto, así se ven dentro del iframe. Los
+  adjuntos **no** referenciados por `cid:` se listan como *chips* descargables.
+- **Responder con adjuntos:** el form es `multipart/form-data`; en modo IMAP se
+  envían por SMTP (`Email::attach`), se guardan en el hilo como mensaje saliente.
+- **Límites** (en `Config/MailDispatch`): 25 MB por respuesta, 15 archivos,
+  extensiones ejecutables bloqueadas.
+
+---
+
 ## Máquina de estados
 
 ```
