@@ -44,9 +44,11 @@ class SyncMailbox extends BaseCommand
             ? static fn(string $s) => CLI::write('  ' . $s, 'dark_gray')
             : static fn(string $s) => null;
 
-        CLI::write(sprintf('[%s] Iniciando sincronización%s…', date('H:i:s'), $full ? ' completa' : ''), 'cyan');
+        $provider = service('mailDispatchSettings')->provider();
+        CLI::write(sprintf('[%s] Iniciando sincronización%s (%s)…', date('H:i:s'), $full ? ' completa' : '', $provider), 'cyan');
 
-        $result = service('mailboxSyncService')->sync('cron', $full, $log);
+        $syncService = $provider === 'imap' ? 'imapSyncService' : 'mailboxSyncService';
+        $result = service($syncService)->sync('cron', $full, $log);
 
         if ($result->success) {
             CLI::write('[' . date('H:i:s') . '] ' . $result->message, 'green');

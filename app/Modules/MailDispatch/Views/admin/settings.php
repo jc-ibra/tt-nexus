@@ -12,18 +12,22 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   .md-tab { appearance:none; background:none; border:none; padding:var(--space-3) var(--space-4);
     font:inherit; font-weight:600; color:var(--text-subdued); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
   .md-tab:hover { color:var(--text-primary); }
-  .md-tab.is-active { color:var(--color-primary); border-bottom-color:var(--color-primary); }
-  .md-tab:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; border-radius:var(--radius-1); }
+  .md-tab.is-active { color:var(--action-primary); border-bottom-color:var(--action-primary); }
+  .md-tab:focus-visible { outline:2px solid var(--action-primary); outline-offset:2px; border-radius:var(--radius-1); }
   .md-panel { display:none; }
   .md-panel.is-active { display:block; }
   .md-hint { color:var(--text-subdued); font-size:var(--font-size-sm); }
   .md-status-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  /* Provider-scoped blocks: shown only for the active connection type. */
+  .md-prov { display:none; }
+  #md-conexion.prov-graph .md-prov-graph { display:block; }
+  #md-conexion.prov-imap .md-prov-imap { display:block; }
 </style>
 
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Despacho de Correo · Configuración</h1>
-    <p class="page-subtitle">Credenciales de Microsoft Graph, buzón, agentes y sincronización.</p>
+    <p class="page-subtitle">Conexión (Microsoft Graph o IMAP), buzón, agentes y sincronización.</p>
   </div>
   <div class="page-actions">
     <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Ir a la bandeja</a>
@@ -32,7 +36,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
 
 <?php if (! $isConfigured): ?>
   <div class="banner banner-warning" role="alert" style="margin-bottom:var(--space-4);">
-    <div class="banner-body">La configuración está incompleta. Ingresa las credenciales de Graph y la dirección del buzón, luego prueba la conexión y habilita la sincronización.</div>
+    <div class="banner-body">La configuración está incompleta. Captura las credenciales de la conexión (Graph o IMAP) y la dirección de la mesa de ayuda, luego prueba la conexión y habilita la sincronización.</div>
   </div>
 <?php endif; ?>
 
@@ -44,15 +48,32 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
 </div>
 
 <!-- ============================= Conexión ============================= -->
-<div id="md-conexion" class="md-panel is-active" role="tabpanel">
+<?php $provider = $provider ?? ($s['provider'] ?? 'graph'); ?>
+<div id="md-conexion" class="md-panel is-active prov-<?= $provider === 'imap' ? 'imap' : 'graph' ?>" role="tabpanel">
   <form action="<?= route_to('dispatch.settings.save') ?>" method="post" style="max-width:780px;">
     <?= csrf_field() ?>
 
     <div class="card" style="margin-bottom:var(--space-4);">
       <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
-        <h2 class="card-title">Microsoft Graph (aplicación)</h2>
+        <h2 class="card-title">Tipo de conexión</h2>
         <button type="submit" class="btn btn-primary">Guardar cambios</button>
       </div>
+      <div class="card-body">
+        <p class="md-hint" style="margin-bottom:var(--space-3);">Elige cómo Nexus lee el buzón de la mesa de ayuda.</p>
+        <label class="field-check" style="margin-bottom:var(--space-2);">
+          <input type="radio" name="provider" value="graph" data-provider-radio <?= $provider !== 'imap' ? 'checked' : '' ?>>
+          <span>Microsoft 365 (Graph) — permisos de aplicación</span>
+        </label>
+        <label class="field-check">
+          <input type="radio" name="provider" value="imap" data-provider-radio <?= $provider === 'imap' ? 'checked' : '' ?>>
+          <span>IMAP — buzón que recibe todo por regla de reenvío</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- -------- Microsoft Graph (solo provider=graph) -------- -->
+    <div class="card md-prov md-prov-graph" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Microsoft Graph (aplicación)</h2></div>
       <div class="card-body">
         <div class="field" style="margin-bottom:var(--space-3);">
           <label class="field-label" for="graph_tenant_id">Tenant ID</label>
@@ -72,13 +93,61 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
       </div>
     </div>
 
+    <!-- -------- IMAP (solo provider=imap) -------- -->
+    <div class="card md-prov md-prov-imap" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Cuenta IMAP (lectura)</h2></div>
+      <div class="card-body">
+        <p class="md-hint" style="margin-bottom:var(--space-3);">Buzón que recibe todos los correos de la mesa de ayuda mediante una regla de reenvío (entrantes y copias de las respuestas de los agentes).</p>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <label class="field-label" for="imap_host">Servidor IMAP</label>
+          <input type="text" id="imap_host" name="imap_host" class="input" value="<?= $val('imap_host') ?>" placeholder="imap.dominio.com" autocomplete="off" spellcheck="false">
+        </div>
+        <div style="display:flex; gap:var(--space-3);">
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="imap_port">Puerto</label>
+            <input type="number" id="imap_port" name="imap_port" class="input" min="1" max="65535" value="<?= $val('imap_port', '993') ?>">
+          </div>
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="imap_encryption">Cifrado</label>
+            <select id="imap_encryption" name="imap_encryption" class="input">
+              <?php $ie = $s['imap_encryption'] ?? 'ssl'; ?>
+              <option value="ssl" <?= $ie === 'ssl' ? 'selected' : '' ?>>SSL</option>
+              <option value="tls" <?= $ie === 'tls' ? 'selected' : '' ?>>TLS (STARTTLS)</option>
+              <option value="none" <?= $ie === 'none' ? 'selected' : '' ?>>Sin cifrado</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <label class="field-label" for="imap_username">Usuario</label>
+          <input type="text" id="imap_username" name="imap_username" class="input" value="<?= $val('imap_username') ?>" placeholder="cuenta@dominio.com" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <label class="field-label" for="imap_password">Contraseña</label>
+          <input type="password" id="imap_password" name="imap_password" class="input"
+                 value="<?= $hasImapPassword ? esc($secretMask) : '' ?>" autocomplete="new-password" spellcheck="false"
+                 placeholder="<?= $hasImapPassword ? 'Guardada — deja el valor para conservarla' : 'Contraseña de la cuenta IMAP' ?>">
+          <p class="field-help">Se guarda cifrada. Deja «<?= esc($secretMask) ?>» para conservar la actual.</p>
+        </div>
+        <div style="display:flex; gap:var(--space-3); align-items:flex-end;">
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="imap_folder">Carpeta</label>
+            <input type="text" id="imap_folder" name="imap_folder" class="input" value="<?= $val('imap_folder', 'INBOX') ?>" placeholder="INBOX" autocomplete="off" spellcheck="false">
+          </div>
+          <label class="field-check" style="flex:1; margin-bottom:var(--space-3);">
+            <input type="checkbox" name="imap_validate_cert" value="1" <?= $bool('imap_validate_cert', '1') ? 'checked' : '' ?>>
+            <span>Validar certificado TLS</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom:var(--space-4);">
       <div class="card-header"><h2 class="card-title">Buzón y sincronización</h2></div>
       <div class="card-body">
         <div class="field" style="margin-bottom:var(--space-3);">
-          <label class="field-label" for="mailbox_address">Buzón compartido</label>
+          <label class="field-label" for="mailbox_address">Dirección de la mesa de ayuda</label>
           <input type="email" id="mailbox_address" name="mailbox_address" class="input" value="<?= $val('mailbox_address') ?>" placeholder="mesadeayuda@dominio.com" autocomplete="off">
-          <p class="field-help">Dirección del buzón compartido de la mesa de ayuda a sincronizar.</p>
+          <p class="field-help">Dirección a la que escriben los clientes y desde la que responden los agentes. En modo Graph es el buzón que se sincroniza; en modo IMAP se usa para detectar la dirección (entrada/salida) de cada correo.</p>
         </div>
         <div class="field" style="margin-bottom:var(--space-3);">
           <label class="field-label" for="sync_page_size">Tamaño de página</label>
@@ -111,9 +180,59 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
       <div class="card-body">
         <label class="field-check">
           <input type="checkbox" name="send_from_nexus_enabled" value="1" <?= $bool('send_from_nexus_enabled') ? 'checked' : '' ?>>
-          <span>Permitir responder al hilo desde Nexus (requiere permiso Mail.Send en la app)</span>
+          <span>Permitir responder al hilo desde Nexus</span>
         </label>
-        <p class="field-help">Si está apagado, Nexus opera en solo lectura y los agentes responden desde Outlook.</p>
+        <p class="field-help md-prov md-prov-graph">Modo Graph: requiere el permiso <code>Mail.Send</code> en la app. Si está apagado, Nexus opera en solo lectura y los agentes responden desde Outlook.</p>
+        <p class="field-help md-prov md-prov-imap">Modo IMAP: la respuesta se envía por SMTP (configúralo abajo). Si está apagado, Nexus opera en solo lectura y los agentes responden desde Outlook.</p>
+      </div>
+    </div>
+
+    <!-- -------- SMTP (solo provider=imap) -------- -->
+    <div class="card md-prov md-prov-imap" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Envío SMTP (respuesta en modo IMAP)</h2></div>
+      <div class="card-body">
+        <p class="md-hint" style="margin-bottom:var(--space-3);">Credenciales para enviar respuestas al hilo. Solo se usan si la respuesta desde Nexus está habilitada.</p>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <label class="field-label" for="smtp_host">Servidor SMTP</label>
+          <input type="text" id="smtp_host" name="smtp_host" class="input" value="<?= $val('smtp_host') ?>" placeholder="smtp.dominio.com" autocomplete="off" spellcheck="false">
+        </div>
+        <div style="display:flex; gap:var(--space-3);">
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="smtp_port">Puerto</label>
+            <input type="number" id="smtp_port" name="smtp_port" class="input" min="1" max="65535" value="<?= $val('smtp_port', '587') ?>">
+          </div>
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="smtp_encryption">Cifrado</label>
+            <select id="smtp_encryption" name="smtp_encryption" class="input">
+              <?php $se = $s['smtp_encryption'] ?? 'tls'; ?>
+              <option value="tls" <?= $se === 'tls' ? 'selected' : '' ?>>TLS (STARTTLS)</option>
+              <option value="ssl" <?= $se === 'ssl' ? 'selected' : '' ?>>SSL</option>
+              <option value="none" <?= $se === 'none' ? 'selected' : '' ?>>Sin cifrado</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <label class="field-label" for="smtp_username">Usuario</label>
+          <input type="text" id="smtp_username" name="smtp_username" class="input" value="<?= $val('smtp_username') ?>" placeholder="cuenta@dominio.com" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <label class="field-label" for="smtp_password">Contraseña</label>
+          <input type="password" id="smtp_password" name="smtp_password" class="input"
+                 value="<?= $hasSmtpPassword ? esc($secretMask) : '' ?>" autocomplete="new-password" spellcheck="false"
+                 placeholder="<?= $hasSmtpPassword ? 'Guardada — deja el valor para conservarla' : 'Contraseña SMTP' ?>">
+          <p class="field-help">Se guarda cifrada. Deja «<?= esc($secretMask) ?>» para conservar la actual.</p>
+        </div>
+        <div style="display:flex; gap:var(--space-3);">
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="smtp_from_email">Remitente (From)</label>
+            <input type="email" id="smtp_from_email" name="smtp_from_email" class="input" value="<?= $val('smtp_from_email') ?>" placeholder="mesadeayuda@dominio.com" autocomplete="off">
+            <p class="field-help">Vacío = usa la dirección de la mesa de ayuda.</p>
+          </div>
+          <div class="field" style="margin-bottom:var(--space-3); flex:1;">
+            <label class="field-label" for="smtp_from_name">Nombre del remitente</label>
+            <input type="text" id="smtp_from_name" name="smtp_from_name" class="input" value="<?= $val('smtp_from_name') ?>" placeholder="Mesa de ayuda" autocomplete="off">
+          </div>
+        </div>
       </div>
     </div>
   </form>
@@ -275,6 +394,18 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   }
   tabs.forEach(function (t) { t.addEventListener('click', function () { activate(t.dataset.hash, true); }); });
   activate((location.hash || '#conexion').slice(1), false);
+
+  // Provider toggle: show only the active connection type's blocks.
+  var conexion = document.getElementById('md-conexion');
+  var radios   = Array.prototype.slice.call(document.querySelectorAll('[data-provider-radio]'));
+  function applyProvider() {
+    var checked = radios.find(function (r) { return r.checked; });
+    var prov = checked ? checked.value : 'graph';
+    conexion.classList.toggle('prov-imap', prov === 'imap');
+    conexion.classList.toggle('prov-graph', prov !== 'imap');
+  }
+  radios.forEach(function (r) { r.addEventListener('change', applyProvider); });
+  applyProvider();
 
   // Probar conexión (AJAX)
   var btn = document.getElementById('md-test-btn');

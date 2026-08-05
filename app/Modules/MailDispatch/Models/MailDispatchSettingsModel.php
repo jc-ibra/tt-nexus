@@ -17,7 +17,7 @@ use CodeIgniter\Database\BaseConnection;
  */
 class MailDispatchSettingsModel
 {
-    private const ENCRYPTED_KEYS = ['graph_client_secret'];
+    private const ENCRYPTED_KEYS = ['graph_client_secret', 'imap_password', 'smtp_password'];
 
     private BaseConnection $db;
     private CredentialCipher $cipher;

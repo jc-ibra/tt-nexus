@@ -30,7 +30,7 @@ $tabs = [
   .md-filter { padding:var(--space-2) var(--space-3); border-radius:var(--radius-2); font-weight:600;
     color:var(--text-subdued); text-decoration:none; font-size:var(--font-size-sm); }
   .md-filter:hover { background:var(--surface-hovered); color:var(--text-primary); }
-  .md-filter.is-active { background:var(--color-primary); color:#fff; }
+  .md-filter.is-active { background:var(--action-primary); color:#fff; }
   .md-row-breach { background:var(--surface-critical-subdued, #fdf3f3); }
   .md-subject { font-weight:600; color:var(--text-primary); text-decoration:none; }
   .md-subject:hover { text-decoration:underline; }

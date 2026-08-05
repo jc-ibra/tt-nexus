@@ -40,6 +40,9 @@ class MailDispatchAdmin extends BaseController
             'pageTitle'    => 'Configuración · Despacho de Correo',
             'settings'     => $settings->all(),
             'hasSecret'    => $settings->hasSecret(),
+            'hasImapPassword' => $settings->hasImapPassword(),
+            'hasSmtpPassword' => $settings->hasSmtpPassword(),
+            'provider'     => $settings->provider(),
             'isConfigured' => $settings->isConfigured(),
             'users'        => $users,
             'agentMap'     => $agentMap,
@@ -59,8 +62,9 @@ class MailDispatchAdmin extends BaseController
 
     /**
      * Live connection test (AJAX). Uses the posted credentials, falling back to
-     * the stored secret when the field is left masked/empty, so the admin can
-     * test before saving. Returns JSON; never echoes the secret.
+     * the stored secret/password when the field is left masked/empty, so the
+     * admin can test before saving. Branches by the selected provider. Returns
+     * JSON; never echoes any secret.
      */
     public function testConnection(): ResponseInterface
     {
@@ -68,6 +72,19 @@ class MailDispatchAdmin extends BaseController
         $settings = service('mailDispatchSettings');
         $post     = $this->request->getPost();
 
+        $provider = strtolower(trim((string) ($post['provider'] ?? $settings->provider())));
+        $result   = $provider === 'imap'
+            ? $this->testImap($settings, $post)
+            : $this->testGraph($settings, $post);
+
+        return $this->response->setJSON([
+            'status'  => $result->success ? 'success' : 'error',
+            'message' => $result->message,
+        ]);
+    }
+
+    private function testGraph(MailDispatchSettings $settings, array $post): \App\Modules\Core\Services\ServiceResult
+    {
         $tenant  = trim((string) ($post['graph_tenant_id'] ?? '')) ?: $settings->tenantId();
         $client  = trim((string) ($post['graph_client_id'] ?? '')) ?: $settings->clientId();
         $mailbox = trim((string) ($post['mailbox_address'] ?? '')) ?: $settings->mailbox();
@@ -77,13 +94,27 @@ class MailDispatchAdmin extends BaseController
             $secret = $settings->clientSecret();
         }
 
-        $graph  = new GraphMailService($tenant, $client, $secret, $mailbox, new MailDispatchConfig());
-        $result = $graph->testConnection();
+        return (new GraphMailService($tenant, $client, $secret, $mailbox, new MailDispatchConfig()))->testConnection();
+    }
 
-        return $this->response->setJSON([
-            'status'  => $result->success ? 'success' : 'error',
-            'message' => $result->message,
-        ]);
+    private function testImap(MailDispatchSettings $settings, array $post): \App\Modules\Core\Services\ServiceResult
+    {
+        $host       = trim((string) ($post['imap_host'] ?? '')) ?: $settings->imapHost();
+        $port       = (int) ($post['imap_port'] ?? 0) ?: $settings->imapPort();
+        $encryption = trim((string) ($post['imap_encryption'] ?? '')) ?: $settings->imapEncryption();
+        $validate   = array_key_exists('imap_validate_cert', $post) ? true : $settings->imapValidateCert();
+        $username   = trim((string) ($post['imap_username'] ?? '')) ?: $settings->imapUsername();
+        $folder     = trim((string) ($post['imap_folder'] ?? '')) ?: $settings->imapFolder();
+        $mailbox    = trim((string) ($post['mailbox_address'] ?? '')) ?: $settings->mailbox();
+
+        $password = (string) ($post['imap_password'] ?? '');
+        if ($password === '' || $password === MailDispatchSettings::SECRET_MASK) {
+            $password = $settings->imapPassword();
+        }
+
+        return (new \App\Modules\MailDispatch\Services\ImapMailService(
+            $host, $port, $encryption, $validate, $username, $password, $folder, $mailbox
+        ))->testConnection();
     }
 
     public function saveAgents(): ResponseInterface

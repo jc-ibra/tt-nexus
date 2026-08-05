@@ -14,6 +14,10 @@ Principio rector (Fase 1–2): **Nexus lee el buzón, nunca lo modifica.** Los
 agentes responden desde Outlook. Si Nexus falla, la operación sigue igual que
 hoy. En Fase 3 se habilita responder al hilo desde Nexus.
 
+El backend de lectura es intercambiable mediante un **selector de proveedor** en
+la configuración: **Microsoft Graph** (permisos de aplicación) o **IMAP** (un
+buzón que recibe todo por regla de reenvío). Ver «Proveedores» abajo.
+
 ---
 
 ## Arquitectura
@@ -37,6 +41,47 @@ php spark maildispatch:sync-mailbox --debug    # progreso por carpeta
 
 ```cron
 */2 * * * * cd /ruta/al/proyecto && php spark maildispatch:sync-mailbox >> /dev/null 2>&1
+```
+
+---
+
+## Proveedores (Graph / IMAP)
+
+La configuración (Administración → Despacho de Correo) tiene un selector **Tipo de
+conexión**. El resto del módulo (bandeja, hilado, máquina de estados, métricas,
+API) es idéntico para ambos; solo cambia el backend de lectura/envío.
+
+| | Microsoft Graph | IMAP |
+|---|---|---|
+| Lectura | Delta queries sobre Inbox + Enviados del buzón compartido. | UID fetch incremental sobre una carpeta (por defecto `INBOX`) de una cuenta que recibe **todo** por regla de reenvío (entrantes y copia de las respuestas de los agentes). |
+| Detección de dirección | Carpeta Enviados o `From == buzón`. | `From == dirección de la mesa de ayuda` (por eso la copia de las respuestas debe reenviarse a la cuenta IMAP). |
+| Hilado | `conversationId` de Graph + fallback `In-Reply-To`/`References`. | Solo `In-Reply-To`/`References` (IMAP no tiene id de hilo); mensajes sin referencias abren hilo nuevo con su `Message-ID`. |
+| Envío (Fase 3) | Acción `/reply` de Graph. | SMTP con cabeceras `In-Reply-To`/`References` para mantener el hilo. |
+| Requisito | App Registration + `Mail.Read`/`Mail.Send` + Application Access Policy. | Cuenta IMAP + (para responder) credenciales SMTP. Sin permisos de tenant. |
+
+**Motivación del modo IMAP:** operar sin esperar la aprobación de la App de
+Microsoft (permisos de lectura de todos los buzones). Se apunta a un buzón que
+recibe todo por reenvío; cuando se otorguen los permisos, se puede cambiar el
+selector a Graph sin perder datos.
+
+**Librería:** `webklex/php-imap` (PHP puro; **no** requiere la extensión
+`ext-imap`, así que no hay cambios de infraestructura en host ni Docker).
+
+**Cursor incremental:** `maildispatch_sync_state.delta_link` guarda
+`UIDVALIDITY:<v>;UID:<lastUid>` por (buzón, `imap`). Si cambia el `UIDVALIDITY`
+(la carpeta se reconstruyó en el servidor), el cursor se reinicia a un barrido
+completo. Cada corrida lee páginas acotadas server-side (`UID next:*` + `limit`),
+así que solo descarga los cuerpos de los mensajes nuevos. El `\Seen` nunca se
+modifica (`leaveUnread`).
+
+> Sugerencia: habilita la sincronización IMAP sobre una cuenta **nueva** (recién
+> creada para el reenvío). Enchufarla a un buzón con un histórico enorme hace un
+> primer barrido grande (idempotente, pero pesado).
+
+El comando de sincronización es el mismo; despacha al backend según el proveedor:
+
+```bash
+php spark maildispatch:sync-mailbox           # usa Graph o IMAP según configuración
 ```
 
 ---

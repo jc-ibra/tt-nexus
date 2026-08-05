@@ -93,10 +93,13 @@ use App\Modules\MailDispatch\Models\SyncRunModel as MailDispatchSyncRunModel;
 use App\Modules\MailDispatch\Models\SyncStateModel as MailDispatchSyncStateModel;
 use App\Modules\MailDispatch\Services\ConversationService as MailDispatchConversationService;
 use App\Modules\MailDispatch\Services\GraphMailService;
+use App\Modules\MailDispatch\Services\ImapMailService;
+use App\Modules\MailDispatch\Services\ImapSyncService;
 use App\Modules\MailDispatch\Services\MailboxSyncService;
 use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
+use App\Modules\MailDispatch\Services\SmtpReplyService as MailDispatchSmtpReplyService;
 use App\Modules\TechBot\Models\ActivityLogModel as TechBotActivityLogModel;
 use App\Modules\TechBot\Models\AiUsageModel as TechBotAiUsageModel;
 use App\Modules\TechBot\Models\ConversationStateModel as TechBotConversationStateModel;
@@ -485,6 +488,41 @@ class Services extends BaseService
         );
     }
 
+    /**
+     * IMAP read client built from the stored settings. Not shared: credentials
+     * may change between calls and each instance opens its own connection.
+     */
+    public static function imapMailService(bool $getShared = true): ImapMailService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('imapMailService');
+        }
+        $s = self::mailDispatchSettings();
+        return new ImapMailService(
+            $s->imapHost(),
+            $s->imapPort(),
+            $s->imapEncryption(),
+            $s->imapValidateCert(),
+            $s->imapUsername(),
+            $s->imapPassword(),
+            $s->imapFolder(),
+            $s->mailbox(),
+        );
+    }
+
+    public static function imapSyncService(bool $getShared = true): ImapSyncService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('imapSyncService');
+        }
+        return new ImapSyncService(
+            self::mailDispatchSettings(),
+            self::mailDispatchConversations(),
+            new MailDispatchSyncStateModel(),
+            new MailDispatchSyncRunModel(),
+        );
+    }
+
     public static function mailDispatchMetrics(bool $getShared = true): MailDispatchMetrics
     {
         if ($getShared) {
@@ -497,10 +535,23 @@ class Services extends BaseService
         );
     }
 
-    public static function mailDispatchReplyService(bool $getShared = true): MailDispatchReplyService
+    /**
+     * Reply-from-Nexus service, chosen by the active provider: Graph replies over
+     * Microsoft Graph, IMAP replies over SMTP. Both expose the same
+     * reply(int, string, int): ServiceResult signature, so callers are unaware.
+     */
+    public static function mailDispatchReplyService(bool $getShared = true): MailDispatchReplyService|MailDispatchSmtpReplyService
     {
         if ($getShared) {
             return static::getSharedInstance('mailDispatchReplyService');
+        }
+        if (self::mailDispatchSettings()->isImap()) {
+            return new MailDispatchSmtpReplyService(
+                self::mailDispatchSettings(),
+                new MailDispatchConversationModel(),
+                new MailDispatchMessageModel(),
+                new MailDispatchEventModel(),
+            );
         }
         return new MailDispatchReplyService(
             self::mailDispatchSettings(),

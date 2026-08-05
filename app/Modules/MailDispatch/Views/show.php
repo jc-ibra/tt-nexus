@@ -19,10 +19,10 @@ $eventLabels = [
   .md-msg-head { display:flex; justify-content:space-between; gap:var(--space-3); padding:var(--space-3) var(--space-4);
     background:var(--surface-subdued); border-bottom:1px solid var(--border-subtle); font-size:var(--font-size-sm); }
   .md-msg.out .md-msg-head { background:var(--surface-success-subdued, #eef7f0); }
-  .md-msg-body-frame { width:100%; border:0; min-height:120px; background:#fff; }
+  .md-msg-body-frame { width:100%; border:0; min-height:320px; background:#fff; display:block; }
   .md-msg-pre { white-space:pre-wrap; word-break:break-word; padding:var(--space-4); margin:0; font:inherit; }
   .md-dir { font-weight:700; }
-  .md-dir.in  { color:var(--color-primary); }
+  .md-dir.in  { color:var(--action-primary); }
   .md-dir.out { color:var(--color-success, #2a7d4f); }
   .md-side .card { margin-bottom:var(--space-4); }
   .md-timeline { list-style:none; margin:0; padding:0; }
@@ -62,9 +62,9 @@ $eventLabels = [
           <div class="md-meta"><?= esc($m['received_at']) ?></div>
         </div>
         <?php if ((int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== ''): ?>
-          <iframe class="md-msg-body-frame" sandbox="" loading="lazy"
+          <iframe class="md-msg-body-frame" sandbox="allow-same-origin" loading="lazy"
                   srcdoc="<?= esc($m['body'], 'attr') ?>"
-                  onload="try{this.style.height=(this.contentWindow.document.body.scrollHeight+24)+'px';}catch(e){}"></iframe>
+                  onload="mdFitFrame(this)"></iframe>
         <?php else: ?>
           <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
         <?php endif; ?>
@@ -215,6 +215,29 @@ $eventLabels = [
 
 <?= $this->section('scripts') ?>
 <script>
+// Auto-ajusta la altura del iframe del correo a su contenido real, sin scroll
+// interno. Requiere sandbox="allow-same-origin" (sin allow-scripts) para poder
+// leer el documento embebido; el HTML del correo sigue sin poder ejecutar JS.
+function mdFitFrame(f) {
+  try {
+    var d = f.contentWindow.document;
+    var fit = function () {
+      var h = Math.max(d.body ? d.body.scrollHeight : 0, d.documentElement ? d.documentElement.scrollHeight : 0);
+      if (h > 0) { f.style.height = (h + 28) + 'px'; }
+    };
+    fit();
+    // Reajusta cuando terminan de cargar imágenes (que cambian la altura).
+    Array.prototype.forEach.call(d.images || [], function (img) {
+      if (!img.complete) { img.addEventListener('load', fit); img.addEventListener('error', fit); }
+    });
+    // Reajuste tardío por si el layout se asienta después del onload.
+    setTimeout(fit, 300);
+  } catch (e) { /* cross-origin u otro: se queda con min-height */ }
+}
+window.addEventListener('resize', function () {
+  Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
+});
+
 (function () {
   var sel = document.getElementById('disposition_id');
   var fld = document.getElementById('md-folio-field');

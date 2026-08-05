@@ -120,14 +120,30 @@ if $DOCKER && [[ -f ".env" ]]; then
     fi
 fi
 
-# ── Dependencias de Composer (solo modo local) ─────────────────────────────────
-if ! $DOCKER; then
-    step "Dependencias de Composer"
+# ── Dependencias de Composer ───────────────────────────────────────────────────
+# En Docker, vendor/ es un VOLUMEN nombrado (vendor_data) que persiste entre
+# rebuilds y NO se actualiza con el composer del host. Por eso corremos
+# `composer install` DENTRO del contenedor: así una dependencia nueva agregada al
+# composer.lock (p.ej. webklex/php-imap) llega al volumen sin instalarla a mano.
+# Es idempotente: si ya está todo, es un no-op rápido.
+step "Dependencias de Composer"
+if $DOCKER; then
+    if docker compose exec -T app sh -lc 'command -v composer >/dev/null 2>&1'; then
+        info "Instalando dependencias dentro del contenedor..."
+        docker compose exec -T app composer install --no-interaction --prefer-dist \
+            && ok "Dependencias sincronizadas en el contenedor" \
+            || warn "composer install reportó avisos (revisa arriba)."
+    else
+        warn "composer no está disponible en el contenedor; se omite (asume vendor/ del build)."
+    fi
+else
     if [[ ! -d "vendor" ]]; then
         info "Instalando dependencias..."
         composer install --no-interaction --prefer-dist
     else
-        ok "vendor/ ya existe"
+        info "vendor/ ya existe — sincronizando con composer.lock..."
+        composer install --no-interaction --prefer-dist && ok "Dependencias sincronizadas" \
+            || warn "composer install reportó avisos (revisa arriba)."
     fi
 fi
 

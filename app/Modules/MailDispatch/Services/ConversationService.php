@@ -52,6 +52,12 @@ class ConversationService
         if (! empty($m['isDraft'])) {
             return 'skipped';
         }
+        // Dedupe by RFC Message-ID: the same mail can reappear under a different
+        // backend id (e.g. an SMTP reply whose forwarded copy re-syncs via IMAP).
+        $internetMessageId = trim((string) ($m['internetMessageId'] ?? ''));
+        if ($internetMessageId !== '' && $this->messages->existsByInternetMessageId($internetMessageId)) {
+            return 'skipped';
+        }
 
         $fields    = $this->extract($m, $mailbox, $folder);
         $direction = $fields['direction'];

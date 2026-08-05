@@ -45,8 +45,67 @@ class MailDispatchSettings
 
     public function hasSecret(): bool { return $this->model->hasSecret('graph_client_secret'); }
 
+    // -----------------------------------------------------------------------
+    // Provider selection
+    // -----------------------------------------------------------------------
+
+    /** Active backend: 'graph' (Microsoft Graph) or 'imap'. Defaults to graph. */
+    public function provider(): string
+    {
+        $p = strtolower(trim($this->model->get('provider', 'graph')));
+        return in_array($p, ['graph', 'imap'], true) ? $p : 'graph';
+    }
+
+    public function isImap(): bool  { return $this->provider() === 'imap'; }
+    public function isGraph(): bool { return $this->provider() === 'graph'; }
+
+    // -----------------------------------------------------------------------
+    // IMAP (read side)
+    // -----------------------------------------------------------------------
+
+    public function imapHost(): string     { return trim($this->model->get('imap_host')); }
+    public function imapPort(): int        { $n = (int) $this->model->get('imap_port', '993'); return $n > 0 ? $n : 993; }
+    public function imapEncryption(): string { $e = strtolower(trim($this->model->get('imap_encryption', 'ssl'))); return in_array($e, ['ssl', 'tls', 'none'], true) ? $e : 'ssl'; }
+    public function imapValidateCert(): bool { return $this->model->get('imap_validate_cert', '1') === '1'; }
+    public function imapUsername(): string { return trim($this->model->get('imap_username')); }
+    public function imapPassword(): string { return $this->model->get('imap_password'); }
+    public function imapFolder(): string   { $f = trim($this->model->get('imap_folder', 'INBOX')); return $f !== '' ? $f : 'INBOX'; }
+
+    public function hasImapPassword(): bool { return $this->model->hasSecret('imap_password'); }
+
+    // -----------------------------------------------------------------------
+    // SMTP (send side — reply from Nexus in IMAP mode)
+    // -----------------------------------------------------------------------
+
+    public function smtpHost(): string     { return trim($this->model->get('smtp_host')); }
+    public function smtpPort(): int        { $n = (int) $this->model->get('smtp_port', '587'); return $n > 0 ? $n : 587; }
+    public function smtpEncryption(): string { $e = strtolower(trim($this->model->get('smtp_encryption', 'tls'))); return in_array($e, ['ssl', 'tls', 'none'], true) ? $e : 'tls'; }
+    public function smtpUsername(): string { return trim($this->model->get('smtp_username')); }
+    public function smtpPassword(): string { return $this->model->get('smtp_password'); }
+    public function smtpFromEmail(): string { $e = trim($this->model->get('smtp_from_email')); return $e !== '' ? $e : $this->mailbox(); }
+    public function smtpFromName(): string { $n = trim($this->model->get('smtp_from_name')); return $n !== '' ? $n : 'Mesa de ayuda'; }
+
+    public function hasSmtpPassword(): bool { return $this->model->hasSecret('smtp_password'); }
+
+    /** True when SMTP is fully configured (host + username + a stored password). */
+    public function isSmtpConfigured(): bool
+    {
+        return $this->smtpHost() !== '' && $this->smtpUsername() !== '' && $this->hasSmtpPassword();
+    }
+
     public function isSyncEnabled(): bool { return $this->model->get('sync_enabled', '0') === '1'; }
-    public function isSendEnabled(): bool { return $this->model->get('send_from_nexus_enabled', '0') === '1'; }
+
+    /**
+     * Reply-from-Nexus master switch. In IMAP mode it additionally requires SMTP
+     * to be configured, since IMAP is read-only and sending goes through SMTP.
+     */
+    public function isSendEnabled(): bool
+    {
+        if ($this->model->get('send_from_nexus_enabled', '0') !== '1') {
+            return false;
+        }
+        return $this->isImap() ? $this->isSmtpConfigured() : true;
+    }
 
     public function pageSize(): int
     {
@@ -64,9 +123,20 @@ class MailDispatchSettings
         return max(0, (int) $this->model->get('sla_first_response_minutes', '120'));
     }
 
-    /** True only when tenant, client id, secret and mailbox are all present. */
+    /**
+     * True when the active provider is fully configured. Graph needs tenant,
+     * client id, secret and mailbox; IMAP needs host, username, a stored
+     * password and the logical mailbox address (used for direction detection).
+     */
     public function isConfigured(): bool
     {
+        if ($this->isImap()) {
+            return $this->imapHost() !== ''
+                && $this->imapUsername() !== ''
+                && $this->hasImapPassword()
+                && $this->mailbox() !== '';
+        }
+
         return $this->tenantId() !== ''
             && $this->clientId() !== ''
             && $this->clientSecret() !== ''
@@ -87,11 +157,20 @@ class MailDispatchSettings
         $clientId = trim((string) ($post['graph_client_id'] ?? ''));
         $mailbox  = trim((string) ($post['mailbox_address'] ?? ''));
 
+        $provider = strtolower(trim((string) ($post['provider'] ?? 'graph')));
+        $provider = in_array($provider, ['graph', 'imap'], true) ? $provider : 'graph';
+
         if ($mailbox !== '' && ! filter_var($mailbox, FILTER_VALIDATE_EMAIL)) {
             return ServiceResult::fail('La dirección del buzón no es un correo válido.');
         }
 
+        $smtpFrom = trim((string) ($post['smtp_from_email'] ?? ''));
+        if ($smtpFrom !== '' && ! filter_var($smtpFrom, FILTER_VALIDATE_EMAIL)) {
+            return ServiceResult::fail('El remitente SMTP no es un correo válido.');
+        }
+
         $data = [
+            'provider'                    => $provider,
             'graph_tenant_id'             => $tenant,
             'graph_client_id'             => $clientId,
             'mailbox_address'             => $mailbox,
@@ -100,17 +179,46 @@ class MailDispatchSettings
             'sla_unassigned_minutes'      => (string) max(0, (int) ($post['sla_unassigned_minutes'] ?? 30)),
             'sla_first_response_minutes'  => (string) max(0, (int) ($post['sla_first_response_minutes'] ?? 120)),
             'send_from_nexus_enabled'     => isset($post['send_from_nexus_enabled']) ? '1' : '0',
+
+            // --- IMAP (read) ---
+            'imap_host'                   => trim((string) ($post['imap_host'] ?? '')),
+            'imap_port'                   => (string) max(1, (int) ($post['imap_port'] ?? 993)),
+            'imap_encryption'             => $this->normalizeCrypto((string) ($post['imap_encryption'] ?? 'ssl'), 'ssl'),
+            'imap_validate_cert'          => isset($post['imap_validate_cert']) ? '1' : '0',
+            'imap_username'               => trim((string) ($post['imap_username'] ?? '')),
+            'imap_folder'                 => trim((string) ($post['imap_folder'] ?? 'INBOX')) ?: 'INBOX',
+
+            // --- SMTP (send) ---
+            'smtp_host'                   => trim((string) ($post['smtp_host'] ?? '')),
+            'smtp_port'                   => (string) max(1, (int) ($post['smtp_port'] ?? 587)),
+            'smtp_encryption'             => $this->normalizeCrypto((string) ($post['smtp_encryption'] ?? 'tls'), 'tls'),
+            'smtp_username'               => trim((string) ($post['smtp_username'] ?? '')),
+            'smtp_from_email'             => $smtpFrom,
+            'smtp_from_name'              => trim((string) ($post['smtp_from_name'] ?? '')),
         ];
 
-        // Only overwrite the secret when a fresh value is provided.
-        $secret = (string) ($post['graph_client_secret'] ?? '');
-        if ($secret !== '' && $secret !== self::SECRET_MASK) {
-            $data['graph_client_secret'] = $secret;
+        // Only overwrite secrets when a fresh value (not the mask, not empty) is provided.
+        foreach ([
+            'graph_client_secret' => 'graph_client_secret',
+            'imap_password'       => 'imap_password',
+            'smtp_password'       => 'smtp_password',
+        ] as $field => $key) {
+            $val = (string) ($post[$field] ?? '');
+            if ($val !== '' && $val !== self::SECRET_MASK) {
+                $data[$key] = $val;
+            }
         }
 
         $this->model->setMany($data);
 
         return ServiceResult::ok(null, 'Configuración de Despacho guardada.');
+    }
+
+    /** Clamps an encryption choice to the allowed set. */
+    private function normalizeCrypto(string $value, string $default): string
+    {
+        $v = strtolower(trim($value));
+        return in_array($v, ['ssl', 'tls', 'none'], true) ? $v : $default;
     }
 
     /**

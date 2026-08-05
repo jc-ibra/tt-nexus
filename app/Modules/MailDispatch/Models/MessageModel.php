@@ -40,6 +40,20 @@ class MessageModel extends Model
     }
 
     /**
+     * Idempotency guard by RFC Message-ID. Catches the case where the same mail
+     * arrives under a different backend id — e.g. a reply we sent over SMTP whose
+     * forwarded Sent copy re-syncs from IMAP with a fresh UID.
+     */
+    public function existsByInternetMessageId(string $internetMessageId): bool
+    {
+        $id = trim($internetMessageId);
+        if ($id === '') {
+            return false;
+        }
+        return $this->where('internet_message_id', $id)->countAllResults() > 0;
+    }
+
+    /**
      * Threading fallback: resolve the conversation a message belongs to when
      * Graph's conversationId is missing/broken, by matching In-Reply-To /
      * References against an already-stored internet_message_id.

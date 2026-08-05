@@ -22,10 +22,10 @@ $qs = http_build_query(array_filter(['from' => $from, 'to' => $to, 'agent_id' =>
   .md-bar-row { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-2); }
   .md-bar-label { width:160px; font-size:var(--font-size-sm); flex-shrink:0; }
   .md-bar-track { flex:1; background:var(--surface-subdued); border-radius:var(--radius-1); height:18px; overflow:hidden; }
-  .md-bar-fill { height:100%; background:var(--color-primary); }
+  .md-bar-fill { height:100%; background:var(--action-primary); }
   .md-bar-num { width:48px; text-align:right; font-size:var(--font-size-sm); color:var(--text-subdued); }
   .md-daily { display:flex; align-items:flex-end; gap:4px; height:120px; padding-top:var(--space-2); }
-  .md-daily-col { flex:1; background:var(--color-primary); border-radius:2px 2px 0 0; min-height:2px; }
+  .md-daily-col { flex:1; background:var(--action-primary); border-radius:2px 2px 0 0; min-height:2px; }
   .md-filters { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end; }
 </style>
 
