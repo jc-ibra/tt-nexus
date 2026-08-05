@@ -171,6 +171,15 @@ $initials = static function (?string $name, ?string $email): string {
     font-size:var(--text-xs); font-weight:var(--weight-medium); color:var(--color-success-strong); }
   .gm-verified svg { width:13px; height:13px; }
 
+  /* Pill de estado (mismo tono que el avatar) a la derecha del asunto. */
+  .gm-status { flex:0 0 auto; font-size:10px; font-weight:var(--weight-semibold); letter-spacing:.02em;
+    padding:1px 7px; border-radius:var(--radius-full); white-space:nowrap; }
+  .gm-status.info { background:var(--color-blue-50); color:var(--color-blue-700); }
+  .gm-status.success { background:var(--color-success-surface); color:var(--color-success-strong); }
+  .gm-status.warning { background:var(--color-warning-surface); color:var(--color-warning-strong); }
+  .gm-status.critical { background:var(--color-critical-surface); color:var(--color-critical-strong); }
+  .gm-status.neutral { background:var(--color-neutral-100); color:var(--color-neutral-700); }
+
   .gm-empty { padding:var(--space-6); color:var(--text-muted); text-align:center; }
 
   /* ---- Panel de lectura ---- */
@@ -333,6 +342,8 @@ $initials = static function (?string $name, ?string $email): string {
                   <?php endif; ?>
                 <?php elseif ($isUnassigned): ?>
                   <button type="button" class="gm-claim" data-claim="<?= (int) $c['id'] ?>">Tomar</button>
+                <?php else: ?>
+                  <span class="gm-status <?= esc($tone) ?>"><?= esc($statusLabels[$c['status']] ?? $c['status']) ?></span>
                 <?php endif; ?>
               </span>
             </span>
