@@ -17,7 +17,10 @@ $routes->group('dispatch', [
     // Inbox with status filters (Sin asignar / Mías / Todas / Cerradas).
     $routes->get('/',            'Dispatch::index',   ['as' => 'dispatch.index']);
 
-    // Phase 2: metrics dashboard.
+    // Phase 2: metrics dashboard. Personal view for every agent; team-wide view
+    // (agent filter + per-agent breakdown) only for dispatchers/SuperAdmin.
+    $routes->get('my-metrics',        'Dispatch::myMetrics',  ['as' => 'dispatch.mymetrics']);
+    $routes->get('my-metrics/export', 'Dispatch::exportMyCsv', ['as' => 'dispatch.mymetrics.export']);
     $routes->get('metrics',      'Dispatch::metrics', ['as' => 'dispatch.metrics']);
     $routes->get('metrics/export', 'Dispatch::exportCsv', ['as' => 'dispatch.metrics.export']);
 
@@ -29,6 +32,9 @@ $routes->group('dispatch', [
 
     // Attachment download (any dispatch agent; served from WRITEPATH).
     $routes->get('attachments/(:num)', 'Dispatch::downloadAttachment/$1', ['as' => 'dispatch.attachment']);
+
+    // Reading-pane partial (AJAX) for the inbox split view.
+    $routes->get('(:num)/preview',    'Dispatch::preview/$1',     ['as' => 'dispatch.preview']);
 
     // Conversation detail + actions.
     $routes->get('(:num)',            'Dispatch::show/$1',        ['as' => 'dispatch.show']);

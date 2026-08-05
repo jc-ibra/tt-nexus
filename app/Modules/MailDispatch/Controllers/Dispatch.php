@@ -38,7 +38,7 @@ class Dispatch extends BaseController
         $userId  = $this->userId();
         $q       = trim((string) ($this->request->getGet('q') ?? ''));
         $conv    = new ConversationModel();
-        $rows    = $conv->forQueue($filter, $userId, 25, $q);
+        $rows    = $conv->forQueue($filter, $userId, 15, $q);
         $config  = new MailDispatchConfig();
         $settings = service('mailDispatchSettings');
 
@@ -53,9 +53,7 @@ class Dispatch extends BaseController
             'statusTones'   => $config->statusTones,
             'slaUnassigned' => $settings->slaUnassignedMinutes(),
             'slaResponse'   => $settings->slaFirstResponseMinutes(),
-            'counts'        => [
-                'unassigned' => $conv->countUnassigned(),
-            ],
+            'counts'        => (new ConversationModel())->counts($userId, $q),
             'canDispatch'   => $this->canDispatch(),
         ]);
     }
@@ -112,24 +110,58 @@ class Dispatch extends BaseController
     public function claim(int $id): ResponseInterface
     {
         $result = service('mailDispatchConversations')->claim($id, $this->userId());
-        return $this->back($id, $result);
+        return $this->respond($id, $result);
     }
 
     public function assign(int $id): ResponseInterface
     {
         if (! $this->canDispatch()) {
-            return $this->back($id, \App\Modules\Core\Services\ServiceResult::fail('No tienes permiso para asignar.'));
+            return $this->respond($id, \App\Modules\Core\Services\ServiceResult::fail('No tienes permiso para asignar.'));
         }
         $target = (int) ($this->request->getPost('agent_id') ?? 0);
         $result = service('mailDispatchConversations')->assign($id, $target, $this->userId());
-        return $this->back($id, $result);
+        return $this->respond($id, $result);
     }
 
     public function changeStatus(int $id): ResponseInterface
     {
         $status = (string) ($this->request->getPost('status') ?? '');
         $result = service('mailDispatchConversations')->changeStatus($id, $status, $this->userId());
-        return $this->back($id, $result);
+        return $this->respond($id, $result);
+    }
+
+    /**
+     * Reading-pane partial (AJAX): the conversation header, quick actions and the
+     * message thread, rendered without the page layout for inline preview.
+     */
+    public function preview(int $id): string
+    {
+        $conv = (new ConversationModel())->findFull($id);
+        if ($conv === null) {
+            return '<div class="md-pane-msg">Conversación no encontrada.</div>';
+        }
+
+        $config     = new MailDispatchConfig();
+        $messages   = (new MessageModel())->forConversation($id);
+        $attModel   = new AttachmentModel();
+        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
+        foreach ($messages as &$m) {
+            $m['attachments'] = $attModel->forMessage((int) $m['id']);
+            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
+                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
+            }
+        }
+        unset($m);
+
+        return view('App\Modules\MailDispatch\Views\preview', [
+            'conv'          => $conv,
+            'messages'      => $messages,
+            'statusLabels'  => $config->statusLabels,
+            'statusTones'   => $config->statusTones,
+            'manualStatuses' => $config->manualStatuses,
+            'currentUserId' => $this->userId(),
+            'canDispatch'   => $this->canDispatch(),
+        ]);
     }
 
     public function close(int $id): ResponseInterface
@@ -213,8 +245,13 @@ class Dispatch extends BaseController
     // Metrics (phase 2)
     // -----------------------------------------------------------------------
 
-    public function metrics(): string
+    /** Team-wide metrics (agent filter + per-agent breakdown). Dispatchers only. */
+    public function metrics(): ResponseInterface|string
     {
+        if (! $this->canDispatch()) {
+            return redirect()->to(route_to('dispatch.mymetrics'));
+        }
+
         $from = (string) ($this->request->getGet('from') ?? '');
         $to   = (string) ($this->request->getGet('to') ?? '');
         $agentId = (int) ($this->request->getGet('agent_id') ?? 0);
@@ -222,16 +259,41 @@ class Dispatch extends BaseController
         $data = service('mailDispatchMetrics')->dashboard($from ?: null, $to ?: null, $agentId ?: null);
 
         return view('App\Modules\MailDispatch\Views\metrics', array_merge($data, [
-            'pageTitle' => 'Métricas · Despacho de Correo',
+            'pageTitle' => 'Métricas del equipo · Despacho de Correo',
             'from'      => $from,
             'to'        => $to,
             'agentId'   => $agentId,
             'agents'    => (new AgentModel())->activeAgents(),
+            'personal'  => false,
+        ]));
+    }
+
+    /** Personal metrics: always scoped to the logged-in agent. Any agent may open. */
+    public function myMetrics(): string
+    {
+        $from = (string) ($this->request->getGet('from') ?? '');
+        $to   = (string) ($this->request->getGet('to') ?? '');
+        $userId = $this->userId();
+
+        $data = service('mailDispatchMetrics')->dashboard($from ?: null, $to ?: null, $userId);
+
+        return view('App\Modules\MailDispatch\Views\metrics', array_merge($data, [
+            'pageTitle' => 'Mis métricas · Despacho de Correo',
+            'from'      => $from,
+            'to'        => $to,
+            'agentId'   => $userId,
+            'agents'    => [],
+            'personal'  => true,
         ]));
     }
 
     public function exportCsv(): ResponseInterface
     {
+        if (! $this->canDispatch()) {
+            // Non-dispatchers can only export their own conversations.
+            return $this->exportMyCsv();
+        }
+
         $from = (string) ($this->request->getGet('from') ?? '');
         $to   = (string) ($this->request->getGet('to') ?? '');
         $agentId = (int) ($this->request->getGet('agent_id') ?? 0);
@@ -241,6 +303,20 @@ class Dispatch extends BaseController
         return $this->response
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->setHeader('Content-Disposition', 'attachment; filename="despacho-conversaciones-' . date('Ymd-His') . '.csv"')
+            ->setBody($csv);
+    }
+
+    /** CSV of the logged-in agent's own conversations (agent_id forced to self). */
+    public function exportMyCsv(): ResponseInterface
+    {
+        $from = (string) ($this->request->getGet('from') ?? '');
+        $to   = (string) ($this->request->getGet('to') ?? '');
+
+        $csv = service('mailDispatchMetrics')->conversationsCsv($from ?: null, $to ?: null, $this->userId());
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="despacho-mis-conversaciones-' . date('Ymd-His') . '.csv"')
             ->setBody($csv);
     }
 
@@ -266,5 +342,17 @@ class Dispatch extends BaseController
     {
         return redirect()->to(route_to('dispatch.show', $id))
             ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /** JSON for AJAX (reading-pane quick actions); redirect otherwise. */
+    private function respond(int $id, \App\Modules\Core\Services\ServiceResult $result): ResponseInterface
+    {
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'status'  => $result->success ? 'success' : 'error',
+                'message' => $result->message,
+            ]);
+        }
+        return $this->back($id, $result);
     }
 }

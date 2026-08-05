@@ -49,6 +49,8 @@ class ConversationModel extends Model
             . ' core_users.name AS agent_name,'
             . ' maildispatch_dispositions.name AS disposition_name'
         )
+            // Whether the thread has any attachment (for the list icon).
+            ->select('(SELECT MAX(mm2.has_attachments) FROM maildispatch_messages mm2 WHERE mm2.conversation_id = maildispatch_conversations.id) AS has_attachments', false)
             ->join('core_users', 'core_users.id = maildispatch_conversations.agent_id', 'left')
             ->join('maildispatch_dispositions', 'maildispatch_dispositions.id = maildispatch_conversations.disposition_id', 'left');
 
@@ -107,5 +109,34 @@ class ConversationModel extends Model
     public function countUnassigned(): int
     {
         return $this->where('agent_id', null)->where('status !=', 'cerrada')->countAllResults();
+    }
+
+    /**
+     * Per-tab counts for the inbox badges. Honors the same free-text search as
+     * the list, so the numbers match what each tab would show.
+     *
+     * @return array{unassigned:int,mine:int,all:int,closed:int}
+     */
+    public function counts(?int $userId, string $q = ''): array
+    {
+        $q = trim($q);
+        $search = function ($b) use ($q) {
+            if ($q !== '') {
+                $b->groupStart()
+                  ->like('subject', $q)
+                  ->orLike('requester_name', $q)
+                  ->orLike('requester_email', $q)
+                  ->orLike('glpi_folio', $q)
+                  ->groupEnd();
+            }
+            return $b;
+        };
+
+        return [
+            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada'))->countAllResults(),
+            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada'))->countAllResults(),
+            'all'        => $search($this)->countAllResults(),
+            'closed'     => $search($this->where('status', 'cerrada'))->countAllResults(),
+        ];
     }
 }

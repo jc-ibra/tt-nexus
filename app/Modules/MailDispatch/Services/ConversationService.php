@@ -432,12 +432,14 @@ class ConversationService
         $body        = $m['body']['content'] ?? '';
         $bodyType    = strtolower((string) ($m['body']['contentType'] ?? 'html'));
 
-        $subject = trim((string) ($m['subject'] ?? '(sin asunto)'));
+        $subject     = trim((string) ($m['subject'] ?? '(sin asunto)'));
+        $bodyPreview = trim((string) ($m['bodyPreview'] ?? ''));
 
         // Forward mode: the mailbox receives forwarded copies, so the SMTP sender
         // is the forwarder. Use the original sender from the body's De:/From:
-        // block as the real requester/sender (and recompute direction), and strip
-        // the forwarding noise (RV:/[External]/…) from the subject.
+        // block as the real requester/sender (and recompute direction), strip the
+        // forwarding noise (RV:/[External]/…) from the subject, and take the
+        // preview from the actual content (past the forwarded header block).
         if ($this->settings->treatAsForwards()) {
             $orig = ForwardParser::originalSender((string) $body);
             if ($orig !== null) {
@@ -445,7 +447,8 @@ class ConversationService
                 $fromEmail = $orig['email'];
                 $direction = $fromEmail === $mailboxLower ? 'out' : 'in';
             }
-            $subject = ForwardParser::cleanSubject($subject);
+            $subject     = ForwardParser::cleanSubject($subject);
+            $bodyPreview = ForwardParser::contentSnippet((string) $body);
         }
 
         return [
@@ -462,7 +465,7 @@ class ConversationService
             'to_email'            => $toEmail,
             'to_recipients'       => implode(', ', $toList),
             'subject'             => $subject,
-            'body_preview'        => trim((string) ($m['bodyPreview'] ?? '')),
+            'body_preview'        => $bodyPreview,
             'body'                => (string) $body,
             'body_is_html'        => $bodyType === 'html' ? 1 : 0,
             'has_attachments'     => ! empty($m['hasAttachments']) ? 1 : 0,

@@ -52,6 +52,25 @@ class ForwardParser
     }
 
     /**
+     * Plain-text snippet of the actual message content. In a forwarded email the
+     * body starts with a De:/Enviados:/Para:/Asunto: header block; this skips past
+     * the "Asunto:/Subject:" line to the real content. Falls back to the whole
+     * text when no forwarded header is present.
+     */
+    public static function contentSnippet(string $body, int $limit = 200): string
+    {
+        $text = self::toText($body); // keeps newlines
+
+        if (preg_match('/^[ \t]*(?:De|From)[ \t]*:/mi', $text)
+            && preg_match('/^[ \t]*(?:Asunto|Subject)[ \t]*:[^\n]*\n(.*)$/mis', $text, $mm)) {
+            $text = $mm[1];
+        }
+
+        $text = trim((string) preg_replace('/[\pZ\s]+/u', ' ', $text));
+        return mb_substr($text, 0, $limit);
+    }
+
+    /**
      * Strips forwarding/reply noise from a subject: leading RV:/FW:/FWD:/RE:/
      * "Reenvío:" prefixes and bracketed [External]/[Externo] tags, in any order
      * or repetition. "RE:" needs the colon, so words like "Reporte" are kept.

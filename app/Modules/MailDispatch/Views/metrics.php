@@ -11,19 +11,26 @@ $maxDaily = 0;
 foreach (($daily_volume ?? []) as $d) { $maxDaily = max($maxDaily, (int) $d['total']); }
 $maxDisp = 0;
 foreach (($dispositions ?? []) as $d) { $maxDisp = max($maxDisp, (int) $d['total']); }
-$qs = http_build_query(array_filter(['from' => $from, 'to' => $to, 'agent_id' => $agentId ?: null]));
+$personal = $personal ?? false;
+$exportBase = $personal ? 'dispatch/my-metrics/export' : 'dispatch/metrics/export';
+$formAction = $personal ? 'dispatch/my-metrics' : 'dispatch/metrics';
+// In personal mode the agent is fixed to the current user, so agent_id never
+// travels in the query string (the export route forces it server-side).
+$qs = http_build_query($personal
+    ? array_filter(['from' => $from, 'to' => $to])
+    : array_filter(['from' => $from, 'to' => $to, 'agent_id' => $agentId ?: null]));
 ?>
 
 <style>
   .md-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:var(--space-4); margin-bottom:var(--space-5); }
-  .md-kpi { background:var(--surface); border:1px solid var(--border-subtle); border-radius:var(--radius-2); padding:var(--space-4); }
-  .md-kpi-value { font-size:var(--font-size-2xl,28px); font-weight:700; color:var(--text-primary); }
-  .md-kpi-label { color:var(--text-subdued); font-size:var(--font-size-sm); margin-top:4px; }
+  .md-kpi { background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:var(--space-4); }
+  .md-kpi-value { font-size:28px; font-weight:var(--weight-bold); color:var(--text-primary); }
+  .md-kpi-label { color:var(--text-muted); font-size:var(--text-sm); margin-top:4px; }
   .md-bar-row { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-2); }
-  .md-bar-label { width:160px; font-size:var(--font-size-sm); flex-shrink:0; }
-  .md-bar-track { flex:1; background:var(--surface-subdued); border-radius:var(--radius-1); height:18px; overflow:hidden; }
+  .md-bar-label { width:160px; font-size:var(--text-sm); flex-shrink:0; }
+  .md-bar-track { flex:1; background:var(--bg-surface-alt); border-radius:var(--radius-sm); height:18px; overflow:hidden; }
   .md-bar-fill { height:100%; background:var(--action-primary); }
-  .md-bar-num { width:48px; text-align:right; font-size:var(--font-size-sm); color:var(--text-subdued); }
+  .md-bar-num { width:48px; text-align:right; font-size:var(--text-sm); color:var(--text-muted); }
   .md-daily { display:flex; align-items:flex-end; gap:4px; height:120px; padding-top:var(--space-2); }
   .md-daily-col { flex:1; background:var(--action-primary); border-radius:2px 2px 0 0; min-height:2px; }
   .md-filters { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end; }
@@ -31,42 +38,49 @@ $qs = http_build_query(array_filter(['from' => $from, 'to' => $to, 'agent_id' =>
 
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title">Métricas de despacho</h1>
-    <p class="page-subtitle">Backlog, tiempos de respuesta y volumen por agente.</p>
+    <h1 class="page-title"><?= $personal ? 'Mis métricas' : 'Métricas del equipo' ?></h1>
+    <p class="page-subtitle"><?= $personal
+        ? 'Tus tiempos de respuesta y volumen de conversaciones.'
+        : 'Backlog, tiempos de respuesta y volumen por agente.' ?></p>
   </div>
   <div class="page-actions">
-    <a href="<?= base_url('dispatch/metrics/export') ?><?= $qs ? '?' . esc($qs, 'url') : '' ?>" class="btn btn-secondary">Exportar CSV</a>
+    <a href="<?= base_url($exportBase) ?><?= $qs ? '?' . esc($qs, 'url') : '' ?>" class="btn btn-secondary">Exportar CSV</a>
     <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Bandeja</a>
   </div>
 </div>
 
 <div class="card" style="margin-bottom:var(--space-5);">
   <div class="card-body">
-    <form method="get" action="<?= base_url('dispatch/metrics') ?>" class="md-filters">
+    <form method="get" action="<?= base_url($formAction) ?>" class="md-filters">
       <div class="field"><label class="field-label" for="from">Desde</label>
         <input type="date" id="from" name="from" class="input" value="<?= esc($from) ?>"></div>
       <div class="field"><label class="field-label" for="to">Hasta</label>
         <input type="date" id="to" name="to" class="input" value="<?= esc($to) ?>"></div>
-      <div class="field"><label class="field-label" for="agent_id">Agente</label>
-        <select id="agent_id" name="agent_id" class="input">
-          <option value="0">Todos</option>
-          <?php foreach ($agents as $a): ?>
-            <option value="<?= (int) $a['user_id'] ?>" <?= (int) $agentId === (int) $a['user_id'] ? 'selected' : '' ?>><?= esc($a['user_name']) ?></option>
-          <?php endforeach; ?>
-        </select></div>
+      <?php if (! $personal): ?>
+        <div class="field"><label class="field-label" for="agent_id">Agente</label>
+          <select id="agent_id" name="agent_id" class="input">
+            <option value="0">Todos</option>
+            <?php foreach ($agents as $a): ?>
+              <option value="<?= (int) $a['user_id'] ?>" <?= (int) $agentId === (int) $a['user_id'] ? 'selected' : '' ?>><?= esc($a['user_name']) ?></option>
+            <?php endforeach; ?>
+          </select></div>
+      <?php endif; ?>
       <button type="submit" class="btn btn-primary">Aplicar</button>
     </form>
   </div>
 </div>
 
 <div class="md-kpis">
-  <div class="md-kpi"><div class="md-kpi-value"><?= (int) $backlog_unassigned ?></div><div class="md-kpi-label">Backlog sin asignar</div></div>
-  <div class="md-kpi"><div class="md-kpi-value"><?= (int) $received ?></div><div class="md-kpi-label">Recibidas (rango)</div></div>
+  <?php if (! $personal): ?>
+    <div class="md-kpi"><div class="md-kpi-value"><?= (int) $backlog_unassigned ?></div><div class="md-kpi-label">Backlog sin asignar</div></div>
+  <?php endif; ?>
+  <div class="md-kpi"><div class="md-kpi-value"><?= (int) $received ?></div><div class="md-kpi-label"><?= $personal ? 'Mías recibidas (rango)' : 'Recibidas (rango)' ?></div></div>
   <div class="md-kpi"><div class="md-kpi-value"><?= (int) $closed ?></div><div class="md-kpi-label">Cerradas (rango)</div></div>
   <div class="md-kpi"><div class="md-kpi-value"><?= $fmtMin($avg_first_assignment_min) ?></div><div class="md-kpi-label">Prom. primera asignación</div></div>
   <div class="md-kpi"><div class="md-kpi-value"><?= $fmtMin($avg_first_response_min) ?></div><div class="md-kpi-label">Prom. primera respuesta</div></div>
 </div>
 
+<?php if (! $personal): ?>
 <div class="card" style="margin-bottom:var(--space-5);">
   <div class="card-header"><h2 class="card-title">Volumen por agente</h2></div>
   <div class="card-body" style="padding:0;">
@@ -84,6 +98,7 @@ $qs = http_build_query(array_filter(['from' => $from, 'to' => $to, 'agent_id' =>
     <?php endif; ?>
   </div>
 </div>
+<?php endif; ?>
 
 <div class="card" style="margin-bottom:var(--space-5);">
   <div class="card-header"><h2 class="card-title">Distribución de disposiciones (cerradas en rango)</h2></div>

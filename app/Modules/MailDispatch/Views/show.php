@@ -53,7 +53,9 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
 ?>
 
 <style>
-  .md-detail { display:grid; grid-template-columns: 1fr 340px; gap:var(--space-5); align-items:start; }
+  /* minmax(0,1fr) para que la columna izquierda pueda encogerse por debajo de su
+     min-content (correos largos sin espacios) y no empuje/corte la columna derecha. */
+  .md-detail { display:grid; grid-template-columns: minmax(0, 1fr) 340px; gap:var(--space-5); align-items:start; }
   @media (max-width: 960px) { .md-detail { grid-template-columns: 1fr; } }
 
   /* ---- Avatar con iniciales ---- */
