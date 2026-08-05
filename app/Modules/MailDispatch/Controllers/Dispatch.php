@@ -77,8 +77,13 @@ class Dispatch extends BaseController
         // Enrich each message with its attachments.
         $messages = (new MessageModel())->forConversation($id);
         $attModel = new AttachmentModel();
+        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
         foreach ($messages as &$m) {
             $m['attachments'] = $attModel->forMessage((int) $m['id']);
+            // Forward mode: drop the empty forwarder intro (blank + divider line).
+            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
+                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
+            }
         }
         unset($m);
 

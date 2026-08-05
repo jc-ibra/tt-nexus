@@ -138,6 +138,14 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
             <span>Validar certificado TLS</span>
           </label>
         </div>
+
+        <div class="field" style="border-top:1px solid var(--border-default); padding-top:var(--space-3);">
+          <label class="field-check">
+            <input type="checkbox" name="treat_as_forwards" value="1" <?= $bool('treat_as_forwards') ? 'checked' : '' ?>>
+            <span><strong>Modo reenvío:</strong> usar el remitente original del cuerpo</span>
+          </label>
+          <p class="field-help">Actívalo si este buzón recibe los correos por una regla de <strong>reenvío</strong> (el remitente SMTP siempre es el reenviador). Nexus leerá el bloque «De:/From:» dentro del cuerpo y registrará a esa persona como <strong>solicitante</strong>, además de limpiar el encabezado del reenvío en el detalle.</p>
+        </div>
       </div>
     </div>
 

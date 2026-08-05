@@ -488,6 +488,7 @@ class Services extends BaseService
             new MailDispatchAgentModel(),
             self::mailDispatchAttachments(),
             new MailDispatchMessageRefModel(),
+            self::mailDispatchSettings(),
         );
     }
 

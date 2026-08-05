@@ -59,6 +59,15 @@ class MailDispatchSettings
     public function isImap(): bool  { return $this->provider() === 'imap'; }
     public function isGraph(): bool { return $this->provider() === 'graph'; }
 
+    /**
+     * Forward mode: the mailbox receives forwarded copies, so the real requester
+     * is the De:/From: block inside the body, not the SMTP sender.
+     */
+    public function treatAsForwards(): bool
+    {
+        return $this->model->get('treat_as_forwards', '0') === '1';
+    }
+
     // -----------------------------------------------------------------------
     // IMAP (read side)
     // -----------------------------------------------------------------------
@@ -187,6 +196,7 @@ class MailDispatchSettings
             'imap_validate_cert'          => isset($post['imap_validate_cert']) ? '1' : '0',
             'imap_username'               => trim((string) ($post['imap_username'] ?? '')),
             'imap_folder'                 => trim((string) ($post['imap_folder'] ?? 'INBOX')) ?: 'INBOX',
+            'treat_as_forwards'           => isset($post['treat_as_forwards']) ? '1' : '0',
 
             // --- SMTP (send) ---
             'smtp_host'                   => trim((string) ($post['smtp_host'] ?? '')),

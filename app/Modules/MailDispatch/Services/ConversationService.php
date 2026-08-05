@@ -31,7 +31,8 @@ class ConversationService
         private DispositionModel $dispositions,
         private AgentModel $agents,
         private AttachmentService $attachments,
-        private MessageRefModel $messageRefs
+        private MessageRefModel $messageRefs,
+        private MailDispatchSettings $settings
     ) {}
 
     // =======================================================================
@@ -431,6 +432,22 @@ class ConversationService
         $body        = $m['body']['content'] ?? '';
         $bodyType    = strtolower((string) ($m['body']['contentType'] ?? 'html'));
 
+        $subject = trim((string) ($m['subject'] ?? '(sin asunto)'));
+
+        // Forward mode: the mailbox receives forwarded copies, so the SMTP sender
+        // is the forwarder. Use the original sender from the body's De:/From:
+        // block as the real requester/sender (and recompute direction), and strip
+        // the forwarding noise (RV:/[External]/…) from the subject.
+        if ($this->settings->treatAsForwards()) {
+            $orig = ForwardParser::originalSender((string) $body);
+            if ($orig !== null) {
+                $fromName  = $orig['name'];
+                $fromEmail = $orig['email'];
+                $direction = $fromEmail === $mailboxLower ? 'out' : 'in';
+            }
+            $subject = ForwardParser::cleanSubject($subject);
+        }
+
         return [
             'mailbox'             => $mailbox,
             'conversation_id'     => (string) ($m['conversationId'] ?? ''),
@@ -444,7 +461,7 @@ class ConversationService
             'to_name'             => $toName ?: $toEmail,
             'to_email'            => $toEmail,
             'to_recipients'       => implode(', ', $toList),
-            'subject'             => trim((string) ($m['subject'] ?? '(sin asunto)')),
+            'subject'             => $subject,
             'body_preview'        => trim((string) ($m['bodyPreview'] ?? '')),
             'body'                => (string) $body,
             'body_is_html'        => $bodyType === 'html' ? 1 : 0,
