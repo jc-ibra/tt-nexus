@@ -258,11 +258,11 @@ if ($currentUserGlpiId > 0) {
 
 <nav aria-label="Navegación principal">
   <a href="<?= route_to('dashboard') ?>"
-     class="nav-item <?= $currentPath === '/' ? 'is-active' : '' ?>">
+     class="nav-item <?= $currentPath === '/' ? 'is-active' : '' ?>" title="Inicio">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 9.5L12 3l9 6.5"/><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10"/><path d="M9 21v-6h6v6"/>
     </svg>
-    Inicio
+    <span class="nav-label">Inicio</span>
   </a>
 
   <?php if ($isSuperAdmin): ?>
@@ -270,6 +270,7 @@ if ($currentUserGlpiId > 0) {
     <button type="button"
             class="nav-item nav-group-toggle <?= $adminOpen ? 'is-active' : '' ?>"
             aria-expanded="<?= $adminOpen ? 'true' : 'false' ?>"
+            title="Administración"
             data-nav-toggle>
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/>
@@ -301,6 +302,7 @@ if ($currentUserGlpiId > 0) {
     <button type="button"
             class="nav-item nav-group-toggle <?= $configOpen ? 'is-active' : '' ?>"
             aria-expanded="<?= $configOpen ? 'true' : 'false' ?>"
+            title="Configuración"
             data-nav-toggle>
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -354,6 +356,7 @@ if ($currentUserGlpiId > 0) {
           <button type="button"
                   class="nav-item nav-group-toggle <?= $isOpen ? 'is-active' : '' ?>"
                   aria-expanded="<?= $isOpen ? 'true' : 'false' ?>"
+                  title="<?= esc($module['name'], 'attr') ?>"
                   data-nav-toggle>
             <?= $moduleIcons[$key] ?? '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>' ?>
             <span class="nav-group-label"><?= esc($module['name']) ?></span>
@@ -375,9 +378,9 @@ if ($currentUserGlpiId > 0) {
 
       <?php else: ?>
         <a href="<?= base_url($module['route_base']) ?>"
-           class="nav-item <?= $isOpen ? 'is-active' : '' ?>">
+           class="nav-item <?= $isOpen ? 'is-active' : '' ?>" title="<?= esc($module['name'], 'attr') ?>">
           <?= $moduleIcons[$key] ?? '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>' ?>
-          <?= esc($module['name']) ?>
+          <span class="nav-label"><?= esc($module['name']) ?></span>
         </a>
       <?php endif; ?>
 

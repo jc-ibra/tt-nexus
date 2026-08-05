@@ -138,6 +138,7 @@
   /* Layout */
   --topnav-height:  64px;
   --sidebar-width:  240px;
+  --sidebar-width-collapsed: 68px;
 
   /* Sidebar (dark theme) */
   --sidebar-bg:            #253542;
@@ -312,6 +313,56 @@ img, svg { display: block; max-width: 100%; }
 }
 .sidebar-logout:hover { background: rgba(215, 44, 13, 0.15); color: #FF6B57; }
 .sidebar-logout:hover .nav-icon { color: #FF6B57; }
+
+/* --------------------------------------------------------------------------
+   4b. Collapsible sidebar (mini icon-only rail)
+   -------------------------------------------------------------------------- */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.sidebar-header .sidebar-brand { flex: 1 1 auto; min-width: 0; padding-bottom: var(--space-1); }
+.sidebar-brand-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.sidebar-collapse-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--sidebar-icon);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-base), color var(--duration-base);
+}
+.sidebar-collapse-btn:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-text-hover); }
+.sidebar-collapse-btn svg { width: 18px; height: 18px; transition: transform var(--duration-base) var(--ease-default); }
+
+/* Collapsed state: narrow rail, icon-only. */
+.app-shell.sidebar-collapsed { grid-template-columns: var(--sidebar-width-collapsed) 1fr; }
+.sidebar-collapsed .app-sidebar { padding-left: var(--space-2); padding-right: var(--space-2); }
+.sidebar-collapsed .sidebar-header { flex-direction: column; gap: var(--space-2); }
+.sidebar-collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+
+.sidebar-collapsed .sidebar-brand-name,
+.sidebar-collapsed .nav-label,
+.sidebar-collapsed .nav-group-label,
+.sidebar-collapsed .nav-group-chevron,
+.sidebar-collapsed .nav-section-label,
+.sidebar-collapsed .sidebar-account-meta,
+.sidebar-collapsed .user-menu-chevron { display: none; }
+
+.sidebar-collapsed .sidebar-brand { justify-content: center; padding-left: 0; padding-right: 0; }
+.sidebar-collapsed .nav-item,
+.sidebar-collapsed .nav-group-toggle,
+.sidebar-collapsed .sidebar-account-trigger { justify-content: center; padding-left: var(--space-2); padding-right: var(--space-2); gap: 0; }
+.sidebar-collapsed .nav-subnav { display: none; }
 
 /* User menu dropdown */
 .user-menu { position: relative; }
