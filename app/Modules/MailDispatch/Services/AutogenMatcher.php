@@ -187,7 +187,7 @@ class AutogenMatcher
                 continue;
             }
             $target = (string) ($row['target'] ?? 'description');
-            if (! in_array($target, ['title', 'description', 'ignore'], true)) {
+            if (! str_starts_with($target, 'plugin:') && ! in_array($target, ['title', 'description', 'ignore'], true)) {
                 $target = 'description';
             }
             $out[] = ['label' => $label, 'target' => $target, 'required' => ! empty($row['required'])];
@@ -223,18 +223,22 @@ class AutogenMatcher
     {
         $titleParts = [];
         $descParts  = [];
+        $plugin     = [];
         $missing    = [];
         foreach ($map as $field) {
-            $label = $field['label'];
-            $value = $values[$label] ?? '';
+            $label  = $field['label'];
+            $target = $field['target'];
+            $value  = $values[$label] ?? '';
             if ($field['required'] && $value === '') {
                 $missing[] = $label;
             }
-            if ($value === '' || $field['target'] === 'ignore') {
+            if ($value === '' || $target === 'ignore') {
                 continue;
             }
-            if ($field['target'] === 'title') {
+            if ($target === 'title') {
                 $titleParts[] = $value;
+            } elseif (str_starts_with($target, 'plugin:')) {
+                $plugin[$target] = $value;
             } else {
                 $descParts[] = $label . ': ' . $value;
             }
@@ -243,6 +247,7 @@ class AutogenMatcher
         return [
             'title'       => trim(implode(' ', $titleParts)),
             'description' => trim(implode("\n", $descParts)),
+            'plugin'      => $plugin,
             'fields'      => $values,
             'missing'     => $missing,
         ];

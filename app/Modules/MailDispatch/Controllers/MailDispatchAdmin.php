@@ -56,6 +56,32 @@ class MailDispatchAdmin extends BaseController
         }
         unset($ar);
 
+        // Referencia de campos de plugin/tab GLPI (best-effort; vacío si GLPI no responde).
+        $pluginRef = [];
+        try {
+            $intro  = service('glpiSchemaIntrospector');
+            $opts   = $intro->containerOptions();
+            $allIds = array_map(static fn ($c) => (int) $c['id'], $opts);
+            $labels = [];
+            foreach ($opts as $c) {
+                $labels[(int) $c['id']] = $c['label'];
+            }
+            $byContainer = [];
+            foreach ($intro->buildPlan($allIds, false)['columns'] as $col) {
+                if (($col['kind'] ?? '') === 'plugin') {
+                    $byContainer[(int) $col['containerId']][] = [
+                        'target' => 'plugin:' . $col['containerId'] . ':' . $col['field'],
+                        'label'  => $col['header'],
+                    ];
+                }
+            }
+            foreach ($byContainer as $cid => $fields) {
+                $pluginRef[] = ['id' => $cid, 'label' => $labels[$cid] ?? ('Contenedor ' . $cid), 'fields' => $fields];
+            }
+        } catch (\Throwable $e) {
+            $pluginRef = [];
+        }
+
         return view('App\Modules\MailDispatch\Views\admin\settings', [
             'pageTitle'    => 'Configuración · Despacho de Correo',
             'settings'     => $settings->all(),
@@ -69,6 +95,7 @@ class MailDispatchAdmin extends BaseController
             'dispositions' => (new DispositionModel())->allOrdered(),
             'rules'        => (new RuleModel())->allOrdered(),
             'autogenRules' => $autogenRules,
+            'pluginRef'    => $pluginRef,
             'syncRuns'     => (new SyncRunModel())->recent(12),
             'syncState'    => (new SyncStateModel())->where('mailbox_address', $settings->mailbox())->findAll(),
             'secretMask'   => MailDispatchSettings::SECRET_MASK,

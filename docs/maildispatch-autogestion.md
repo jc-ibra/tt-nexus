@@ -267,9 +267,13 @@ autocierre** (`maildispatch_rules`) siguen igual; solo cambia el nombre del esta
 - **`reply_subject`:** NO se aplica a propósito. El ack es una **respuesta** en el hilo (asunto
   `Re:`), lo que preserva el threading; un asunto propio rompería el hilo. La columna queda
   reservada. El folio va en el cuerpo (`reply_body`).
-- **Campos de plugin/tab (`field_map.target = plugin:...`):** ÚNICO pendiente 1.x. Hoy los
-  extras van a la descripción. Mapear un dato a un campo de contenedor GLPI requiere validación
-  con GLPI en vivo; se deja como mejora enfocada.
+- **Campos de plugin/tab (`field_map.target = plugin:<containerId>:<campo>`):** ✅ HECHO
+  (2026-08-06). El matcher separa esos valores en `payload['plugin']` (no van a la descripción);
+  `AutogenService::createTicket` une los contenedores referenciados, resuelve el header con un
+  solo `buildPlan` y los inyecta al ticket vía `createOne`. La IA también puede extraerlos.
+  El editor admin muestra una referencia (best-effort desde GLPI) con los `plugin:…` disponibles.
+  Verificado en el matcher (valor va a `payload['plugin']`); la escritura a GLPI reusa el
+  mecanismo de ServiceDesk (confirmar con contenedor real en vivo).
 
 **Criterios de aceptación Fase 1:** un correo con asunto y whitelist válidos crea el ticket,
 responde con el folio por SMTP, aparece en "autogenerados" como `created` verificable; uno con

@@ -148,10 +148,27 @@ class AutogenService
             $introspector = service('glpiSchemaIntrospector');
             $importer     = service('serviceDeskImporter');
 
-            $base = [];
-            foreach ($introspector->buildPlan([], false)['columns'] as $c) {
-                if (($c['kind'] ?? '') === 'base') {
+            // Contenedores: los de la regla/default + los referenciados por el
+            // mapeo de plugin/tab (target `plugin:<containerId>:<campo>`).
+            $plugin       = (array) ($payload['plugin'] ?? []);
+            $containerIds = $this->intList((string) ($rule['container_ids'] ?: $this->settings->autogenDefaultContainerIds()));
+            foreach (array_keys($plugin) as $t) {
+                $parts = explode(':', (string) $t);
+                if (count($parts) === 3 && (int) $parts[1] > 0) {
+                    $containerIds[] = (int) $parts[1];
+                }
+            }
+            $containerIds = array_values(array_unique($containerIds));
+
+            // Un solo buildPlan: encabezados base + de plugin (header por target).
+            $base         = [];
+            $pluginHeader = [];
+            foreach ($introspector->buildPlan($containerIds, false)['columns'] as $c) {
+                $kind = $c['kind'] ?? '';
+                if ($kind === 'base') {
                     $base[$c['glpiKey']] = $c['header'];
+                } elseif ($kind === 'plugin') {
+                    $pluginHeader['plugin:' . $c['containerId'] . ':' . $c['field']] = $c['header'];
                 }
             }
 
@@ -177,10 +194,16 @@ class AutogenService
                 }
             }
 
-            $containerIds = $this->intList((string) ($rule['container_ids'] ?: $this->settings->autogenDefaultContainerIds()));
-            $requester    = (int) ($rule['glpi_requester_user_id'] ?: $this->settings->autogenDefaultRequesterUserId());
-            $entities     = (int) ($rule['glpi_entities_id'] ?: $this->settings->autogenDefaultEntitiesId());
-            $source       = (int) ($rule['request_source_id'] ?: $this->settings->autogenDefaultRequestSourceId());
+            // Campos de plugin/tab extraídos del correo.
+            foreach ($plugin as $target => $value) {
+                if ($value !== '' && isset($pluginHeader[(string) $target])) {
+                    $row[$pluginHeader[(string) $target]] = $value;
+                }
+            }
+
+            $requester = (int) ($rule['glpi_requester_user_id'] ?: $this->settings->autogenDefaultRequesterUserId());
+            $entities  = (int) ($rule['glpi_entities_id'] ?: $this->settings->autogenDefaultEntitiesId());
+            $source    = (int) ($rule['request_source_id'] ?: $this->settings->autogenDefaultRequestSourceId());
 
             $opts = [];
             if ($requester > 0) { $opts['requester'] = $requester; }

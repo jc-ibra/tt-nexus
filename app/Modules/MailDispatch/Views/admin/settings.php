@@ -442,8 +442,25 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <strong>lista blanca</strong> (obligatoria). El cuerpo se lee como <code>Campo: valor</code> según el
           <strong>mapeo de campos</strong>. Lista blanca: una por línea, <code>sender:correo@dominio</code> o
           <code>recipient:@dominio.com</code>. Mapeo: una por línea,
-          <code>Etiqueta | title|description|ignore | requerido(1/0)</code>.
+          <code>Etiqueta | destino | requerido(1/0)</code>, donde <em>destino</em> es
+          <code>title</code>, <code>description</code>, <code>ignore</code> o
+          <code>plugin:&lt;contenedor&gt;:&lt;campo&gt;</code> (escribe el dato en un campo de tab/plugin GLPI).
         </p>
+        <?php if (! empty($pluginRef)): ?>
+          <details style="margin:0 0 var(--space-4);">
+            <summary class="field-label" style="cursor:pointer;">Campos de plugin/tab disponibles (copia el <code>plugin:…</code> al mapeo)</summary>
+            <div style="padding:var(--space-3) 0;">
+              <?php foreach ($pluginRef as $cont): ?>
+                <p class="text-sm" style="margin:var(--space-2) 0 4px;"><strong><?= esc($cont['label']) ?></strong> · id <?= (int) $cont['id'] ?></p>
+                <ul style="margin:0 0 var(--space-2) var(--space-4);">
+                  <?php foreach ($cont['fields'] as $fld): ?>
+                    <li class="text-sm"><code><?= esc($fld['target']) ?></code> — <?= esc($fld['label']) ?></li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php endforeach; ?>
+            </div>
+          </details>
+        <?php endif; ?>
         <?php
           $agrules = $autogenRules ?? [];
           $blank = ['id' => 0, 'name' => '', 'is_active' => 1, 'subject_pattern' => '', 'subject_match_mode' => 'contains', 'glpi_ticket_type' => '', 'glpi_category_id' => '', 'glpi_entities_id' => '', 'glpi_requester_user_id' => '', 'request_source_id' => '', 'container_ids' => '', 'reply_body' => '', '_whitelist_text' => '', '_field_map_text' => ''];
