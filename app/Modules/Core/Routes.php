@@ -38,6 +38,15 @@ $routes->get('/', 'Dashboard::index', [
 ]);
 
 // -----------------------------------------------------------------------
+// Help Center — in-app guides for any authenticated user. Per-topic
+// visibility is enforced in the controller via the HelpCenter registry.
+// -----------------------------------------------------------------------
+$routes->group('help', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => 'auth'], function (RouteCollection $routes): void {
+    $routes->get('/',            'Help::index',    ['as' => 'help.index']);
+    $routes->get('(:segment)',   'Help::show/$1',  ['as' => 'help.show']);
+});
+
+// -----------------------------------------------------------------------
 // Admin — Core (protected)
 // -----------------------------------------------------------------------
 $routes->group('admin', ['namespace' => 'App\Modules\Core\Controllers', 'filter' => 'auth'], function (RouteCollection $routes): void {
