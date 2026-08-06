@@ -44,7 +44,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <button type="button" class="md-tab is-active" role="tab" data-panel="md-conexion" data-hash="conexion">Conexión y sincronización</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-agentes" data-hash="agentes">Agentes</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-disposiciones" data-hash="disposiciones">Disposiciones</button>
-  <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Reglas de autocierre</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Reglas de autoarchivo</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado de sincronización</button>
 </div>
 
@@ -327,19 +327,19 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   </form>
 </div>
 
-<!-- ========================= Reglas de autocierre ========================= -->
+<!-- ========================= Reglas de autoarchivo ========================= -->
 <div id="md-reglas" class="md-panel" role="tabpanel">
   <form action="<?= route_to('dispatch.rules.save') ?>" method="post" style="max-width:900px;">
     <?= csrf_field() ?>
     <div class="card">
       <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
-        <h2 class="card-title">Reglas de autocierre</h2>
+        <h2 class="card-title">Reglas de autoarchivo</h2>
         <button type="submit" class="btn btn-primary">Guardar reglas</button>
       </div>
       <div class="card-body" style="padding:0;">
         <p class="md-hint" style="padding:var(--space-4) var(--space-4) 0;">
           Si un correo <strong>entrante nuevo</strong> coincide con una regla activa, entra directo al estado
-          <strong>Autocierre</strong> (fuera de la bandeja principal). Ahí cualquier agente puede
+          <strong>Autoarchivo</strong> (fuera de la bandeja principal). Ahí cualquier agente puede
           <strong>Verificar</strong> (queda registrado quién) o <strong>Mover a la bandeja</strong> para el flujo normal.
           El <em>remitente</em> se compara contra el correo real (usa <code>@dominio.com</code> para todo un dominio);
           el <em>asunto</em> por coincidencia parcial. Deja un patrón vacío para no filtrar por él (pero al menos uno es obligatorio).

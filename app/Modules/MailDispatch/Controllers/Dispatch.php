@@ -23,7 +23,7 @@ use CodeIgniter\HTTP\ResponseInterface;
  */
 class Dispatch extends BaseController
 {
-    private const FILTERS = ['unassigned', 'mine', 'all', 'autocierre', 'closed'];
+    private const FILTERS = ['unassigned', 'mine', 'all', 'autoarchivo', 'closed'];
 
     // -----------------------------------------------------------------------
     // Inbox
@@ -131,14 +131,14 @@ class Dispatch extends BaseController
         return $this->respond($id, $result);
     }
 
-    /** Autocierre: any agent signs off a rule-triaged conversation (recorded). */
+    /** Autoarchivo: any agent signs off a rule-triaged conversation (recorded). */
     public function verify(int $id): ResponseInterface
     {
         $result = service('mailDispatchConversations')->verify($id, $this->userId());
         return $this->respond($id, $result);
     }
 
-    /** Autocierre: send a rule-triaged conversation back into the normal inbox. */
+    /** Autoarchivo: send a rule-triaged conversation back into the normal inbox. */
     public function moveToInbox(int $id): ResponseInterface
     {
         $result = service('mailDispatchConversations')->moveToInbox($id, $this->userId());

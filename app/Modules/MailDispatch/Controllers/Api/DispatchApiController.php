@@ -100,13 +100,13 @@ class DispatchApiController extends BaseApiController
         return $this->fromResult(service('mailDispatchConversations')->changeStatus($id, $status, $this->userId()));
     }
 
-    /** Autocierre: sign off a rule-triaged conversation (recorded per agent). */
+    /** Autoarchivo: sign off a rule-triaged conversation (recorded per agent). */
     public function verify(int $id): ResponseInterface
     {
         return $this->fromResult(service('mailDispatchConversations')->verify($id, $this->userId()));
     }
 
-    /** Autocierre: move a rule-triaged conversation back into the normal inbox. */
+    /** Autoarchivo: move a rule-triaged conversation back into the normal inbox. */
     public function moveToInbox(int $id): ResponseInterface
     {
         return $this->fromResult(service('mailDispatchConversations')->moveToInbox($id, $this->userId()));

@@ -11,7 +11,7 @@ $tabs = [
     'unassigned' => ['Sin asignar', 'M22 12h-6l-2 3h-4l-2-3H2'],
     'mine'       => ['Mías',       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
     'all'        => ['Todas',      'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01'],
-    'autocierre' => ['Autocierre', 'M21 8v13H3V8 M1 3h22v5H1z M10 12h4'],
+    'autoarchivo' => ['Autoarchivo', 'M21 8v13H3V8 M1 3h22v5H1z M10 12h4'],
     'closed'     => ['Cerradas',   'M20 6 9 17l-5-5'],
 ];
 
@@ -162,7 +162,7 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-row:hover .gm-claim { opacity:1; }
   .gm-claim:hover { border-color:var(--action-primary); background:var(--color-blue-50); }
 
-  /* Autocierre: acción Verificar (siempre visible) y sello de verificado. */
+  /* Autoarchivo: acción Verificar (siempre visible) y sello de verificado. */
   .gm-verify { flex:0 0 auto; border:1px solid var(--color-success-default); background:var(--color-success-surface);
     color:var(--color-success-strong); font-size:var(--text-xs); font-weight:var(--weight-semibold);
     border-radius:var(--radius-full); padding:2px 9px; cursor:pointer; white-space:nowrap; }
@@ -311,8 +311,8 @@ $initials = static function (?string $name, ?string $email): string {
     <?php else: ?>
       <div class="gm-list">
         <?php foreach ($conversations as $c):
-            $isAuto  = $c['status'] === 'autocierre';
-            $isUnassigned = $c['agent_id'] === null && ! in_array($c['status'], ['cerrada', 'autocierre'], true);
+            $isAuto  = $c['status'] === 'autoarchivo';
+            $isUnassigned = $c['agent_id'] === null && ! in_array($c['status'], ['cerrada', 'autoarchivo'], true);
             $breach  = $isUnassigned && $slaUnassigned > 0 && $minsOf($c['received_at']) > $slaUnassigned;
             $tone    = $statusTones[$c['status']] ?? 'neutral';
             $unread  = in_array($c['status'], ['nueva', 'esperando_agente'], true);
@@ -481,7 +481,7 @@ function mdFitFrame(f) {
       .catch(function () { btn.disabled = false; });
   });
 
-  // Autocierre: Verificar / Mover a la bandeja (fila y panel de lectura).
+  // Autoarchivo: Verificar / Mover a la bandeja (fila y panel de lectura).
   document.addEventListener('click', function (e) {
     var el = e.target.closest('[data-verify], [data-toinbox]');
     if (!el) return;

@@ -55,7 +55,7 @@ $attUrl = fn (int $id): string => base_url('dispatch/attachments/' . $id);
   </div>
 
   <div class="md-pane-actions">
-    <?php if ($conv['status'] === 'autocierre'): ?>
+    <?php if ($conv['status'] === 'autoarchivo'): ?>
       <?php if (empty($conv['verified_at'])): ?>
         <button type="button" class="btn btn-primary" data-verify="<?= (int) $conv['id'] ?>">Verificar</button>
       <?php else: ?>

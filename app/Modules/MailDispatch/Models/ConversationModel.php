@@ -63,16 +63,16 @@ class ConversationModel extends Model
             case 'unassigned':
                 $b->where('maildispatch_conversations.agent_id', null)
                   ->where('maildispatch_conversations.status !=', 'cerrada')
-                  ->where('maildispatch_conversations.status !=', 'autocierre');
+                  ->where('maildispatch_conversations.status !=', 'autoarchivo');
                 break;
             case 'mine':
                 $b->where('maildispatch_conversations.agent_id', $userId)
                   ->where('maildispatch_conversations.status !=', 'cerrada')
-                  ->where('maildispatch_conversations.status !=', 'autocierre');
+                  ->where('maildispatch_conversations.status !=', 'autoarchivo');
                 break;
-            case 'autocierre':
+            case 'autoarchivo':
                 // Auto-triaged bucket: pending (unverified) first.
-                $b->where('maildispatch_conversations.status', 'autocierre')
+                $b->where('maildispatch_conversations.status', 'autoarchivo')
                   ->orderBy('maildispatch_conversations.verified_at IS NULL', 'DESC', false);
                 break;
             case 'closed':
@@ -81,7 +81,7 @@ class ConversationModel extends Model
             case 'all':
             default:
                 // everything except the auto-triaged bucket, open first
-                $b->where('maildispatch_conversations.status !=', 'autocierre');
+                $b->where('maildispatch_conversations.status !=', 'autoarchivo');
                 break;
         }
 
@@ -146,11 +146,11 @@ class ConversationModel extends Model
         };
 
         return [
-            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autocierre'))->countAllResults(),
-            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autocierre'))->countAllResults(),
-            'all'        => $search($this->where('status !=', 'autocierre'))->countAllResults(),
+            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo'))->countAllResults(),
+            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo'))->countAllResults(),
+            'all'        => $search($this->where('status !=', 'autoarchivo'))->countAllResults(),
             // Actionable count = pending verification.
-            'autocierre' => $search($this->where('status', 'autocierre')->where('verified_at', null))->countAllResults(),
+            'autoarchivo' => $search($this->where('status', 'autoarchivo')->where('verified_at', null))->countAllResults(),
             'closed'     => $search($this->where('status', 'cerrada'))->countAllResults(),
         ];
     }

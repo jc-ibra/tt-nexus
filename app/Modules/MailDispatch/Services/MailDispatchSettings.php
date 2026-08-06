@@ -345,6 +345,6 @@ class MailDispatchSettings
             }
         }
 
-        return ServiceResult::ok(null, 'Reglas de autocierre actualizadas.');
+        return ServiceResult::ok(null, 'Reglas de autoarchivo actualizadas.');
     }
 }

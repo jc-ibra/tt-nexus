@@ -29,7 +29,7 @@ class MailDispatch extends BaseConfig
         'en_atencion'      => 'En atención',
         'respondida'       => 'Respondida',
         'esperando_agente' => 'Esperando agente',
-        'autocierre'       => 'Autocierre',
+        'autoarchivo'       => 'Autoarchivo',
         'cerrada'          => 'Cerrada',
     ];
 
@@ -40,7 +40,7 @@ class MailDispatch extends BaseConfig
         'en_atencion'      => 'warning',
         'respondida'       => 'success',
         'esperando_agente' => 'warning',
-        'autocierre'       => 'neutral',
+        'autoarchivo'       => 'neutral',
         'cerrada'          => 'neutral',
     ];
 

@@ -8,7 +8,7 @@ use CodeIgniter\Model;
 
 /**
  * Auto-triage rules. An inbound message whose original sender / subject matches
- * an active rule is routed to the "autocierre" status at ingest time.
+ * an active rule is routed to the "autoarchivo" status at ingest time.
  */
 class RuleModel extends Model
 {

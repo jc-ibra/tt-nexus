@@ -303,12 +303,12 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
 
   <!-- ============================ Sidebar ============================ -->
   <div class="md-side">
-    <?php if ($conv['status'] === 'autocierre'): ?>
+    <?php if ($conv['status'] === 'autoarchivo'): ?>
       <!-- Auto-triaged: verify (recorded) or push back to the normal inbox -->
       <div class="card">
-        <div class="card-header"><h2 class="card-title">Autocierre</h2></div>
+        <div class="card-header"><h2 class="card-title">Autoarchivo</h2></div>
         <div class="card-body">
-          <p class="text-sm" style="margin-bottom:var(--space-3);">Entró por una regla de autocierre, fuera de la bandeja principal.</p>
+          <p class="text-sm" style="margin-bottom:var(--space-3);">Entró por una regla de autoarchivo, fuera de la bandeja principal.</p>
           <?php if (empty($conv['verified_at'])): ?>
             <form action="<?= route_to('dispatch.verify', $conv['id']) ?>" method="post" style="margin-bottom:var(--space-3);">
               <?= csrf_field() ?>

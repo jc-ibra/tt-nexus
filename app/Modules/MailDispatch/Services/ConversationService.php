@@ -105,13 +105,13 @@ class ConversationService
         $isOut = $f['direction'] === 'out';
 
         // Auto-triage: an inbound message matching an admin rule is born in
-        // "autocierre" so it stays out of the main queue (still verifiable).
+        // "autoarchivo" so it stays out of the main queue (still verifiable).
         $status  = $isOut ? 'respondida' : 'nueva';
         $rule    = null;
         if (! $isOut) {
             $rule = $this->matchRule((string) $f['from_email'], (string) $f['subject']);
             if ($rule !== null) {
-                $status = 'autocierre';
+                $status = 'autoarchivo';
             }
         }
 
@@ -134,7 +134,7 @@ class ConversationService
             ->where('id', $convId)->update();
 
         if ($rule !== null) {
-            $this->events->log((int) $convId, 'autoclose', null, 'nueva', 'autocierre', 'Regla: ' . $rule['name']);
+            $this->events->log((int) $convId, 'autoclose', null, 'nueva', 'autoarchivo', 'Regla: ' . $rule['name']);
         }
 
         return 'created';
@@ -345,12 +345,12 @@ class ConversationService
     }
 
     // =======================================================================
-    // Autocierre (auto-triaged bucket)
+    // Autoarchivo (auto-triaged bucket)
     // =======================================================================
 
     /**
      * Marks an auto-triaged conversation as verified by an agent. It stays in the
-     * "autocierre" bucket (now flagged verified); this only records the sign-off.
+     * "autoarchivo" bucket (now flagged verified); this only records the sign-off.
      */
     public function verify(int $id, int $userId): ServiceResult
     {
@@ -358,8 +358,8 @@ class ConversationService
         if ($conv === null) {
             return ServiceResult::fail('La conversación no existe.');
         }
-        if ((string) $conv['status'] !== 'autocierre') {
-            return ServiceResult::fail('Solo se pueden verificar conversaciones en autocierre.');
+        if ((string) $conv['status'] !== 'autoarchivo') {
+            return ServiceResult::fail('Solo se pueden verificar conversaciones en autoarchivo.');
         }
         if (! empty($conv['verified_at'])) {
             return ServiceResult::fail('Esta conversación ya fue verificada.');
@@ -369,7 +369,7 @@ class ConversationService
             'verified_by' => $userId,
             'verified_at' => date('Y-m-d H:i:s'),
         ]);
-        $this->events->log($id, 'verify', $userId, null, null, 'Autocierre verificado por el agente.');
+        $this->events->log($id, 'verify', $userId, null, null, 'Autoarchivo verificado por el agente.');
 
         return ServiceResult::ok(null, 'Conversación verificada.');
     }
@@ -384,8 +384,8 @@ class ConversationService
         if ($conv === null) {
             return ServiceResult::fail('La conversación no existe.');
         }
-        if ((string) $conv['status'] !== 'autocierre') {
-            return ServiceResult::fail('Solo aplica a conversaciones en autocierre.');
+        if ((string) $conv['status'] !== 'autoarchivo') {
+            return ServiceResult::fail('Solo aplica a conversaciones en autoarchivo.');
         }
 
         $this->conversations->update($id, [
@@ -393,7 +393,7 @@ class ConversationService
             'verified_by' => null,
             'verified_at' => null,
         ]);
-        $this->events->log($id, 'status', $userId, 'autocierre', 'nueva', 'Movida a la bandeja de entrada.');
+        $this->events->log($id, 'status', $userId, 'autoarchivo', 'nueva', 'Movida a la bandeja de entrada.');
 
         return ServiceResult::ok(null, 'Conversación movida a la bandeja.');
     }
