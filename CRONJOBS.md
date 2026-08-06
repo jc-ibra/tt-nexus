@@ -49,6 +49,14 @@ Frecuencia: cada 2 minutos (`*/2 * * * *`). Solo sincroniza cuando está habilit
 /usr/local/bin/php /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/spark maildispatch:sync-mailbox >> /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/writable/logs/maildispatch-sync.log 2>&1
 ```
 
+## 6. Despacho de Correo — autogestión (auto-creación de tickets)
+
+Frecuencia: cada 2 minutos (`*/2 * * * *`). Corre **después** del sync: crea los tickets GLPI de las conversaciones autogeneradas pendientes y responde. Solo actúa cuando la autogestión está habilitada en `/admin/dispatch/settings#autogestion`; un lockfile evita corridas solapadas.
+
+```
+/usr/local/bin/php /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/spark maildispatch:process-autogen >> /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/writable/logs/maildispatch-autogen.log 2>&1
+```
+
 # Test
 
 App: `/home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx`
@@ -91,4 +99,12 @@ Frecuencia: cada 2 minutos (`*/2 * * * *`). Solo sincroniza cuando está habilit
 
 ```
 /usr/local/bin/php /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/spark maildispatch:sync-mailbox >> /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/writable/logs/maildispatch-sync.log 2>&1
+```
+
+## 6. Despacho de Correo — autogestión (auto-creación de tickets)
+
+Frecuencia: cada 2 minutos (`*/2 * * * *`). Corre **después** del sync: crea los tickets GLPI de las conversaciones autogeneradas pendientes y responde. Solo actúa cuando la autogestión está habilitada en `/admin/dispatch/settings#autogestion`; un lockfile evita corridas solapadas.
+
+```
+/usr/local/bin/php /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/spark maildispatch:process-autogen >> /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/writable/logs/maildispatch-autogen.log 2>&1
 ```

@@ -23,6 +23,11 @@ class MailDispatchSettings
     /** Placeholder posted back by the form when the secret is left untouched. */
     public const SECRET_MASK = '********';
 
+    /** Prompt por defecto del extractor de IA (Fase 2). */
+    private const DEFAULT_AI_PROMPT = 'Eres un asistente que extrae datos de un correo para crear un ticket de soporte. '
+        . 'Devuelve SIEMPRE la herramienta extract_ticket con los campos solicitados (usa cadena vacía si un dato no aparece en el correo), '
+        . 'un confidence de 0 a 1 según qué tan seguro estás, e is_request=true solo si el correo realmente solicita crear un ticket. No inventes datos.';
+
     public function __construct(
         private MailDispatchSettingsModel $model
     ) {}
@@ -176,6 +181,18 @@ class MailDispatchSettings
     public function autogenSystemUserId(): int           { return max(0, (int) $this->model->get('autogen_system_user_id', '0')); }
     public function autogenRateLimitPerHour(): int       { return max(0, (int) $this->model->get('autogen_rate_limit_per_hour', '0')); }
     public function autogenMaxAttempts(): int            { $n = (int) $this->model->get('autogen_max_attempts', '3'); return $n > 0 ? min($n, 10) : 3; }
+
+    // --- IA (Fase 2): reusa llave/modelo de ServiceDesk; lo demás es propio ---
+    public function autogenAiSystemPrompt(): string
+    {
+        $p = trim($this->model->get('autogen_ai_system_prompt', ''));
+        return $p !== '' ? $p : self::DEFAULT_AI_PROMPT;
+    }
+    public function autogenAiMaxTokens(): int   { $n = (int) $this->model->get('autogen_ai_max_tokens', '1024'); return $n > 0 ? min($n, 4096) : 1024; }
+    public function autogenAiConfidence(): float { $v = (float) $this->model->get('autogen_ai_confidence', '0.6'); return ($v > 0 && $v <= 1) ? $v : 0.6; }
+    public function autogenAiApiKey(): string   { return service('serviceDeskSettings')->aiApiKey(); }
+    public function autogenAiModel(): string    { return service('serviceDeskSettings')->aiModel(); }
+    public function autogenAiReady(): bool      { return $this->aiDetectionEnabled() && $this->autogenAiApiKey() !== ''; }
 
     // -----------------------------------------------------------------------
     // Writes
@@ -394,6 +411,9 @@ class MailDispatchSettings
             'autogen_system_user_id'            => (string) max(0, (int) ($post['autogen_system_user_id'] ?? 0)),
             'autogen_rate_limit_per_hour'       => (string) max(0, (int) ($post['autogen_rate_limit_per_hour'] ?? 0)),
             'autogen_max_attempts'              => (string) max(1, (int) ($post['autogen_max_attempts'] ?? 3)),
+            'autogen_ai_system_prompt'          => trim((string) ($post['autogen_ai_system_prompt'] ?? '')),
+            'autogen_ai_max_tokens'             => (string) max(256, (int) ($post['autogen_ai_max_tokens'] ?? 1024)),
+            'autogen_ai_confidence'             => (string) (((float) ($post['autogen_ai_confidence'] ?? 0.6) > 0 && (float) ($post['autogen_ai_confidence'] ?? 0.6) <= 1) ? (float) $post['autogen_ai_confidence'] : 0.6),
         ]);
 
         return ServiceResult::ok(null, 'Configuración de autogestión guardada.');

@@ -108,6 +108,7 @@ use App\Modules\MailDispatch\Models\AutogenRuleModel as MailDispatchAutogenRuleM
 use App\Modules\MailDispatch\Models\AutogenWhitelistModel as MailDispatchAutogenWhitelistModel;
 use App\Modules\MailDispatch\Services\AutogenMatcher as MailDispatchAutogenMatcher;
 use App\Modules\MailDispatch\Services\AutogenService as MailDispatchAutogenService;
+use App\Modules\MailDispatch\Services\AutogenAiExtractor as MailDispatchAutogenAiExtractor;
 use App\Modules\TechBot\Models\ActivityLogModel as TechBotActivityLogModel;
 use App\Modules\TechBot\Models\AiUsageModel as TechBotAiUsageModel;
 use App\Modules\TechBot\Models\ConversationStateModel as TechBotConversationStateModel;
@@ -509,7 +510,16 @@ class Services extends BaseService
             new MailDispatchAutogenWhitelistModel(),
             self::mailDispatchSettings(),
             new MailDispatchConversationModel(),
+            self::mailDispatchAutogenExtractor(),
         );
+    }
+
+    public static function mailDispatchAutogenExtractor(bool $getShared = true): MailDispatchAutogenAiExtractor
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchAutogenExtractor');
+        }
+        return new MailDispatchAutogenAiExtractor(self::mailDispatchSettings());
     }
 
     public static function mailDispatchAutogen(bool $getShared = true): MailDispatchAutogenService

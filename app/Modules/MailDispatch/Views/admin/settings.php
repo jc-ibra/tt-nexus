@@ -397,10 +397,15 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <input type="checkbox" name="autogestion_enabled" value="1" <?= ($settings['autogestion_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
           <span><strong>Activar autogestión</strong> (crear tickets automáticamente)</span>
         </label>
-        <label class="field-check" style="margin-bottom:var(--space-4); display:flex; gap:8px; align-items:center; opacity:.55;">
-          <input type="checkbox" name="autogestion_ai_enabled" value="1" <?= ($settings['autogestion_ai_enabled'] ?? '0') === '1' ? 'checked' : '' ?> disabled>
-          <span>Detección con IA (Fase 2 — próximamente)</span>
+        <label class="field-check" style="margin-bottom:var(--space-3); display:flex; gap:8px; align-items:center;">
+          <input type="checkbox" name="autogestion_ai_enabled" value="1" <?= ($settings['autogestion_ai_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span><strong>Detección con IA</strong> (respaldo del parser cuando faltan datos; reusa la llave de ServiceDesk)</span>
         </label>
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--space-3); margin-bottom:var(--space-4);">
+          <div class="field"><label class="field-label">Umbral de confianza IA (0–1)</label><input type="number" step="0.05" min="0" max="1" name="autogen_ai_confidence" class="input" value="<?= esc($settings['autogen_ai_confidence'] ?? '0.6', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Máx. tokens IA</label><input type="number" name="autogen_ai_max_tokens" class="input" value="<?= esc($settings['autogen_ai_max_tokens'] ?? '1024', 'attr') ?>"></div>
+          <div class="field" style="grid-column:1 / -1;"><label class="field-label">Prompt de sistema IA (opcional)</label><textarea name="autogen_ai_system_prompt" class="input" rows="3" placeholder="(usa el prompt por defecto si lo dejas vacío)"><?= esc($settings['autogen_ai_system_prompt'] ?? '') ?></textarea></div>
+        </div>
 
         <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--space-3);">
           <div class="field">

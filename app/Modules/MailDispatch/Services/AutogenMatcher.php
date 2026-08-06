@@ -30,7 +30,8 @@ class AutogenMatcher
         private AutogenRuleModel $ruleModel,
         private AutogenWhitelistModel $whitelistModel,
         private MailDispatchSettings $settings,
-        private ConversationModel $conversations
+        private ConversationModel $conversations,
+        private AutogenAiExtractor $extractor
     ) {}
 
     /**
@@ -60,13 +61,37 @@ class AutogenMatcher
             }
 
             $map     = $this->fieldMap($rule);
-            $payload = $this->parseBody((string) ($f['body'] ?? ''), (int) ($f['body_is_html'] ?? 0) === 1, $map);
+            $text    = $this->plainText((string) ($f['body'] ?? ''), (int) ($f['body_is_html'] ?? 0) === 1);
+            $values  = $this->extractValues($text, $map);
+            $payload = $this->composeFromValues($values, $map);
+            $ai      = null;
+
+            // Respaldo IA: si el parser no obtuvo los requeridos, la IA rescata
+            // los campos del texto libre (solo rellena los que quedaron vacíos).
+            if ($payload['missing'] !== [] && $this->extractor->isReady()) {
+                $res = $this->extractor->extract($text, $map);
+                if ($res['ok']) {
+                    foreach ($res['fields'] as $label => $val) {
+                        if (($values[$label] ?? '') === '' && $val !== '') {
+                            $values[$label] = $val;
+                        }
+                    }
+                    $payload = $this->composeFromValues($values, $map);
+                    $ai      = $res;
+                }
+            }
 
             $state = 'pending';
             $note  = null;
             if ($payload['missing'] !== []) {
                 $state = 'review';
                 $note  = 'Faltan datos: ' . implode(', ', $payload['missing']);
+            } elseif ($ai !== null && ! $ai['is_request']) {
+                $state = 'review';
+                $note  = 'La IA no identificó una solicitud de ticket.';
+            } elseif ($ai !== null && $ai['confidence'] < $this->settings->autogenAiConfidence()) {
+                $state = 'review';
+                $note  = sprintf('Confianza de la IA baja (%.2f); revisa antes de crear.', $ai['confidence']);
             } elseif ($this->rateLimited($fromEmail)) {
                 $state = 'review';
                 $note  = 'Límite de auto-tickets por hora excedido para este remitente.';
@@ -170,15 +195,10 @@ class AutogenMatcher
         return $out;
     }
 
-    /**
-     * Parsea el cuerpo `Campo: valor` según el mapeo.
-     * @return array{title:string,description:string,fields:array<string,string>,missing:string[]}
-     */
-    private function parseBody(string $body, bool $isHtml, array $map): array
+    /** Extrae los valores `Campo: valor` del texto plano según el mapeo. */
+    private function extractValues(string $text, array $map): array
     {
-        $text  = $this->plainText($body, $isHtml);
-        $lines = preg_split('/\r\n|\r|\n/', $text) ?: [];
-
+        $lines  = preg_split('/\r\n|\r|\n/', $text) ?: [];
         $values = [];
         foreach ($map as $field) {
             $label   = $field['label'];
@@ -192,7 +212,15 @@ class AutogenMatcher
             }
             $values[$label] = $value;
         }
+        return $values;
+    }
 
+    /**
+     * Arma el payload (title/description/missing) a partir de los valores.
+     * @return array{title:string,description:string,fields:array<string,string>,missing:string[]}
+     */
+    private function composeFromValues(array $values, array $map): array
+    {
         $titleParts = [];
         $descParts  = [];
         $missing    = [];

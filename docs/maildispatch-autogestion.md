@@ -254,7 +254,22 @@ autocierre** (`maildispatch_rules`) siguen igual; solo cambia el nombre del esta
     reglas con lista blanca, mapeo de campos y plantilla; `saveAutogen`/`saveAutogenRules`).
     Postman actualizado. Verificado: bandeja (forQueue/counts/exclusión), guardado
     (parseo whitelist/field_map), lint, rutas, JSON Postman, verify-schema.
-- **Fase 2 — IA opcional:** tool-use de extracción + confianza, cae a `review`.
+- **Fase 2 — IA opcional:** ✅ HECHA y verificada (2026-08-06). `AutogenAiExtractor`
+  (SDK Anthropic, tool `extract_ticket`) reusa la llave/modelo de **ServiceDesk**. Opera como
+  **respaldo del parser**: si `Campo: valor` no obtiene los requeridos y la IA está lista, extrae
+  del texto libre y rellena solo los vacíos; si tras eso faltan datos, la IA marca `is_request=false`,
+  o la `confidence < umbral` → `review` (no crea). Toggle global `autogestion_ai_enabled` +
+  config (umbral, tokens, prompt) en el panel admin. Uso/tokens al log. Gating seguro
+  (sin llave → se salta). Verificado: refactor sin regresión, gating; la extracción en vivo
+  requiere la llave de ServiceDesk configurada.
+
+### Notas de cierre
+- **`reply_subject`:** NO se aplica a propósito. El ack es una **respuesta** en el hilo (asunto
+  `Re:`), lo que preserva el threading; un asunto propio rompería el hilo. La columna queda
+  reservada. El folio va en el cuerpo (`reply_body`).
+- **Campos de plugin/tab (`field_map.target = plugin:...`):** ÚNICO pendiente 1.x. Hoy los
+  extras van a la descripción. Mapear un dato a un campo de contenedor GLPI requiere validación
+  con GLPI en vivo; se deja como mejora enfocada.
 
 **Criterios de aceptación Fase 1:** un correo con asunto y whitelist válidos crea el ticket,
 responde con el folio por SMTP, aparece en "autogenerados" como `created` verificable; uno con
