@@ -45,6 +45,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <button type="button" class="md-tab" role="tab" data-panel="md-agentes" data-hash="agentes">Agentes</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-disposiciones" data-hash="disposiciones">Disposiciones</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Reglas de autoarchivo</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-autogestion" data-hash="autogestion">Autogestión</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado de sincronización</button>
 </div>
 
@@ -373,6 +374,110 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ========================= Autogestión ========================= -->
+<div id="md-autogestion" class="md-panel" role="tabpanel">
+  <form action="<?= route_to('dispatch.autogen.save') ?>" method="post" style="max-width:900px; margin-bottom:var(--space-5);">
+    <?= csrf_field() ?>
+    <div class="card">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Autogestión</h2>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+      <div class="card-body">
+        <p class="md-hint" style="margin-bottom:var(--space-4);">
+          Crea tickets GLPI automáticamente desde correos que coincidan con una regla (asunto + lista blanca).
+          Estos <strong>defaults</strong> se usan cuando una regla no define el suyo.
+        </p>
+        <label class="field-check" style="margin-bottom:var(--space-3); display:flex; gap:8px; align-items:center;">
+          <input type="checkbox" name="autogestion_enabled" value="1" <?= ($settings['autogestion_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span><strong>Activar autogestión</strong> (crear tickets automáticamente)</span>
+        </label>
+        <label class="field-check" style="margin-bottom:var(--space-4); display:flex; gap:8px; align-items:center; opacity:.55;">
+          <input type="checkbox" name="autogestion_ai_enabled" value="1" <?= ($settings['autogestion_ai_enabled'] ?? '0') === '1' ? 'checked' : '' ?> disabled>
+          <span>Detección con IA (Fase 2 — próximamente)</span>
+        </label>
+
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--space-3);">
+          <div class="field">
+            <label class="field-label">Tipo de ticket por defecto</label>
+            <?php $dt = $settings['autogen_default_ticket_type'] ?? 'INCIDENCIA'; ?>
+            <select name="autogen_default_ticket_type" class="input">
+              <option value="INCIDENCIA" <?= $dt === 'INCIDENCIA' ? 'selected' : '' ?>>Incidencia</option>
+              <option value="REQUERIMIENTO" <?= $dt === 'REQUERIMIENTO' ? 'selected' : '' ?>>Requerimiento</option>
+            </select>
+          </div>
+          <div class="field"><label class="field-label">Categoría GLPI (id)</label><input type="number" name="autogen_default_category_id" class="input" value="<?= esc($settings['autogen_default_category_id'] ?? '', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Entidad GLPI (id)</label><input type="number" name="autogen_default_entities_id" class="input" value="<?= esc($settings['autogen_default_entities_id'] ?? '', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Usuario solicitante GLPI (id)</label><input type="number" name="autogen_default_requester_user_id" class="input" value="<?= esc($settings['autogen_default_requester_user_id'] ?? '', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Origen de solicitud GLPI (id)</label><input type="number" name="autogen_default_request_source_id" class="input" value="<?= esc($settings['autogen_default_request_source_id'] ?? '', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Contenedores plugin (ids, coma)</label><input type="text" name="autogen_default_container_ids" class="input" value="<?= esc($settings['autogen_default_container_ids'] ?? '', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Usuario de sistema (id Nexus, para la respuesta)</label><input type="number" name="autogen_system_user_id" class="input" value="<?= esc($settings['autogen_system_user_id'] ?? '', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Límite por remitente/hora (0 = sin límite)</label><input type="number" name="autogen_rate_limit_per_hour" class="input" value="<?= esc($settings['autogen_rate_limit_per_hour'] ?? '0', 'attr') ?>"></div>
+          <div class="field"><label class="field-label">Reintentos máx.</label><input type="number" name="autogen_max_attempts" class="input" value="<?= esc($settings['autogen_max_attempts'] ?? '3', 'attr') ?>"></div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <form action="<?= route_to('dispatch.autogenrules.save') ?>" method="post" style="max-width:900px;">
+    <?= csrf_field() ?>
+    <div class="card">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Reglas de autogestión</h2>
+        <button type="submit" class="btn btn-primary">Guardar reglas</button>
+      </div>
+      <div class="card-body">
+        <p class="md-hint" style="margin-bottom:var(--space-4);">
+          Cada regla dispara si el <strong>asunto</strong> coincide y el remitente/destinatario está en la
+          <strong>lista blanca</strong> (obligatoria). El cuerpo se lee como <code>Campo: valor</code> según el
+          <strong>mapeo de campos</strong>. Lista blanca: una por línea, <code>sender:correo@dominio</code> o
+          <code>recipient:@dominio.com</code>. Mapeo: una por línea,
+          <code>Etiqueta | title|description|ignore | requerido(1/0)</code>.
+        </p>
+        <?php
+          $agrules = $autogenRules ?? [];
+          $blank = ['id' => 0, 'name' => '', 'is_active' => 1, 'subject_pattern' => '', 'subject_match_mode' => 'contains', 'glpi_ticket_type' => '', 'glpi_category_id' => '', 'glpi_entities_id' => '', 'glpi_requester_user_id' => '', 'request_source_id' => '', 'container_ids' => '', 'reply_body' => '', '_whitelist_text' => '', '_field_map_text' => ''];
+        ?>
+        <?php foreach (array_merge($agrules, [$blank]) as $i => $r): ?>
+          <div class="card" style="margin-bottom:var(--space-4); border:1px solid var(--border-default);">
+            <div class="card-body">
+              <input type="hidden" name="agrule[<?= $i ?>][id]" value="<?= (int) ($r['id'] ?? 0) ?>">
+              <div style="display:grid; grid-template-columns:2fr 1fr auto; gap:var(--space-3); align-items:end;">
+                <div class="field"><label class="field-label">Nombre</label><input type="text" name="agrule[<?= $i ?>][name]" class="input" value="<?= esc($r['name'] ?? '', 'attr') ?>" placeholder="Nueva regla…"></div>
+                <div class="field"><label class="field-label">Modo asunto</label>
+                  <select name="agrule[<?= $i ?>][subject_match_mode]" class="input">
+                    <option value="contains" <?= ($r['subject_match_mode'] ?? 'contains') === 'contains' ? 'selected' : '' ?>>Contiene</option>
+                    <option value="exact" <?= ($r['subject_match_mode'] ?? '') === 'exact' ? 'selected' : '' ?>>Exacto</option>
+                  </select>
+                </div>
+                <label class="field-check" style="display:flex; gap:6px; align-items:center; padding-bottom:10px;"><input type="checkbox" name="agrule[<?= $i ?>][is_active]" value="1" <?= (int) ($r['is_active'] ?? 1) === 1 ? 'checked' : '' ?>><span>Activa</span></label>
+              </div>
+              <div class="field"><label class="field-label">Asunto (contiene / exacto)</label><input type="text" name="agrule[<?= $i ?>][subject_pattern]" class="input" value="<?= esc($r['subject_pattern'] ?? '', 'attr') ?>" placeholder="SOLICITUD DE TICKET"></div>
+              <div class="field"><label class="field-label">Lista blanca</label><textarea name="agrule[<?= $i ?>][whitelist]" class="input" rows="2" placeholder="sender:@acme.com"><?= esc($r['_whitelist_text'] ?? '') ?></textarea></div>
+              <div class="field"><label class="field-label">Mapeo de campos del cuerpo</label><textarea name="agrule[<?= $i ?>][field_map]" class="input" rows="3" placeholder="Título | title | 1&#10;Descripción | description | 1"><?= esc($r['_field_map_text'] ?? '') ?></textarea></div>
+              <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-3);">
+                <div class="field"><label class="field-label">Tipo ticket</label>
+                  <select name="agrule[<?= $i ?>][glpi_ticket_type]" class="input">
+                    <option value="">(default)</option>
+                    <option value="INCIDENCIA" <?= ($r['glpi_ticket_type'] ?? '') === 'INCIDENCIA' ? 'selected' : '' ?>>Incidencia</option>
+                    <option value="REQUERIMIENTO" <?= ($r['glpi_ticket_type'] ?? '') === 'REQUERIMIENTO' ? 'selected' : '' ?>>Requerimiento</option>
+                  </select>
+                </div>
+                <div class="field"><label class="field-label">Categoría (id)</label><input type="number" name="agrule[<?= $i ?>][glpi_category_id]" class="input" value="<?= esc((string) ($r['glpi_category_id'] ?? ''), 'attr') ?>"></div>
+                <div class="field"><label class="field-label">Entidad (id)</label><input type="number" name="agrule[<?= $i ?>][glpi_entities_id]" class="input" value="<?= esc((string) ($r['glpi_entities_id'] ?? ''), 'attr') ?>"></div>
+                <div class="field"><label class="field-label">Solicitante (id)</label><input type="number" name="agrule[<?= $i ?>][glpi_requester_user_id]" class="input" value="<?= esc((string) ($r['glpi_requester_user_id'] ?? ''), 'attr') ?>"></div>
+                <div class="field"><label class="field-label">Origen (id)</label><input type="number" name="agrule[<?= $i ?>][request_source_id]" class="input" value="<?= esc((string) ($r['request_source_id'] ?? ''), 'attr') ?>"></div>
+                <div class="field"><label class="field-label">Contenedores (ids, coma)</label><input type="text" name="agrule[<?= $i ?>][container_ids]" class="input" value="<?= esc($r['container_ids'] ?? '', 'attr') ?>"></div>
+              </div>
+              <div class="field"><label class="field-label">Respuesta automática (variables: {{ticket_id}}, {{titulo}}, {{asunto}})</label><textarea name="agrule[<?= $i ?>][reply_body]" class="input" rows="3"><?= esc($r['reply_body'] ?? '') ?></textarea></div>
+            </div>
+          </div>
+        <?php endforeach; ?>
       </div>
     </div>
   </form>

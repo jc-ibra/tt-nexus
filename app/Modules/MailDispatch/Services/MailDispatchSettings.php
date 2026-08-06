@@ -7,6 +7,8 @@ namespace App\Modules\MailDispatch\Services;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\MailDispatch\Models\AgentModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
+use App\Modules\MailDispatch\Models\AutogenRuleModel;
+use App\Modules\MailDispatch\Models\AutogenWhitelistModel;
 use App\Modules\MailDispatch\Models\MailDispatchSettingsModel;
 use App\Modules\MailDispatch\Models\RuleModel;
 
@@ -368,5 +370,136 @@ class MailDispatchSettings
         }
 
         return ServiceResult::ok(null, 'Reglas de autoarchivo actualizadas.');
+    }
+
+    // -----------------------------------------------------------------------
+    // Autogestión: settings globales y editor de reglas
+    // -----------------------------------------------------------------------
+
+    /** Guarda el toggle y los defaults globales de autogestión. */
+    public function saveAutogen(array $post): ServiceResult
+    {
+        $type = strtoupper(trim((string) ($post['autogen_default_ticket_type'] ?? 'INCIDENCIA')));
+        $type = in_array($type, ['INCIDENCIA', 'REQUERIMIENTO'], true) ? $type : 'INCIDENCIA';
+
+        $this->model->setMany([
+            'autogestion_enabled'               => isset($post['autogestion_enabled']) ? '1' : '0',
+            'autogestion_ai_enabled'            => isset($post['autogestion_ai_enabled']) ? '1' : '0',
+            'autogen_default_ticket_type'       => $type,
+            'autogen_default_category_id'       => (string) max(0, (int) ($post['autogen_default_category_id'] ?? 0)),
+            'autogen_default_entities_id'       => (string) max(0, (int) ($post['autogen_default_entities_id'] ?? 0)),
+            'autogen_default_requester_user_id' => (string) max(0, (int) ($post['autogen_default_requester_user_id'] ?? 0)),
+            'autogen_default_request_source_id' => (string) max(0, (int) ($post['autogen_default_request_source_id'] ?? 0)),
+            'autogen_default_container_ids'     => trim((string) ($post['autogen_default_container_ids'] ?? '')),
+            'autogen_system_user_id'            => (string) max(0, (int) ($post['autogen_system_user_id'] ?? 0)),
+            'autogen_rate_limit_per_hour'       => (string) max(0, (int) ($post['autogen_rate_limit_per_hour'] ?? 0)),
+            'autogen_max_attempts'              => (string) max(1, (int) ($post['autogen_max_attempts'] ?? 3)),
+        ]);
+
+        return ServiceResult::ok(null, 'Configuración de autogestión guardada.');
+    }
+
+    /**
+     * Upserts de reglas de autogestión + su lista blanca. $post['agrule'] es una
+     * lista de filas. La lista blanca (textarea) y el field_map (textarea) se
+     * parsean por línea. Las reglas no se borran (conversaciones las referencian).
+     */
+    public function saveAutogenRules(array $post): ServiceResult
+    {
+        $rows      = (array) ($post['agrule'] ?? []);
+        $ruleModel = new AutogenRuleModel();
+        $wlModel   = new AutogenWhitelistModel();
+        $order     = 1;
+
+        foreach ($rows as $row) {
+            $name    = trim((string) ($row['name'] ?? ''));
+            $subject = trim((string) ($row['subject_pattern'] ?? ''));
+            $id      = (int) ($row['id'] ?? 0);
+
+            if ($name === '' && $subject === '' && $id === 0) {
+                continue;
+            }
+            if ($name === '') {
+                return ServiceResult::fail('Cada regla de autogestión necesita un nombre.');
+            }
+            if ($subject === '') {
+                return ServiceResult::fail("La regla «{$name}» necesita un patrón de asunto.");
+            }
+
+            $type = strtoupper(trim((string) ($row['glpi_ticket_type'] ?? '')));
+            $type = in_array($type, ['INCIDENCIA', 'REQUERIMIENTO'], true) ? $type : null;
+
+            $data = [
+                'name'                   => $name,
+                'is_active'              => ! empty($row['is_active']) ? 1 : 0,
+                'sort_order'             => $order++,
+                'subject_pattern'        => $subject,
+                'subject_match_mode'     => ($row['subject_match_mode'] ?? 'contains') === 'exact' ? 'exact' : 'contains',
+                'recipient_pattern'      => trim((string) ($row['recipient_pattern'] ?? '')),
+                'glpi_ticket_type'       => $type,
+                'glpi_category_id'       => ($n = (int) ($row['glpi_category_id'] ?? 0)) > 0 ? $n : null,
+                'glpi_entities_id'       => ($n = (int) ($row['glpi_entities_id'] ?? 0)) > 0 ? $n : null,
+                'glpi_requester_user_id' => ($n = (int) ($row['glpi_requester_user_id'] ?? 0)) > 0 ? $n : null,
+                'request_source_id'      => ($n = (int) ($row['request_source_id'] ?? 0)) > 0 ? $n : null,
+                'container_ids'          => trim((string) ($row['container_ids'] ?? '')),
+                'field_map'              => $this->parseFieldMap((string) ($row['field_map'] ?? '')),
+                'reply_subject'          => trim((string) ($row['reply_subject'] ?? '')),
+                'reply_body'             => (string) ($row['reply_body'] ?? ''),
+                'ai_enabled'             => ! empty($row['ai_enabled']) ? 1 : 0,
+            ];
+
+            if ($id > 0) {
+                $ruleModel->update($id, $data);
+            } else {
+                $ruleModel->insert($data);
+                $id = (int) $ruleModel->getInsertID();
+            }
+
+            // Reconstruye la lista blanca de la regla desde el textarea.
+            $wlModel->where('rule_id', $id)->delete();
+            foreach (preg_split('/\r\n|\r|\n/', (string) ($row['whitelist'] ?? '')) as $line) {
+                $line = trim($line);
+                if ($line === '') {
+                    continue;
+                }
+                $t = 'sender';
+                $v = $line;
+                if (str_contains($line, ':')) {
+                    [$t, $v] = explode(':', $line, 2);
+                    $t = trim(strtolower($t));
+                    $v = trim($v);
+                }
+                $t = in_array($t, ['sender', 'recipient'], true) ? $t : 'sender';
+                if ($v !== '') {
+                    $wlModel->insert(['rule_id' => $id, 'type' => $t, 'value' => $v, 'is_active' => 1, 'created_at' => date('Y-m-d H:i:s')]);
+                }
+            }
+        }
+
+        return ServiceResult::ok(null, 'Reglas de autogestión actualizadas.');
+    }
+
+    /** Convierte el textarea "Etiqueta | target | requerido" en el JSON field_map. */
+    private function parseFieldMap(string $text): string
+    {
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = array_map('trim', explode('|', $line));
+            $label = $parts[0] ?? '';
+            if ($label === '') {
+                continue;
+            }
+            $target = $parts[1] ?? 'description';
+            if (! in_array($target, ['title', 'description', 'ignore'], true)) {
+                $target = 'description';
+            }
+            $required = isset($parts[2]) && in_array(strtolower($parts[2]), ['1', 'si', 'sí', 'true', 'x', 'yes'], true);
+            $out[] = ['label' => $label, 'target' => $target, 'required' => $required];
+        }
+        return json_encode($out, JSON_UNESCAPED_UNICODE);
     }
 }

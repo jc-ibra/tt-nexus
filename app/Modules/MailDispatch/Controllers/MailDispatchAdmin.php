@@ -7,6 +7,8 @@ namespace App\Modules\MailDispatch\Controllers;
 use App\Controllers\BaseController;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel;
+use App\Modules\MailDispatch\Models\AutogenRuleModel;
+use App\Modules\MailDispatch\Models\AutogenWhitelistModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\RuleModel;
 use App\Modules\MailDispatch\Models\SyncRunModel;
@@ -37,6 +39,23 @@ class MailDispatchAdmin extends BaseController
             $agentMap[(int) $a['user_id']] = $a;
         }
 
+        // Autogestión: reglas + su lista blanca y field_map en texto editable.
+        $autogenRules = (new AutogenRuleModel())->allOrdered();
+        $wl = (new AutogenWhitelistModel())->activeByRule(array_map(static fn ($r) => (int) $r['id'], $autogenRules));
+        foreach ($autogenRules as &$ar) {
+            $lines = [];
+            foreach ($wl[(int) $ar['id']] ?? [] as $e) {
+                $lines[] = $e['type'] . ':' . $e['value'];
+            }
+            $ar['_whitelist_text'] = implode("\n", $lines);
+            $fmLines = [];
+            foreach (json_decode((string) ($ar['field_map'] ?? ''), true) ?: [] as $f) {
+                $fmLines[] = ($f['label'] ?? '') . ' | ' . ($f['target'] ?? 'description') . ' | ' . (! empty($f['required']) ? '1' : '0');
+            }
+            $ar['_field_map_text'] = implode("\n", $fmLines);
+        }
+        unset($ar);
+
         return view('App\Modules\MailDispatch\Views\admin\settings', [
             'pageTitle'    => 'Configuración · Despacho de Correo',
             'settings'     => $settings->all(),
@@ -49,6 +68,7 @@ class MailDispatchAdmin extends BaseController
             'agentMap'     => $agentMap,
             'dispositions' => (new DispositionModel())->allOrdered(),
             'rules'        => (new RuleModel())->allOrdered(),
+            'autogenRules' => $autogenRules,
             'syncRuns'     => (new SyncRunModel())->recent(12),
             'syncState'    => (new SyncStateModel())->where('mailbox_address', $settings->mailbox())->findAll(),
             'secretMask'   => MailDispatchSettings::SECRET_MASK,
@@ -137,6 +157,20 @@ class MailDispatchAdmin extends BaseController
     {
         $result = service('mailDispatchSettings')->saveDispositions($this->request->getPost());
         return redirect()->to(route_to('dispatch.settings') . '#disposiciones')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    public function saveAutogen(): ResponseInterface
+    {
+        $result = service('mailDispatchSettings')->saveAutogen($this->request->getPost());
+        return redirect()->to(route_to('dispatch.settings') . '#autogestion')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    public function saveAutogenRules(): ResponseInterface
+    {
+        $result = service('mailDispatchSettings')->saveAutogenRules($this->request->getPost());
+        return redirect()->to(route_to('dispatch.settings') . '#autogestion')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 }

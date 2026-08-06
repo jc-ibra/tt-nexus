@@ -247,8 +247,13 @@ autocierre** (`maildispatch_rules`) siguen igual; solo cambia el nombre del esta
     end-to-end (4 escenarios); worker wiring OK; `db:verify-schema` OK (74 tablas).
     NOTA: `field_map.target` en Fase 1 = title|description|ignore (campos de plugin en 1.x);
     `reply_subject` aún no se aplica (el ack usa el asunto del hilo).
-  - 1b UI: (SIGUIENTE) bandeja "autogenerados" (tab, pills, verificar/completar/reintentar) +
-    editor de reglas admin. + acciones/rutas + espejo API + Postman.
+  - 1b UI: ✅ HECHO y verificado (2026-08-06). Bandeja "autogenerados" (tab, pills folio/
+    verificar/revisión/error/en-cola, handlers AJAX) + detalle (link a GLPI, verificar, form
+    Completar, reintentar) + preview. Acciones controller+API (autogenVerify/Retry/Complete)
+    con rutas web y espejo `api/v1`. Panel admin "Autogestión" (toggle + defaults + editor de
+    reglas con lista blanca, mapeo de campos y plantilla; `saveAutogen`/`saveAutogenRules`).
+    Postman actualizado. Verificado: bandeja (forQueue/counts/exclusión), guardado
+    (parseo whitelist/field_map), lint, rutas, JSON Postman, verify-schema.
 - **Fase 2 — IA opcional:** tool-use de extracción + confianza, cae a `review`.
 
 **Criterios de aceptación Fase 1:** un correo con asunto y whitelist válidos crea el ticket,

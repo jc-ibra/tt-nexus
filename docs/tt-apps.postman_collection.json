@@ -3369,6 +3369,100 @@
           }
         },
         {
+          "name": "Autogen: verify created ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/autogen/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "autogen",
+                "verify"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Autogen: retry failed ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/autogen/retry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "autogen",
+                "retry"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Autogen: complete in review (create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "title",
+                  "value": "Título del ticket"
+                },
+                {
+                  "key": "description",
+                  "value": "Descripción del ticket"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/autogen/complete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "autogen",
+                "complete"
+              ]
+            }
+          }
+        },
+        {
           "name": "Assign conversation",
           "request": {
             "method": "POST",

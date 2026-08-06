@@ -75,6 +75,9 @@ $routes->group('admin/dispatch', [
     $routes->post('dispositions',     'MailDispatchAdmin::saveDispositions', ['as' => 'dispatch.dispositions.save']);
     // Auto-triage rules (route matching mail to the autoarchivo bucket).
     $routes->post('rules',            'MailDispatchAdmin::saveRules',      ['as' => 'dispatch.rules.save']);
+    // Autogestión: settings globales + editor de reglas de auto-creación.
+    $routes->post('autogen',          'MailDispatchAdmin::saveAutogen',      ['as' => 'dispatch.autogen.save']);
+    $routes->post('autogen-rules',    'MailDispatchAdmin::saveAutogenRules', ['as' => 'dispatch.autogenrules.save']);
 });
 
 // -----------------------------------------------------------------------
