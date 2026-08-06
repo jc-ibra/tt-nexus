@@ -23,7 +23,7 @@ use CodeIgniter\HTTP\ResponseInterface;
  */
 class Dispatch extends BaseController
 {
-    private const FILTERS = ['unassigned', 'mine', 'all', 'autoarchivo', 'closed'];
+    private const FILTERS = ['unassigned', 'mine', 'all', 'autoarchivo', 'autogenerado', 'closed'];
 
     // -----------------------------------------------------------------------
     // Inbox
@@ -143,6 +143,33 @@ class Dispatch extends BaseController
     {
         $result = service('mailDispatchConversations')->moveToInbox($id, $this->userId());
         return $this->respond($id, $result);
+    }
+
+    // -----------------------------------------------------------------------
+    // Autogestión (bucket autogenerados)
+    // -----------------------------------------------------------------------
+
+    /** Marca verificado un auto-ticket ya creado. */
+    public function autogenVerify(int $id): ResponseInterface
+    {
+        return $this->respond($id, service('mailDispatchAutogen')->verify($id, $this->userId()));
+    }
+
+    /** Reencola un auto-ticket que quedó en error. */
+    public function autogenRetry(int $id): ResponseInterface
+    {
+        return $this->respond($id, service('mailDispatchAutogen')->retry($id, $this->userId()));
+    }
+
+    /** Completa un auto-ticket en revisión (título + descripción) y lo reencola. */
+    public function autogenComplete(int $id): ResponseInterface
+    {
+        return $this->back($id, service('mailDispatchAutogen')->complete(
+            $id,
+            $this->userId(),
+            (string) ($this->request->getPost('title') ?? ''),
+            (string) ($this->request->getPost('description') ?? '')
+        ));
     }
 
     // -----------------------------------------------------------------------

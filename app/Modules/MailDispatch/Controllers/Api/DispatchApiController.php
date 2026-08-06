@@ -112,6 +112,29 @@ class DispatchApiController extends BaseApiController
         return $this->fromResult(service('mailDispatchConversations')->moveToInbox($id, $this->userId()));
     }
 
+    /** Autogestión: verify a created auto-ticket. */
+    public function autogenVerify(int $id): ResponseInterface
+    {
+        return $this->fromResult(service('mailDispatchAutogen')->verify($id, $this->userId()));
+    }
+
+    /** Autogestión: requeue a failed auto-ticket. */
+    public function autogenRetry(int $id): ResponseInterface
+    {
+        return $this->fromResult(service('mailDispatchAutogen')->retry($id, $this->userId()));
+    }
+
+    /** Autogestión: complete an auto-ticket in review and requeue it. */
+    public function autogenComplete(int $id): ResponseInterface
+    {
+        return $this->fromResult(service('mailDispatchAutogen')->complete(
+            $id,
+            $this->userId(),
+            (string) ($this->request->getVar('title') ?? ''),
+            (string) ($this->request->getVar('description') ?? '')
+        ));
+    }
+
     public function close(int $id): ResponseInterface
     {
         return $this->fromResult(service('mailDispatchConversations')->close(

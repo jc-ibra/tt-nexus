@@ -12,6 +12,7 @@ $tabs = [
     'mine'       => ['Mías',       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
     'all'        => ['Todas',      'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01'],
     'autoarchivo' => ['Autoarchivo', 'M21 8v13H3V8 M1 3h22v5H1z M10 12h4'],
+    'autogenerado' => ['Autogenerados', 'M13 2 3 14h9l-1 8 10-12h-9l1-8z'],
     'closed'     => ['Cerradas',   'M20 6 9 17l-5-5'],
 ];
 
@@ -312,7 +313,8 @@ $initials = static function (?string $name, ?string $email): string {
       <div class="gm-list">
         <?php foreach ($conversations as $c):
             $isAuto  = $c['status'] === 'autoarchivo';
-            $isUnassigned = $c['agent_id'] === null && ! in_array($c['status'], ['cerrada', 'autoarchivo'], true);
+            $isAutogen = $c['status'] === 'autogenerado';
+            $isUnassigned = $c['agent_id'] === null && ! in_array($c['status'], ['cerrada', 'autoarchivo', 'autogenerado'], true);
             $breach  = $isUnassigned && $slaUnassigned > 0 && $minsOf($c['received_at']) > $slaUnassigned;
             $tone    = $statusTones[$c['status']] ?? 'neutral';
             $unread  = in_array($c['status'], ['nueva', 'esperando_agente'], true);
@@ -332,7 +334,24 @@ $initials = static function (?string $name, ?string $email): string {
               </span>
               <span class="gm-line2">
                 <span class="gm-subject"><?= $hl($c['subject'] ?: '(sin asunto)') ?></span>
-                <?php if ($isAuto): ?>
+                <?php if ($isAutogen): ?>
+                  <?php $agState = (string) ($c['autogen_state'] ?? ''); ?>
+                  <?php if (! empty($c['auto_ticket_id'])): ?><span class="gm-status success">#<?= (int) $c['auto_ticket_id'] ?></span><?php endif; ?>
+                  <?php if ($agState === 'created' && ! empty($c['verified_at'])): ?>
+                    <span class="gm-verified" title="Verificado por <?= esc($c['verified_name'] ?? 'agente', 'attr') ?>">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Verificado
+                    </span>
+                  <?php elseif ($agState === 'created'): ?>
+                    <button type="button" class="gm-verify" data-agverify="<?= (int) $c['id'] ?>">Verificar</button>
+                  <?php elseif ($agState === 'review'): ?>
+                    <span class="gm-status warning">Revisión</span>
+                  <?php elseif ($agState === 'failed'): ?>
+                    <span class="gm-status critical">Error</span>
+                    <button type="button" class="gm-verify" data-agretry="<?= (int) $c['id'] ?>">Reintentar</button>
+                  <?php else: ?>
+                    <span class="gm-status info">En cola</span>
+                  <?php endif; ?>
+                <?php elseif ($isAuto): ?>
                   <?php if (! empty($c['verified_at'])): ?>
                     <span class="gm-verified" title="Verificado por <?= esc($c['verified_name'] ?? 'agente', 'attr') ?>">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Verificado
@@ -493,6 +512,21 @@ function mdFitFrame(f) {
     el.disabled = true;
     quickPost('<?= base_url('dispatch') ?>/' + id + '/' + act)
       .then(function () { if (verify) location.hash = '#c' + id; location.reload(); })
+      .catch(function () { el.disabled = false; });
+  });
+
+  // Autogestión: verificar / reintentar (fila y panel de lectura).
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-agverify], [data-agretry]');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var verify = el.hasAttribute('data-agverify');
+    var id  = verify ? el.dataset.agverify : el.dataset.agretry;
+    var act = verify ? 'autogen/verify' : 'autogen/retry';
+    el.disabled = true;
+    quickPost('<?= base_url('dispatch') ?>/' + id + '/' + act)
+      .then(function () { location.reload(); })
       .catch(function () { el.disabled = false; });
   });
 

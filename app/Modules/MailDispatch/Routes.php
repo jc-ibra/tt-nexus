@@ -47,6 +47,10 @@ $routes->group('dispatch', [
     $routes->post('(:num)/status',    'Dispatch::changeStatus/$1', ['as' => 'dispatch.status']);
     $routes->post('(:num)/verify',    'Dispatch::verify/$1',      ['as' => 'dispatch.verify']);    // autoarchivo
     $routes->post('(:num)/to-inbox',  'Dispatch::moveToInbox/$1', ['as' => 'dispatch.toinbox']);   // autoarchivo
+    // Autogestión (bucket autogenerados).
+    $routes->post('(:num)/autogen/verify',   'Dispatch::autogenVerify/$1',   ['as' => 'dispatch.autogen.verify']);
+    $routes->post('(:num)/autogen/retry',    'Dispatch::autogenRetry/$1',    ['as' => 'dispatch.autogen.retry']);
+    $routes->post('(:num)/autogen/complete', 'Dispatch::autogenComplete/$1', ['as' => 'dispatch.autogen.complete']);
     $routes->post('(:num)/close',     'Dispatch::close/$1',       ['as' => 'dispatch.close']);
     $routes->post('(:num)/reopen',    'Dispatch::reopen/$1',      ['as' => 'dispatch.reopen']);
     $routes->post('(:num)/note',      'Dispatch::addNote/$1',     ['as' => 'dispatch.note']);
@@ -88,6 +92,9 @@ $routes->group('api/v1/dispatch', [
     $routes->post('conversations/(:num)/status', 'DispatchApiController::changeStatus/$1');
     $routes->post('conversations/(:num)/verify', 'DispatchApiController::verify/$1');       // autoarchivo
     $routes->post('conversations/(:num)/to-inbox', 'DispatchApiController::moveToInbox/$1'); // autoarchivo
+    $routes->post('conversations/(:num)/autogen/verify',   'DispatchApiController::autogenVerify/$1');   // autogestión
+    $routes->post('conversations/(:num)/autogen/retry',    'DispatchApiController::autogenRetry/$1');    // autogestión
+    $routes->post('conversations/(:num)/autogen/complete', 'DispatchApiController::autogenComplete/$1'); // autogestión
     $routes->post('conversations/(:num)/close',  'DispatchApiController::close/$1');
     $routes->post('conversations/(:num)/reopen', 'DispatchApiController::reopen/$1');
     $routes->post('conversations/(:num)/note',   'DispatchApiController::addNote/$1');

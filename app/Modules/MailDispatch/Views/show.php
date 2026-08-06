@@ -303,6 +303,64 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
 
   <!-- ============================ Sidebar ============================ -->
   <div class="md-side">
+    <?php if ($conv['status'] === 'autogenerado'): ?>
+      <?php
+        $agState   = (string) ($conv['autogen_state'] ?? '');
+        $ticketId  = (int) ($conv['auto_ticket_id'] ?? 0);
+        $ticketUrl = $ticketId > 0 ? service('mailDispatchAutogen')->ticketUrl($ticketId) : '';
+        $agPayload = json_decode((string) ($conv['autogen_payload'] ?? ''), true) ?: [];
+      ?>
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Autogestión</h2></div>
+        <div class="card-body">
+          <?php if ($agState === 'created'): ?>
+            <p class="text-sm" style="margin-bottom:var(--space-3);">
+              Ticket GLPI creado automáticamente:
+              <?php if ($ticketUrl !== ''): ?>
+                <a href="<?= esc($ticketUrl, 'attr') ?>" target="_blank" rel="noopener"><strong>#<?= $ticketId ?></strong></a>
+              <?php else: ?>
+                <strong>#<?= $ticketId ?></strong>
+              <?php endif; ?>
+            </p>
+            <?php if (empty($conv['verified_at'])): ?>
+              <form action="<?= route_to('dispatch.autogen.verify', $conv['id']) ?>" method="post">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Verificar</button>
+              </form>
+            <?php else: ?>
+              <p class="text-sm" style="color:var(--color-success-strong);">Verificado el <?= esc(date('d/m/y H:i', strtotime((string) $conv['verified_at']))) ?>.</p>
+            <?php endif; ?>
+          <?php elseif ($agState === 'review'): ?>
+            <p class="field-help" style="color:var(--color-warning-strong); margin-bottom:var(--space-3);">
+              Requiere revisión: <?= esc((string) ($conv['autogen_error'] ?? 'faltan datos')) ?>. Completa y crea el ticket.
+            </p>
+            <form action="<?= route_to('dispatch.autogen.complete', $conv['id']) ?>" method="post">
+              <?= csrf_field() ?>
+              <div class="field">
+                <label class="field-label">Título</label>
+                <input type="text" name="title" class="input" value="<?= esc((string) ($agPayload['title'] ?? ''), 'attr') ?>" required>
+              </div>
+              <div class="field">
+                <label class="field-label">Descripción</label>
+                <textarea name="description" class="input" rows="4" required><?= esc((string) ($agPayload['description'] ?? '')) ?></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width:100%;">Crear ticket</button>
+            </form>
+          <?php elseif ($agState === 'failed'): ?>
+            <p class="field-help" style="color:var(--color-critical-strong); margin-bottom:var(--space-3);">
+              Error al crear el ticket: <?= esc((string) ($conv['autogen_error'] ?? '')) ?>
+            </p>
+            <form action="<?= route_to('dispatch.autogen.retry', $conv['id']) ?>" method="post">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-primary" style="width:100%;">Reintentar</button>
+            </form>
+          <?php else: ?>
+            <p class="text-sm">En cola para crear el ticket…</p>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <?php if ($conv['status'] === 'autoarchivo'): ?>
       <!-- Auto-triaged: verify (recorded) or push back to the normal inbox -->
       <div class="card">

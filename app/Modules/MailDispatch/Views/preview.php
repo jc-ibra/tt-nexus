@@ -55,7 +55,21 @@ $attUrl = fn (int $id): string => base_url('dispatch/attachments/' . $id);
   </div>
 
   <div class="md-pane-actions">
-    <?php if ($conv['status'] === 'autoarchivo'): ?>
+    <?php if ($conv['status'] === 'autogenerado'): ?>
+      <?php $agState = (string) ($conv['autogen_state'] ?? ''); $tid = (int) ($conv['auto_ticket_id'] ?? 0); ?>
+      <?php if ($tid > 0): ?><span class="md-pane-tag">Ticket #<?= $tid ?></span><?php endif; ?>
+      <?php if ($agState === 'created' && empty($conv['verified_at'])): ?>
+        <button type="button" class="btn btn-primary" data-agverify="<?= (int) $conv['id'] ?>">Verificar</button>
+      <?php elseif ($agState === 'created'): ?>
+        <span class="md-pane-tag">Verificado</span>
+      <?php elseif ($agState === 'review'): ?>
+        <a class="btn btn-secondary" href="<?= route_to('dispatch.show', $conv['id']) ?>">Completar</a>
+      <?php elseif ($agState === 'failed'): ?>
+        <button type="button" class="btn btn-primary" data-agretry="<?= (int) $conv['id'] ?>">Reintentar</button>
+      <?php else: ?>
+        <span class="md-pane-tag">En cola</span>
+      <?php endif; ?>
+    <?php elseif ($conv['status'] === 'autoarchivo'): ?>
       <?php if (empty($conv['verified_at'])): ?>
         <button type="button" class="btn btn-primary" data-verify="<?= (int) $conv['id'] ?>">Verificar</button>
       <?php else: ?>
