@@ -34,7 +34,8 @@ class ConversationService
         private AttachmentService $attachments,
         private MessageRefModel $messageRefs,
         private MailDispatchSettings $settings,
-        private RuleModel $rules
+        private RuleModel $rules,
+        private AutogenMatcher $autogen
     ) {}
 
     /** Lazily-loaded active auto-triage rules (cached for the sync batch). */
@@ -104,18 +105,25 @@ class ConversationService
 
         $isOut = $f['direction'] === 'out';
 
-        // Auto-triage: an inbound message matching an admin rule is born in
-        // "autoarchivo" so it stays out of the main queue (still verifiable).
+        // Auto-triage entrante: primero Autogestión (crear ticket GLPI), luego
+        // Autoarchivo (mover fuera de la bandeja). Cada uno deja la conversación
+        // en su propio bucket, verificable por un agente.
         $status  = $isOut ? 'respondida' : 'nueva';
         $rule    = null;
+        $autogen = null;
         if (! $isOut) {
-            $rule = $this->matchRule((string) $f['from_email'], (string) $f['subject']);
-            if ($rule !== null) {
-                $status = 'autoarchivo';
+            $autogen = $this->autogen->match($f);
+            if ($autogen !== null) {
+                $status = 'autogenerado';
+            } else {
+                $rule = $this->matchRule((string) $f['from_email'], (string) $f['subject']);
+                if ($rule !== null) {
+                    $status = 'autoarchivo';
+                }
             }
         }
 
-        $convId = $this->conversations->insert([
+        $data = [
             'conversation_id'   => $convKey,
             'mailbox_address'   => $f['mailbox'],
             'subject'           => $f['subject'],
@@ -127,13 +135,22 @@ class ConversationService
             'received_at'       => $f['received_at'],
             'first_response_at' => $isOut ? $f['received_at'] : null,
             'last_activity_at'  => $f['received_at'],
-        ], true);
+        ];
+        if ($autogen !== null) {
+            $data['autogen_rule_id'] = (int) $autogen['rule']['id'];
+            $data['autogen_state']   = $autogen['state'];
+            $data['autogen_payload'] = json_encode($autogen['payload'], JSON_UNESCAPED_UNICODE);
+        }
+        $convId = $this->conversations->insert($data, true);
 
         $this->insertMessage((int) $convId, $f, $graphId);
         $this->conversations->set('message_count', 'message_count + 1', false)
             ->where('id', $convId)->update();
 
-        if ($rule !== null) {
+        if ($autogen !== null) {
+            $note = 'Regla: ' . $autogen['rule']['name'] . ($autogen['state'] === 'review' ? ' — ' . (string) $autogen['note'] : '');
+            $this->events->log((int) $convId, 'autogen', null, 'nueva', 'autogenerado', $note);
+        } elseif ($rule !== null) {
             $this->events->log((int) $convId, 'autoclose', null, 'nueva', 'autoarchivo', 'Regla: ' . $rule['name']);
         }
 

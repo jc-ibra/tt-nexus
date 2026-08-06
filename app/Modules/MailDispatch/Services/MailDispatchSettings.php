@@ -154,6 +154,28 @@ class MailDispatchSettings
     }
 
     // -----------------------------------------------------------------------
+    // Autogestión (auto-crear tickets GLPI desde correo)
+    // -----------------------------------------------------------------------
+
+    public function autogestionEnabled(): bool { return $this->model->get('autogestion_enabled', '0') === '1'; }
+    public function aiDetectionEnabled(): bool { return $this->model->get('autogestion_ai_enabled', '0') === '1'; }
+
+    public function autogenDefaultTicketType(): string
+    {
+        $t = strtoupper(trim($this->model->get('autogen_default_ticket_type', 'INCIDENCIA')));
+        return in_array($t, ['INCIDENCIA', 'REQUERIMIENTO'], true) ? $t : 'INCIDENCIA';
+    }
+
+    public function autogenDefaultCategoryId(): int      { return max(0, (int) $this->model->get('autogen_default_category_id', '0')); }
+    public function autogenDefaultEntitiesId(): int      { return max(0, (int) $this->model->get('autogen_default_entities_id', '0')); }
+    public function autogenDefaultRequesterUserId(): int { return max(0, (int) $this->model->get('autogen_default_requester_user_id', '0')); }
+    public function autogenDefaultRequestSourceId(): int { return max(0, (int) $this->model->get('autogen_default_request_source_id', '0')); }
+    public function autogenDefaultContainerIds(): string { return trim($this->model->get('autogen_default_container_ids', '')); }
+    public function autogenSystemUserId(): int           { return max(0, (int) $this->model->get('autogen_system_user_id', '0')); }
+    public function autogenRateLimitPerHour(): int       { return max(0, (int) $this->model->get('autogen_rate_limit_per_hour', '0')); }
+    public function autogenMaxAttempts(): int            { $n = (int) $this->model->get('autogen_max_attempts', '3'); return $n > 0 ? min($n, 10) : 3; }
+
+    // -----------------------------------------------------------------------
     // Writes
     // -----------------------------------------------------------------------
 

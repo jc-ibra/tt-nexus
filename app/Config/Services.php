@@ -104,6 +104,10 @@ use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
 use App\Modules\MailDispatch\Services\SmtpReplyService as MailDispatchSmtpReplyService;
+use App\Modules\MailDispatch\Models\AutogenRuleModel as MailDispatchAutogenRuleModel;
+use App\Modules\MailDispatch\Models\AutogenWhitelistModel as MailDispatchAutogenWhitelistModel;
+use App\Modules\MailDispatch\Services\AutogenMatcher as MailDispatchAutogenMatcher;
+use App\Modules\MailDispatch\Services\AutogenService as MailDispatchAutogenService;
 use App\Modules\TechBot\Models\ActivityLogModel as TechBotActivityLogModel;
 use App\Modules\TechBot\Models\AiUsageModel as TechBotAiUsageModel;
 use App\Modules\TechBot\Models\ConversationStateModel as TechBotConversationStateModel;
@@ -491,6 +495,33 @@ class Services extends BaseService
             new MailDispatchMessageRefModel(),
             self::mailDispatchSettings(),
             new MailDispatchRuleModel(),
+            self::mailDispatchAutogenMatcher(),
+        );
+    }
+
+    public static function mailDispatchAutogenMatcher(bool $getShared = true): MailDispatchAutogenMatcher
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchAutogenMatcher');
+        }
+        return new MailDispatchAutogenMatcher(
+            new MailDispatchAutogenRuleModel(),
+            new MailDispatchAutogenWhitelistModel(),
+            self::mailDispatchSettings(),
+            new MailDispatchConversationModel(),
+        );
+    }
+
+    public static function mailDispatchAutogen(bool $getShared = true): MailDispatchAutogenService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchAutogen');
+        }
+        return new MailDispatchAutogenService(
+            new MailDispatchConversationModel(),
+            new MailDispatchEventModel(),
+            new MailDispatchAutogenRuleModel(),
+            self::mailDispatchSettings(),
         );
     }
 

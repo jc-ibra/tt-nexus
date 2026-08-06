@@ -25,6 +25,14 @@ class ConversationModel extends Model
         'auto_rule_id',
         'verified_by',
         'verified_at',
+        'autogen_rule_id',
+        'auto_ticket_id',
+        'autogen_state',
+        'autogen_payload',
+        'autogen_attempts',
+        'autogen_error',
+        'autogen_reply_sent',
+        'autogen_next_attempt_at',
         'glpi_folio',
         'close_comment',
         'message_count',
@@ -63,16 +71,23 @@ class ConversationModel extends Model
             case 'unassigned':
                 $b->where('maildispatch_conversations.agent_id', null)
                   ->where('maildispatch_conversations.status !=', 'cerrada')
-                  ->where('maildispatch_conversations.status !=', 'autoarchivo');
+                  ->where('maildispatch_conversations.status !=', 'autoarchivo')
+                  ->where('maildispatch_conversations.status !=', 'autogenerado');
                 break;
             case 'mine':
                 $b->where('maildispatch_conversations.agent_id', $userId)
                   ->where('maildispatch_conversations.status !=', 'cerrada')
-                  ->where('maildispatch_conversations.status !=', 'autoarchivo');
+                  ->where('maildispatch_conversations.status !=', 'autoarchivo')
+                  ->where('maildispatch_conversations.status !=', 'autogenerado');
                 break;
             case 'autoarchivo':
                 // Auto-triaged bucket: pending (unverified) first.
                 $b->where('maildispatch_conversations.status', 'autoarchivo')
+                  ->orderBy('maildispatch_conversations.verified_at IS NULL', 'DESC', false);
+                break;
+            case 'autogenerado':
+                // Auto-generated tickets bucket: actionable (unverified) first.
+                $b->where('maildispatch_conversations.status', 'autogenerado')
                   ->orderBy('maildispatch_conversations.verified_at IS NULL', 'DESC', false);
                 break;
             case 'closed':
@@ -80,8 +95,9 @@ class ConversationModel extends Model
                 break;
             case 'all':
             default:
-                // everything except the auto-triaged bucket, open first
-                $b->where('maildispatch_conversations.status !=', 'autoarchivo');
+                // everything except the auto-triaged buckets, open first
+                $b->where('maildispatch_conversations.status !=', 'autoarchivo')
+                  ->where('maildispatch_conversations.status !=', 'autogenerado');
                 break;
         }
 
@@ -146,11 +162,12 @@ class ConversationModel extends Model
         };
 
         return [
-            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo'))->countAllResults(),
-            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo'))->countAllResults(),
-            'all'        => $search($this->where('status !=', 'autoarchivo'))->countAllResults(),
+            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
+            'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
+            'all'        => $search($this->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
             // Actionable count = pending verification.
             'autoarchivo' => $search($this->where('status', 'autoarchivo')->where('verified_at', null))->countAllResults(),
+            'autogenerado' => $search($this->where('status', 'autogenerado')->groupStart()->whereIn('autogen_state', ['review', 'failed'])->orWhere('verified_at', null)->groupEnd())->countAllResults(),
             'closed'     => $search($this->where('status', 'cerrada'))->countAllResults(),
         ];
     }

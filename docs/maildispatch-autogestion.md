@@ -238,11 +238,17 @@ autocierre** (`maildispatch_rules`) siguen igual; solo cambia el nombre del esta
   Config/Model/Controller/Service/Views/Routes. Enum final sin `autocierre`; bucket probado
   end-to-end; `db:verify-schema` OK.
 - **Fase 1 — Autogestión estructurada (sin IA):**
-  - 1a Backend: settings+toggle, tablas `autogen_rules`+`whitelist`, columnas de conversación,
-    enum `autogenerado`, matcher en `createConversation`, parser `Campo: valor`,
-    `AutogenTicketService`, worker `maildispatch:process-autogen`, plantilla de respuesta.
-  - 1b UI: bandeja "autogenerados" (tab, pills, verificar/completar/reintentar) + editor de
-    reglas admin (con pickers de tipo/categoría/entidad/contenedores desde ServiceDesk).
+  - 1a Backend: ✅ HECHO y verificado (2026-08-06). Settings+toggle, tablas
+    `maildispatch_autogen_rules`+`_whitelist`, columnas de conversación (autogen_*),
+    enum `autogenerado`, `AutogenMatcher` (parser `Campo: valor` + whitelist obligatoria +
+    estado pending/review) enganchado en `createConversation`, `AutogenService`
+    (createOne + reintentos backoff + verify/retry/complete + ack por SMTP/Graph), worker
+    `maildispatch:process-autogen`, regla de ejemplo sembrada. Matcher probado
+    end-to-end (4 escenarios); worker wiring OK; `db:verify-schema` OK (74 tablas).
+    NOTA: `field_map.target` en Fase 1 = title|description|ignore (campos de plugin en 1.x);
+    `reply_subject` aún no se aplica (el ack usa el asunto del hilo).
+  - 1b UI: (SIGUIENTE) bandeja "autogenerados" (tab, pills, verificar/completar/reintentar) +
+    editor de reglas admin. + acciones/rutas + espejo API + Postman.
 - **Fase 2 — IA opcional:** tool-use de extracción + confianza, cae a `review`.
 
 **Criterios de aceptación Fase 1:** un correo con asunto y whitelist válidos crea el ticket,
