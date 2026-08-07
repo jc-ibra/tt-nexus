@@ -7,6 +7,59 @@ Rutas de ejemplo del servidor (cPanel):
 
 Ajusta las rutas si tu instalación es distinta.
 
+# Local (Docker · tt-nexus)
+
+Ejecución manual en tu máquina, desde la raíz del proyecto (`.../Dev/php/tt-nexus`).
+Estos NO son cron: los corres a mano para probar/forzar cada proceso. El servicio
+del contenedor es `app`. Agrega `--debug` para ver el detalle por elemento.
+
+## 1. Comunicaciones — cola de correos
+
+```
+docker compose exec app php spark comms:process-queue
+```
+
+## 2. Service Desk — importaciones masivas de tickets
+
+```
+docker compose exec app php spark servicedesk:process-imports
+```
+
+## 3. Aprovisionamiento — reintentos pendientes
+
+```
+docker compose exec app php spark provisioning:process-retries
+```
+
+## 4. Service Desk — reporte diario de backlog
+
+Auto-gatillado por la hora de corte de la UI; para forzar el envío ahora, agrega `--force`.
+
+```
+docker compose exec app php spark servicedesk:send-backlog-report
+```
+
+## 5. Despacho de Correo — sincronización del buzón compartido
+
+```
+docker compose exec app php spark maildispatch:sync-mailbox --debug
+```
+
+Para reimportar todo (ignora el cursor/delta y respeta la fecha de corte configurada):
+
+```
+docker compose exec app php spark maildispatch:sync-mailbox --full --debug
+```
+
+## 6. Despacho de Correo — autogestión (auto-creación de tickets GLPI)
+
+Corre **después** del sync: crea en GLPI los tickets de las conversaciones
+autogeneradas pendientes y responde. `--batch=N` limita cuántas procesa (default 20).
+
+```
+docker compose exec app php spark maildispatch:process-autogen --debug
+```
+
 # Producción
 
 ## 1. Comunicaciones — cola de correos
