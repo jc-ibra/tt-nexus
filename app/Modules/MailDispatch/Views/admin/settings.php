@@ -25,6 +25,10 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   /* Even vertical rhythm for the per-rule editor cards (fields + grids). */
   #md-autogestion .card .card > .card-body > * { margin-bottom:var(--space-4); }
   #md-autogestion .card .card > .card-body > *:last-child { margin-bottom:0; }
+  /* SMTP source toggle: show only the active mode's block. */
+  .md-smtp-core, .md-smtp-own { display:none; }
+  #md-smtp.mode-core .md-smtp-core { display:block; }
+  #md-smtp.mode-own .md-smtp-own { display:block; }
 </style>
 
 <div class="page-header">
@@ -212,10 +216,38 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
     </div>
 
     <!-- -------- SMTP (solo provider=imap) -------- -->
-    <div class="card md-prov md-prov-imap" style="margin-bottom:var(--space-4);">
+    <?php
+      $smtpMode        = ($s['smtp_use_core'] ?? '1') === '0' ? 'own' : 'core';
+      $coreSmtpOn      = service('appSettings')->isSmtpConfigured();
+      $coreSmtpHost    = service('appSettings')->get('smtp_host');
+    ?>
+    <div id="md-smtp" class="card md-prov md-prov-imap mode-<?= $smtpMode ?>" style="margin-bottom:var(--space-4);">
       <div class="card-header"><h2 class="card-title">Envío SMTP (respuesta en modo IMAP)</h2></div>
       <div class="card-body">
-        <p class="md-hint" style="margin-bottom:var(--space-3);">Credenciales para enviar respuestas al hilo. Solo se usan si la respuesta desde Nexus está habilitada.</p>
+        <p class="md-hint" style="margin-bottom:var(--space-3);">Cómo se envían las respuestas al hilo. Solo se usa si la respuesta desde Nexus está habilitada.</p>
+
+        <label class="field-check" style="margin-bottom:var(--space-2);">
+          <input type="radio" name="smtp_mode" value="core" data-smtp-radio <?= $smtpMode !== 'own' ? 'checked' : '' ?>>
+          <span>Usar el SMTP del sistema (Configuración · SMTP)</span>
+        </label>
+        <label class="field-check" style="margin-bottom:var(--space-3);">
+          <input type="radio" name="smtp_mode" value="own" data-smtp-radio <?= $smtpMode === 'own' ? 'checked' : '' ?>>
+          <span>Usar un SMTP propio para este buzón</span>
+        </label>
+
+        <div class="md-smtp-core">
+          <?php if ($coreSmtpOn): ?>
+            <div class="banner banner-success" style="margin-bottom:var(--space-2);">
+              <div class="banner-body">Se usará el SMTP del sistema (<code><?= esc($coreSmtpHost) ?></code>). El remitente será el configurado ahí, o la dirección de la mesa de ayuda si está vacío.</div>
+            </div>
+          <?php else: ?>
+            <div class="banner banner-warning" style="margin-bottom:var(--space-2);">
+              <div class="banner-body">El SMTP del sistema aún no está configurado. Captúralo en <a href="<?= route_to('admin.settings.smtp') ?>">Configuración · SMTP</a> o elige «SMTP propio».</div>
+            </div>
+          <?php endif; ?>
+        </div>
+
+      <div class="md-smtp-own">
         <div class="field" style="margin-bottom:var(--space-3);">
           <label class="field-label" for="smtp_host">Servidor SMTP</label>
           <input type="text" id="smtp_host" name="smtp_host" class="input" value="<?= $val('smtp_host') ?>" placeholder="smtp.dominio.com" autocomplete="off" spellcheck="false">
@@ -257,6 +289,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
             <input type="text" id="smtp_from_name" name="smtp_from_name" class="input" value="<?= $val('smtp_from_name') ?>" placeholder="Mesa de ayuda" autocomplete="off">
           </div>
         </div>
+      </div><!-- /.md-smtp-own -->
       </div>
     </div>
   </form>
@@ -666,6 +699,19 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   }
   radios.forEach(function (r) { r.addEventListener('change', applyProvider); });
   applyProvider();
+
+  // SMTP source toggle: reuse Core SMTP or a mailbox-specific one.
+  var smtpCard   = document.getElementById('md-smtp');
+  var smtpRadios = Array.prototype.slice.call(document.querySelectorAll('[data-smtp-radio]'));
+  function applySmtpMode() {
+    if (!smtpCard) { return; }
+    var checked = smtpRadios.find(function (r) { return r.checked; });
+    var mode = checked ? checked.value : 'core';
+    smtpCard.classList.toggle('mode-own', mode === 'own');
+    smtpCard.classList.toggle('mode-core', mode !== 'own');
+  }
+  smtpRadios.forEach(function (r) { r.addEventListener('change', applySmtpMode); });
+  applySmtpMode();
 
   // Probar conexión (AJAX)
   var btn = document.getElementById('md-test-btn');

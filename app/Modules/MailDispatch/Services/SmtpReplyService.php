@@ -77,8 +77,10 @@ class SmtpReplyService
         // reads like a real reply sent from the mailbox (history is preserved).
         $sendHtml  = $bodyHtml . $this->historyHtml($conversationId);
 
+        // Effective SMTP config (Core or module-owned, per the smtp_use_core toggle).
+        $smtp      = $this->settings->effectiveSmtp();
+        $fromEmail = $smtp['from_email'];
         // Our own Message-ID so the re-synced sent copy can be de-duplicated.
-        $fromEmail = $this->settings->smtpFromEmail();
         $domain    = substr(strrchr($fromEmail, '@') ?: '@localhost', 1);
         $messageId = '<nexus-' . bin2hex(random_bytes(12)) . '@' . $domain . '>';
 
@@ -87,7 +89,7 @@ class SmtpReplyService
             $subject = 'Re: ' . $subject;
         }
 
-        $send = $this->send($to, $subject, $sendHtml, $messageId, $target, $validFiles);
+        $send = $this->send($smtp, $to, $subject, $sendHtml, $messageId, $target, $validFiles);
         if (! $send->success) {
             return $send;
         }
@@ -100,7 +102,7 @@ class SmtpReplyService
             'internet_message_id' => $messageId,
             'in_reply_to'         => $target['internet_message_id'] ?? null,
             'direction'           => 'out',
-            'from_name'           => $this->settings->smtpFromName(),
+            'from_name'           => $smtp['from_name'],
             'from_email'          => $fromEmail,
             'to_recipients'       => $to,
             'subject'             => $subject,
@@ -135,21 +137,21 @@ class SmtpReplyService
      * headers. Returns a ServiceResult; the SMTP debug output is logged, never
      * surfaced verbatim to the agent.
      */
-    private function send(string $to, string $subject, string $html, string $messageId, ?array $target, array $files = []): ServiceResult
+    private function send(array $smtp, string $to, string $subject, string $html, string $messageId, ?array $target, array $files = []): ServiceResult
     {
         $config = new EmailConfig();
         $config->protocol   = 'smtp';
-        $config->SMTPHost   = $this->settings->smtpHost();
-        $config->SMTPUser   = $this->settings->smtpUsername();
-        $config->SMTPPass   = $this->settings->smtpPassword();
-        $config->SMTPPort   = $this->settings->smtpPort();
-        $config->SMTPCrypto = $this->settings->smtpEncryption() === 'none' ? '' : $this->settings->smtpEncryption();
+        $config->SMTPHost   = $smtp['host'];
+        $config->SMTPUser   = $smtp['user'];
+        $config->SMTPPass   = $smtp['pass'];
+        $config->SMTPPort   = $smtp['port'];
+        $config->SMTPCrypto = $smtp['crypto'];
         $config->mailType   = 'html';
         $config->charset    = 'UTF-8';
         $config->wordWrap   = true;
 
         $email = \Config\Services::email($config, false);
-        $email->setFrom($this->settings->smtpFromEmail(), $this->settings->smtpFromName());
+        $email->setFrom($smtp['from_email'], $smtp['from_name']);
         $email->setTo($to);
         $email->setSubject($subject);
         $email->setMessage($html);

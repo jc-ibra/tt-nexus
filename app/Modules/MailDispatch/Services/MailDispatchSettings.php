@@ -104,9 +104,56 @@ class MailDispatchSettings
 
     public function hasSmtpPassword(): bool { return $this->model->hasSecret('smtp_password'); }
 
-    /** True when SMTP is fully configured (host + username + a stored password). */
+    /**
+     * Whether replies reuse the platform's Core SMTP (Configuración › SMTP)
+     * instead of a mailbox-specific SMTP. Default on: less duplicated config.
+     */
+    public function smtpUseCore(): bool { return $this->model->get('smtp_use_core', '1') === '1'; }
+
+    /**
+     * The effective SMTP config for sending replies, resolving the "use Core"
+     * toggle. Keys: host, port, crypto ('ssl'|'tls'|''), user, pass, from_email,
+     * from_name. When reusing Core, values come from AppSettingsService (Core's
+     * smtp_* keys, password already decrypted); the From falls back to the
+     * mailbox address / a generic name when Core leaves them blank.
+     */
+    public function effectiveSmtp(): array
+    {
+        if ($this->smtpUseCore()) {
+            $c      = service('appSettings')->getSmtp();
+            $crypto = strtolower(trim((string) ($c['smtp_crypto'] ?? '')));
+            return [
+                'host'       => trim((string) ($c['smtp_host'] ?? '')),
+                'port'       => ((int) ($c['smtp_port'] ?? 587)) ?: 587,
+                'crypto'     => in_array($crypto, ['ssl', 'tls'], true) ? $crypto : '',
+                'user'       => trim((string) ($c['smtp_user'] ?? '')),
+                'pass'       => (string) ($c['smtp_password'] ?? ''),
+                'from_email' => trim((string) ($c['smtp_from_email'] ?? '')) ?: $this->mailbox(),
+                'from_name'  => trim((string) ($c['smtp_from_name'] ?? '')) ?: 'Mesa de ayuda',
+            ];
+        }
+
+        $enc = $this->smtpEncryption();
+        return [
+            'host'       => $this->smtpHost(),
+            'port'       => $this->smtpPort(),
+            'crypto'     => $enc === 'none' ? '' : $enc,
+            'user'       => $this->smtpUsername(),
+            'pass'       => $this->smtpPassword(),
+            'from_email' => $this->smtpFromEmail(),
+            'from_name'  => $this->smtpFromName(),
+        ];
+    }
+
+    /**
+     * True when the SMTP used for replies is fully configured. In Core mode this
+     * defers to the platform SMTP; otherwise it checks the module's own fields.
+     */
     public function isSmtpConfigured(): bool
     {
+        if ($this->smtpUseCore()) {
+            return service('appSettings')->isSmtpConfigured();
+        }
         return $this->smtpHost() !== '' && $this->smtpUsername() !== '' && $this->hasSmtpPassword();
     }
 
@@ -285,6 +332,7 @@ class MailDispatchSettings
             'treat_as_forwards'           => isset($post['treat_as_forwards']) ? '1' : '0',
 
             // --- SMTP (send) ---
+            'smtp_use_core'               => (string) ($post['smtp_mode'] ?? 'core') === 'own' ? '0' : '1',
             'smtp_host'                   => trim((string) ($post['smtp_host'] ?? '')),
             'smtp_port'                   => (string) max(1, (int) ($post['smtp_port'] ?? 587)),
             'smtp_encryption'             => $this->normalizeCrypto((string) ($post['smtp_encryption'] ?? 'tls'), 'tls'),
