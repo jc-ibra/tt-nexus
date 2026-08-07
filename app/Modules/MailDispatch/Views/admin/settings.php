@@ -8,9 +8,9 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
 ?>
 
 <style>
-  .md-tabs { display:flex; gap:var(--space-1); border-bottom:1px solid var(--border-subtle); margin-bottom:var(--space-5); flex-wrap:wrap; }
-  .md-tab { appearance:none; background:none; border:none; padding:var(--space-3) var(--space-4);
-    font:inherit; font-weight:600; color:var(--text-subdued); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .md-tabs { display:flex; gap:var(--space-2); border-bottom:1px solid var(--border-subtle); margin-bottom:var(--space-5); flex-wrap:wrap; }
+  .md-tab { appearance:none; background:none; border:none; padding:var(--space-3) var(--space-3);
+    font:inherit; font-size:var(--font-size-sm); font-weight:600; color:var(--text-subdued); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
   .md-tab:hover { color:var(--text-primary); }
   .md-tab.is-active { color:var(--action-primary); border-bottom-color:var(--action-primary); }
   .md-tab:focus-visible { outline:2px solid var(--action-primary); outline-offset:2px; border-radius:var(--radius-1); }
@@ -22,6 +22,9 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   .md-prov { display:none; }
   #md-conexion.prov-graph .md-prov-graph { display:block; }
   #md-conexion.prov-imap .md-prov-imap { display:block; }
+  /* Even vertical rhythm for the per-rule editor cards (fields + grids). */
+  #md-autogestion .card .card > .card-body > * { margin-bottom:var(--space-4); }
+  #md-autogestion .card .card > .card-body > *:last-child { margin-bottom:0; }
 </style>
 
 <div class="page-header">
@@ -41,12 +44,12 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
 <?php endif; ?>
 
 <div class="md-tabs" role="tablist" aria-label="Secciones de configuración">
-  <button type="button" class="md-tab is-active" role="tab" data-panel="md-conexion" data-hash="conexion">Conexión y sincronización</button>
+  <button type="button" class="md-tab is-active" role="tab" data-panel="md-conexion" data-hash="conexion">Conexión</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-agentes" data-hash="agentes">Agentes</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-disposiciones" data-hash="disposiciones">Disposiciones</button>
-  <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Reglas de autoarchivo</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Autoarchivo</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-autogestion" data-hash="autogestion">Autogestión</button>
-  <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado de sincronización</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-peligro" data-hash="peligro">Zona de peligro</button>
 </div>
 
@@ -65,11 +68,11 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <p class="md-hint" style="margin-bottom:var(--space-3);">Elige cómo Nexus lee el buzón de la mesa de ayuda.</p>
         <label class="field-check" style="margin-bottom:var(--space-2);">
           <input type="radio" name="provider" value="graph" data-provider-radio <?= $provider !== 'imap' ? 'checked' : '' ?>>
-          <span>Microsoft 365 (Graph) — permisos de aplicación</span>
+          <span>Microsoft 365 (Graph): permisos de aplicación</span>
         </label>
         <label class="field-check">
           <input type="radio" name="provider" value="imap" data-provider-radio <?= $provider === 'imap' ? 'checked' : '' ?>>
-          <span>IMAP — buzón que recibe todo por regla de reenvío</span>
+          <span>IMAP: buzón que recibe todo por regla de reenvío</span>
         </label>
       </div>
     </div>
@@ -90,7 +93,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <label class="field-label" for="graph_client_secret">Client Secret</label>
           <input type="password" id="graph_client_secret" name="graph_client_secret" class="input"
                  value="<?= $hasSecret ? esc($secretMask) : '' ?>" autocomplete="new-password" spellcheck="false"
-                 placeholder="<?= $hasSecret ? 'Guardado — deja el valor para conservarlo' : 'Pega el secret de la app registration' ?>">
+                 placeholder="<?= $hasSecret ? 'Guardado. Deja el valor para conservarlo' : 'Pega el secret de la app registration' ?>">
           <p class="field-help">Se guarda cifrado. Nunca se muestra en claro. Deja «<?= esc($secretMask) ?>» para conservar el actual.</p>
         </div>
       </div>
@@ -128,7 +131,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <label class="field-label" for="imap_password">Contraseña</label>
           <input type="password" id="imap_password" name="imap_password" class="input"
                  value="<?= $hasImapPassword ? esc($secretMask) : '' ?>" autocomplete="new-password" spellcheck="false"
-                 placeholder="<?= $hasImapPassword ? 'Guardada — deja el valor para conservarla' : 'Contraseña de la cuenta IMAP' ?>">
+                 placeholder="<?= $hasImapPassword ? 'Guardada. Deja el valor para conservarla' : 'Contraseña de la cuenta IMAP' ?>">
           <p class="field-help">Se guarda cifrada. Deja «<?= esc($secretMask) ?>» para conservar la actual.</p>
         </div>
         <div style="display:flex; gap:var(--space-3); align-items:flex-end;">
@@ -197,7 +200,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
     </div>
 
     <div class="card" style="margin-bottom:var(--space-4);">
-      <div class="card-header"><h2 class="card-title">Respuesta desde Nexus (Fase 3)</h2></div>
+      <div class="card-header"><h2 class="card-title">Respuesta desde Nexus</h2></div>
       <div class="card-body">
         <label class="field-check">
           <input type="checkbox" name="send_from_nexus_enabled" value="1" <?= $bool('send_from_nexus_enabled') ? 'checked' : '' ?>>
@@ -240,7 +243,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <label class="field-label" for="smtp_password">Contraseña</label>
           <input type="password" id="smtp_password" name="smtp_password" class="input"
                  value="<?= $hasSmtpPassword ? esc($secretMask) : '' ?>" autocomplete="new-password" spellcheck="false"
-                 placeholder="<?= $hasSmtpPassword ? 'Guardada — deja el valor para conservarla' : 'Contraseña SMTP' ?>">
+                 placeholder="<?= $hasSmtpPassword ? 'Guardada. Deja el valor para conservarla' : 'Contraseña SMTP' ?>">
           <p class="field-help">Se guarda cifrada. Deja «<?= esc($secretMask) ?>» para conservar la actual.</p>
         </div>
         <div style="display:flex; gap:var(--space-3);">
@@ -278,7 +281,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <button type="submit" class="btn btn-primary">Guardar agentes</button>
       </div>
       <div class="card-body" style="padding:0;">
-        <p class="md-hint" style="padding:var(--space-4) var(--space-4) 0;">Marca quién participa como agente del despacho y quién puede asignar/reasignar a otros (dispatcher). Esto es adicional al acceso por rol al módulo.</p>
+        <p class="md-hint" style="padding:var(--space-4);">Marca quién participa como agente del despacho y quién puede asignar/reasignar a otros (dispatcher). Esto es adicional al acceso por rol al módulo.</p>
         <table class="table" style="width:100%;">
           <thead><tr><th>Usuario</th><th>Correo</th><th style="text-align:center;">Agente</th><th style="text-align:center;">Dispatcher</th></tr></thead>
           <tbody>
@@ -311,7 +314,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <button type="submit" class="btn btn-primary">Guardar catálogo</button>
       </div>
       <div class="card-body" style="padding:0;">
-        <p class="md-hint" style="padding:var(--space-4) var(--space-4) 0;">Al cerrar una conversación el agente elige una disposición. «Requiere folio» exige capturar el número de ticket GLPI.</p>
+        <p class="md-hint" style="padding:var(--space-4);">Al cerrar una conversación el agente elige una disposición. «Requiere folio» exige capturar el número de ticket GLPI.</p>
         <table class="table" style="width:100%;" id="md-disp-table">
           <thead><tr><th>Nombre</th><th style="text-align:center;">Requiere folio</th><th style="text-align:center;">Activa</th></tr></thead>
           <tbody>
@@ -349,7 +352,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <button type="submit" class="btn btn-primary">Guardar reglas</button>
       </div>
       <div class="card-body" style="padding:0;">
-        <p class="md-hint" style="padding:var(--space-4) var(--space-4) 0;">
+        <p class="md-hint" style="padding:var(--space-4);">
           Si un correo <strong>entrante nuevo</strong> coincide con una regla activa, entra directo al estado
           <strong>Autoarchivo</strong> (fuera de la bandeja principal). Ahí cualquier agente puede
           <strong>Verificar</strong> (queda registrado quién) o <strong>Mover a la bandeja</strong> para el flujo normal.
@@ -465,7 +468,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
                 <p class="text-sm" style="margin:var(--space-2) 0 4px;"><strong><?= esc($cont['label']) ?></strong> · id <?= (int) $cont['id'] ?></p>
                 <ul style="margin:0 0 var(--space-2) var(--space-4);">
                   <?php foreach ($cont['fields'] as $fld): ?>
-                    <li class="text-sm"><code><?= esc($fld['target']) ?></code> — <?= esc($fld['label']) ?></li>
+                    <li class="text-sm"><code><?= esc($fld['target']) ?></code> · <?= esc($fld['label']) ?></li>
                   <?php endforeach; ?>
                 </ul>
               <?php endforeach; ?>
@@ -534,7 +537,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
                   <?php $ok = ($st['last_result'] ?? '') === 'ok'; $never = ($st['last_result'] ?? '') === 'never'; ?>
                   <span class="badge <?= $never ? 'badge-neutral' : ($ok ? 'badge-success' : 'badge-critical') ?>"><?= esc($st['last_result']) ?></span>
                 </td>
-                <td class="text-muted text-sm"><?= esc($st['last_run_at'] ?? '—') ?></td>
+                <td class="text-muted text-sm"><?= esc($st['last_run_at'] ?? '-') ?></td>
                 <td><?= (int) $st['processed_count'] ?></td>
                 <td><?= (int) $st['error_count'] ?></td>
                 <td class="text-sm"><?= esc($st['last_message'] ?? '') ?></td>

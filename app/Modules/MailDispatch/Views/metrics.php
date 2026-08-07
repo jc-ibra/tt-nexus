@@ -3,7 +3,7 @@
 
 <?php
 $fmtMin = static function (?float $m): string {
-    if ($m === null) return '—';
+    if ($m === null) return '-';
     if ($m < 60) return round($m) . ' min';
     return round($m / 60, 1) . ' h';
 };
@@ -126,7 +126,7 @@ $qs = http_build_query($personal
           <div class="md-daily-col" style="height:<?= $h ?>px;" title="<?= esc($d['day']) ?>: <?= (int) $d['total'] ?>"></div>
         <?php endforeach; ?>
       </div>
-      <p class="text-muted text-xs" style="margin-top:var(--space-2);"><?= esc($daily_volume[0]['day']) ?> — <?= esc(end($daily_volume)['day']) ?></p>
+      <p class="text-muted text-xs" style="margin-top:var(--space-2);"><?= esc($daily_volume[0]['day']) ?> a <?= esc(end($daily_volume)['day']) ?></p>
     <?php endif; ?>
   </div>
 </div>

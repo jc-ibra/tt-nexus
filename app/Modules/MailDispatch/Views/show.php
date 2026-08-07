@@ -405,7 +405,7 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
             <?= csrf_field() ?>
             <label class="field-label" for="assign_agent">Asignar / reasignar a</label>
             <select id="assign_agent" name="agent_id" class="input" style="margin-bottom:var(--space-2);">
-              <option value="0">— Liberar —</option>
+              <option value="0">Liberar</option>
               <?php foreach ($agents as $a): ?>
                 <option value="<?= (int) $a['user_id'] ?>" <?= (int) $a['user_id'] === (int) $conv['agent_id'] ? 'selected' : '' ?>>
                   <?= esc($a['user_name']) ?><?= (int) $a['is_dispatcher'] === 1 ? ' (dispatcher)' : '' ?>
@@ -485,7 +485,7 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
       <div class="card-body">
         <?php if ($closed): ?>
           <p class="text-sm" style="margin-bottom:var(--space-2);">
-            Disposición: <strong><?= esc($conv['disposition_name'] ?? '—') ?></strong>
+            Disposición: <strong><?= esc($conv['disposition_name'] ?? '-') ?></strong>
             <?php if ($conv['glpi_folio']): ?><br>Folio GLPI: <strong><?= esc($conv['glpi_folio']) ?></strong><?php endif; ?>
           </p>
           <form action="<?= route_to('dispatch.reopen', $conv['id']) ?>" method="post">
@@ -497,7 +497,7 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
             <?= csrf_field() ?>
             <label class="field-label" for="disposition_id">Disposición</label>
             <select id="disposition_id" name="disposition_id" class="input" style="margin-bottom:var(--space-2);" required>
-              <option value="">— Selecciona —</option>
+              <option value="">Selecciona…</option>
               <?php foreach ($dispositions as $d): ?>
                 <option value="<?= (int) $d['id'] ?>" data-folio="<?= (int) $d['requires_folio'] ?>"><?= esc($d['name']) ?></option>
               <?php endforeach; ?>
@@ -539,7 +539,7 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
                 <?php if ($e['type'] === 'note' && $e['note']): ?>
                   <div><?= esc($e['note']) ?></div>
                 <?php elseif ($e['from_value'] || $e['to_value']): ?>
-                  <div class="text-sm"><?= esc($e['from_value'] ?? '—') ?> → <?= esc($e['to_value'] ?? '—') ?></div>
+                  <div class="text-sm"><?= esc($e['from_value'] ?? '-') ?> → <?= esc($e['to_value'] ?? '-') ?></div>
                 <?php endif; ?>
                 <div class="md-meta"><?= esc($e['user_name'] ?? 'Sistema') ?> · <?= esc($e['created_at']) ?></div>
               </li>
