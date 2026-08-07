@@ -214,6 +214,15 @@ class DispatchApiController extends BaseApiController
         return $this->fromResult($result);
     }
 
+    /**
+     * Retroactively applies one saved autoarchivo rule to the unassigned main
+     * inbox. SuperAdmin only (enforced by the route filter).
+     */
+    public function applyRule(int $id): ResponseInterface
+    {
+        return $this->fromResult(service('mailDispatchConversations')->applyRuleToInbox($id, $this->userId()));
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------

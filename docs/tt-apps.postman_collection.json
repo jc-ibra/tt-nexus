@@ -3798,6 +3798,34 @@
             },
             "description": "Elimina la data operativa de la bandeja en Nexus (conversaciones, mensajes, adjuntos, historial). NUNCA toca la configuración ni el buzón real. `confirm` debe ser la dirección exacta del buzón. `mode`: 'all' (borra todo y reinicia el cursor) o 'before' (poda conversaciones sin actividad desde `before_date`, no toca el cursor)."
           }
+        },
+        {
+          "name": "Apply autoarchivo rule to inbox (SuperAdmin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dispatch/rules/1/apply",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dispatch",
+                "rules",
+                "1",
+                "apply"
+              ]
+            },
+            "description": "Aplica retroactivamente una regla de autoarchivo GUARDADA (por id) a la bandeja principal: archiva las conversaciones sin asignar (agent_id NULL) y no procesadas (no cerrada/autoarchivo/autogenerado) cuyo remitente/asunto coincidan con la regla. Devuelve el número de conversaciones movidas."
+          }
         }
       ]
     },

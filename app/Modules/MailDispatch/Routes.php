@@ -75,6 +75,8 @@ $routes->group('admin/dispatch', [
     $routes->post('dispositions',     'MailDispatchAdmin::saveDispositions', ['as' => 'dispatch.dispositions.save']);
     // Auto-triage rules (route matching mail to the autoarchivo bucket).
     $routes->post('rules',            'MailDispatchAdmin::saveRules',      ['as' => 'dispatch.rules.save']);
+    // Retroactively apply one saved rule to the unassigned main inbox.
+    $routes->post('rules/(:num)/apply', 'MailDispatchAdmin::applyRule/$1', ['as' => 'dispatch.rules.apply']);
     // Autogestión: settings globales + editor de reglas de auto-creación.
     $routes->post('autogen',          'MailDispatchAdmin::saveAutogen',      ['as' => 'dispatch.autogen.save']);
     $routes->post('autogen-rules',    'MailDispatchAdmin::saveAutogenRules', ['as' => 'dispatch.autogenrules.save']);
@@ -120,4 +122,6 @@ $routes->group('api/v1/admin/dispatch', [
 ], function (RouteCollection $routes): void {
     // Danger zone: purge operational data (never config, never the real mailbox).
     $routes->post('purge', 'DispatchApiController::purge');
+    // Retroactively apply one saved autoarchivo rule to the unassigned main inbox.
+    $routes->post('rules/(:num)/apply', 'DispatchApiController::applyRule/$1');
 });

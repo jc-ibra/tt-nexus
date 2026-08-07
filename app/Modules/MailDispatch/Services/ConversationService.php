@@ -427,45 +427,95 @@ class ConversationService
 
     /**
      * Returns the first active rule matching the given sender/subject, or null.
-     * A rule matches when every non-empty pattern it defines matches; a rule with
-     * both patterns empty is ignored (never auto-triage everything by accident).
-     * A sender pattern starting with "@" matches by domain; otherwise substring.
      */
     private function matchRule(string $fromEmail, string $subject): ?array
     {
         if ($this->activeRules === null) {
             $this->activeRules = $this->rules->active();
         }
-        if ($this->activeRules === []) {
-            return null;
+        foreach ($this->activeRules as $rule) {
+            if ($this->ruleMatches($rule, $fromEmail, $subject)) {
+                return $rule;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Whether a single rule matches a sender/subject. A rule matches when every
+     * non-empty pattern it defines matches; a rule with both patterns empty never
+     * matches (so it can't auto-triage everything by accident). A sender pattern
+     * starting with "@" matches by domain; otherwise substring.
+     */
+    private function ruleMatches(array $rule, string $fromEmail, string $subject): bool
+    {
+        $sp = mb_strtolower(trim((string) ($rule['sender_pattern'] ?? '')));
+        $tp = mb_strtolower(trim((string) ($rule['subject_pattern'] ?? '')));
+        if ($sp === '' && $tp === '') {
+            return false;
         }
 
         $email = mb_strtolower(trim($fromEmail));
         $subj  = mb_strtolower(trim($subject));
 
-        foreach ($this->activeRules as $rule) {
-            $sp = mb_strtolower(trim((string) ($rule['sender_pattern'] ?? '')));
-            $tp = mb_strtolower(trim((string) ($rule['subject_pattern'] ?? '')));
-            if ($sp === '' && $tp === '') {
-                continue;
+        if ($sp !== '') {
+            $senderOk = $sp[0] === '@'
+                ? str_ends_with($email, $sp)                 // domain match
+                : ($email !== '' && str_contains($email, $sp));
+            if (! $senderOk) {
+                return false;
             }
-
-            if ($sp !== '') {
-                $senderOk = $sp[0] === '@'
-                    ? str_ends_with($email, $sp)                 // domain match
-                    : ($email !== '' && str_contains($email, $sp));
-                if (! $senderOk) {
-                    continue;
-                }
-            }
-            if ($tp !== '' && ! str_contains($subj, $tp)) {
-                continue;
-            }
-
-            return $rule;
+        }
+        if ($tp !== '' && ! str_contains($subj, $tp)) {
+            return false;
         }
 
-        return null;
+        return true;
+    }
+
+    /**
+     * Retroactively applies one autoarchivo rule to the main inbox: every
+     * conversation that is not yet taken (no agent) and not yet processed (not
+     * cerrada/autoarchivo/autogenerado) and matches the rule is moved to the
+     * "autoarchivo" bucket, tagged with the rule and audited. Lets an admin clear
+     * the backlog for a rule created after the fact. Returns the count moved.
+     */
+    public function applyRuleToInbox(int $ruleId, int $userId): ServiceResult
+    {
+        $rule = $this->rules->find($ruleId);
+        if ($rule === null) {
+            return ServiceResult::fail('La regla no existe. Guarda la regla antes de aplicarla.');
+        }
+        if (trim((string) ($rule['sender_pattern'] ?? '')) === '' && trim((string) ($rule['subject_pattern'] ?? '')) === '') {
+            return ServiceResult::fail('La regla no tiene patrones; no se puede aplicar.');
+        }
+
+        // Candidates = the unassigned main-inbox set (not taken, not processed).
+        $candidates = $this->conversations
+            ->where('agent_id', null)
+            ->whereNotIn('status', ['cerrada', 'autoarchivo', 'autogenerado'])
+            ->findAll();
+
+        $moved = 0;
+        foreach ($candidates as $c) {
+            if (! $this->ruleMatches($rule, (string) ($c['requester_email'] ?? ''), (string) ($c['subject'] ?? ''))) {
+                continue;
+            }
+            $from = (string) $c['status'];
+            $this->conversations->update((int) $c['id'], [
+                'status'       => 'autoarchivo',
+                'auto_rule_id' => (int) $rule['id'],
+            ]);
+            $this->events->log((int) $c['id'], 'autoclose', $userId, $from, 'autoarchivo', 'Regla aplicada a la bandeja: ' . $rule['name']);
+            $moved++;
+        }
+
+        return ServiceResult::ok(
+            ['moved' => $moved],
+            $moved === 0
+                ? 'Ninguna conversación sin asignar de la bandeja coincidió con la regla.'
+                : "Se archivaron {$moved} conversación(es) con la regla «{$rule['name']}»."
+        );
     }
 
     /** Closes a conversation; requires a disposition (and folio when demanded). */

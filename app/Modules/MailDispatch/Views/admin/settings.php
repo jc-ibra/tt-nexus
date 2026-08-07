@@ -391,6 +391,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <strong>Verificar</strong> (queda registrado quién) o <strong>Mover a la bandeja</strong> para el flujo normal.
           El <em>remitente</em> se compara contra el correo real (usa <code>@dominio.com</code> para todo un dominio);
           el <em>asunto</em> por coincidencia parcial. Deja un patrón vacío para no filtrar por él (pero al menos uno es obligatorio).
+          <br><strong>Aplicar a la bandeja</strong> archiva de una vez las conversaciones sin asignar de la bandeja que coincidan con la regla <em>ya guardada</em> (guarda primero si la editaste).
         </p>
         <table class="table" style="width:100%;" id="md-rules-table">
           <thead><tr>
@@ -398,6 +399,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
             <th>Remitente contiene / @dominio</th>
             <th>Asunto contiene</th>
             <th style="text-align:center;">Activa</th>
+            <th style="text-align:center;">Acción</th>
           </tr></thead>
           <tbody>
             <?php foreach (($rules ?? []) as $i => $r): ?>
@@ -409,6 +411,13 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
                 <td><input type="text" name="rule[<?= $i ?>][sender_pattern]" class="input" value="<?= esc($r['sender_pattern'], 'attr') ?>" placeholder="notificaciones@ o @dominio.com" autocomplete="off" spellcheck="false"></td>
                 <td><input type="text" name="rule[<?= $i ?>][subject_pattern]" class="input" value="<?= esc($r['subject_pattern'], 'attr') ?>" placeholder="Reporte Diario de Backlog" autocomplete="off" spellcheck="false"></td>
                 <td style="text-align:center;"><input type="checkbox" name="rule[<?= $i ?>][is_active]" value="1" <?= (int) $r['is_active'] === 1 ? 'checked' : '' ?>></td>
+                <td style="text-align:center;">
+                  <button type="submit" class="btn btn-secondary" style="padding:var(--space-1) var(--space-3); white-space:nowrap;"
+                          formaction="<?= route_to('dispatch.rules.apply', (int) $r['id']) ?>" formmethod="post"
+                          onclick="return confirm('Aplicar la regla GUARDADA «<?= esc($r['name'], 'attr') ?>» a la bandeja: se archivarán las conversaciones sin asignar que coincidan. Si editaste la regla, guárdala primero. ¿Continuar?');">
+                    Aplicar
+                  </button>
+                </td>
               </tr>
             <?php endforeach; ?>
             <!-- fila vacía para agregar una regla -->
@@ -418,6 +427,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
               <td><input type="text" name="rule[<?= $n ?>][sender_pattern]" class="input" placeholder="notificaciones@ o @dominio.com" autocomplete="off" spellcheck="false"></td>
               <td><input type="text" name="rule[<?= $n ?>][subject_pattern]" class="input" placeholder="texto del asunto" autocomplete="off" spellcheck="false"></td>
               <td style="text-align:center;"><input type="checkbox" name="rule[<?= $n ?>][is_active]" value="1" checked></td>
+              <td style="text-align:center;" class="text-muted text-sm">Guarda primero</td>
             </tr>
           </tbody>
         </table>

@@ -187,6 +187,18 @@ class MailDispatchAdmin extends BaseController
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 
+    /**
+     * Retroactively applies one saved autoarchivo rule to the unassigned main
+     * inbox (archives matching, not-yet-taken conversations). Uses the stored
+     * rule, not any unsaved edits in the form.
+     */
+    public function applyRule(int $id): ResponseInterface
+    {
+        $result = service('mailDispatchConversations')->applyRuleToInbox($id, (int) session()->get('user_id'));
+        return redirect()->to(route_to('dispatch.settings') . '#reglas')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
     public function saveAutogen(): ResponseInterface
     {
         $result = service('mailDispatchSettings')->saveAutogen($this->request->getPost());
