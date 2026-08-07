@@ -70,7 +70,7 @@ class ImapSyncService
             $pages++;
             $log("Página {$pages} (cursor: " . ($cursor ?: 'inicio') . ')');
 
-            $page = $imap->fetchPage($cursor ?: null, $this->settings->pageSize(), $full && $pages === 1);
+            $page = $imap->fetchPage($cursor ?: null, $this->settings->pageSize(), $full && $pages === 1, $this->settings->syncSince());
             if (! $page['success']) {
                 $totals['errors']++;
                 $errorMessage = (string) $page['error'];

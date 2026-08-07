@@ -191,6 +191,29 @@ class DispatchApiController extends BaseApiController
         return $this->success((new AgentModel())->activeAgents());
     }
 
+    /**
+     * Danger zone: purge operational data (the Nexus inbox), never config nor the
+     * real mailbox. SuperAdmin only (enforced by the route filter). Requires
+     * `confirm` = the exact mailbox address. `mode`: 'all' (default) wipes and
+     * resets the cursor; 'before' prunes conversations older than `before_date`.
+     */
+    public function purge(): ResponseInterface
+    {
+        $mailbox = service('mailDispatchSettings')->mailbox();
+        $confirm = trim((string) ($this->request->getVar('confirm') ?? ''));
+        if ($mailbox === '' || strcasecmp($confirm, $mailbox) !== 0) {
+            return $this->error('Confirmación incorrecta: envía `confirm` con la dirección exacta del buzón.', ResponseInterface::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $maintenance = service('mailDispatchMaintenance');
+        $mode        = (string) ($this->request->getVar('mode') ?? 'all') === 'before' ? 'before' : 'all';
+        $result      = $mode === 'before'
+            ? $maintenance->purgeBefore((string) ($this->request->getVar('before_date') ?? ''))
+            : $maintenance->purgeAll();
+
+        return $this->fromResult($result);
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------

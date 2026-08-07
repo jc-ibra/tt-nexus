@@ -78,9 +78,12 @@ class GraphMailService
 
     /**
      * Builds the initial delta URL over a well-known folder ('inbox' or
-     * 'sentitems') with the fields we persist.
+     * 'sentitems') with the fields we persist. When $sinceUtcIso is a non-empty
+     * UTC instant, a receivedDateTime filter bounds the delta cycle to messages
+     * at/after the cutoff (Graph carries the filter through the whole cycle), so a
+     * huge mailbox is not walked from the beginning of time.
      */
-    public function initialDeltaUrl(string $folder, int $pageSize): string
+    public function initialDeltaUrl(string $folder, int $pageSize, string $sinceUtcIso = ''): string
     {
         $select = implode(',', [
             'id', 'conversationId', 'internetMessageId', 'subject', 'from', 'sender',
@@ -88,11 +91,17 @@ class GraphMailService
             'hasAttachments', 'internetMessageHeaders', 'isDraft',
         ]);
 
-        return $this->config->graphBase
+        $url = $this->config->graphBase
             . '/users/' . rawurlencode($this->mailbox)
             . '/mailFolders/' . rawurlencode($folder) . '/messages/delta'
             . '?$select=' . rawurlencode($select)
             . '&$top=' . $pageSize;
+
+        if ($sinceUtcIso !== '') {
+            $url .= '&$filter=' . rawurlencode('receivedDateTime ge ' . $sinceUtcIso);
+        }
+
+        return $url;
     }
 
     /**

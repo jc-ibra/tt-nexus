@@ -3764,6 +3764,40 @@
               ]
             }
           }
+        },
+        {
+          "name": "Purge operational data (danger zone, SuperAdmin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": \"mesadeayuda@dominio.com\",\n  \"mode\": \"all\",\n  \"before_date\": \"2026-01-01 00:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dispatch/purge",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dispatch",
+                "purge"
+              ]
+            },
+            "description": "Elimina la data operativa de la bandeja en Nexus (conversaciones, mensajes, adjuntos, historial). NUNCA toca la configuración ni el buzón real. `confirm` debe ser la dirección exacta del buzón. `mode`: 'all' (borra todo y reinicia el cursor) o 'before' (poda conversaciones sin actividad desde `before_date`, no toca el cursor)."
+          }
         }
       ]
     },

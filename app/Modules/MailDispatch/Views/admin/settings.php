@@ -47,6 +47,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Reglas de autoarchivo</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-autogestion" data-hash="autogestion">Autogestión</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado de sincronización</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-peligro" data-hash="peligro">Zona de peligro</button>
 </div>
 
 <!-- ============================= Conexión ============================= -->
@@ -162,6 +163,16 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <div class="field" style="margin-bottom:var(--space-3);">
           <label class="field-label" for="sync_page_size">Tamaño de página</label>
           <input type="number" id="sync_page_size" name="sync_page_size" class="input" min="1" max="999" value="<?= $val('sync_page_size', '50') ?>">
+        </div>
+        <div class="field" style="margin-bottom:var(--space-3);">
+          <?php
+            $syncSinceRaw = trim((string) ($s['sync_since'] ?? ''));
+            $syncSinceVal = $syncSinceRaw !== '' && ($ts = strtotime($syncSinceRaw)) !== false ? date('Y-m-d\TH:i', $ts) : '';
+          ?>
+          <label class="field-label" for="sync_since">Importar correos desde</label>
+          <input type="datetime-local" id="sync_since" name="sync_since" class="input" value="<?= esc($syncSinceVal) ?>">
+          <p class="field-help">Solo se importarán los correos recibidos <strong>a partir de</strong> esta fecha y hora. Déjalo vacío para importar todo el buzón. Útil cuando el buzón es muy grande y no quieres traer el histórico completo.<br>
+          <strong>Nota:</strong> el corte aplica en la primera sincronización (o en una resincronización completa). Si cambias la fecha con la bandeja ya poblada, corre <code>php spark maildispatch:sync-mailbox --full</code> o usa la <em>Zona de peligro</em> para reiniciar y volver a importar desde el corte.</p>
         </div>
         <label class="field-check" style="margin-bottom:var(--space-3);">
           <input type="checkbox" name="sync_enabled" value="1" <?= $bool('sync_enabled') ? 'checked' : '' ?>>
@@ -565,6 +576,65 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <p class="md-hint" style="margin-top:var(--space-4);">La sincronización corre por cron: <code>php spark maildispatch:sync-mailbox</code> (cada 1–2 minutos sugerido).</p>
 </div>
 
+<!-- ============================= Zona de peligro ============================= -->
+<div id="md-peligro" class="md-panel" role="tabpanel">
+  <?php $mailboxAddr = trim((string) ($s['mailbox_address'] ?? '')); ?>
+
+  <div class="banner banner-critical" role="alert" style="margin-bottom:var(--space-4); max-width:820px;">
+    <div class="banner-body">
+      <strong>Estas acciones eliminan datos de forma permanente.</strong> Solo borran la <strong>bandeja que ves en Nexus</strong> (conversaciones, mensajes, adjuntos, historial). <strong>No</strong> se toca la configuración (conexión, agentes, disposiciones, reglas, plantillas, firmas) ni el <strong>correo real</strong> en el buzón: la sincronización solo lo lee.
+    </div>
+  </div>
+
+  <?php if ($mailboxAddr === ''): ?>
+    <div class="card" style="max-width:820px; border:1px solid var(--border-critical, #d72c0d);">
+      <div class="card-body">
+        <p class="text-muted">Configura primero la dirección del buzón para habilitar estas acciones.</p>
+      </div>
+    </div>
+  <?php else: ?>
+
+    <!-- Borrar todo -->
+    <div class="card" style="max-width:820px; margin-bottom:var(--space-4); border:1px solid var(--border-critical, #d72c0d);">
+      <div class="card-header"><h2 class="card-title" style="color:var(--text-critical, #d72c0d);">Limpiar toda la bandeja</h2></div>
+      <div class="card-body">
+        <p style="margin-bottom:var(--space-3);">Elimina <strong>todas</strong> las conversaciones y sus datos, y <strong>reinicia el cursor de sincronización</strong>. La próxima corrida volverá a importar desde la fecha de corte configurada («Importar correos desde»).</p>
+        <form method="post" action="<?= route_to('dispatch.purge') ?>" class="md-purge-form" data-mailbox="<?= esc($mailboxAddr, 'attr') ?>">
+          <?= csrf_field() ?>
+          <input type="hidden" name="mode" value="all">
+          <div class="field" style="margin-bottom:var(--space-3);">
+            <label class="field-label" for="confirm_all">Escribe <code><?= esc($mailboxAddr) ?></code> para confirmar</label>
+            <input type="text" id="confirm_all" name="confirm" class="input md-purge-confirm" autocomplete="off" spellcheck="false" placeholder="<?= esc($mailboxAddr, 'attr') ?>">
+          </div>
+          <button type="submit" class="btn btn-critical md-purge-btn" disabled>Limpiar toda la bandeja</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Borrar anteriores a una fecha -->
+    <div class="card" style="max-width:820px; border:1px solid var(--border-critical, #d72c0d);">
+      <div class="card-header"><h2 class="card-title">Podar conversaciones antiguas</h2></div>
+      <div class="card-body">
+        <p style="margin-bottom:var(--space-3);">Elimina solo las conversaciones <strong>sin actividad</strong> desde la fecha indicada. Conserva los hilos recientes y <strong>no</strong> reinicia el cursor de sincronización.</p>
+        <form method="post" action="<?= route_to('dispatch.purge') ?>" class="md-purge-form" data-mailbox="<?= esc($mailboxAddr, 'attr') ?>">
+          <?= csrf_field() ?>
+          <input type="hidden" name="mode" value="before">
+          <div class="field" style="margin-bottom:var(--space-3);">
+            <label class="field-label" for="before_date">Eliminar conversaciones anteriores a</label>
+            <input type="datetime-local" id="before_date" name="before_date" class="input" required>
+          </div>
+          <div class="field" style="margin-bottom:var(--space-3);">
+            <label class="field-label" for="confirm_before">Escribe <code><?= esc($mailboxAddr) ?></code> para confirmar</label>
+            <input type="text" id="confirm_before" name="confirm" class="input md-purge-confirm" autocomplete="off" spellcheck="false" placeholder="<?= esc($mailboxAddr, 'attr') ?>">
+          </div>
+          <button type="submit" class="btn btn-critical md-purge-btn" disabled>Podar conversaciones antiguas</button>
+        </form>
+      </div>
+    </div>
+
+  <?php endif; ?>
+</div>
+
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -619,6 +689,25 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
       .finally(function () { btn.disabled = false; btn.textContent = 'Probar conexión'; });
     });
   }
+
+  // Danger zone: enable each purge button only when the typed confirmation
+  // matches the mailbox (case-insensitive), and ask once more on submit.
+  Array.prototype.slice.call(document.querySelectorAll('.md-purge-form')).forEach(function (form) {
+    var mailbox = (form.dataset.mailbox || '').trim().toLowerCase();
+    var input   = form.querySelector('.md-purge-confirm');
+    var submit  = form.querySelector('.md-purge-btn');
+    if (!input || !submit) { return; }
+    function sync() {
+      submit.disabled = input.value.trim().toLowerCase() !== mailbox || mailbox === '';
+    }
+    input.addEventListener('input', sync);
+    sync();
+    form.addEventListener('submit', function (e) {
+      if (submit.disabled || !window.confirm('Esta acción elimina datos de la bandeja de forma permanente y no se puede deshacer. ¿Continuar?')) {
+        e.preventDefault();
+      }
+    });
+  });
 })();
 </script>
 <?= $this->endSection() ?>

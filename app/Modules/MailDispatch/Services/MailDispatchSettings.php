@@ -130,6 +130,49 @@ class MailDispatchSettings
         return $n > 0 ? min($n, 999) : 50;
     }
 
+    /**
+     * Import cutoff (app timezone), 'Y-m-d H:i:s', or '' when no cutoff is set.
+     * Only the initial/--full pull is bounded by this; once the delta/UID cursor
+     * has advanced it simply moves forward. Change it and re-run --full (or purge
+     * the operational data) to reapply.
+     */
+    public function syncSince(): string
+    {
+        $raw = trim($this->model->get('sync_since', ''));
+        if ($raw === '') {
+            return '';
+        }
+        $ts = strtotime($raw);
+        return $ts !== false ? date('Y-m-d H:i:s', $ts) : '';
+    }
+
+    /** The cutoff as a UTC ISO-8601 instant for Graph's $filter, or '' if unset. */
+    public function syncSinceUtcIso(): string
+    {
+        $local = $this->syncSince();
+        if ($local === '') {
+            return '';
+        }
+        try {
+            $dt = new \DateTime($local, new \DateTimeZone(app_timezone()));
+            $dt->setTimezone(new \DateTimeZone('UTC'));
+            return $dt->format('Y-m-d\TH:i:s\Z');
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    /** The cutoff as a Unix timestamp, or null when no cutoff is set. */
+    public function syncSinceTimestamp(): ?int
+    {
+        $local = $this->syncSince();
+        if ($local === '') {
+            return null;
+        }
+        $ts = strtotime($local);
+        return $ts !== false ? $ts : null;
+    }
+
     public function slaUnassignedMinutes(): int
     {
         return max(0, (int) $this->model->get('sla_unassigned_minutes', '30'));
@@ -227,6 +270,7 @@ class MailDispatchSettings
             'mailbox_address'             => $mailbox,
             'sync_enabled'                => isset($post['sync_enabled']) ? '1' : '0',
             'sync_page_size'              => (string) max(1, (int) ($post['sync_page_size'] ?? 50)),
+            'sync_since'                  => $this->normalizeDateTime((string) ($post['sync_since'] ?? '')),
             'sla_unassigned_minutes'      => (string) max(0, (int) ($post['sla_unassigned_minutes'] ?? 30)),
             'sla_first_response_minutes'  => (string) max(0, (int) ($post['sla_first_response_minutes'] ?? 120)),
             'send_from_nexus_enabled'     => isset($post['send_from_nexus_enabled']) ? '1' : '0',
@@ -264,6 +308,17 @@ class MailDispatchSettings
         $this->model->setMany($data);
 
         return ServiceResult::ok(null, 'Configuración de Despacho guardada.');
+    }
+
+    /** Normalizes a form datetime (e.g. 'Y-m-dTH:i') to 'Y-m-d H:i:s'; '' if blank/invalid. */
+    private function normalizeDateTime(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        $ts = strtotime($value);
+        return $ts !== false ? date('Y-m-d H:i:s', $ts) : '';
     }
 
     /** Clamps an encryption choice to the allowed set. */

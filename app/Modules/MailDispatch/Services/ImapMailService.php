@@ -82,8 +82,14 @@ class ImapMailService
      *
      * The returned cursor advances only over the messages included in this page;
      * if more remain, the next run continues from it (bounded, resumable).
+     *
+     * On the initial pull (no prior UID cursor) a non-empty $sinceDate applies a
+     * server-side IMAP SINCE search, so a huge mailbox is not walked from UID 1.
+     * SINCE granularity is a whole day; the exact time-of-day cutoff is enforced
+     * by the defensive skip at ingestion. Later pages advance by UID only (they
+     * are already past the cutoff), so the filter is not re-applied.
      */
-    public function fetchPage(?string $cursor, int $pageSize, bool $full): array
+    public function fetchPage(?string $cursor, int $pageSize, bool $full, string $sinceDate = ''): array
     {
         try {
             $client = $this->connect();
@@ -104,15 +110,22 @@ class ImapMailService
             // Server-side UID range search bounded to pageSize: only these bodies
             // are fetched. Note the IMAP quirk that "n:*" also returns the highest
             // message when n > max UID, so we defensively drop anything < $next.
-            $next       = $lastUid + 1;
-            $collection = $folder->query()
+            $next  = $lastUid + 1;
+            $query = $folder->query()
                 ->whereUid($next . ':*')
                 ->leaveUnread()          // never touch the \Seen flag on a shared box
                 ->setFetchBody(true)
                 ->setFetchFlags(false)
                 ->setFetchOrderAsc()
-                ->limit(max(1, $pageSize))
-                ->get();
+                ->limit(max(1, $pageSize));
+
+            // Bound the very first pull by date so a large mailbox is not walked
+            // from UID 1. Once we have a UID cursor, whereUid alone keeps us ahead.
+            if ($lastUid === 0 && $sinceDate !== '') {
+                $query->whereSince($sinceDate);
+            }
+
+            $collection = $query->get();
 
             $items = [];
             foreach ($collection as $msg) {

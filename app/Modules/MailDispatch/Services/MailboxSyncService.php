@@ -103,7 +103,9 @@ class MailboxSyncService
     {
         $stateRow = $this->state->forMailbox($mailbox, $folder);
         $delta    = (string) ($stateRow['delta_link'] ?? '');
-        $url      = ($full || $delta === '') ? $graph->initialDeltaUrl($folder, $this->settings->pageSize()) : $delta;
+        $url      = ($full || $delta === '')
+            ? $graph->initialDeltaUrl($folder, $this->settings->pageSize(), $this->settings->syncSinceUtcIso())
+            : $delta;
 
         $folderProcessed = 0;
         $folderErrors    = 0;

@@ -200,4 +200,33 @@ class MailDispatchAdmin extends BaseController
         return redirect()->to(route_to('dispatch.settings') . '#autogestion')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
+
+    /**
+     * Danger zone: purge the operational data (the Nexus inbox), never the real
+     * mailbox nor any configuration. Requires typing the exact mailbox address as
+     * a confirmation. mode=all wipes everything and resets the sync cursor;
+     * mode=before prunes only conversations older than the given date.
+     */
+    public function purge(): ResponseInterface
+    {
+        $settings = service('mailDispatchSettings');
+        $mailbox  = $settings->mailbox();
+        $confirm  = trim((string) $this->request->getPost('confirm'));
+        $mode     = (string) $this->request->getPost('mode') === 'before' ? 'before' : 'all';
+
+        $redirect = redirect()->to(route_to('dispatch.settings') . '#peligro');
+
+        if ($mailbox === '' || strcasecmp($confirm, $mailbox) !== 0) {
+            return $redirect->with('error', 'Confirmación incorrecta: escribe la dirección exacta del buzón para limpiar la bandeja.');
+        }
+
+        $maintenance = service('mailDispatchMaintenance');
+        if ($mode === 'before') {
+            $result = $maintenance->purgeBefore((string) $this->request->getPost('before_date'));
+        } else {
+            $result = $maintenance->purgeAll();
+        }
+
+        return $redirect->with($result->success ? 'success' : 'error', $result->message);
+    }
 }

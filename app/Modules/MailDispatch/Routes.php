@@ -78,6 +78,8 @@ $routes->group('admin/dispatch', [
     // Autogestión: settings globales + editor de reglas de auto-creación.
     $routes->post('autogen',          'MailDispatchAdmin::saveAutogen',      ['as' => 'dispatch.autogen.save']);
     $routes->post('autogen-rules',    'MailDispatchAdmin::saveAutogenRules', ['as' => 'dispatch.autogenrules.save']);
+    // Danger zone: purge operational data (never config, never the real mailbox).
+    $routes->post('purge',            'MailDispatchAdmin::purge',            ['as' => 'dispatch.purge']);
 });
 
 // -----------------------------------------------------------------------
@@ -107,4 +109,15 @@ $routes->group('api/v1/dispatch', [
     $routes->get('metrics',     'DispatchApiController::metrics');
     $routes->get('dispositions', 'DispatchApiController::dispositions');
     $routes->get('agents',      'DispatchApiController::agents');
+});
+
+// -----------------------------------------------------------------------
+// API v1 MailDispatch administration — SuperAdmin only (mirror of admin web)
+// -----------------------------------------------------------------------
+$routes->group('api/v1/admin/dispatch', [
+    'namespace' => 'App\Modules\MailDispatch\Controllers\Api',
+    'filter'    => ['api_auth', 'super_admin'],
+], function (RouteCollection $routes): void {
+    // Danger zone: purge operational data (never config, never the real mailbox).
+    $routes->post('purge', 'DispatchApiController::purge');
 });

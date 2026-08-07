@@ -62,6 +62,16 @@ class ConversationService
         if (! empty($m['isDraft'])) {
             return 'skipped';
         }
+        // Import cutoff: drop anything older than sync_since. The provider filters
+        // already bound the pull server-side; this enforces the exact time-of-day
+        // (IMAP SINCE is day-granular) and guards providers that ignore the filter.
+        $cutoff = $this->settings->syncSinceTimestamp();
+        if ($cutoff !== null) {
+            $received = strtotime((string) ($m['receivedDateTime'] ?? ''));
+            if ($received !== false && $received < $cutoff) {
+                return 'skipped';
+            }
+        }
         // Dedupe by RFC Message-ID: the same mail can reappear under a different
         // backend id (e.g. an SMTP reply whose forwarded copy re-syncs via IMAP).
         $internetMessageId = trim((string) ($m['internetMessageId'] ?? ''));

@@ -100,6 +100,7 @@ use App\Modules\MailDispatch\Services\GraphMailService;
 use App\Modules\MailDispatch\Services\ImapMailService;
 use App\Modules\MailDispatch\Services\ImapSyncService;
 use App\Modules\MailDispatch\Services\MailboxSyncService;
+use App\Modules\MailDispatch\Services\MaintenanceService as MailDispatchMaintenanceService;
 use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
@@ -581,6 +582,15 @@ class Services extends BaseService
             new MailDispatchSyncStateModel(),
             new MailDispatchSyncRunModel(),
         );
+    }
+
+    /** Danger-zone maintenance (purge of operational data). */
+    public static function mailDispatchMaintenance(bool $getShared = true): MailDispatchMaintenanceService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchMaintenance');
+        }
+        return new MailDispatchMaintenanceService();
     }
 
     public static function mailDispatchMetrics(bool $getShared = true): MailDispatchMetrics
