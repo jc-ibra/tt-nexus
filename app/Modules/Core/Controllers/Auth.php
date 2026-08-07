@@ -39,6 +39,16 @@ class Auth extends BaseController
             return redirect()->back()->withInput()->with('errors', [$result->message]);
         }
 
+        // Bypass de MFA solo para desarrollo local. Doble candado: exige
+        // ENVIRONMENT === 'development' Y el flag MFA_DEV_BYPASS en .env, de
+        // modo que copiar el flag a un .env de producción no tenga efecto.
+        if (ENVIRONMENT === 'development'
+            && filter_var(env('MFA_DEV_BYPASS'), FILTER_VALIDATE_BOOLEAN)) {
+            session()->set('mfa_verified', true);
+
+            return redirect()->to(route_to('dashboard'));
+        }
+
         return $result->data['mfa_enabled']
             ? redirect()->to(site_url('mfa/verify'))
             : redirect()->to(site_url('mfa/setup'));

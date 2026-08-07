@@ -16,6 +16,10 @@
 
 # CI_ENVIRONMENT = production
 
+# Omitir el MFA/authenticator en login. Solo aplica si CI_ENVIRONMENT es
+# development; nunca tiene efecto en producción. Uso exclusivo para desarrollo local.
+# MFA_DEV_BYPASS = true
+
 #--------------------------------------------------------------------
 # APP
 #--------------------------------------------------------------------
