@@ -23,9 +23,24 @@ use Webklex\PHPIMAP\Message;
  * persisted in maildispatch_sync_state.delta_link. A changed UIDVALIDITY (folder
  * rebuilt on the server) resets the cursor to a full pull, since UIDs are no
  * longer comparable.
+ *
+ * Memory: bodies are fetched one message at a time and streamed to the caller.
+ * webklex keeps the whole raw IMAP response of a FETCH in memory (plus the
+ * parsed copy), so fetching a full page of bodies in a single command made peak
+ * usage proportional to the total size of the page and exhausted PHP's limit on
+ * mailboxes with attachments.
  */
 class ImapMailService
 {
+    /**
+     * Bodies above this size are not downloaded. The message is still ingested
+     * (headers, subject, sender, date) with a placeholder body so it stays
+     * visible in the queue, but its content and attachments are left on the
+     * server: a single ~40 MB message costs several times its size while being
+     * read, decoded and stored, and would exhaust memory on its own.
+     */
+    private const MAX_BODY_BYTES = 20 * 1024 * 1024;
+
     public function __construct(
         private string $host,
         private int $port,
@@ -78,7 +93,13 @@ class ImapMailService
     /**
      * Fetches up to $pageSize new messages after $cursor, normalized to the
      * Graph message shape. Returns:
-     *   ['success'=>bool, 'messages'=>array, 'cursor'=>?string, 'error'=>?string]
+     *   ['success'=>bool, 'messages'=>array, 'count'=>int, 'skipped'=>int,
+     *    'cursor'=>?string, 'error'=>?string]
+     *
+     * Each message is handed to $onMessage as soon as it is normalized and then
+     * released, so only one message body is ever held in memory. Callers that
+     * pass a consumer get an empty 'messages' and must use 'count'; without a
+     * consumer the page is accumulated (kept for ad-hoc/testing use).
      *
      * The returned cursor advances only over the messages included in this page;
      * if more remain, the next run continues from it (bounded, resumable).
@@ -89,8 +110,10 @@ class ImapMailService
      * by the defensive skip at ingestion. Later pages advance by UID only (they
      * are already past the cutoff), so the filter is not re-applied.
      */
-    public function fetchPage(?string $cursor, int $pageSize, bool $full, string $sinceDate = ''): array
+    public function fetchPage(?string $cursor, int $pageSize, bool $full, string $sinceDate = '', ?callable $onMessage = null): array
     {
+        $client = null;
+
         try {
             $client = $this->connect();
             $folder = $client->getFolder($this->folder);
@@ -107,17 +130,11 @@ class ImapMailService
                 $lastUid = 0; // folder rebuilt or forced resync: pull from the start
             }
 
-            // Server-side UID range search bounded to pageSize: only these bodies
-            // are fetched. Note the IMAP quirk that "n:*" also returns the highest
-            // message when n > max UID, so we defensively drop anything < $next.
+            // Server-side UID range search, resolved to UIDs only (no bodies).
+            // Note the IMAP quirk that "n:*" also returns the highest message
+            // when n > max UID, so we defensively drop anything < $next.
             $next  = $lastUid + 1;
-            $query = $folder->query()
-                ->whereUid($next . ':*')
-                ->leaveUnread()          // never touch the \Seen flag on a shared box
-                ->setFetchBody(true)
-                ->setFetchFlags(false)
-                ->setFetchOrderAsc()
-                ->limit(max(1, $pageSize));
+            $query = $folder->query()->whereUid($next . ':*');
 
             // Bound the very first pull by date so a large mailbox is not walked
             // from UID 1. Once we have a UID cursor, whereUid alone keeps us ahead.
@@ -125,21 +142,66 @@ class ImapMailService
                 $query->whereSince($sinceDate);
             }
 
-            $collection = $query->get();
-
-            $items = [];
-            foreach ($collection as $msg) {
-                if ((int) $msg->uid >= $next) {
-                    $items[] = $msg;
+            $uids = [];
+            foreach ($query->search() as $uid) {
+                $uid = (int) $uid;
+                if ($uid >= $next) {
+                    $uids[$uid] = $uid;
                 }
             }
-            usort($items, static fn(Message $a, Message $b) => (int) $a->uid <=> (int) $b->uid);
+            $uids = array_values($uids);
+            sort($uids);
+            $uids = array_slice($uids, 0, max(1, $pageSize));
+
+            $sizes = $this->fetchSizes($client, $uids);
 
             $messages = [];
+            $count    = 0;
+            $skipped  = 0;
             $maxUid   = $lastUid;
-            foreach ($items as $msg) {
-                $uid        = (int) $msg->uid;
-                $messages[] = $this->normalize($msg, $uidValidity, $uid);
+
+            foreach ($uids as $uid) {
+                $size    = (int) ($sizes[$uid] ?? 0);
+                $oversize = $size > self::MAX_BODY_BYTES;
+
+                try {
+                    // One message per FETCH: webklex holds the entire raw
+                    // response of a command in memory, so a whole page of
+                    // bodies at once is what blew the memory limit.
+                    $msg = $folder->query()
+                        ->leaveUnread()             // never touch \Seen on a shared box
+                        ->setFetchBody(! $oversize)
+                        ->setFetchFlags(false)
+                        ->getMessageByUid($uid);
+
+                    $normalized = $this->normalize($msg, $uidValidity, $uid, $oversize ? $size : 0);
+                    unset($msg);
+                } catch (\Throwable $e) {
+                    // A single unreadable message must not stall the cursor
+                    // forever; report it and move past.
+                    $skipped++;
+                    $maxUid = max($maxUid, $uid);
+                    log_message('error', "[ImapMailService] UID {$uid} omitido: " . $e->getMessage());
+                    continue;
+                }
+
+                if ($oversize) {
+                    $skipped++;
+                    log_message('warning', sprintf('[ImapMailService] UID %d sin cuerpo: %d bytes exceden el máximo.', $uid, $size));
+                }
+
+                if ($onMessage !== null) {
+                    $onMessage($normalized);
+                } else {
+                    $messages[] = $normalized;
+                }
+                $count++;
+                unset($normalized);
+
+                // webklex messages and attachments reference each other, so
+                // refcounting alone will not reclaim them between iterations.
+                gc_collect_cycles();
+
                 if ($uid > $maxUid) {
                     $maxUid = $uid;
                 }
@@ -150,12 +212,43 @@ class ImapMailService
             return [
                 'success'  => true,
                 'messages' => $messages,
+                'count'    => $count,
+                'skipped'  => $skipped,
                 'cursor'   => "UIDVALIDITY:{$uidValidity};UID:{$maxUid}",
                 'error'    => null,
             ];
         } catch (\Throwable $e) {
+            if ($client !== null) {
+                try {
+                    $client->disconnect();
+                } catch (\Throwable) {
+                    // connection already gone; nothing to release
+                }
+            }
             log_message('error', '[ImapMailService] fetchPage: ' . $e->getMessage());
             return $this->fail('Error al leer por IMAP: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * RFC822.SIZE for a batch of UIDs, used to decide which bodies are too big
+     * to download. Cheap (one small response) and non-fatal: if the server
+     * refuses it, every message is treated as normally sized.
+     *
+     * @return array<int,int> uid => size in bytes
+     */
+    private function fetchSizes($client, array $uids): array
+    {
+        if ($uids === []) {
+            return [];
+        }
+
+        try {
+            $sizes = $client->getConnection()->sizes($uids)->validatedData();
+            return is_array($sizes) ? $sizes : [];
+        } catch (\Throwable $e) {
+            log_message('warning', '[ImapMailService] sizes failed: ' . $e->getMessage());
+            return [];
         }
     }
 
@@ -185,8 +278,12 @@ class ImapMailService
      * Normalizes a webklex Message into the Graph-shaped array that
      * ConversationService::extract() consumes. Message-ids carry angle brackets
      * to match how the Graph path stores/compares internetMessageId.
+     *
+     * $oversizeBytes > 0 means the body was deliberately not downloaded: the
+     * message is still threaded and listed, with a placeholder body explaining
+     * that it has to be opened in the mailbox itself.
      */
-    private function normalize(Message $msg, int $uidValidity, int $uid): array
+    private function normalize(Message $msg, int $uidValidity, int $uid, int $oversizeBytes = 0): array
     {
         $fromAttr  = $msg->from;
         $from      = $fromAttr ? $fromAttr->first() : null;
@@ -223,8 +320,16 @@ class ImapMailService
             $headers[] = ['name' => 'References', 'value' => implode(' ', array_map([$this, 'wrapId'], $references))];
         }
 
-        $isHtml = $msg->hasHTMLBody();
-        $body   = $isHtml ? (string) $msg->getHTMLBody() : (string) $msg->getTextBody();
+        if ($oversizeBytes > 0) {
+            $isHtml = false;
+            $body   = sprintf(
+                'Mensaje demasiado grande para importarse (%s MB). Ábrelo directamente en el buzón para ver su contenido y adjuntos.',
+                number_format($oversizeBytes / 1048576, 1)
+            );
+        } else {
+            $isHtml = $msg->hasHTMLBody();
+            $body   = $isHtml ? (string) $msg->getHTMLBody() : (string) $msg->getTextBody();
+        }
 
         // Plain-text preview: strip tags, decode HTML entities and collapse
         // whitespace so no raw "&nbsp;"/"&lt;" leaks into the UI.
@@ -242,7 +347,7 @@ class ImapMailService
             }
         }
 
-        $attachments = $this->extractAttachments($msg);
+        $attachments = $oversizeBytes > 0 ? [] : $this->extractAttachments($msg);
 
         return [
             'id'                     => 'imap:' . $uidValidity . ':' . $uid,
@@ -353,6 +458,6 @@ class ImapMailService
 
     private function fail(string $message): array
     {
-        return ['success' => false, 'messages' => [], 'cursor' => null, 'error' => $message];
+        return ['success' => false, 'messages' => [], 'count' => 0, 'skipped' => 0, 'cursor' => null, 'error' => $message];
     }
 }

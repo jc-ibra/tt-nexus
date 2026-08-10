@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\MailDispatch\Commands;
 
+use App\Modules\Core\Services\RunLock;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 
@@ -27,33 +28,38 @@ class SyncMailbox extends BaseCommand
         '--debug' => 'Muestra el progreso por carpeta.',
     ];
 
+    /** A sync running longer than this is assumed dead and its lock reclaimed. */
+    private const LOCK_STALE_SECONDS = 1800;
+
     public function run(array $params): void
     {
         $full  = array_key_exists('full', $params) || CLI::getOption('full');
         $debug = array_key_exists('debug', $params) || CLI::getOption('debug');
 
-        $lock = sys_get_temp_dir() . '/maildispatch_sync.lock';
-        if (is_file($lock)) {
+        $lock = RunLock::acquire('maildispatch_sync', self::LOCK_STALE_SECONDS);
+        if ($lock === null) {
             CLI::write('Ya hay una sincronización en curso (lock presente). Saliendo.', 'yellow');
             return;
         }
-        file_put_contents($lock, (string) getmypid());
-        register_shutdown_function(static fn() => @unlink($lock));
 
-        $log = $debug
-            ? static fn(string $s) => CLI::write('  ' . $s, 'dark_gray')
-            : static fn(string $s) => null;
+        try {
+            $log = $debug
+                ? static fn(string $s) => CLI::write('  ' . $s, 'dark_gray')
+                : static fn(string $s) => null;
 
-        $provider = service('mailDispatchSettings')->provider();
-        CLI::write(sprintf('[%s] Iniciando sincronización%s (%s)…', date('H:i:s'), $full ? ' completa' : '', $provider), 'cyan');
+            $provider = service('mailDispatchSettings')->provider();
+            CLI::write(sprintf('[%s] Iniciando sincronización%s (%s)…', date('H:i:s'), $full ? ' completa' : '', $provider), 'cyan');
 
-        $syncService = $provider === 'imap' ? 'imapSyncService' : 'mailboxSyncService';
-        $result = service($syncService)->sync('cron', $full, $log);
+            $syncService = $provider === 'imap' ? 'imapSyncService' : 'mailboxSyncService';
+            $result = service($syncService)->sync('cron', $full, $log);
 
-        if ($result->success) {
-            CLI::write('[' . date('H:i:s') . '] ' . $result->message, 'green');
-        } else {
-            CLI::write('[' . date('H:i:s') . '] ' . $result->message, 'red');
+            if ($result->success) {
+                CLI::write('[' . date('H:i:s') . '] ' . $result->message, 'green');
+            } else {
+                CLI::write('[' . date('H:i:s') . '] ' . $result->message, 'red');
+            }
+        } finally {
+            $lock->release();
         }
     }
 }

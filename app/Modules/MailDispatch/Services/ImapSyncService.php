@@ -57,7 +57,7 @@ class ImapSyncService
         $imap    = service('imapMailService');
         $started = microtime(true);
 
-        $totals = ['processed' => 0, 'created' => 0, 'updated' => 0, 'errors' => 0];
+        $totals = ['processed' => 0, 'created' => 0, 'updated' => 0, 'errors' => 0, 'skipped' => 0];
 
         $stateRow = $this->state->forMailbox($mailbox, self::STATE_FOLDER);
         $cursor   = $full ? null : (string) ($stateRow['delta_link'] ?? '');
@@ -66,11 +66,28 @@ class ImapSyncService
         $pages        = 0;
         $prevCursor   = $cursor;
 
+        // Each message is ingested and released as it arrives, so a page never
+        // holds more than one message body in memory.
+        $ingest = function (array $m) use (&$totals, $mailbox): void {
+            try {
+                $outcome = $this->conversations->ingest($m, $mailbox, 'inbox');
+                $totals['processed']++;
+                if ($outcome === 'created') {
+                    $totals['created']++;
+                } elseif ($outcome === 'appended') {
+                    $totals['updated']++;
+                }
+            } catch (\Throwable $e) {
+                $totals['errors']++;
+                log_message('error', '[ImapSync] ingest failed: ' . $e->getMessage());
+            }
+        };
+
         while ($pages < self::MAX_PAGES) {
             $pages++;
             $log("Página {$pages} (cursor: " . ($cursor ?: 'inicio') . ')');
 
-            $page = $imap->fetchPage($cursor ?: null, $this->settings->pageSize(), $full && $pages === 1, $this->settings->syncSince());
+            $page = $imap->fetchPage($cursor ?: null, $this->settings->pageSize(), $full && $pages === 1, $this->settings->syncSince(), $ingest);
             if (! $page['success']) {
                 $totals['errors']++;
                 $errorMessage = (string) $page['error'];
@@ -78,21 +95,8 @@ class ImapSyncService
                 break;
             }
 
-            $count = count($page['messages']);
-            foreach ($page['messages'] as $m) {
-                try {
-                    $outcome = $this->conversations->ingest($m, $mailbox, 'inbox');
-                    $totals['processed']++;
-                    if ($outcome === 'created') {
-                        $totals['created']++;
-                    } elseif ($outcome === 'appended') {
-                        $totals['updated']++;
-                    }
-                } catch (\Throwable $e) {
-                    $totals['errors']++;
-                    log_message('error', '[ImapSync] ingest failed: ' . $e->getMessage());
-                }
-            }
+            $count = (int) $page['count'];
+            $totals['skipped'] += (int) ($page['skipped'] ?? 0);
 
             $cursor = (string) ($page['cursor'] ?? '');
 
@@ -118,6 +122,9 @@ class ImapSyncService
             $totals['updated'],
             $totals['errors']
         );
+        if ($totals['skipped'] > 0) {
+            $summary .= sprintf(' %d sin cuerpo (demasiado grandes o ilegibles).', $totals['skipped']);
+        }
         if ($errorMessage !== '') {
             $summary .= ' ' . $errorMessage;
         }

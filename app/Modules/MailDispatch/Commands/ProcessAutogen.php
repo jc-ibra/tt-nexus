@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\MailDispatch\Commands;
 
+use App\Modules\Core\Services\RunLock;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 
@@ -26,6 +27,9 @@ class ProcessAutogen extends BaseCommand
         '--debug' => 'Muestra el progreso por conversación.',
     ];
 
+    /** Una corrida más larga que esto se asume muerta y su lock se recupera. */
+    private const LOCK_STALE_SECONDS = 1800;
+
     public function run(array $params): void
     {
         if (! service('mailDispatchSettings')->autogestionEnabled()) {
@@ -37,27 +41,29 @@ class ProcessAutogen extends BaseCommand
         $batch = $batch > 0 ? min($batch, 200) : 20;
         $debug = array_key_exists('debug', $params) || CLI::getOption('debug');
 
-        $lock = sys_get_temp_dir() . '/maildispatch_autogen.lock';
-        if (is_file($lock)) {
+        $lock = RunLock::acquire('maildispatch_autogen', self::LOCK_STALE_SECONDS);
+        if ($lock === null) {
             CLI::write('Ya hay un procesamiento en curso (lock presente). Saliendo.', 'yellow');
             return;
         }
-        file_put_contents($lock, (string) getmypid());
-        register_shutdown_function(static fn() => @unlink($lock));
 
-        $log = $debug
-            ? static fn(string $s) => CLI::write('  ' . $s, 'dark_gray')
-            : static fn(string $s) => null;
+        try {
+            $log = $debug
+                ? static fn(string $s) => CLI::write('  ' . $s, 'dark_gray')
+                : static fn(string $s) => null;
 
-        CLI::write(sprintf('[%s] Procesando autogestión (batch %d)…', date('H:i:s'), $batch), 'cyan');
-        $stats = service('mailDispatchAutogen')->processPending($batch, $log);
+            CLI::write(sprintf('[%s] Procesando autogestión (batch %d)…', date('H:i:s'), $batch), 'cyan');
+            $stats = service('mailDispatchAutogen')->processPending($batch, $log);
 
-        CLI::write(sprintf(
-            '[%s] Listo: %d procesadas · %d creadas · %d en error.',
-            date('H:i:s'),
-            $stats['processed'],
-            $stats['created'],
-            $stats['failed']
-        ), 'green');
+            CLI::write(sprintf(
+                '[%s] Listo: %d procesadas · %d creadas · %d en error.',
+                date('H:i:s'),
+                $stats['processed'],
+                $stats['created'],
+                $stats['failed']
+            ), 'green');
+        } finally {
+            $lock->release();
+        }
     }
 }
