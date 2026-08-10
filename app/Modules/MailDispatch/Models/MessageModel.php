@@ -24,6 +24,7 @@ class MessageModel extends Model
         'from_name',
         'from_email',
         'to_recipients',
+        'cc_recipients',
         'subject',
         'body_preview',
         'body',

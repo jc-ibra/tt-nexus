@@ -33,11 +33,17 @@ class SmtpReplyService
         private AttachmentService $attachments
     ) {}
 
+    /** Máximo de copias manuales por respuesta, para acotar el volumen SMTP. */
+    private const MAX_CC = 10;
+
     /**
-     * @param array $files UploadedFile[] posted with the reply (already the
-     *                     validated set, or raw — validated here defensively).
+     * @param array  $files UploadedFile[] posted with the reply (already the
+     *                      validated set, or raw — validated here defensively).
+     * @param string $cc    Copias escritas a mano por el agente (separadas por
+     *                      coma o punto y coma). Vacío por defecto: la respuesta
+     *                      va solo al solicitante.
      */
-    public function reply(int $conversationId, string $body, int $userId, array $files = []): ServiceResult
+    public function reply(int $conversationId, string $body, int $userId, array $files = [], string $cc = ''): ServiceResult
     {
         if (! $this->settings->isSendEnabled()) {
             return ServiceResult::fail('La respuesta desde Nexus está deshabilitada o el SMTP no está configurado.');
@@ -59,6 +65,12 @@ class SmtpReplyService
         if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
             return ServiceResult::fail('La conversación no tiene un correo de destinatario válido.');
         }
+
+        $ccRes = $this->parseCc($cc, $to);
+        if (! $ccRes->success) {
+            return $ccRes;
+        }
+        $ccList = (array) $ccRes->data;
 
         // Validate attachments before sending.
         $vres = $this->attachments->validateUploads($files);
@@ -89,7 +101,7 @@ class SmtpReplyService
             $subject = 'Re: ' . $subject;
         }
 
-        $send = $this->send($smtp, $to, $subject, $sendHtml, $messageId, $target, $validFiles);
+        $send = $this->send($smtp, $to, $subject, $sendHtml, $messageId, $target, $validFiles, $ccList);
         if (! $send->success) {
             return $send;
         }
@@ -105,6 +117,7 @@ class SmtpReplyService
             'from_name'           => $smtp['from_name'],
             'from_email'          => $fromEmail,
             'to_recipients'       => $to,
+            'cc_recipients'       => $ccList !== [] ? implode(', ', $ccList) : null,
             'subject'             => $subject,
             'body_preview'        => mb_substr(trim((string) preg_replace('/\s+/', ' ', strip_tags($replyHtml))), 0, 255),
             'body'                => $bodyHtml,
@@ -137,7 +150,7 @@ class SmtpReplyService
      * headers. Returns a ServiceResult; the SMTP debug output is logged, never
      * surfaced verbatim to the agent.
      */
-    private function send(array $smtp, string $to, string $subject, string $html, string $messageId, ?array $target, array $files = []): ServiceResult
+    private function send(array $smtp, string $to, string $subject, string $html, string $messageId, ?array $target, array $files = [], array $cc = []): ServiceResult
     {
         $config = new EmailConfig();
         $config->protocol   = 'smtp';
@@ -153,6 +166,9 @@ class SmtpReplyService
         $email = \Config\Services::email($config, false);
         $email->setFrom($smtp['from_email'], $smtp['from_name']);
         $email->setTo($to);
+        if ($cc !== []) {
+            $email->setCC(implode(',', $cc));
+        }
         $email->setSubject($subject);
         $email->setMessage($html);
         $email->setHeader('Message-ID', $messageId);
@@ -190,6 +206,50 @@ class SmtpReplyService
         }
 
         return ServiceResult::ok();
+    }
+
+    /**
+     * Parses the agent's manual Cc field into a clean address list.
+     *
+     * Copies are never derived from the original To/Cc of the thread: every
+     * extra recipient is typed on purpose, so a busy thread does not multiply
+     * the mail our SMTP has to push. The requester is dropped (already the To)
+     * and duplicates are collapsed.
+     *
+     * @return ServiceResult data = string[] of validated addresses
+     */
+    private function parseCc(string $raw, string $to): ServiceResult
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return ServiceResult::ok([]);
+        }
+
+        $parts = preg_split('/[,;\s]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $valid   = [];
+        $invalid = [];
+        $toLower = strtolower($to);
+        foreach ($parts as $part) {
+            $addr = strtolower(trim($part, " \t\n\r\0\x0B<>"));
+            if (! filter_var($addr, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $part;
+                continue;
+            }
+            if ($addr === $toLower) {
+                continue; // ya va como destinatario principal
+            }
+            $valid[$addr] = $addr;
+        }
+
+        if ($invalid !== []) {
+            return ServiceResult::fail('Correo inválido en copia: ' . implode(', ', $invalid));
+        }
+        if (count($valid) > self::MAX_CC) {
+            return ServiceResult::fail('Demasiadas copias: el máximo es ' . self::MAX_CC . ' por respuesta.');
+        }
+
+        return ServiceResult::ok(array_values($valid));
     }
 
     /** Latest message to reply under: prefer the most recent inbound message. */

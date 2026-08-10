@@ -262,7 +262,8 @@ class Dispatch extends BaseController
             $id,
             (string) ($this->request->getPost('body') ?? ''),
             $this->userId(),
-            $files
+            $files,
+            (string) ($this->request->getPost('cc') ?? '')
         );
         return $this->back($id, $result);
     }

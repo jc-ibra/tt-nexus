@@ -50,6 +50,19 @@ $fmtSize = static function (int $bytes): string {
 
 // URL to download/serve an attachment.
 $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id);
+
+// "a@x.com, b@y.com" -> lista limpia de direcciones.
+$addrList = static function (?string $raw): array {
+    $parts = preg_split('/[,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $out   = [];
+    foreach ($parts as $p) {
+        $p = trim($p);
+        if ($p !== '') {
+            $out[$p] = $p;
+        }
+    }
+    return array_values($out);
+};
 ?>
 
 <style>
@@ -109,6 +122,14 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
   .md-msg-toggle svg { width:18px; height:18px; }
   .md-msg.is-collapsed .md-msg-toggle { transform:rotate(-90deg); }
   .md-msg.is-collapsed .md-msg-collapsible { display:none; }
+  .md-recipients { padding:var(--space-2) var(--space-4) 0; display:flex; flex-direction:column; gap:2px; }
+  .md-recipients-row { display:flex; gap:var(--space-2); font-size:var(--text-xs); line-height:1.6; }
+  .md-recipients-label { flex:0 0 auto; color:var(--text-muted); min-width:32px; }
+  .md-recipients-list { display:flex; flex-wrap:wrap; gap:4px 8px; min-width:0; }
+  .md-addr { font:inherit; color:var(--text-secondary); background:none; border:none; padding:0;
+    cursor:pointer; border-bottom:1px dashed var(--border-default); }
+  .md-addr:hover { color:var(--color-primary); border-bottom-color:var(--color-primary); }
+  .md-addr:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
   .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3);
     color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; }
@@ -136,6 +157,9 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
   /* ---- Input de archivos en la respuesta ---- */
   .md-file-row { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2); }
   .md-file-hint { color:var(--text-muted); font-size:var(--text-xs); margin:0 0 var(--space-2); }
+  .md-cc-row { margin-bottom:var(--space-2); }
+  .md-cc-row .field-label { margin-bottom:4px; }
+  .md-cc-row .input { margin-bottom:4px; }
   .md-file-list { list-style:none; margin:0 0 var(--space-2); padding:0; }
   .md-file-list li { font-size:var(--text-xs); color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
@@ -275,7 +299,32 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
               }
           }
         ?>
+        <?php
+          // Destinatarios reales del correo: la respuesta desde Nexus sale solo
+          // al solicitante, así que el agente necesita ver a quién más iba
+          // dirigido para decidir a quién copiar a mano.
+          $toAddrs = $addrList($m['to_recipients'] ?? '');
+          $ccAddrs = $addrList($m['cc_recipients'] ?? '');
+        ?>
         <div class="md-msg-collapsible">
+          <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
+            <div class="md-recipients">
+              <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
+                <?php if ($addrs !== []): ?>
+                  <div class="md-recipients-row">
+                    <span class="md-recipients-label"><?= $label ?>:</span>
+                    <span class="md-recipients-list">
+                      <?php foreach ($addrs as $addr): ?>
+                        <button type="button" class="md-addr" data-addr="<?= esc($addr, 'attr') ?>"
+                                title="Agregar a copia de la respuesta"><?= esc($addr) ?></button>
+                      <?php endforeach; ?>
+                    </span>
+                  </div>
+                <?php endif; ?>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+
           <?php if ($files !== []): ?>
             <div class="md-attachments">
               <?php foreach ($files as $a): ?>
@@ -456,6 +505,17 @@ $attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id)
         <form action="<?= route_to('dispatch.reply', $conv['id']) ?>" method="post" enctype="multipart/form-data" id="md-reply-form">
           <?= csrf_field() ?>
 
+          <?php $requester = trim((string) ($conv['requester_email'] ?? '')); ?>
+          <div class="md-cc-row">
+            <label class="field-label" for="md-reply-cc">Copia (opcional)</label>
+            <input type="text" id="md-reply-cc" name="cc" class="input" autocomplete="off"
+                   placeholder="correo@dominio.com, otro@dominio.com">
+            <p class="md-file-hint">
+              La respuesta se envía solo a <strong><?= esc($requester ?: 'el solicitante') ?></strong>.
+              Agrega aquí a quien quieras copiar, o haz clic en una dirección del hilo.
+            </p>
+          </div>
+
           <div class="md-editor-toolbar" role="toolbar" aria-label="Formato">
             <button type="button" data-cmd="bold" title="Negrita" style="font-weight:700;">B</button>
             <button type="button" data-cmd="italic" title="Cursiva" style="font-style:italic;">I</button>
@@ -618,6 +678,32 @@ window.addEventListener('resize', function () {
     head.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
+  });
+})();
+
+// Clic en un destinatario del hilo: lo agrega al campo de copia de la respuesta.
+// Nunca se copia a nadie de forma automática; cada dirección se agrega a mano.
+(function () {
+  var cc = document.getElementById('md-reply-cc');
+  if (!cc) return;
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.md-addr');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();          // no colapsar el mensaje
+
+    var addr = (btn.dataset.addr || '').trim();
+    if (!addr) return;
+
+    var current = cc.value.split(/[,;\s]+/).filter(Boolean);
+    if (current.some(function (a) { return a.toLowerCase() === addr.toLowerCase(); })) {
+      cc.focus();
+      return;                     // ya estaba en la lista
+    }
+    current.push(addr);
+    cc.value = current.join(', ');
+    cc.focus();
   });
 })();
 

@@ -290,14 +290,8 @@ class ImapMailService
         $fromEmail = $from ? (string) $from->mail : '';
         $fromName  = $this->decodeMimeHeader($from ? (string) $from->personal : '');
 
-        $toRecipients = [];
-        $toAttr = $msg->to;
-        foreach (($toAttr ? ($toAttr->all() ?: []) : []) as $addr) {
-            $mail = (string) ($addr->mail ?? '');
-            if ($mail !== '') {
-                $toRecipients[] = ['emailAddress' => ['address' => $mail, 'name' => $this->decodeMimeHeader((string) ($addr->personal ?? ''))]];
-            }
-        }
+        $toRecipients = $this->addressList($msg->to);
+        $ccRecipients = $this->addressList($msg->cc);
 
         $messageId = trim((string) $msg->message_id);
         $inReplyTo = trim((string) $msg->in_reply_to);
@@ -356,6 +350,7 @@ class ImapMailService
             'subject'                => $this->decodeMimeHeader((string) $msg->subject),
             'from'                   => ['emailAddress' => ['address' => $fromEmail, 'name' => $fromName]],
             'toRecipients'           => $toRecipients,
+            'ccRecipients'           => $ccRecipients,
             'receivedDateTime'       => $iso,
             'bodyPreview'            => $preview,
             'body'                   => ['contentType' => $isHtml ? 'html' : 'text', 'content' => $body],
@@ -364,6 +359,26 @@ class ImapMailService
             'internetMessageHeaders' => $headers,
             'isDraft'                => false,
         ];
+    }
+
+    /**
+     * Turns a webklex address attribute (To, Cc, …) into the Graph recipient
+     * shape. Null-safe: a header the message does not carry yields [].
+     */
+    private function addressList(mixed $attribute): array
+    {
+        $out = [];
+        foreach (($attribute ? ($attribute->all() ?: []) : []) as $addr) {
+            $mail = (string) ($addr->mail ?? '');
+            if ($mail !== '') {
+                $out[] = ['emailAddress' => [
+                    'address' => $mail,
+                    'name'    => $this->decodeMimeHeader((string) ($addr->personal ?? '')),
+                ]];
+            }
+        }
+
+        return $out;
     }
 
     /**

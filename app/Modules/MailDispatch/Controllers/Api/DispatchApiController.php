@@ -167,7 +167,8 @@ class DispatchApiController extends BaseApiController
             $id,
             (string) ($this->request->getVar('body') ?? ''),
             $this->userId(),
-            $files
+            $files,
+            (string) ($this->request->getVar('cc') ?? '')
         ));
     }
 

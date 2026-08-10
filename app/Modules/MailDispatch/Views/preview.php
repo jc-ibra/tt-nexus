@@ -36,6 +36,19 @@ $fmtSize = function (int $bytes): string {
     return $bytes . ' B';
 };
 $attUrl = fn (int $id): string => base_url('dispatch/attachments/' . $id);
+
+// "a@x.com, b@y.com" -> lista limpia de direcciones.
+$addrList = static function (?string $raw): array {
+    $parts = preg_split('/[,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $out   = [];
+    foreach ($parts as $p) {
+        $p = trim($p);
+        if ($p !== '') {
+            $out[$p] = $p;
+        }
+    }
+    return array_values($out);
+};
 ?>
 
 <div class="md-pane-head">
@@ -142,7 +155,28 @@ $attUrl = fn (int $id): string => base_url('dispatch/attachments/' . $id);
             if (! $embedded) $files[] = $a;
         }
       ?>
+      <?php
+        // Destinatarios reales del correo. Aquí son solo texto: el panel no tiene
+        // formulario de respuesta, así que no hay campo de copia al cual sumarlos.
+        $toAddrs = $addrList($m['to_recipients'] ?? '');
+        $ccAddrs = $addrList($m['cc_recipients'] ?? '');
+      ?>
       <div class="md-msg-collapsible">
+        <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
+          <div class="md-recipients">
+            <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
+              <?php if ($addrs !== []): ?>
+                <div class="md-recipients-row">
+                  <span class="md-recipients-label"><?= $label ?>:</span>
+                  <span class="md-recipients-list">
+                    <?php foreach ($addrs as $addr): ?><span><?= esc($addr) ?></span><?php endforeach; ?>
+                  </span>
+                </div>
+              <?php endif; ?>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+
         <?php if ($files !== []): ?>
           <div class="md-attachments">
             <?php foreach ($files as $a): ?>

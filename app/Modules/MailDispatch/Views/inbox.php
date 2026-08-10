@@ -221,6 +221,11 @@ $initials = static function (?string $name, ?string $email): string {
   .md-msg-toggle svg { width:18px; height:18px; }
   .md-msg.is-collapsed .md-msg-toggle { transform:rotate(-90deg); }
   .md-msg.is-collapsed .md-msg-collapsible { display:none; }
+  /* Destinatarios reales del correo (Para / CC) sobre el cuerpo del mensaje. */
+  .md-recipients { padding:var(--space-2) var(--space-4) 0; display:flex; flex-direction:column; gap:2px; }
+  .md-recipients-row { display:flex; gap:var(--space-2); font-size:var(--text-xs); line-height:1.6; }
+  .md-recipients-label { flex:0 0 auto; color:var(--text-muted); min-width:32px; }
+  .md-recipients-list { display:flex; flex-wrap:wrap; gap:4px 8px; min-width:0; color:var(--text-secondary); }
   .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3); color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .md-msg.is-collapsed .md-msg-preview { display:block; }
   .md-msg-body-frame { width:100%; border:0; min-height:200px; background:#fff; display:block; }

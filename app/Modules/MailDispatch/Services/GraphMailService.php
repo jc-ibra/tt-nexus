@@ -87,7 +87,7 @@ class GraphMailService
     {
         $select = implode(',', [
             'id', 'conversationId', 'internetMessageId', 'subject', 'from', 'sender',
-            'toRecipients', 'receivedDateTime', 'bodyPreview', 'body',
+            'toRecipients', 'ccRecipients', 'receivedDateTime', 'bodyPreview', 'body',
             'hasAttachments', 'internetMessageHeaders', 'isDraft',
         ]);
 
@@ -185,7 +185,12 @@ class GraphMailService
      * Sends an HTML reply to an existing message, keeping it in the same thread.
      * Uses Graph's /reply action so the sent mail threads under the original.
      */
-    public function reply(string $graphMessageId, string $htmlBody): array
+    /**
+     * @param string[] $cc extra addresses to copy (already validated); the
+     *                     original recipients of the thread are never added
+     *                     back, so /reply keeps going to the sender alone.
+     */
+    public function reply(string $graphMessageId, string $htmlBody, array $cc = []): array
     {
         $tok = $this->token();
         if (! $tok['success']) {
@@ -195,9 +200,15 @@ class GraphMailService
         $url = $this->config->graphBase . '/users/' . rawurlencode($this->mailbox)
             . '/messages/' . rawurlencode($graphMessageId) . '/reply';
 
-        $payload = json_encode([
-            'message' => ['body' => ['contentType' => 'HTML', 'content' => $htmlBody]],
-        ]);
+        $message = ['body' => ['contentType' => 'HTML', 'content' => $htmlBody]];
+        if ($cc !== []) {
+            $message['ccRecipients'] = array_map(
+                static fn(string $addr) => ['emailAddress' => ['address' => $addr]],
+                $cc
+            );
+        }
+
+        $payload = json_encode(['message' => $message]);
 
         return $this->raw('POST', $url, $payload, [
             'Authorization: Bearer ' . $tok['data'],

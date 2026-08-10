@@ -231,6 +231,7 @@ class ConversationService
             'from_name'           => $f['from_name'],
             'from_email'          => $f['from_email'],
             'to_recipients'       => $f['to_recipients'],
+            'cc_recipients'       => $f['cc_recipients'] ?: null,
             'subject'             => $f['subject'],
             'body_preview'        => $f['body_preview'],
             'body'                => $f['body'],
@@ -606,6 +607,14 @@ class ConversationService
             }
         }
 
+        $ccList = [];
+        foreach ((array) ($m['ccRecipients'] ?? []) as $r) {
+            $addr = trim((string) ($r['emailAddress']['address'] ?? ''));
+            if ($addr !== '') {
+                $ccList[] = $addr;
+            }
+        }
+
         $mailboxLower = strtolower(trim($mailbox));
         $direction = ($folder === 'sentitems' || ($fromEmail !== '' && $fromEmail === $mailboxLower)) ? 'out' : 'in';
 
@@ -659,6 +668,7 @@ class ConversationService
             'to_name'             => $toName ?: $toEmail,
             'to_email'            => $toEmail,
             'to_recipients'       => implode(', ', $toList),
+            'cc_recipients'       => implode(', ', $ccList),
             'subject'             => $subject,
             'body_preview'        => $bodyPreview,
             'body'                => (string) $body,
