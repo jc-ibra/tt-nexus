@@ -59,9 +59,13 @@ $addrList = static function (?string $raw): array {
     </a>
   </div>
   <div class="md-pane-sub">
-    <span class="md-avatar in" style="width:34px;height:34px;font-size:var(--text-sm);"><?= esc($initials($conv['requester_name'] ?? '', $conv['requester_email'] ?? '')) ?></span>
+    <?php $isOutbound = ! empty($conv['outbound_only']); ?>
+    <span class="md-avatar <?= $isOutbound ? 'out' : 'in' ?>" style="width:34px;height:34px;font-size:var(--text-sm);"><?= esc($initials($conv['requester_name'] ?? '', $conv['requester_email'] ?? '')) ?></span>
     <div style="min-width:0;">
-      <div class="md-pane-name"><?= esc($conv['requester_name'] ?: ($conv['requester_email'] ?: 'Solicitante')) ?></div>
+      <div class="md-pane-name">
+        <?php if ($isOutbound): ?><span class="text-muted" style="font-weight:var(--weight-regular);">Para:</span><?php endif; ?>
+        <?= esc($conv['requester_name'] ?: ($conv['requester_email'] ?: ($isOutbound ? 'Sin destinatario' : 'Solicitante'))) ?>
+      </div>
       <?php if (! empty($conv['requester_email'])): ?><a class="md-pane-email" href="mailto:<?= esc($conv['requester_email'], 'attr') ?>"><?= esc($conv['requester_email']) ?></a><?php endif; ?>
     </div>
     <span class="badge badge-<?= esc($tone) ?>" style="margin-left:auto;"><?= esc($label) ?></span>

@@ -21,6 +21,7 @@ class ConversationModel extends Model
         'requester_email',
         'status',
         'agent_id',
+        'outbound_only',
         'disposition_id',
         'auto_rule_id',
         'verified_by',
@@ -72,7 +73,11 @@ class ConversationModel extends Model
                 $b->where('maildispatch_conversations.agent_id', null)
                   ->where('maildispatch_conversations.status !=', 'cerrada')
                   ->where('maildispatch_conversations.status !=', 'autoarchivo')
-                  ->where('maildispatch_conversations.status !=', 'autogenerado');
+                  ->where('maildispatch_conversations.status !=', 'autogenerado')
+                  // Threads the help desk itself started and nobody answered are
+                  // not work waiting to be picked up. They stay visible in
+                  // "Todas" and return here the moment someone replies.
+                  ->where('maildispatch_conversations.outbound_only', 0);
                 break;
             case 'mine':
                 $b->where('maildispatch_conversations.agent_id', $userId)
@@ -206,6 +211,7 @@ class ConversationModel extends Model
             ->select('MIN(received_at) AS oldest', false)
             ->where('agent_id', null)
             ->whereNotIn('status', ['cerrada', 'autoarchivo', 'autogenerado'])
+            ->where('outbound_only', 0)
             ->get()->getRowArray();
 
         $oldest = (string) ($row['oldest'] ?? '');
@@ -266,7 +272,10 @@ class ConversationModel extends Model
     /** Count of currently unassigned, non-closed conversations (badge/metrics). */
     public function countUnassigned(): int
     {
-        return $this->where('agent_id', null)->where('status !=', 'cerrada')->countAllResults();
+        return $this->where('agent_id', null)
+            ->where('status !=', 'cerrada')
+            ->where('outbound_only', 0)
+            ->countAllResults();
     }
 
     /**
@@ -291,7 +300,7 @@ class ConversationModel extends Model
         };
 
         return [
-            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
+            'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado')->where('outbound_only', 0))->countAllResults(),
             'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
             'all'        => $search($this->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
             // Actionable count = pending verification.

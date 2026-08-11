@@ -55,6 +55,39 @@ class MessageModel extends Model
     }
 
     /**
+     * Detects a second delivery of a mail already stored.
+     *
+     * When several recipients of the same mail redirect into the shared mailbox,
+     * every copy lands with its own Message-ID, so existsByInternetMessageId()
+     * misses them and each copy would open its own conversation. The copies do
+     * share sender, subject and the exact received instant, which is what this
+     * matches on.
+     *
+     * Deliberately strict: the second, not the minute, because two unrelated
+     * mails sharing sender AND subject AND the same second is not a case that
+     * happens in practice. The body is NOT compared — verified copies of the
+     * same mail differ in size (routing/rendering noise), so a body hash would
+     * never match.
+     */
+    public function existsDuplicateDelivery(string $fromEmail, string $subject, ?string $receivedAt): bool
+    {
+        $fromEmail = trim($fromEmail);
+        $subject   = trim($subject);
+        $receivedAt = trim((string) $receivedAt);
+
+        // Any missing piece makes the match unsafe: fall through and let the
+        // message in rather than risk dropping a distinct mail.
+        if ($fromEmail === '' || $subject === '' || $receivedAt === '') {
+            return false;
+        }
+
+        return $this->where('from_email', $fromEmail)
+            ->where('subject', $subject)
+            ->where('received_at', $receivedAt)
+            ->countAllResults() > 0;
+    }
+
+    /**
      * Threading fallback: resolve the conversation a message belongs to when
      * Graph's conversationId is missing/broken, by matching In-Reply-To /
      * References against an already-stored internet_message_id.

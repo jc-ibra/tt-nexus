@@ -330,7 +330,12 @@ $initials = static function (?string $name, ?string $email): string {
             <span class="gm-av <?= esc($tone) ?>" title="<?= esc($statusLabels[$c['status']] ?? $c['status'], 'attr') ?>"><?= esc($initials($c['requester_name'] ?? '', $c['requester_email'] ?? '')) ?></span>
             <span class="gm-body">
               <span class="gm-line1">
-                <span class="gm-sender"><?= $hl($c['requester_name'] ?: ($c['requester_email'] ?: 'Sin remitente')) ?></span>
+                <span class="gm-sender">
+                  <?php if (! empty($c['outbound_only'])): ?>
+                    <span class="text-muted" style="font-weight:var(--weight-regular);">Para:</span>
+                  <?php endif; ?>
+                  <?= $hl($c['requester_name'] ?: ($c['requester_email'] ?: 'Sin remitente')) ?>
+                </span>
                 <?php if (! empty($c['has_attachments'])): ?>
                   <svg class="gm-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 <?php endif; ?>

@@ -82,6 +82,19 @@ class ConversationService
         $fields    = $this->extract($m, $mailbox, $folder);
         $direction = $fields['direction'];
 
+        // Second dedupe pass: the same mail delivered twice. Happens when two of
+        // its recipients redirect into this mailbox — each copy carries its own
+        // Message-ID, so the check above lets both through and the thread (or a
+        // whole duplicate conversation) ends up doubled. Runs after extract() so
+        // forward mode's rewritten sender/subject are the ones compared.
+        if ($this->messages->existsDuplicateDelivery(
+            (string) $fields['from_email'],
+            (string) $fields['subject'],
+            $fields['received_at']
+        )) {
+            return 'skipped';
+        }
+
         // ---- Locate the conversation (thread) -----------------------------
         $conv = null;
         if ($fields['conversation_id'] !== '') {
@@ -137,8 +150,13 @@ class ConversationService
             'conversation_id'   => $convKey,
             'mailbox_address'   => $f['mailbox'],
             'subject'           => $f['subject'],
+            // For an outbound-initiated thread the counterpart is the first To.
+            // It is stored because a reply needs a destination, but the thread
+            // has no requester yet — outbound_only says so, and the UI must not
+            // present that address as the person who wrote in.
             'requester_name'    => $isOut ? $f['to_name']  : $f['from_name'],
             'requester_email'   => $isOut ? $f['to_email'] : $f['from_email'],
+            'outbound_only'     => $isOut ? 1 : 0,
             'status'            => $status,
             'auto_rule_id'      => $rule['id'] ?? null,
             'message_count'     => 0,
@@ -191,7 +209,14 @@ class ConversationService
                 $sysEvents[] = ['status', $status, $newStatus];
             }
         } else {
-            // Inbound customer message.
+            // Inbound customer message. If the thread was started by the help
+            // desk, someone just answered it: it stops being a broadcast and
+            // rejoins the work queue, with the real sender as its requester.
+            if (! empty($conv['outbound_only'])) {
+                $set['outbound_only']   = 0;
+                $set['requester_name']  = $f['from_name'];
+                $set['requester_email'] = $f['from_email'];
+            }
             if ($status === 'cerrada') {
                 // Reopen keeping the prior assignment.
                 $newStatus   = 'esperando_agente';

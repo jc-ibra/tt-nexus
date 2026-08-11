@@ -220,12 +220,26 @@ $addrList = static function (?string $raw): array {
 </div>
 
 <!-- ===================== Resumen del solicitante ===================== -->
+<?php
+// Hilos que originó la mesa y nadie ha contestado: no hay solicitante. La
+// dirección guardada es solo el primer destinatario (se conserva porque una
+// respuesta necesita destino), así que se presenta como destinatario.
+$isOutbound = ! empty($conv['outbound_only']);
+?>
 <div class="md-summary">
-  <span class="md-avatar md-avatar-lg in"><?= esc($initials($conv['requester_name'] ?? '', $conv['requester_email'] ?? '')) ?></span>
+  <span class="md-avatar md-avatar-lg <?= $isOutbound ? 'out' : 'in' ?>"><?= esc($initials($conv['requester_name'] ?? '', $conv['requester_email'] ?? '')) ?></span>
   <div class="md-summary-main">
     <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap;">
-      <p class="md-summary-name"><?= esc($conv['requester_name'] ?: ($conv['requester_email'] ?: 'Solicitante desconocido')) ?></p>
+      <p class="md-summary-name">
+        <?php if ($isOutbound): ?>
+          <span class="text-muted" style="font-weight:var(--weight-regular);">Para:</span>
+        <?php endif; ?>
+        <?= esc($conv['requester_name'] ?: ($conv['requester_email'] ?: ($isOutbound ? 'Sin destinatario' : 'Solicitante desconocido'))) ?>
+      </p>
       <span class="badge badge-<?= esc($tone) ?>"><?= esc($label) ?></span>
+      <?php if ($isOutbound): ?>
+        <span class="badge badge-neutral" title="La mesa de ayuda originó este hilo; nadie ha respondido todavía.">Enviado por la mesa</span>
+      <?php endif; ?>
     </div>
     <?php if (! empty($conv['requester_email'])): ?>
       <a class="md-summary-email" href="mailto:<?= esc($conv['requester_email'], 'attr') ?>"><?= esc($conv['requester_email']) ?></a>
