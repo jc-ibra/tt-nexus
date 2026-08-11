@@ -203,6 +203,15 @@ class BacklogReportService
             ? $this->loadTicketFieldValues($db, $this->settings->backlogRegionalContainerId(), $this->settings->backlogRegionalField())
             : null;
         $regionalConfigured = $regionalValues !== null;
+        // 4b) Estado / Municipio: export-only columns from the same plugin tab
+        // (Clientes Externos). They feed no KPI and no section of the email;
+        // an unconfigured pair simply leaves its xlsx column blank.
+        $estadoValues = $this->settings->backlogEstadoConfigured()
+            ? $this->loadTicketFieldValues($db, $this->settings->backlogEstadoContainerId(), $this->settings->backlogEstadoField())
+            : null;
+        $municipioValues = $this->settings->backlogMunicipioConfigured()
+            ? $this->loadTicketFieldValues($db, $this->settings->backlogMunicipioContainerId(), $this->settings->backlogMunicipioField())
+            : null;
         $regAgg = []; // regional label => ['tickets','sumAge','sinIdc']
         // Categories the "POR REGIONAL" table is restricted to (subtree match).
         // Empty = no restriction (all categories count).
@@ -394,6 +403,8 @@ class BacklogReportService
                 'cliente'    => $clienteName ?? '',
                 'externalid' => $hasExternalId ? (string) ($t['externalid'] ?? '') : '',
                 'regional'   => $regional,
+                'estado'     => $estadoValues[$id] ?? '',
+                'municipio'  => $municipioValues[$id] ?? '',
                 // Real IDC value when configured (empty = sin IDC / no aplica).
                 'idc'        => $idcConfigured ? (string) ($idcValues[$id] ?? '') : '',
                 'open'       => $open > 0 ? date('d/m/Y H:i', $open) : '',
@@ -870,10 +881,11 @@ class BacklogReportService
         $sheet->setTitle('Backlog');
 
         // Column order per spec (subcategoría intentionally omitted from the export).
-        $headers = ['ID', 'TÍTULO', 'FECHA APERTURA', 'TIPO', 'ESTATUS', 'ÁREA', 'CATEGORÍA', 'CLIENTE', 'ID EXTERNO', 'REGIONAL', 'IDC', 'DÍAS ABIERTO'];
+        // Estado/Municipio sit next to Regional so the geography reads together.
+        $headers = ['ID', 'TÍTULO', 'FECHA APERTURA', 'TIPO', 'ESTATUS', 'ÁREA', 'CATEGORÍA', 'CLIENTE', 'ID EXTERNO', 'REGIONAL', 'ESTADO', 'MUNICIPIO', 'IDC', 'DÍAS ABIERTO'];
         $sheet->fromArray($headers, null, 'A1');
 
-        $headerStyle = $sheet->getStyle('A1:L1');
+        $headerStyle = $sheet->getStyle('A1:N1');
         $headerStyle->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
         $headerStyle->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1773C8');
         $headerStyle->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -891,12 +903,14 @@ class BacklogReportService
             $sheet->setCellValueExplicit("H{$r}", $row['cliente'], $str);
             $sheet->setCellValueExplicit("I{$r}", $row['externalid'], $str);
             $sheet->setCellValue("J{$r}", $row['regional']);
-            $sheet->setCellValueExplicit("K{$r}", $row['idc'], $str);
-            $sheet->setCellValue("L{$r}", $row['age']);
+            $sheet->setCellValue("K{$r}", $row['estado']);
+            $sheet->setCellValue("L{$r}", $row['municipio']);
+            $sheet->setCellValueExplicit("M{$r}", $row['idc'], $str);
+            $sheet->setCellValue("N{$r}", $row['age']);
             $r++;
         }
 
-        foreach (range('A', 'L') as $col) {
+        foreach (range('A', 'N') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $sheet->freezePane('A2');

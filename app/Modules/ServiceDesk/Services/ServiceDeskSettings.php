@@ -702,6 +702,42 @@ TXT;
         return $this->backlogRegionalContainerId() > 0 && $this->backlogRegionalField() !== '';
     }
 
+    /** Plugin container id holding the Estado field (0 = column left blank). */
+    public function backlogEstadoContainerId(): int
+    {
+        return max(0, (int) $this->model->get('backlog_estado_container_id', '0'));
+    }
+
+    /** Plugin field name holding the Estado; export-only (xlsx column). */
+    public function backlogEstadoField(): string
+    {
+        return trim($this->model->get('backlog_estado_field', ''));
+    }
+
+    /** Whether the Estado column can be filled (container + field chosen). */
+    public function backlogEstadoConfigured(): bool
+    {
+        return $this->backlogEstadoContainerId() > 0 && $this->backlogEstadoField() !== '';
+    }
+
+    /** Plugin container id holding the Municipio field (0 = column left blank). */
+    public function backlogMunicipioContainerId(): int
+    {
+        return max(0, (int) $this->model->get('backlog_municipio_container_id', '0'));
+    }
+
+    /** Plugin field name holding the Municipio; export-only (xlsx column). */
+    public function backlogMunicipioField(): string
+    {
+        return trim($this->model->get('backlog_municipio_field', ''));
+    }
+
+    /** Whether the Municipio column can be filled (container + field chosen). */
+    public function backlogMunicipioConfigured(): bool
+    {
+        return $this->backlogMunicipioContainerId() > 0 && $this->backlogMunicipioField() !== '';
+    }
+
     /**
      * Whether the report can actually be sent: enabled, has an audience, and a
      * sender address is resolvable.
@@ -738,14 +774,17 @@ TXT;
             'backlog_idc_field'        => trim((string) ($input['backlog_idc_field'] ?? '')),
             'backlog_regional_container_id' => (string) max(0, (int) ($input['backlog_regional_container_id'] ?? 0)),
             'backlog_regional_field'        => trim((string) ($input['backlog_regional_field'] ?? '')),
+            'backlog_estado_container_id'    => (string) max(0, (int) ($input['backlog_estado_container_id'] ?? 0)),
+            'backlog_estado_field'           => trim((string) ($input['backlog_estado_field'] ?? '')),
+            'backlog_municipio_container_id' => (string) max(0, (int) ($input['backlog_municipio_container_id'] ?? 0)),
+            'backlog_municipio_field'        => trim((string) ($input['backlog_municipio_field'] ?? '')),
         ];
 
         // Clearing a container also clears its field (keeps each pair coherent).
-        if ((int) $data['backlog_idc_container_id'] === 0) {
-            $data['backlog_idc_field'] = '';
-        }
-        if ((int) $data['backlog_regional_container_id'] === 0) {
-            $data['backlog_regional_field'] = '';
+        foreach (['idc', 'regional', 'estado', 'municipio'] as $pair) {
+            if ((int) $data["backlog_{$pair}_container_id"] === 0) {
+                $data["backlog_{$pair}_field"] = '';
+            }
         }
 
         $this->model->setMany($data);

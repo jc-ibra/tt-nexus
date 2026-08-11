@@ -526,13 +526,17 @@ $bRoots   = $backlogRoots ?? [];
 $bRuns    = $backlogRuns ?? [];
 $bIdcCont = (int) ($s['backlog_idc_container_id'] ?? 0);
 $bRegCont = (int) ($s['backlog_regional_container_id'] ?? 0);
+$bEstCont = (int) ($s['backlog_estado_container_id'] ?? 0);
+$bMunCont = (int) ($s['backlog_municipio_container_id'] ?? 0);
 ?>
 <div id="sd-panel-backlog" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-backlog" style="display:none;">
 
   <form id="sd-backlog" action="<?= route_to('servicedesk.backlog.save') ?>" method="post" style="max-width: 760px;"
         data-schema-url="<?= route_to('servicedesk.schema') ?>"
         data-idc="<?= esc($s['backlog_idc_field'] ?? '', 'attr') ?>"
-        data-regional="<?= esc($s['backlog_regional_field'] ?? '', 'attr') ?>">
+        data-regional="<?= esc($s['backlog_regional_field'] ?? '', 'attr') ?>"
+        data-estado="<?= esc($s['backlog_estado_field'] ?? '', 'attr') ?>"
+        data-municipio="<?= esc($s['backlog_municipio_field'] ?? '', 'attr') ?>">
     <?= csrf_field() ?>
 
     <div class="card" style="margin-bottom: var(--space-4);">
@@ -660,6 +664,44 @@ $bRegCont = (int) ($s['backlog_regional_container_id'] ?? 0);
           <div class="field">
             <label class="field-label" for="backlog_regional_field">Campo Regional</label>
             <select id="backlog_regional_field" name="backlog_regional_field" class="input" data-role="regional"><option value="">—</option></select>
+          </div>
+        </div>
+
+        <p class="text-muted text-sm" style="margin:var(--space-4) 0 var(--space-3) 0;">
+          Estado y municipio se agregan como columnas del Excel adjunto, junto a Regional. Salen de la misma pestaña de campos
+          adicionales del ticket (Clientes Externos). No alimentan ningún KPI ni sección del correo: si dejas el contenedor en
+          "Ninguno", la columna sale vacía.
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div class="field">
+            <label class="field-label" for="backlog_estado_container_id">Contenedor del campo Estado</label>
+            <select id="backlog_estado_container_id" name="backlog_estado_container_id" class="input">
+              <option value="0">Ninguno (columna vacía)</option>
+              <?php foreach ($containers as $c): ?>
+                <option value="<?= (int) $c['id'] ?>" <?= $bEstCont === (int) $c['id'] ? 'selected' : '' ?>>
+                  <?= esc($c['label']) ?> · id <?= (int) $c['id'] ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_estado_field">Campo Estado</label>
+            <select id="backlog_estado_field" name="backlog_estado_field" class="input" data-role="estado"><option value="">—</option></select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_municipio_container_id">Contenedor del campo Municipio</label>
+            <select id="backlog_municipio_container_id" name="backlog_municipio_container_id" class="input">
+              <option value="0">Ninguno (columna vacía)</option>
+              <?php foreach ($containers as $c): ?>
+                <option value="<?= (int) $c['id'] ?>" <?= $bMunCont === (int) $c['id'] ? 'selected' : '' ?>>
+                  <?= esc($c['label']) ?> · id <?= (int) $c['id'] ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="backlog_municipio_field">Campo Municipio</label>
+            <select id="backlog_municipio_field" name="backlog_municipio_field" class="input" data-role="municipio"><option value="">—</option></select>
           </div>
         </div>
       </div>
@@ -836,8 +878,9 @@ $bRegCont = (int) ($s['backlog_regional_container_id'] ?? 0);
 </script>
 
 <script>
-// Backlog plugin-field pickers (IDC and Regional): each fills its field select
-// from the chosen container's live schema (reuses the schema AJAX endpoint).
+// Backlog plugin-field pickers (IDC, Regional, Estado, Municipio): each fills
+// its field select from the chosen container's live schema (reuses the schema
+// AJAX endpoint).
 (function () {
   var form = document.getElementById('sd-backlog');
   if (!form) return;
@@ -845,7 +888,9 @@ $bRegCont = (int) ($s['backlog_regional_container_id'] ?? 0);
 
   var pairs = [
     { container: 'backlog_idc_container_id',      field: 'backlog_idc_field',      saved: form.dataset.idc || '' },
-    { container: 'backlog_regional_container_id', field: 'backlog_regional_field', saved: form.dataset.regional || '' }
+    { container: 'backlog_regional_container_id', field: 'backlog_regional_field', saved: form.dataset.regional || '' },
+    { container: 'backlog_estado_container_id',    field: 'backlog_estado_field',    saved: form.dataset.estado || '' },
+    { container: 'backlog_municipio_container_id', field: 'backlog_municipio_field', saved: form.dataset.municipio || '' }
   ];
 
   pairs.forEach(function (p) {
