@@ -4,10 +4,25 @@
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Plantillas de respuesta</h1>
-    <p class="page-subtitle">Textos reutilizables para responder desde Nexus. Variable disponible: <code>{{requester_name}}</code>.</p>
+    <p class="page-subtitle">Textos reutilizables para responder desde Nexus. Solo las plantillas activas aparecen en el compositor del hilo.</p>
   </div>
   <div class="page-actions">
     <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Bandeja</a>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:var(--space-5); max-width:760px;">
+  <div class="card-header"><h2 class="card-title">Variables disponibles</h2></div>
+  <div class="card-body">
+    <p class="text-muted" style="margin-top:0;">
+      Escríbelas dentro del cuerpo: al insertar la plantilla en un hilo se reemplazan por los datos de esa conversación.
+      Si no hay dato, la variable se sustituye por texto vacío.
+    </p>
+    <ul style="margin:0; padding-left:var(--space-5);">
+      <?php foreach (\App\Modules\MailDispatch\Services\TemplateRenderer::VARIABLES as $var => $desc): ?>
+        <li style="margin-bottom:var(--space-1);"><code><?= esc($var) ?></code> · <?= esc($desc) ?></li>
+      <?php endforeach; ?>
+    </ul>
   </div>
 </div>
 
@@ -23,6 +38,9 @@
       <div class="field" style="margin-bottom:var(--space-3);">
         <label class="field-label" for="subject">Asunto (opcional)</label>
         <input type="text" id="subject" name="subject" class="input">
+        <p class="text-muted" style="font-size:var(--text-xs); margin:4px 0 0;">
+          Referencia interna: al responder un hilo se conserva el asunto original del correo.
+        </p>
       </div>
       <div class="field" style="margin-bottom:var(--space-3);">
         <label class="field-label" for="body">Cuerpo</label>

@@ -60,7 +60,11 @@ class Templates extends BaseController
 
     public function delete(int $id): ResponseInterface
     {
-        (new TemplateModel())->delete($id);
+        $model = new TemplateModel();
+        if ($model->find($id) === null) {
+            return redirect()->to(route_to('dispatch.templates'))->with('error', 'La plantilla no existe.');
+        }
+        $model->delete($id);
         return redirect()->to(route_to('dispatch.templates'))->with('success', 'Plantilla eliminada.');
     }
 }

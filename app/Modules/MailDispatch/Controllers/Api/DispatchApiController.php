@@ -12,6 +12,8 @@ use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
+use App\Modules\MailDispatch\Models\TemplateModel;
+use App\Modules\MailDispatch\Services\TemplateRenderer;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -165,7 +167,7 @@ class DispatchApiController extends BaseApiController
         $files = $this->request->getFileMultiple('files') ?? [];
         return $this->fromResult(service('mailDispatchReplyService')->reply(
             $id,
-            (string) ($this->request->getVar('body') ?? ''),
+            $this->expandTemplateVars($id, (string) ($this->request->getVar('body') ?? '')),
             $this->userId(),
             $files,
             (string) ($this->request->getVar('cc') ?? '')
@@ -190,6 +192,93 @@ class DispatchApiController extends BaseApiController
     public function agents(): ResponseInterface
     {
         return $this->success((new AgentModel())->activeAgents());
+    }
+
+    // -----------------------------------------------------------------------
+    // Reply templates (phase 3) — mirror of /dispatch/templates
+    // -----------------------------------------------------------------------
+
+    /** Active templates by default; `?all=1` returns the full catalog. */
+    public function templates(): ResponseInterface
+    {
+        $model = new TemplateModel();
+        $all   = (string) ($this->request->getGet('all') ?? '') === '1';
+
+        return $this->success([
+            'variables' => TemplateRenderer::VARIABLES,
+            'templates' => $all ? $model->allOrdered() : $model->active(),
+        ]);
+    }
+
+    public function storeTemplate(): ResponseInterface
+    {
+        $name = trim((string) ($this->request->getVar('name') ?? ''));
+        if ($name === '') {
+            return $this->validationError(['name' => 'El nombre es obligatorio.']);
+        }
+        $model = new TemplateModel();
+        $id    = $model->insert([
+            'name'       => $name,
+            'subject'    => trim((string) ($this->request->getVar('subject') ?? '')),
+            'body'       => (string) ($this->request->getVar('body') ?? ''),
+            'is_active'  => $this->request->getVar('is_active') ? 1 : 0,
+            'created_by' => $this->userId(),
+        ], true);
+
+        return $this->successCreated($model->find($id));
+    }
+
+    public function updateTemplate(int $id): ResponseInterface
+    {
+        $model = new TemplateModel();
+        if ($model->find($id) === null) {
+            return $this->notFound('Plantilla no encontrada.');
+        }
+        $name = trim((string) ($this->request->getVar('name') ?? ''));
+        if ($name === '') {
+            return $this->validationError(['name' => 'El nombre es obligatorio.']);
+        }
+        $model->update($id, [
+            'name'      => $name,
+            'subject'   => trim((string) ($this->request->getVar('subject') ?? '')),
+            'body'      => (string) ($this->request->getVar('body') ?? ''),
+            'is_active' => $this->request->getVar('is_active') ? 1 : 0,
+        ]);
+
+        return $this->success($model->find($id));
+    }
+
+    public function deleteTemplate(int $id): ResponseInterface
+    {
+        $model = new TemplateModel();
+        if ($model->find($id) === null) {
+            return $this->notFound('Plantilla no encontrada.');
+        }
+        $model->delete($id);
+
+        return $this->success(['message' => 'Plantilla eliminada.']);
+    }
+
+    /**
+     * Expande las variables de una plantilla contra una conversación real, sin
+     * enviar nada. Útil para previsualizar el texto final desde un cliente API.
+     */
+    public function renderTemplate(int $id): ResponseInterface
+    {
+        $tpl = (new TemplateModel())->find($id);
+        if ($tpl === null) {
+            return $this->notFound('Plantilla no encontrada.');
+        }
+        $conv = (new ConversationModel())->find((int) ($this->request->getVar('conversation_id') ?? 0));
+        if ($conv === null) {
+            return $this->notFound('Conversación no encontrada.');
+        }
+        $vars = TemplateRenderer::vars($conv, (string) session()->get('user_name'));
+
+        return $this->success([
+            'subject' => TemplateRenderer::render((string) ($tpl['subject'] ?? ''), $vars),
+            'body'    => TemplateRenderer::render((string) ($tpl['body'] ?? ''), $vars),
+        ]);
     }
 
     /**
@@ -231,6 +320,19 @@ class DispatchApiController extends BaseApiController
     private function userId(): int
     {
         return (int) session()->get('user_id');
+    }
+
+    /** Expande variables de plantilla que sobrevivan en el cuerpo enviado. */
+    private function expandTemplateVars(int $conversationId, string $body): string
+    {
+        if (! str_contains($body, '{{')) {
+            return $body;
+        }
+        $conv = (new ConversationModel())->find($conversationId);
+        if ($conv === null) {
+            return $body;
+        }
+        return TemplateRenderer::renderHtml($body, $conv, (string) session()->get('user_name'));
     }
 
     private function canDispatch(): bool

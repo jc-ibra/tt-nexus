@@ -3766,6 +3766,162 @@
           }
         },
         {
+          "name": "Reply templates — list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/templates?all=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "templates"
+              ],
+              "query": [
+                {
+                  "key": "all",
+                  "value": "1",
+                  "description": "1 = catálogo completo; omitir = solo activas"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reply templates — create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acuse de recibo\",\n  \"subject\": \"\",\n  \"body\": \"Hola {{requester_name}},\\n\\nRecibimos tu solicitud y la estamos atendiendo.\\n\\nSaludos,\\n{{agent_name}}\",\n  \"is_active\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/templates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "templates"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reply templates — update",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acuse de recibo\",\n  \"subject\": \"\",\n  \"body\": \"Hola {{requester_name}}, seguimos con tu caso {{folio}}.\",\n  \"is_active\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/templates/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "templates",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reply templates — delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/templates/1/delete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "templates",
+                "1",
+                "delete"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reply templates — render preview (no envía correo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversation_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/templates/1/render",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "templates",
+                "1",
+                "render"
+              ]
+            }
+          }
+        },
+        {
           "name": "Purge operational data (danger zone, SuperAdmin)",
           "request": {
             "method": "POST",

@@ -160,6 +160,11 @@ $addrList = static function (?string $raw): array {
   .md-cc-row { margin-bottom:var(--space-2); }
   .md-cc-row .field-label { margin-bottom:4px; }
   .md-cc-row .input { margin-bottom:4px; }
+  .md-tpl-row { margin-bottom:var(--space-2); }
+  .md-tpl-row .field-label { margin-bottom:4px; }
+  .md-tpl-controls { display:flex; gap:var(--space-2); align-items:center; margin-bottom:4px; }
+  .md-tpl-controls .input { flex:1; min-width:0; }
+  .md-tpl-controls .btn { flex:0 0 auto; }
   .md-file-list { list-style:none; margin:0 0 var(--space-2); padding:0; }
   .md-file-list li { font-size:var(--text-xs); color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
@@ -516,6 +521,30 @@ $addrList = static function (?string $raw): array {
             </p>
           </div>
 
+          <div class="md-tpl-row">
+            <label class="field-label" for="md-tpl-select">Plantilla</label>
+            <div class="md-tpl-controls">
+              <select id="md-tpl-select" class="input" <?= empty($templates ?? []) ? 'disabled' : '' ?>>
+                <option value="">Sin plantilla</option>
+                <?php foreach (($templates ?? []) as $t): ?>
+                  <option value="<?= (int) $t['id'] ?>" data-body="<?= esc((string) ($t['body'] ?? ''), 'attr') ?>">
+                    <?= esc($t['name']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+              <button type="button" class="btn btn-secondary" id="md-tpl-insert" <?= empty($templates ?? []) ? 'disabled' : '' ?>>Insertar</button>
+            </div>
+            <p class="md-file-hint">
+              <?php if (empty($templates ?? [])): ?>
+                No hay plantillas activas.
+                <a href="<?= base_url('dispatch/templates') ?>" target="_blank" rel="noopener">Crear una</a>.
+              <?php else: ?>
+                Se inserta donde tengas el cursor y las variables se resuelven con los datos de este hilo.
+                <a href="<?= base_url('dispatch/templates') ?>" target="_blank" rel="noopener">Administrar plantillas</a>.
+              <?php endif; ?>
+            </p>
+          </div>
+
           <div class="md-editor-toolbar" role="toolbar" aria-label="Formato">
             <button type="button" data-cmd="bold" title="Negrita" style="font-weight:700;">B</button>
             <button type="button" data-cmd="italic" title="Cursiva" style="font-style:italic;">I</button>
@@ -724,6 +753,52 @@ window.addEventListener('resize', function () {
       try { document.execCommand(b.dataset.cmd, false, null); } catch (err) {}
     });
   }
+
+  // Plantillas de respuesta: inserta el cuerpo en el cursor, con las variables
+  // ya resueltas para este hilo (los valores vienen escapados del servidor).
+  (function () {
+    var select = document.getElementById('md-tpl-select');
+    var button = document.getElementById('md-tpl-insert');
+    if (!select || !button) return;
+
+    var vars = <?= json_encode($templateVars ?? [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>;
+
+    function esc(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // El cuerpo se captura en un textarea (texto plano): se escapa y los saltos
+    // de línea se vuelven <br> para que el editor rico lo respete.
+    function toHtml(body) {
+      var html = esc(body).replace(/\r\n|\r|\n/g, '<br>');
+      Object.keys(vars).forEach(function (key) {
+        html = html.split(esc(key)).join(vars[key]);
+      });
+      return html;
+    }
+
+    button.addEventListener('click', function () {
+      var opt = select.options[select.selectedIndex];
+      if (!opt || !opt.value) { select.focus(); return; }
+
+      var html = toHtml(opt.dataset.body || '');
+      if (html === '') return;
+
+      editor.focus();
+      var sel = window.getSelection();
+      var inEditor = sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode);
+      var ok = false;
+      if (inEditor) {
+        try { ok = document.execCommand('insertHTML', false, html); } catch (err) { ok = false; }
+      }
+      if (!ok) {
+        // Sin cursor dentro del editor (o navegador sin execCommand): se agrega
+        // al final, separado de lo que ya estuviera escrito.
+        editor.innerHTML += (editor.innerHTML.trim() === '' ? '' : '<br>') + html;
+      }
+      editor.focus();
+    });
+  })();
 
   form.addEventListener('submit', function (e) {
     var html = editor.innerHTML.trim();

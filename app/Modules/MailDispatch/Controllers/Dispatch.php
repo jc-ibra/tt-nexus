@@ -13,6 +13,8 @@ use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
 use App\Modules\MailDispatch\Models\SignatureModel;
+use App\Modules\MailDispatch\Models\TemplateModel;
+use App\Modules\MailDispatch\Services\TemplateRenderer;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -101,6 +103,10 @@ class Dispatch extends BaseController
             'sendEnabled'  => service('mailDispatchSettings')->isSendEnabled(),
             'replyMaxMb'   => (int) round($config->maxTotalReplyBytes / 1048576),
             'replyMaxCount' => $config->maxReplyAttachments,
+            // Plantillas de respuesta + valores ya resueltos de sus variables:
+            // el compositor las expande al insertarlas, del lado del navegador.
+            'templates'    => (new TemplateModel())->active(),
+            'templateVars' => TemplateRenderer::htmlVars($conv, (string) session()->get('user_name')),
         ]);
     }
 
@@ -260,7 +266,7 @@ class Dispatch extends BaseController
         $files  = $this->request->getFileMultiple('files') ?? [];
         $result = service('mailDispatchReplyService')->reply(
             $id,
-            (string) ($this->request->getPost('body') ?? ''),
+            $this->expandTemplateVars($id, (string) ($this->request->getPost('body') ?? '')),
             $this->userId(),
             $files,
             (string) ($this->request->getPost('cc') ?? '')
@@ -390,6 +396,24 @@ class Dispatch extends BaseController
     private function userId(): int
     {
         return (int) session()->get('user_id');
+    }
+
+    /**
+     * Red de seguridad: expande las variables de plantilla que sobrevivan en el
+     * cuerpo. El compositor ya las resuelve al insertar la plantilla; esto cubre
+     * el caso de que el agente escriba {{requester_name}} a mano o pegue el
+     * texto sin insertarlo.
+     */
+    private function expandTemplateVars(int $conversationId, string $body): string
+    {
+        if (! str_contains($body, '{{')) {
+            return $body;
+        }
+        $conv = (new ConversationModel())->find($conversationId);
+        if ($conv === null) {
+            return $body;
+        }
+        return TemplateRenderer::renderHtml($body, $conv, (string) session()->get('user_name'));
     }
 
     /** SuperAdmins and registered dispatchers may assign/reassign to others. */

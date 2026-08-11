@@ -111,6 +111,14 @@ $routes->group('api/v1/dispatch', [
     $routes->get('metrics',     'DispatchApiController::metrics');
     $routes->get('dispositions', 'DispatchApiController::dispositions');
     $routes->get('agents',      'DispatchApiController::agents');
+
+    // Reply templates mirror (phase 3). `render` previews the expanded text for
+    // a conversation without sending anything.
+    $routes->get('templates',                 'DispatchApiController::templates');
+    $routes->post('templates',                'DispatchApiController::storeTemplate');
+    $routes->post('templates/(:num)',         'DispatchApiController::updateTemplate/$1');
+    $routes->post('templates/(:num)/delete',  'DispatchApiController::deleteTemplate/$1');
+    $routes->post('templates/(:num)/render',  'DispatchApiController::renderTemplate/$1');
 });
 
 // -----------------------------------------------------------------------
