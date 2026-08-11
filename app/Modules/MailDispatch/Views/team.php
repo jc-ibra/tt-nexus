@@ -46,38 +46,68 @@ if ($selected !== null && $selected > 0) {
   .tb-layout { display:grid; grid-template-columns: minmax(0, 1fr) 340px; gap:var(--space-5); align-items:start; }
   @media (max-width: 1080px) { .tb-layout { grid-template-columns: 1fr; } }
 
-  .tb-totals { display:flex; flex-wrap:wrap; gap:var(--space-4); margin-bottom:var(--space-4); }
-  .tb-total { min-width:96px; }
+  .tb-totals { display:flex; flex-wrap:wrap; gap:var(--space-5); background:var(--bg-surface);
+               border:1px solid var(--color-neutral-200); border-radius:var(--radius-lg); box-shadow:var(--shadow-xs);
+               padding:var(--space-4) var(--space-5); margin-bottom:var(--space-5); }
+  .tb-total { min-width:92px; }
+  .tb-total + .tb-total { border-left:1px solid var(--color-neutral-200); padding-left:var(--space-5); }
   .tb-total .n { font-size:var(--text-2xl); font-weight:var(--weight-bold); line-height:1.1; color:var(--text-primary); }
   .tb-total .n.is-critical { color:var(--color-critical-strong); }
   .tb-total .l { font-size:var(--text-xs); color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; }
 
-  .tb-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:var(--space-3); margin-bottom:var(--space-5); }
-  .tb-card { display:block; text-decoration:none; color:inherit; background:var(--bg-surface); border:1px solid var(--color-neutral-200);
-             border-left:3px solid var(--color-neutral-300); border-radius:var(--radius-md); padding:var(--space-3);
-             transition:box-shadow var(--duration-base), border-color var(--duration-base); }
-  .tb-card:hover { box-shadow:var(--shadow-sm); }
-  .tb-card.is-selected { border-color:var(--action-primary); box-shadow:0 0 0 2px rgba(23,115,200,.15); }
-  .tb-card.tone-critical { border-left-color:var(--color-critical-default); }
-  .tb-card.tone-warning  { border-left-color:var(--color-warning-default); }
-  .tb-card.tone-info     { border-left-color:var(--action-primary); }
-  .tb-card.tone-idle     { border-left-color:var(--color-neutral-300); }
+  .tb-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(232px, 1fr)); gap:var(--space-3); margin-bottom:var(--space-5); }
+  .tb-card { display:flex; flex-direction:column; gap:var(--space-3); background:var(--bg-surface);
+             border:1px solid var(--color-neutral-200); border-radius:var(--radius-lg); padding:var(--space-4);
+             box-shadow:var(--shadow-xs);
+             transition:box-shadow var(--duration-base) var(--ease-default),
+                        border-color var(--duration-base) var(--ease-default),
+                        transform var(--duration-base) var(--ease-default); }
+  /* La tarjeta entera es un <a>: sin esto, el `a:hover` global la pinta de azul y la subraya completa. */
+  .tb-card:link, .tb-card:visited, .tb-card:hover, .tb-card:focus, .tb-card:active {
+             color:var(--text-primary); text-decoration:none; }
+  .tb-card:hover { border-color:var(--color-neutral-300); box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+  .tb-card:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
+  .tb-card.is-selected { border-color:var(--action-primary); box-shadow:0 0 0 1px var(--action-primary); }
+  .tb-card.is-selected:hover { transform:none; }
 
-  .tb-head { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-3); min-width:0; }
-  .tb-av { flex:0 0 auto; width:28px; height:28px; border-radius:50%; background:var(--color-neutral-200); color:var(--text-secondary);
-           display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:var(--weight-bold); }
+  .tb-head { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
+  .tb-av { flex:0 0 auto; width:32px; height:32px; border-radius:var(--radius-full); background:var(--color-neutral-100);
+           color:var(--text-secondary); display:inline-flex; align-items:center; justify-content:center;
+           font-size:var(--text-xs); font-weight:var(--weight-bold); letter-spacing:.02em; }
   .tb-card.tone-critical .tb-av { background:var(--color-critical-surface); color:var(--color-critical-strong); }
-  .tb-name { font-weight:var(--weight-semibold); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .tb-role { flex:0 0 auto; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); }
+  .tb-card.tone-warning  .tb-av { background:var(--color-warning-surface);  color:var(--color-warning-strong); }
+  .tb-card.tone-info     .tb-av { background:var(--color-blue-50);          color:var(--color-blue-600); }
+  .tb-card.tone-idle     .tb-av { background:var(--color-neutral-100);      color:var(--text-muted); }
+  .tb-id { min-width:0; }
+  .tb-name { display:block; font-weight:var(--weight-semibold); font-size:var(--text-sm); line-height:1.3;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tb-role { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); }
 
-  .tb-open { font-size:var(--text-2xl); font-weight:var(--weight-bold); line-height:1; }
-  .tb-open small { font-size:var(--text-xs); font-weight:var(--weight-regular); color:var(--text-muted); margin-left:4px; }
-  .tb-stats { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-top:var(--space-2); font-size:var(--text-xs); color:var(--text-secondary); }
-  .tb-chip { display:inline-flex; align-items:center; gap:4px; }
-  .tb-chip.is-critical { color:var(--color-critical-strong); font-weight:var(--weight-semibold); }
-  .tb-chip.is-warning  { color:var(--color-warning-strong); font-weight:var(--weight-semibold); }
-  .tb-foot { margin-top:var(--space-2); padding-top:var(--space-2); border-top:1px solid var(--color-neutral-200);
+  .tb-open { display:flex; align-items:baseline; gap:var(--space-2); }
+  .tb-open .n { font-size:var(--text-2xl); font-weight:var(--weight-bold); line-height:1; }
+  .tb-open .u { font-size:var(--text-xs); color:var(--text-muted); }
+
+  /* Etiqueta a la izquierda y cifra a la derecha: en columnas se partían en dos
+     renglones y desbordaban la tarjeta en cuanto el nombre era largo. */
+  .tb-metrics { border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); overflow:hidden; }
+  .tb-metric { display:flex; align-items:baseline; justify-content:space-between; gap:var(--space-2);
+               padding:var(--space-1) var(--space-3); }
+  .tb-metric + .tb-metric { border-top:1px solid var(--color-neutral-200); }
+  .tb-metric .k { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                  font-size:var(--text-xs); color:var(--text-muted); }
+  .tb-metric .v { flex:0 0 auto; font-size:var(--text-sm); font-weight:var(--weight-semibold);
+                  color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .tb-metric .v.is-on       { color:var(--text-primary); }
+  .tb-metric .v.is-warning  { color:var(--color-warning-strong); }
+  .tb-metric .v.is-critical { color:var(--color-critical-strong); }
+
+  .tb-foot { margin-top:auto; display:flex; align-items:center; gap:var(--space-2); min-width:0;
              font-size:var(--text-xs); color:var(--text-muted); }
+  .tb-foot span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tb-dot { flex:0 0 auto; width:6px; height:6px; border-radius:var(--radius-full); background:var(--color-neutral-300); }
+  .tb-card.tone-critical .tb-dot { background:var(--color-critical-default); }
+  .tb-card.tone-warning  .tb-dot { background:var(--color-warning-default); }
+  .tb-card.tone-info     .tb-dot { background:var(--action-primary); }
 
   .tb-row { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4);
             border-bottom:1px solid var(--color-neutral-200); }
@@ -148,13 +178,26 @@ if ($selected !== null && $selected > 0) {
          href="<?= esc($cardHref(0), 'attr') ?>">
         <div class="tb-head">
           <span class="tb-av">SA</span>
-          <span class="tb-name">Sin asignar</span>
+          <span class="tb-id">
+            <span class="tb-name">Sin asignar</span>
+            <span class="tb-role">Por repartir</span>
+          </span>
         </div>
-        <div class="tb-open"><?= (int) $unassigned['open'] ?><small>esperando</small></div>
+        <div class="tb-open">
+          <span class="n"><?= (int) $unassigned['open'] ?></span>
+          <span class="u">esperando</span>
+        </div>
+        <div class="tb-metrics">
+          <div class="tb-metric">
+            <span class="k">La más antigua</span>
+            <span class="v <?= $unassigned['open'] > 0 ? 'is-on' : '' ?>">
+              <?= $unassigned['open'] > 0 ? esc($ago($unassigned['oldestWait'])) : '0' ?>
+            </span>
+          </div>
+        </div>
         <div class="tb-foot">
-          <?= $unassigned['open'] > 0
-              ? 'La más antigua lleva ' . esc($ago($unassigned['oldestWait'])) . ' sin dueño'
-              : 'Nada pendiente de repartir' ?>
+          <span class="tb-dot"></span>
+          <span><?= $unassigned['open'] > 0 ? 'Pendientes de dueño' : 'Nada por repartir' ?></span>
         </div>
       </a>
 
@@ -163,21 +206,36 @@ if ($selected !== null && $selected > 0) {
            href="<?= esc($cardHref($c['agent_id']), 'attr') ?>">
           <div class="tb-head">
             <span class="tb-av"><?= esc($initials($c['name'])) ?></span>
-            <span class="tb-name"><?= esc($c['name']) ?></span>
-            <?php if ($c['is_dispatcher']): ?><span class="tb-role">Despachador</span><?php endif; ?>
+            <span class="tb-id">
+              <span class="tb-name"><?= esc($c['name']) ?></span>
+              <span class="tb-role"><?= $c['is_dispatcher'] ? 'Despachador' : 'Agente' ?></span>
+            </span>
           </div>
-          <div class="tb-open"><?= (int) $c['open'] ?><small>en curso</small></div>
-          <div class="tb-stats">
-            <span class="tb-chip <?= $c['unanswered'] > 0 ? 'is-warning' : '' ?>"><?= (int) $c['unanswered'] ?> sin responder</span>
-            <?php if ($c['pending'] > 0): ?><span class="tb-chip"><?= (int) $c['pending'] ?> en espera</span><?php endif; ?>
-            <?php if ($c['breached'] > 0): ?><span class="tb-chip is-critical"><?= (int) $c['breached'] ?> fuera de SLA</span><?php endif; ?>
+          <div class="tb-open">
+            <span class="n"><?= (int) $c['open'] ?></span>
+            <span class="u">en curso</span>
+          </div>
+          <div class="tb-metrics">
+            <div class="tb-metric">
+              <span class="k">Sin responder</span>
+              <span class="v <?= $c['unanswered'] > 0 ? 'is-warning' : '' ?>"><?= (int) $c['unanswered'] ?></span>
+            </div>
+            <div class="tb-metric">
+              <span class="k">En espera</span>
+              <span class="v <?= $c['pending'] > 0 ? 'is-on' : '' ?>"><?= (int) $c['pending'] ?></span>
+            </div>
+            <div class="tb-metric">
+              <span class="k">Fuera de SLA</span>
+              <span class="v <?= $c['breached'] > 0 ? 'is-critical' : '' ?>"><?= (int) $c['breached'] ?></span>
+            </div>
+            <div class="tb-metric">
+              <span class="k">Cerradas hoy</span>
+              <span class="v <?= $c['closedToday'] > 0 ? 'is-on' : '' ?>"><?= (int) $c['closedToday'] ?></span>
+            </div>
           </div>
           <div class="tb-foot">
-            <?php if ($c['open'] > 0): ?>
-              Sin movimiento: <?= esc($ago($c['oldestIdle'])) ?> · <?= (int) $c['closedToday'] ?> cerradas hoy
-            <?php else: ?>
-              Libre · <?= (int) $c['closedToday'] ?> cerradas hoy
-            <?php endif; ?>
+            <span class="tb-dot"></span>
+            <span><?= $c['open'] > 0 ? 'Sin movimiento ' . esc($ago($c['oldestIdle'])) : 'Libre' ?></span>
           </div>
         </a>
       <?php endforeach; ?>
