@@ -155,6 +155,7 @@ $moduleSubnav = [
             'active' => $currentPath === '/dispatch'
                 || (str_starts_with($currentPath, '/dispatch/')
                     && ! str_starts_with($currentPath, '/dispatch/metrics')
+                    && ! str_starts_with($currentPath, '/dispatch/team')
                     && ! str_starts_with($currentPath, '/dispatch/templates')),
         ],
         [
@@ -232,6 +233,21 @@ $moduleSubnav = [
         ],
     ],
 ];
+
+// The MailDispatch team board is a supervision view: only dispatchers (and
+// SuperAdmins) get the entry, mirroring the check in the controller. Gated on
+// module access first so the roster lookup never runs for everyone else.
+$canSeeDispatchTeam = in_array('mail_dispatch', array_column($modules, 'key'), true)
+    && (service('access')->isSuperAdmin()
+        || (new \App\Modules\MailDispatch\Models\AgentModel())->isDispatcher($sessionUserId));
+
+if ($canSeeDispatchTeam) {
+    array_splice($moduleSubnav['mail_dispatch'], 1, 0, [[
+        'label'  => 'Equipo',
+        'url'    => base_url('dispatch/team'),
+        'active' => str_starts_with($currentPath, '/dispatch/team'),
+    ]]);
+}
 
 // Auditable agents (glpi_user_id set) get a self-view inside Service Desk.
 if ($currentUserGlpiId > 0) {

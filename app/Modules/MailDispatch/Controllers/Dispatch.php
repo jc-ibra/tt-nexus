@@ -314,6 +314,52 @@ class Dispatch extends BaseController
     // Metrics (phase 2)
     // -----------------------------------------------------------------------
 
+    /**
+     * Team board: live view of who is holding what. Dispatchers only — a regular
+     * agent has "Mías" for their own queue and no business reassigning others'.
+     *
+     * `?agent_id=N` drills into one agent's open workload (0 = the unassigned
+     * bucket), rendered with the same row as the inbox.
+     */
+    public function team(): ResponseInterface|string
+    {
+        if (! $this->canDispatch()) {
+            return redirect()->to(route_to('dispatch.index'));
+        }
+
+        $board = service('mailDispatchTeamBoard')->board();
+
+        // Absent param = no drill-down; agent_id=0 is the unassigned bucket, so
+        // the two cases must stay distinguishable.
+        $raw      = $this->request->getGet('agent_id');
+        $selected = ($raw === null || $raw === '') ? null : (int) $raw;
+
+        $rows  = [];
+        $pager = null;
+        if ($selected !== null) {
+            $conv  = new ConversationModel();
+            $rows  = $conv->forQueue('agent', null, 15, '', $selected > 0 ? $selected : null);
+            $pager = $conv->pager;
+        }
+
+        $config = new MailDispatchConfig();
+
+        return view('App\Modules\MailDispatch\Views\team', [
+            'pageTitle'     => 'Equipo · Despacho de Correo',
+            'cards'         => $board['agents'],
+            'unassigned'    => $board['unassigned'],
+            'activity'      => $board['activity'],
+            'totals'        => $board['totals'],
+            'selectedAgent' => $selected,
+            'rows'          => $rows,
+            'pager'         => $pager,
+            'statusLabels'  => $config->statusLabels,
+            'statusTones'   => $config->statusTones,
+            'agents'        => (new AgentModel())->activeAgents(),
+            'currentUserId' => $this->userId(),
+        ]);
+    }
+
     /** Team-wide metrics (agent filter + per-agent breakdown). Dispatchers only. */
     public function metrics(): ResponseInterface|string
     {

@@ -3766,6 +3766,30 @@
           }
         },
         {
+          "name": "Team board (live workload, dispatchers only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/team",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "team"
+              ]
+            }
+          }
+        },
+        {
           "name": "Reply templates — list",
           "request": {
             "method": "GET",

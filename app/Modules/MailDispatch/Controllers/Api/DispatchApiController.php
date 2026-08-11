@@ -194,6 +194,20 @@ class DispatchApiController extends BaseApiController
         return $this->success((new AgentModel())->activeAgents());
     }
 
+    /**
+     * GET /api/v1/dispatch/team
+     * Live workload board: unassigned bucket, per-agent load and the recent
+     * activity feed. Dispatchers only, same as the web view.
+     */
+    public function team(): ResponseInterface
+    {
+        if (! $this->canDispatch()) {
+            return $this->error('Solo los despachadores pueden ver el tablero del equipo.', ResponseInterface::HTTP_FORBIDDEN);
+        }
+
+        return $this->success(service('mailDispatchTeamBoard')->board());
+    }
+
     // -----------------------------------------------------------------------
     // Reply templates (phase 3) — mirror of /dispatch/templates
     // -----------------------------------------------------------------------

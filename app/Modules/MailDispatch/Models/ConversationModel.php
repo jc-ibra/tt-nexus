@@ -53,7 +53,7 @@ class ConversationModel extends Model
      * Inbox query. $filter ∈ {unassigned, mine, all, open, closed}. Returns the
      * conversation rows joined with the assigned agent's name and disposition.
      */
-    public function forQueue(string $filter, ?int $userId, int $perPage = 25, string $q = ''): array
+    public function forQueue(string $filter, ?int $userId, int $perPage = 25, string $q = '', ?int $agentId = null): array
     {
         $b = $this->select(
             'maildispatch_conversations.*,'
@@ -93,6 +93,15 @@ class ConversationModel extends Model
             case 'closed':
                 $b->where('maildispatch_conversations.status', 'cerrada');
                 break;
+            case 'agent':
+                // Team board drill-down: one agent's open workload. $agentId
+                // null means the unassigned bucket (the board shows it as a
+                // column too, so the dispatcher can hand those out).
+                $agentId === null
+                    ? $b->where('maildispatch_conversations.agent_id', null)
+                    : $b->where('maildispatch_conversations.agent_id', $agentId);
+                $b->whereNotIn('maildispatch_conversations.status', ['cerrada', 'autoarchivo', 'autogenerado']);
+                break;
             case 'all':
             default:
                 // everything except the auto-triaged buckets, open first
@@ -117,6 +126,126 @@ class ConversationModel extends Model
         // page number is read from the ?page= query param automatically.
         return $b->orderBy('maildispatch_conversations.last_activity_at', 'DESC')
                  ->paginate($perPage, 'default');
+    }
+
+    /**
+     * Live workload per agent for the team board: what each agent is holding
+     * right now, not a historical aggregate (that is what Métricas is for).
+     *
+     * "Sin responder" counts open threads the agent owns that never got a first
+     * response, which is the queue that actually hurts. `oldest_idle_minutes`
+     * measures silence since the last activity on the agent's stalest thread.
+     *
+     * Agents with nothing open still appear (zeroed) so the board shows who is
+     * free; the caller merges this with the active-agent roster.
+     *
+     * @return array<int,array{agent_id:int,open:int,unanswered:int,pending:int,oldest_idle_minutes:int,closed_today:int}>
+     */
+    public function teamWorkload(): array
+    {
+        $open = $this->db->table($this->table . ' c')
+            ->select('c.agent_id')
+            ->select('COUNT(*) AS open_count', false)
+            ->select('SUM(CASE WHEN c.first_response_at IS NULL THEN 1 ELSE 0 END) AS unanswered', false)
+            ->select("SUM(CASE WHEN c.status = 'esperando_agente' THEN 1 ELSE 0 END) AS pending", false)
+            ->select('MIN(c.last_activity_at) AS oldest_activity', false)
+            ->whereNotIn('c.status', ['cerrada', 'autoarchivo', 'autogenerado'])
+            ->where('c.agent_id IS NOT NULL', null, false)
+            ->groupBy('c.agent_id')
+            ->get()->getResultArray();
+
+        $rows = [];
+        foreach ($open as $r) {
+            $oldest = (string) ($r['oldest_activity'] ?? '');
+            $ts     = $oldest !== '' ? strtotime($oldest) : false;
+            $rows[(int) $r['agent_id']] = [
+                'agent_id'            => (int) $r['agent_id'],
+                'open'                => (int) $r['open_count'],
+                'unanswered'          => (int) $r['unanswered'],
+                'pending'             => (int) $r['pending'],
+                'oldest_idle_minutes' => $ts === false ? 0 : max(0, (int) floor((time() - $ts) / 60)),
+                'closed_today'        => 0,
+            ];
+        }
+
+        $closed = $this->db->table($this->table . ' c')
+            ->select('c.agent_id')
+            ->select('COUNT(*) AS closed_count', false)
+            ->where('c.status', 'cerrada')
+            ->where('c.closed_at >=', date('Y-m-d 00:00:00'))
+            ->where('c.agent_id IS NOT NULL', null, false)
+            ->groupBy('c.agent_id')
+            ->get()->getResultArray();
+
+        foreach ($closed as $r) {
+            $id = (int) $r['agent_id'];
+            $rows[$id] ??= [
+                'agent_id'            => $id,
+                'open'                => 0,
+                'unanswered'          => 0,
+                'pending'             => 0,
+                'oldest_idle_minutes' => 0,
+                'closed_today'        => 0,
+            ];
+            $rows[$id]['closed_today'] = (int) $r['closed_count'];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Unassigned bucket for the team board: how many are waiting for someone to
+     * take them and how long the oldest one has been sitting there.
+     *
+     * @return array{open:int,oldest_wait_minutes:int}
+     */
+    public function unassignedLoad(): array
+    {
+        $row = $this->db->table($this->table)
+            ->select('COUNT(*) AS open_count', false)
+            ->select('MIN(received_at) AS oldest', false)
+            ->where('agent_id', null)
+            ->whereNotIn('status', ['cerrada', 'autoarchivo', 'autogenerado'])
+            ->get()->getRowArray();
+
+        $oldest = (string) ($row['oldest'] ?? '');
+        $ts     = $oldest !== '' ? strtotime($oldest) : false;
+
+        return [
+            'open'                => (int) ($row['open_count'] ?? 0),
+            'oldest_wait_minutes' => $ts === false ? 0 : max(0, (int) floor((time() - $ts) / 60)),
+        ];
+    }
+
+    /**
+     * How many open threads each agent owns that breached the first-response
+     * SLA: still unanswered and received more than $slaMinutes ago. Drives the
+     * red state of the agent cards.
+     *
+     * @return array<int,int> agent id => breached count
+     */
+    public function slaBreachesByAgent(int $slaMinutes): array
+    {
+        if ($slaMinutes <= 0) {
+            return [];
+        }
+
+        $rows = $this->db->table($this->table . ' c')
+            ->select('c.agent_id')
+            ->select('COUNT(*) AS breached', false)
+            ->whereNotIn('c.status', ['cerrada', 'autoarchivo', 'autogenerado'])
+            ->where('c.agent_id IS NOT NULL', null, false)
+            ->where('c.first_response_at IS NULL', null, false)
+            ->where('c.received_at <', date('Y-m-d H:i:s', time() - $slaMinutes * 60))
+            ->groupBy('c.agent_id')
+            ->get()->getResultArray();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r['agent_id']] = (int) $r['breached'];
+        }
+
+        return $out;
     }
 
     /** Conversation joined with agent + disposition names for the detail view. */

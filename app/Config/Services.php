@@ -105,6 +105,7 @@ use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
 use App\Modules\MailDispatch\Services\SmtpReplyService as MailDispatchSmtpReplyService;
+use App\Modules\MailDispatch\Services\TeamBoardService as MailDispatchTeamBoardService;
 use App\Modules\MailDispatch\Models\AutogenRuleModel as MailDispatchAutogenRuleModel;
 use App\Modules\MailDispatch\Models\AutogenWhitelistModel as MailDispatchAutogenWhitelistModel;
 use App\Modules\MailDispatch\Services\AutogenMatcher as MailDispatchAutogenMatcher;
@@ -601,6 +602,20 @@ class Services extends BaseService
         return new MailDispatchMetrics(
             new MailDispatchConversationModel(),
             new MailDispatchMessageModel(),
+            self::mailDispatchSettings(),
+        );
+    }
+
+    /** Live "who is holding what" board for dispatchers. */
+    public static function mailDispatchTeamBoard(bool $getShared = true): MailDispatchTeamBoardService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchTeamBoard');
+        }
+        return new MailDispatchTeamBoardService(
+            new MailDispatchConversationModel(),
+            new MailDispatchAgentModel(),
+            new MailDispatchEventModel(),
             self::mailDispatchSettings(),
         );
     }

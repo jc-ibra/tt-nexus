@@ -21,6 +21,8 @@ $routes->group('dispatch', [
     // (agent filter + per-agent breakdown) only for dispatchers/SuperAdmin.
     $routes->get('my-metrics',        'Dispatch::myMetrics',  ['as' => 'dispatch.mymetrics']);
     $routes->get('my-metrics/export', 'Dispatch::exportMyCsv', ['as' => 'dispatch.mymetrics.export']);
+    // Team board: live "who is holding what" for dispatchers.
+    $routes->get('team',         'Dispatch::team',    ['as' => 'dispatch.team']);
     $routes->get('metrics',      'Dispatch::metrics', ['as' => 'dispatch.metrics']);
     $routes->get('metrics/export', 'Dispatch::exportCsv', ['as' => 'dispatch.metrics.export']);
 
@@ -108,6 +110,7 @@ $routes->group('api/v1/dispatch', [
     $routes->post('conversations/(:num)/reply',  'DispatchApiController::reply/$1'); // phase 3
 
     // Metrics mirror (phase 2).
+    $routes->get('team',        'DispatchApiController::team'); // live workload board
     $routes->get('metrics',     'DispatchApiController::metrics');
     $routes->get('dispositions', 'DispatchApiController::dispositions');
     $routes->get('agents',      'DispatchApiController::agents');
