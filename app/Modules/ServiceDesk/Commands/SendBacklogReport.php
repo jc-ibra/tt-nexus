@@ -87,6 +87,20 @@ class SendBacklogReport extends BaseCommand
                         $cli['name'], $cli['total'], $cli['avgDays'], $cli['maxDays'], $cli['sinIdc']));
                 }
             }
+            // Geo columns of the xlsx (Regional/Estado/Municipio): reported as a
+            // fill rate so a mis-detected plugin field shows up as a 0 here
+            // instead of as an empty column in the emailed attachment.
+            $geo = ['regional' => 0, 'estado' => 0, 'municipio' => 0];
+            foreach ($d['rows'] as $row) {
+                foreach ($geo as $k => $_) {
+                    if (($row[$k] ?? '') !== '') {
+                        $geo[$k]++;
+                    }
+                }
+            }
+            CLI::write(sprintf('  Columnas geo del adjunto: %d con regional · %d con estado · %d con municipio',
+                $geo['regional'], $geo['estado'], $geo['municipio']), 'cyan');
+
             // Exercise the render path so the dry-run also catches template errors.
             $html = $service->renderHtml($d);
             CLI::write(sprintf('  HTML OK (%d bytes). Adjunto: %d filas.', strlen($html), count($d['rows'])), 'green');

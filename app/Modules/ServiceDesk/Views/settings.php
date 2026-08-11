@@ -669,14 +669,15 @@ $bMunCont = (int) ($s['backlog_municipio_container_id'] ?? 0);
 
         <p class="text-muted text-sm" style="margin:var(--space-4) 0 var(--space-3) 0;">
           Estado y municipio se agregan como columnas del Excel adjunto, junto a Regional. Salen de la misma pestaña de campos
-          adicionales del ticket (Clientes Externos). No alimentan ningún KPI ni sección del correo: si dejas el contenedor en
-          "Ninguno", la columna sale vacía.
+          adicionales del ticket, así que <strong>no necesitas configurarlos</strong>: se detectan solos dentro del contenedor
+          que elegiste para Regional. Usa estos selectores solo si el campo tiene otro nombre o vive en otra pestaña.
+          No alimentan ningún KPI ni sección del correo.
         </p>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
           <div class="field">
             <label class="field-label" for="backlog_estado_container_id">Contenedor del campo Estado</label>
             <select id="backlog_estado_container_id" name="backlog_estado_container_id" class="input">
-              <option value="0">Ninguno (columna vacía)</option>
+              <option value="0">Automático (detectar en el contenedor de Regional)</option>
               <?php foreach ($containers as $c): ?>
                 <option value="<?= (int) $c['id'] ?>" <?= $bEstCont === (int) $c['id'] ? 'selected' : '' ?>>
                   <?= esc($c['label']) ?> · id <?= (int) $c['id'] ?>
@@ -691,7 +692,7 @@ $bMunCont = (int) ($s['backlog_municipio_container_id'] ?? 0);
           <div class="field">
             <label class="field-label" for="backlog_municipio_container_id">Contenedor del campo Municipio</label>
             <select id="backlog_municipio_container_id" name="backlog_municipio_container_id" class="input">
-              <option value="0">Ninguno (columna vacía)</option>
+              <option value="0">Automático (detectar en el contenedor de Regional)</option>
               <?php foreach ($containers as $c): ?>
                 <option value="<?= (int) $c['id'] ?>" <?= $bMunCont === (int) $c['id'] ? 'selected' : '' ?>>
                   <?= esc($c['label']) ?> · id <?= (int) $c['id'] ?>

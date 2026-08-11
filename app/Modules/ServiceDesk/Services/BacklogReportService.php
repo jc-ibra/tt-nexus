@@ -203,15 +203,25 @@ class BacklogReportService
             ? $this->loadTicketFieldValues($db, $this->settings->backlogRegionalContainerId(), $this->settings->backlogRegionalField())
             : null;
         $regionalConfigured = $regionalValues !== null;
-        // 4b) Estado / Municipio: export-only columns from the same plugin tab
-        // (Clientes Externos). They feed no KPI and no section of the email;
-        // an unconfigured pair simply leaves its xlsx column blank.
-        $estadoValues = $this->settings->backlogEstadoConfigured()
-            ? $this->loadTicketFieldValues($db, $this->settings->backlogEstadoContainerId(), $this->settings->backlogEstadoField())
-            : null;
-        $municipioValues = $this->settings->backlogMunicipioConfigured()
-            ? $this->loadTicketFieldValues($db, $this->settings->backlogMunicipioContainerId(), $this->settings->backlogMunicipioField())
-            : null;
+        // 4b) Estado / Municipio: export-only columns living in the same plugin
+        // tab as Regional (Clientes Externos). Without an explicit setting they
+        // are auto-detected there by name/label, so the columns work with no
+        // extra setup; the admin picker only exists to override that guess.
+        [$estCid, $estField] = $this->geoField(
+            $this->settings->backlogEstadoConfigured(),
+            $this->settings->backlogEstadoContainerId(),
+            $this->settings->backlogEstadoField(),
+            'estado'
+        );
+        $estadoValues = $this->loadTicketFieldValues($db, $estCid, $estField);
+
+        [$munCid, $munField] = $this->geoField(
+            $this->settings->backlogMunicipioConfigured(),
+            $this->settings->backlogMunicipioContainerId(),
+            $this->settings->backlogMunicipioField(),
+            'municipio'
+        );
+        $municipioValues = $this->loadTicketFieldValues($db, $munCid, $munField);
         $regAgg = []; // regional label => ['tickets','sumAge','sinIdc']
         // Categories the "POR REGIONAL" table is restricted to (subtree match).
         // Empty = no restriction (all categories count).
@@ -800,6 +810,46 @@ class BacklogReportService
             }
         }
         return $bucketDefs[array_key_last($bucketDefs)]['key'];
+    }
+
+    /**
+     * Resolves the container + field backing an export-only geo column (Estado,
+     * Municipio). An explicit admin choice always wins; otherwise the field is
+     * looked up inside the Regional container, where these live in practice
+     * (the "Clientes Externos" tab carries Regional, Estado and Municipio side
+     * by side). Returns [0, ''] when nothing matches, which leaves the column
+     * blank instead of failing the report.
+     *
+     * @return array{0:int,1:string}
+     */
+    private function geoField(bool $configured, int $containerId, string $field, string $alias): array
+    {
+        if ($configured) {
+            return [$containerId, $field];
+        }
+
+        $cid = $this->settings->backlogRegionalContainerId();
+        if ($cid <= 0) {
+            return [0, ''];
+        }
+        $container = $this->introspector->container($cid);
+        foreach ($container['fields'] ?? [] as $f) {
+            if (strcasecmp((string) $f['name'], $alias . 'field') === 0
+                || $this->asciiLower((string) $f['label']) === $alias) {
+                return [$cid, (string) $f['name']];
+            }
+        }
+
+        return [0, ''];
+    }
+
+    /** Lowercases and strips accents so "Municipio" and "MUNICIPIO" both match. */
+    private function asciiLower(string $s): string
+    {
+        $map = ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+                'Á' => 'a', 'É' => 'e', 'Í' => 'i', 'Ó' => 'o', 'Ú' => 'u', 'Ü' => 'u', 'Ñ' => 'n'];
+
+        return strtolower(trim(strtr($s, $map)));
     }
 
     /**
