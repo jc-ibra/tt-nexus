@@ -119,10 +119,49 @@ class ForwardParser
         return $html;
     }
 
+    /**
+     * One-line plain text from an HTML body, for previews and snippets.
+     *
+     * `strip_tags()` alone is not enough: it drops the <style> tag but keeps the
+     * CSS inside it, which is how rules like "P {margin-top:0;margin-bottom:0;}"
+     * ended up at the head of Outlook previews. Anything left that still looks
+     * like a bare CSS rule is dropped as a second line of defence, since old rows
+     * were stored before this existed.
+     */
+    public static function plainText(string $html, int $limit = 0): string
+    {
+        $t = self::stripCssPrefix(trim((string) preg_replace('/[\pZ\s]+/u', ' ', self::toText($html))));
+
+        return $limit > 0 ? mb_substr($t, 0, $limit) : $t;
+    }
+
+    /**
+     * Drops a leading run of "selector {prop:value;}" from already-plain text.
+     * Used on stored previews, which were written before plainText() existed and
+     * can still start with the message's stylesheet. The declaration must contain
+     * a colon so ordinary text with braces ("Hola {nombre}") is left alone.
+     */
+    public static function stripCssPrefix(string $text): string
+    {
+        // El bloque admite un nivel de anidamiento (@media) y debe contener ':',
+        // así un texto normal con llaves ("Hola {nombre}") no se toca.
+        return trim((string) preg_replace(
+            '/^(?:@?[\w\s.#>,:\-\[\]()="\']+\{(?=[^{}]*:|[^{}]*\{[^{}]*:)(?:[^{}]|\{[^{}]*\})*\}\s*)+/u',
+            '',
+            $text
+        ));
+    }
+
     /** Normalizes HTML to line-separated plain text for header parsing. */
     private static function toText(string $body): string
     {
-        $t = preg_replace('#<br\s*/?>#i', "\n", $body) ?? $body;
+        // Non-content elements first: their inner text (CSS, JS, meta) survives
+        // strip_tags() and would otherwise be read as message content.
+        $t = preg_replace('#<!--.*?-->#s', ' ', $body) ?? $body;
+        $t = preg_replace('#<(style|script|head|title)\b[^>]*>.*?</\1>#is', ' ', $t) ?? $t;
+        // Unclosed <style>/<script> (truncated bodies): drop to the end.
+        $t = preg_replace('#<(style|script)\b[^>]*>.*$#is', ' ', $t) ?? $t;
+        $t = preg_replace('#<br\s*/?>#i', "\n", $t) ?? $t;
         $t = preg_replace('#</(p|div|tr|li|h[1-6])>#i', "\n", $t) ?? $t;
         $t = strip_tags($t);
         $t = html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');

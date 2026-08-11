@@ -286,12 +286,17 @@ $isOutbound = ! empty($conv['outbound_only']);
         </div>
 
         <?php
-          // Preview en texto plano: decodifica entidades (&nbsp;, &lt;…) y colapsa
-          // espacios, para no mostrar símbolos crudos cuando está colapsado.
-          $preview = html_entity_decode(strip_tags((string) ($m['body_preview'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-          $preview = trim(preg_replace('/[\pZ\s]+/u', ' ', $preview) ?? $preview);
+          // Preview en texto plano: quita bloques <style>/<script>, decodifica
+          // entidades (&nbsp;, &lt;…) y colapsa espacios, para no mostrar CSS ni
+          // símbolos crudos cuando está colapsado. Los registros viejos guardaron
+          // el CSS dentro del preview, de ahí el respaldo sobre el cuerpo.
+          $fp      = \App\Modules\MailDispatch\Services\ForwardParser::class;
+          $preview = $fp::plainText((string) ($m['body_preview'] ?? ''), 160);
+          if ($preview === '') {
+              $preview = $fp::plainText((string) ($m['body'] ?? ''), 160);
+          }
         ?>
-        <div class="md-msg-preview"><?= esc(mb_substr($preview, 0, 160)) ?></div>
+        <div class="md-msg-preview"><?= esc($preview) ?></div>
 
         <?php
           $atts   = is_array($m['attachments'] ?? null) ? $m['attachments'] : [];

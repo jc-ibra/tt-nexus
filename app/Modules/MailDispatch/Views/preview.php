@@ -139,10 +139,14 @@ $addrList = static function (?string $raw): array {
       </div>
 
       <?php
-        $prev = html_entity_decode(strip_tags((string) ($m['body_preview'] ?? '')), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $prev = trim(preg_replace('/[\pZ\s]+/u', ' ', $prev) ?? $prev);
+        // Mismo criterio que la vista del hilo: sin CSS, sin tags, sin entidades.
+        $fp   = \App\Modules\MailDispatch\Services\ForwardParser::class;
+        $prev = $fp::plainText((string) ($m['body_preview'] ?? ''), 160);
+        if ($prev === '') {
+            $prev = $fp::plainText((string) ($m['body'] ?? ''), 160);
+        }
       ?>
-      <div class="md-msg-preview"><?= esc(mb_substr($prev, 0, 160)) ?></div>
+      <div class="md-msg-preview"><?= esc($prev) ?></div>
 
       <?php
         $atts   = is_array($m['attachments'] ?? null) ? $m['attachments'] : [];

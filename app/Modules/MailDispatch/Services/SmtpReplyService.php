@@ -119,7 +119,7 @@ class SmtpReplyService
             'to_recipients'       => $to,
             'cc_recipients'       => $ccList !== [] ? implode(', ', $ccList) : null,
             'subject'             => $subject,
-            'body_preview'        => mb_substr(trim((string) preg_replace('/\s+/', ' ', strip_tags($replyHtml))), 0, 255),
+            'body_preview'        => ForwardParser::plainText($replyHtml, 255),
             'body'                => $bodyHtml,
             'body_is_html'        => 1,
             'has_attachments'     => $validFiles !== [] ? 1 : 0,

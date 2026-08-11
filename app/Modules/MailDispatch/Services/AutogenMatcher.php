@@ -258,7 +258,12 @@ class AutogenMatcher
         if (! $isHtml) {
             return $body;
         }
-        $t = preg_replace('/<(br|\/p|\/div|\/li|\/tr)[^>]*>/i', "\n", $body) ?? $body;
+        // Fuera <style>/<script>/comentarios antes de nada: strip_tags conserva su
+        // contenido y una regla CSS ("margin-top:0") se leería como "Campo: valor".
+        $t = preg_replace('#<!--.*?-->#s', ' ', $body) ?? $body;
+        $t = preg_replace('#<(style|script|head|title)\b[^>]*>.*?</\1>#is', ' ', $t) ?? $t;
+        $t = preg_replace('#<(style|script)\b[^>]*>.*$#is', ' ', $t) ?? $t;
+        $t = preg_replace('/<(br|\/p|\/div|\/li|\/tr)[^>]*>/i', "\n", $t) ?? $t;
         $t = strip_tags($t);
         return html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }

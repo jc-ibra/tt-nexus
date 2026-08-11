@@ -662,7 +662,13 @@ class ConversationService
         $bodyType    = strtolower((string) ($m['body']['contentType'] ?? 'html'));
 
         $subject     = trim((string) ($m['subject'] ?? '(sin asunto)'));
-        $bodyPreview = trim((string) ($m['bodyPreview'] ?? ''));
+        // Graph hands us its own bodyPreview, but for messages carrying a <style>
+        // block it can start with the raw CSS ("P {margin-top:0;…}"). Rebuild it
+        // from the body when that happens, or when Graph sent none.
+        $bodyPreview = ForwardParser::stripCssPrefix(trim((string) ($m['bodyPreview'] ?? '')));
+        if ($bodyPreview === '') {
+            $bodyPreview = ForwardParser::plainText((string) $body, 255);
+        }
 
         // Forward mode: the mailbox receives forwarded copies, so the SMTP sender
         // is the forwarder. Use the original sender from the body's De:/From:

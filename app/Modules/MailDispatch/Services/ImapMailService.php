@@ -325,11 +325,9 @@ class ImapMailService
             $body   = $isHtml ? (string) $msg->getHTMLBody() : (string) $msg->getTextBody();
         }
 
-        // Plain-text preview: strip tags, decode HTML entities and collapse
-        // whitespace so no raw "&nbsp;"/"&lt;" leaks into the UI.
-        $plain   = html_entity_decode(strip_tags($body), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $plain   = trim(preg_replace('/[\pZ\s]+/u', ' ', $plain) ?? $plain);
-        $preview = mb_substr($plain, 0, 255);
+        // Plain-text preview: drops <style>/<script> blocks, tags and entities,
+        // and collapses whitespace so no CSS or raw "&nbsp;" leaks into the UI.
+        $preview = ForwardParser::plainText($body, 255);
 
         $dateAttr = $msg->date;
         $iso = '';
