@@ -122,14 +122,32 @@ $addrList = static function (?string $raw): array {
   .md-msg-toggle svg { width:18px; height:18px; }
   .md-msg.is-collapsed .md-msg-toggle { transform:rotate(-90deg); }
   .md-msg.is-collapsed .md-msg-collapsible { display:none; }
-  .md-recipients { padding:var(--space-2) var(--space-4) 0; display:flex; flex-direction:column; gap:2px; }
-  .md-recipients-row { display:flex; gap:var(--space-2); font-size:var(--text-xs); line-height:1.6; }
-  .md-recipients-label { flex:0 0 auto; color:var(--text-muted); min-width:32px; }
-  .md-recipients-list { display:flex; flex-wrap:wrap; gap:4px 8px; min-width:0; }
-  .md-addr { font:inherit; color:var(--text-secondary); background:none; border:none; padding:0;
-    cursor:pointer; border-bottom:1px dashed var(--border-default); }
-  .md-addr:hover { color:var(--color-primary); border-bottom-color:var(--color-primary); }
-  .md-addr:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
+  /* ---- Destinatarios (Para / CC) ----
+     Franja propia con fondo: quién va copiado se lee de un vistazo y las
+     direcciones son fichas clicables que se suman a la copia de la respuesta. */
+  .md-recipients { padding:var(--space-3) var(--space-4); background:var(--bg-page);
+    border-bottom:1px solid var(--border-default); display:flex; flex-direction:column; gap:var(--space-2); }
+  .md-recipients-row { display:flex; gap:var(--space-3); align-items:flex-start; }
+  .md-recipients-label { flex:0 0 auto; min-width:56px; padding-top:3px; font-size:var(--text-xs);
+    text-transform:uppercase; letter-spacing:.04em; font-weight:var(--weight-semibold); color:var(--text-muted); }
+  .md-recipients-row.is-cc .md-recipients-label { color:var(--color-blue-700); }
+  .md-recipients-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px;
+    height:18px; margin-left:4px; padding:0 5px; border-radius:var(--radius-full);
+    background:var(--color-blue-100); color:var(--color-blue-700); font-size:11px; letter-spacing:0; }
+  .md-recipients-list { display:flex; flex-wrap:wrap; gap:var(--space-1) var(--space-2); min-width:0; }
+  .md-addr { display:inline-flex; align-items:center; max-width:100%; font:inherit; font-size:var(--text-xs);
+    line-height:1.4; padding:3px var(--space-2); border-radius:var(--radius-full);
+    border:1px solid var(--border-default); background:var(--bg-surface); color:var(--text-secondary);
+    overflow-wrap:anywhere; text-align:left; cursor:pointer; }
+  .md-recipients-row.is-cc .md-addr { border-color:var(--color-blue-200); background:var(--color-blue-50);
+    color:var(--color-blue-700); font-weight:var(--weight-medium); }
+  .md-addr:hover { border-color:var(--action-primary); color:var(--action-primary); }
+  .md-addr:focus-visible { outline:2px solid var(--action-primary); outline-offset:2px; }
+  /* Aviso de copiados en el encabezado: visible incluso con el mensaje colapsado. */
+  .md-cc-flag { display:inline-flex; align-items:center; gap:4px; padding:1px var(--space-2);
+    border:1px solid var(--color-blue-200); border-radius:var(--radius-full); background:var(--color-blue-50);
+    color:var(--color-blue-700); font-size:var(--text-xs); font-weight:var(--weight-medium); white-space:nowrap; }
+  .md-cc-flag svg { width:13px; height:13px; }
   .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3);
     color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; }
@@ -261,6 +279,14 @@ $isOutbound = ! empty($conv['outbound_only']);
     <?php endif; ?>
     <?php /* Más reciente arriba; el más reciente abierto, los demás colapsados. */ ?>
     <?php foreach (array_reverse($messages) as $i => $m): $out = $m['direction'] === 'out'; $collapsed = $i > 0; ?>
+      <?php
+        // Destinatarios reales del correo: la respuesta desde Nexus sale solo
+        // al solicitante, así que el agente necesita ver a quién más iba
+        // dirigido para decidir a quién copiar a mano. Se calculan aquí arriba
+        // porque el encabezado también avisa cuántos van en copia.
+        $toAddrs = $addrList($m['to_recipients'] ?? '');
+        $ccAddrs = $addrList($m['cc_recipients'] ?? '');
+      ?>
       <div class="md-msg <?= $out ? 'out' : 'in' ?><?= $collapsed ? ' is-collapsed' : '' ?>">
         <div class="md-msg-head" role="button" tabindex="0" aria-expanded="<?= $collapsed ? 'false' : 'true' ?>">
           <span class="md-avatar <?= $out ? 'out' : 'in' ?>"><?= esc($initials($m['from_name'] ?? '', $m['from_email'] ?? '')) ?></span>
@@ -273,6 +299,12 @@ $isOutbound = ! empty($conv['outbound_only']);
           <div class="md-msg-side">
             <span class="badge badge-<?= $out ? 'success' : 'info' ?>"><?= $out ? 'Saliente' : 'Entrante' ?></span>
             <span class="md-msg-time"><?= esc($fmtDate($m['received_at'] ?? null)) ?></span>
+            <?php if ($ccAddrs !== []): ?>
+              <span class="md-cc-flag" title="<?= esc(implode(', ', $ccAddrs), 'attr') ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <?= count($ccAddrs) ?> en copia
+              </span>
+            <?php endif; ?>
             <?php if ($m['has_attachments']): ?>
               <span class="md-attach" title="Con adjuntos">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -323,20 +355,13 @@ $isOutbound = ! empty($conv['outbound_only']);
               }
           }
         ?>
-        <?php
-          // Destinatarios reales del correo: la respuesta desde Nexus sale solo
-          // al solicitante, así que el agente necesita ver a quién más iba
-          // dirigido para decidir a quién copiar a mano.
-          $toAddrs = $addrList($m['to_recipients'] ?? '');
-          $ccAddrs = $addrList($m['cc_recipients'] ?? '');
-        ?>
         <div class="md-msg-collapsible">
           <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
             <div class="md-recipients">
               <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
                 <?php if ($addrs !== []): ?>
-                  <div class="md-recipients-row">
-                    <span class="md-recipients-label"><?= $label ?>:</span>
+                  <div class="md-recipients-row<?= $label === 'CC' ? ' is-cc' : '' ?>">
+                    <span class="md-recipients-label"><?= $label ?><?php if (count($addrs) > 1): ?><span class="md-recipients-count"><?= count($addrs) ?></span><?php endif; ?></span>
                     <span class="md-recipients-list">
                       <?php foreach ($addrs as $addr): ?>
                         <button type="button" class="md-addr" data-addr="<?= esc($addr, 'attr') ?>"

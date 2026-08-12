@@ -221,11 +221,27 @@ $initials = static function (?string $name, ?string $email): string {
   .md-msg-toggle svg { width:18px; height:18px; }
   .md-msg.is-collapsed .md-msg-toggle { transform:rotate(-90deg); }
   .md-msg.is-collapsed .md-msg-collapsible { display:none; }
-  /* Destinatarios reales del correo (Para / CC) sobre el cuerpo del mensaje. */
-  .md-recipients { padding:var(--space-2) var(--space-4) 0; display:flex; flex-direction:column; gap:2px; }
-  .md-recipients-row { display:flex; gap:var(--space-2); font-size:var(--text-xs); line-height:1.6; }
-  .md-recipients-label { flex:0 0 auto; color:var(--text-muted); min-width:32px; }
-  .md-recipients-list { display:flex; flex-wrap:wrap; gap:4px 8px; min-width:0; color:var(--text-secondary); }
+  /* Destinatarios reales del correo (Para / CC) sobre el cuerpo del mensaje:
+     franja con fondo propio y fichas, para que los copiados se vean al leer. */
+  .md-recipients { padding:var(--space-3) var(--space-4); background:var(--bg-page);
+    border-bottom:1px solid var(--border-default); display:flex; flex-direction:column; gap:var(--space-2); }
+  .md-recipients-row { display:flex; gap:var(--space-3); align-items:flex-start; }
+  .md-recipients-label { flex:0 0 auto; min-width:56px; padding-top:3px; font-size:var(--text-xs);
+    text-transform:uppercase; letter-spacing:.04em; font-weight:var(--weight-semibold); color:var(--text-muted); }
+  .md-recipients-row.is-cc .md-recipients-label { color:var(--color-blue-700); }
+  .md-recipients-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px;
+    height:18px; margin-left:4px; padding:0 5px; border-radius:var(--radius-full);
+    background:var(--color-blue-100); color:var(--color-blue-700); font-size:11px; letter-spacing:0; }
+  .md-recipients-list { display:flex; flex-wrap:wrap; gap:var(--space-1) var(--space-2); min-width:0; }
+  .md-addr { display:inline-flex; align-items:center; max-width:100%; font-size:var(--text-xs); line-height:1.4;
+    padding:3px var(--space-2); border-radius:var(--radius-full); border:1px solid var(--border-default);
+    background:var(--bg-surface); color:var(--text-secondary); overflow-wrap:anywhere; }
+  .md-recipients-row.is-cc .md-addr { border-color:var(--color-blue-200); background:var(--color-blue-50);
+    color:var(--color-blue-700); font-weight:var(--weight-medium); }
+  .md-cc-flag { display:inline-flex; align-items:center; gap:4px; padding:1px var(--space-2);
+    border:1px solid var(--color-blue-200); border-radius:var(--radius-full); background:var(--color-blue-50);
+    color:var(--color-blue-700); font-size:var(--text-xs); font-weight:var(--weight-medium); white-space:nowrap; }
+  .md-cc-flag svg { width:13px; height:13px; }
   .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3); color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .md-msg.is-collapsed .md-msg-preview { display:block; }
   .md-msg-body-frame { width:100%; border:0; min-height:200px; background:#fff; display:block; }

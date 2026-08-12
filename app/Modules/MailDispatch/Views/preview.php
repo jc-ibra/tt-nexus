@@ -120,6 +120,13 @@ $addrList = static function (?string $raw): array {
     <p class="text-muted" style="padding:var(--space-4);">Sin mensajes en el hilo.</p>
   <?php endif; ?>
   <?php foreach (array_reverse($messages) as $i => $m): $out = $m['direction'] === 'out'; $collapsed = $i > 0; ?>
+    <?php
+      // Destinatarios reales del correo. Aquí son solo texto: el panel no tiene
+      // formulario de respuesta, así que no hay campo de copia al cual sumarlos.
+      // Se calculan antes del encabezado porque ahí se avisa cuántos van en copia.
+      $toAddrs = $addrList($m['to_recipients'] ?? '');
+      $ccAddrs = $addrList($m['cc_recipients'] ?? '');
+    ?>
     <div class="md-msg <?= $out ? 'out' : 'in' ?><?= $collapsed ? ' is-collapsed' : '' ?>">
       <div class="md-msg-head" role="button" tabindex="0" aria-expanded="<?= $collapsed ? 'false' : 'true' ?>">
         <span class="md-avatar <?= $out ? 'out' : 'in' ?>"><?= esc($initials($m['from_name'] ?? '', $m['from_email'] ?? '')) ?></span>
@@ -132,6 +139,12 @@ $addrList = static function (?string $raw): array {
         <div class="md-msg-side">
           <span class="badge badge-<?= $out ? 'success' : 'info' ?>"><?= $out ? 'Saliente' : 'Entrante' ?></span>
           <span class="md-msg-time"><?= esc($fmtDate($m['received_at'] ?? null)) ?></span>
+          <?php if ($ccAddrs !== []): ?>
+            <span class="md-cc-flag" title="<?= esc(implode(', ', $ccAddrs), 'attr') ?>">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <?= count($ccAddrs) ?> en copia
+            </span>
+          <?php endif; ?>
         </div>
         <span class="md-msg-toggle" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -163,21 +176,15 @@ $addrList = static function (?string $raw): array {
             if (! $embedded) $files[] = $a;
         }
       ?>
-      <?php
-        // Destinatarios reales del correo. Aquí son solo texto: el panel no tiene
-        // formulario de respuesta, así que no hay campo de copia al cual sumarlos.
-        $toAddrs = $addrList($m['to_recipients'] ?? '');
-        $ccAddrs = $addrList($m['cc_recipients'] ?? '');
-      ?>
       <div class="md-msg-collapsible">
         <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
           <div class="md-recipients">
             <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
               <?php if ($addrs !== []): ?>
-                <div class="md-recipients-row">
-                  <span class="md-recipients-label"><?= $label ?>:</span>
+                <div class="md-recipients-row<?= $label === 'CC' ? ' is-cc' : '' ?>">
+                  <span class="md-recipients-label"><?= $label ?><?php if (count($addrs) > 1): ?><span class="md-recipients-count"><?= count($addrs) ?></span><?php endif; ?></span>
                   <span class="md-recipients-list">
-                    <?php foreach ($addrs as $addr): ?><span><?= esc($addr) ?></span><?php endforeach; ?>
+                    <?php foreach ($addrs as $addr): ?><span class="md-addr"><?= esc($addr) ?></span><?php endforeach; ?>
                   </span>
                 </div>
               <?php endif; ?>
