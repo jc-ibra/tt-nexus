@@ -106,6 +106,9 @@ class ConversationModel extends Model
                     ? $b->where('maildispatch_conversations.agent_id', null)
                     : $b->where('maildispatch_conversations.agent_id', $agentId);
                 $b->whereNotIn('maildispatch_conversations.status', ['cerrada', 'autoarchivo', 'autogenerado']);
+                // Lo que nadie ha respondido va arriba: es la deuda real del
+                // agente. El orderBy común de abajo queda como criterio 2.
+                $b->orderBy('maildispatch_conversations.first_response_at IS NULL', 'DESC', false);
                 break;
             case 'all':
             default:
