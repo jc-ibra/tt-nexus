@@ -161,6 +161,24 @@ class EmployeeService
         return $this->emailAccountModel->countForEmployee($employeeId) > 0;
     }
 
+    /**
+     * The address of the account flagged as primary, resolved from an already
+     * loaded account list (no extra query). This is the address the employee is
+     * known by across systems; callers fall back to the personal email captured
+     * by RRHH when there is no primary account yet.
+     */
+    public function primaryEmailOf(array $accounts): ?string
+    {
+        foreach ($accounts as $account) {
+            $email = trim((string) ($account['email'] ?? ''));
+            if ((int) ($account['is_primary'] ?? 0) === 1 && $email !== '') {
+                return $email;
+            }
+        }
+
+        return null;
+    }
+
     public function addEmailAccount(int $employeeId, array $data): ServiceResult
     {
         if (! $this->model->find($employeeId)) {

@@ -98,12 +98,25 @@ class EmployeeModel extends Model
         return $row ?: null;
     }
 
+    /**
+     * Correlated subquery resolving the employee's primary account email — the
+     * account flagged `is_primary` in employee_email_accounts. `$alias` is the
+     * alias given to employees_employees in the outer query (never user input).
+     */
+    private function primaryEmailSubquery(string $alias = 'e'): string
+    {
+        return "(SELECT ea.email FROM employee_email_accounts ea"
+            . " WHERE ea.employee_id = {$alias}.id AND ea.is_primary = 1"
+            . " AND ea.email IS NOT NULL AND ea.email != ''"
+            . " ORDER BY ea.id ASC LIMIT 1) AS primary_email";
+    }
+
     public function paginateWithFilters(array $filters, int $perPage = 20, int $page = 1): array
     {
         $offset  = ($page - 1) * $perPage;
         $builder = $this->db->table('employees_employees e')
             ->select('e.id, e.employee_number, e.name, e.lastname, e.email, e.has_mailbox, e.photo, e.active, e.date_entry, a.name AS area_name, d.name AS department_name, p.name AS position_name')
-            ->select('(SELECT ea.email FROM employee_email_accounts ea WHERE ea.employee_id = e.id AND ea.is_primary = 1 AND ea.email IS NOT NULL AND ea.email != \'\' ORDER BY ea.id ASC LIMIT 1) AS primary_email', false)
+            ->select($this->primaryEmailSubquery(), false)
             ->join('employees_areas a',       'a.id = e.area_id',       'left')
             ->join('employees_departments d', 'd.id = e.department_id', 'left')
             ->join('employees_positions p',   'p.id = e.position_id',   'left')
@@ -116,6 +129,27 @@ class EmployeeModel extends Model
             ->get()->getResultArray();
 
         return $rows;
+    }
+
+    /**
+     * Every row matching the filters, unpaginated, for the directory export.
+     * Deliberately mirrors the visible columns of the index table (no photo and
+     * no personal contact data) — the export must not widen what the screen
+     * already exposes.
+     */
+    public function listAllForExport(array $filters): array
+    {
+        $builder = $this->db->table('employees_employees e')
+            ->select('e.id, e.employee_number, e.name, e.lastname, e.has_mailbox, e.active, a.name AS area_name, d.name AS department_name, p.name AS position_name')
+            ->select($this->primaryEmailSubquery(), false)
+            ->join('employees_areas a',       'a.id = e.area_id',       'left')
+            ->join('employees_departments d', 'd.id = e.department_id', 'left')
+            ->join('employees_positions p',   'p.id = e.position_id',   'left')
+            ->where('e.deleted_at', null);
+
+        $this->applyFilters($builder, $filters);
+
+        return $builder->orderBy('e.name', 'ASC')->get()->getResultArray();
     }
 
     public function countWithFilters(array $filters): int
@@ -162,12 +196,20 @@ class EmployeeModel extends Model
         return $this->where('email', $email)->first();
     }
 
+    /**
+     * Direct reports, each carrying `primary_email` when the employee already
+     * has an account flagged as primary, so the profile can show the
+     * institutional address instead of the personal one captured by RRHH.
+     */
     public function directReports(int $employeeId): array
     {
-        return $this->where('parent_id', $employeeId)
-            ->where('deleted_at', null)
-            ->orderBy('name', 'ASC')
-            ->findAll();
+        return $this->db->table('employees_employees e')
+            ->select('e.id, e.name, e.lastname, e.email, e.active')
+            ->select($this->primaryEmailSubquery(), false)
+            ->where('e.parent_id', $employeeId)
+            ->where('e.deleted_at', null)
+            ->orderBy('e.name', 'ASC')
+            ->get()->getResultArray();
     }
 
     public function search(string $term, int $limit = 20, ?int $excludeId = null): array

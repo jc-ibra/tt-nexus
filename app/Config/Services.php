@@ -30,6 +30,7 @@ use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Employees\Models\EmployeeStateModel;
 use App\Modules\Employees\Services\EmployeeCatalogService;
+use App\Modules\Employees\Services\EmployeeExportService;
 use App\Modules\Employees\Services\EmployeeService;
 use App\Modules\Provisioning\Models\MsLicenseModel;
 use App\Modules\Provisioning\Models\ProvisioningExternalAccountModel;
@@ -238,6 +239,15 @@ class Services extends BaseService
             new EmployeeEmailAccountModel(),
             self::glpiCatalogService(),
         );
+    }
+
+    public static function employeeExportService(bool $getShared = true): EmployeeExportService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('employeeExportService');
+        }
+
+        return new EmployeeExportService(new EmployeeModel());
     }
 
     public static function employeeCatalogService(bool $getShared = true): EmployeeCatalogService

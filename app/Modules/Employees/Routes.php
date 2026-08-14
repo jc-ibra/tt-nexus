@@ -107,6 +107,9 @@ $routes->group('employees', [
     'filter'    => ['auth', 'module_access_any:employees,provisioning'],
 ], function (RouteCollection $routes): void {
     $routes->get('/',            'Employees::index',         ['as' => 'employees.index']);
+    // Directory export (CSV/Excel) — literal, declared above (:num) so it is not
+    // consumed by the show route. Carries the same columns the index shows.
+    $routes->get('export',       'Employees::export',        ['as' => 'employees.export']);
     $routes->get('(:num)',       'Employees::show/$1',       ['as' => 'employees.show']);
     $routes->get('(:num)/photo', 'Employees::servePhoto/$1', ['as' => 'employees.photo.serve']);
 });

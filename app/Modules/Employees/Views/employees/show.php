@@ -113,11 +113,27 @@ $canManageEmployees = service('access')->canAccessModule('employees');
     <!-- Tab: Información del empleado -->
     <div id="emp-panel-info" class="emp-tab-panel" role="tabpanel" aria-labelledby="emp-tab-info">
     <div class="card" style="margin-bottom: var(--space-4);">
-      <div class="card-header"><h2 class="card-title">Contacto</h2></div>
+      <div class="card-header"><h2 class="card-title">Datos personales</h2></div>
       <div class="card-body">
         <dl style="display:grid; grid-template-columns: 160px 1fr; gap: var(--space-2) var(--space-4); margin:0;">
-          <dt class="text-muted text-sm">Correo</dt>
-          <dd><a href="mailto:<?= esc($employee['email']) ?>"><?= esc($employee['email']) ?></a></dd>
+          <?php
+            // Once the employee has an account flagged as primary, that address is
+            // the reference across systems; the RRHH-captured email stays below as
+            // personal contact data. Without a primary account there is nothing to
+            // contrast, so the RRHH email is simply "Correo".
+            $personalEmail = trim((string) ($employee['email'] ?? ''));
+            $showPersonal  = $personalEmail !== ''
+                && ($primaryEmail === null || strtolower($personalEmail) !== strtolower($primaryEmail));
+          ?>
+          <?php if ($primaryEmail !== null): ?>
+            <dt class="text-muted text-sm">Correo principal</dt>
+            <dd><a href="mailto:<?= esc($primaryEmail) ?>"><?= esc($primaryEmail) ?></a></dd>
+          <?php endif; ?>
+
+          <?php if ($showPersonal): ?>
+            <dt class="text-muted text-sm"><?= $primaryEmail !== null ? 'Correo personal' : 'Correo' ?></dt>
+            <dd><a href="mailto:<?= esc($personalEmail) ?>"><?= esc($personalEmail) ?></a></dd>
+          <?php endif; ?>
 
           <?php if (! empty($employee['email_secondary'])): ?>
             <dt class="text-muted text-sm">Correo secundario</dt>
@@ -192,11 +208,18 @@ $canManageEmployees = service('access')->canAccessModule('employees');
         <div class="card-body">
           <ul style="margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:var(--space-1);">
             <?php foreach ($reports as $r): ?>
+              <?php
+                // Prefer the account flagged as primary; fall back to the email
+                // RRHH captured when the employee has not been provisioned yet.
+                $reportEmail = trim((string) ($r['primary_email'] ?? '')) ?: trim((string) ($r['email'] ?? ''));
+              ?>
               <li>
                 <a href="<?= route_to('employees.show', (int) $r['id']) ?>">
                   <?= esc(trim(($r['name'] ?? '') . ' ' . ($r['lastname'] ?? ''))) ?>
                 </a>
-                <span class="text-muted text-sm"> · <?= esc($r['email']) ?></span>
+                <?php if ($reportEmail !== ''): ?>
+                  <span class="text-muted text-sm"> · <?= esc($reportEmail) ?></span>
+                <?php endif; ?>
               </li>
             <?php endforeach; ?>
           </ul>

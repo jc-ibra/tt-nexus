@@ -53,6 +53,54 @@ class Employees extends BaseController
         ]);
     }
 
+    /**
+     * Downloads the directory as CSV or Excel, honouring the filters currently
+     * applied on the index. Only the columns visible on that table are exported
+     * (no photo, no personal contact data) — see EmployeeExportService.
+     */
+    public function export(): ResponseInterface
+    {
+        $exportSvc = service('employeeExportService');
+
+        $filters = [
+            'q'             => trim((string) ($this->request->getGet('q') ?? '')),
+            'area_id'       => $this->request->getGet('area_id'),
+            'department_id' => $this->request->getGet('department_id'),
+            'position_id'   => $this->request->getGet('position_id'),
+            'active'        => $this->request->getGet('active'),
+        ];
+
+        $format = strtolower(trim((string) ($this->request->getGet('format') ?? 'csv')));
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+
+        $rows = $exportSvc->rows($filters);
+
+        // The "Accesos" column only exists on screen for the Provisioning role;
+        // the export must not widen what the user can already see.
+        $canProvision = service('access')->canAccessModule('provisioning');
+        $provisioning = [];
+        if ($canProvision && $rows !== []) {
+            $provisioning = (new \App\Modules\Provisioning\Models\ProvisioningExternalAccountModel())
+                ->mapForEmployees(array_column($rows, 'id'));
+        }
+
+        $filename = 'empleados_' . date('Y-m-d_His');
+
+        if ($format === 'xlsx') {
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"')
+                ->setBody($exportSvc->toXlsx($rows, $provisioning, $canProvision));
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $exportSvc->toCsv($rows, $provisioning, $canProvision)); // UTF-8 BOM for Excel
+    }
+
     public function new(): string
     {
         $catalogSvc = service('employeeCatalogService');
@@ -103,13 +151,15 @@ class Employees extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        $msLicenses = (new \App\Modules\Provisioning\Models\MsLicenseModel())->getAllActive();
+        $msLicenses    = (new \App\Modules\Provisioning\Models\MsLicenseModel())->getAllActive();
+        $emailAccounts = $svc->listEmailAccounts($id);
 
         return view('App\Modules\Employees\Views\employees\show', [
             'pageTitle'     => trim($employee['name'] . ' ' . ($employee['lastname'] ?? '')),
             'employee'      => $employee,
             'reports'       => $svc->directReports($id),
-            'emailAccounts' => $svc->listEmailAccounts($id),
+            'emailAccounts' => $emailAccounts,
+            'primaryEmail'  => $svc->primaryEmailOf($emailAccounts),
             'msLicenses'    => $msLicenses,
             'hasEmail'      => $svc->hasConfiguredEmail($id),
         ]);

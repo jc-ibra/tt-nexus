@@ -3,9 +3,16 @@
 
 <?php
 $catalogToggleId = 'employees-catalog-menu';
+$exportToggleId  = 'employees-export-menu';
 // Provisioning users may reach this directory read-only (to open an employee
 // and provision their accounts); management actions stay in the Employees role.
 $canManageEmployees = service('access')->canAccessModule('employees');
+
+// The export downloads exactly what the current filters show, so carry them over.
+$exportQuery = array_filter($filters, static fn ($v) => $v !== null && $v !== '');
+$exportUrl   = static function (string $format) use ($exportQuery): string {
+    return route_to('employees.export') . '?' . http_build_query($exportQuery + ['format' => $format]);
+};
 ?>
 
 <div class="page-header">
@@ -13,8 +20,18 @@ $canManageEmployees = service('access')->canAccessModule('employees');
     <h1 class="page-title">Empleados</h1>
     <p class="page-subtitle">Directorio de colaboradores</p>
   </div>
-  <?php if ($canManageEmployees): ?>
   <div class="page-actions">
+    <div style="position:relative;">
+      <button type="button" class="btn btn-secondary" id="<?= $exportToggleId ?>-btn" aria-expanded="false" aria-controls="<?= $exportToggleId ?>" <?= empty($employees) ? 'disabled' : '' ?>>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar
+      </button>
+      <div id="<?= $exportToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background:#fff; border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
+        <a href="<?= esc($exportUrl('csv')) ?>" class="dropdown-item">CSV</a>
+        <a href="<?= esc($exportUrl('xlsx')) ?>" class="dropdown-item">Excel (.xlsx)</a>
+      </div>
+    </div>
+  <?php if ($canManageEmployees): ?>
     <div style="position:relative;">
       <button type="button" class="btn btn-secondary" id="<?= $catalogToggleId ?>-btn" aria-expanded="false" aria-controls="<?= $catalogToggleId ?>">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -32,8 +49,8 @@ $canManageEmployees = service('access')->canAccessModule('employees');
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nuevo empleado
     </a>
-  </div>
   <?php endif; ?>
+  </div>
 </div>
 
 <!-- Filters -->
@@ -253,19 +270,31 @@ $canManageEmployees = service('access')->canAccessModule('employees');
 
 <script>
 (function () {
-  const btn  = document.getElementById('<?= $catalogToggleId ?>-btn');
-  const menu = document.getElementById('<?= $catalogToggleId ?>');
-  if (! btn || ! menu) return;
-  btn.addEventListener('click', function () {
-    const open = menu.style.display === 'block';
-    menu.style.display = open ? 'none' : 'block';
-    btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  const menus = ['<?= $catalogToggleId ?>', '<?= $exportToggleId ?>']
+    .map(id => ({ btn: document.getElementById(id + '-btn'), menu: document.getElementById(id) }))
+    .filter(m => m.btn && m.menu);
+
+  function close(m) {
+    m.menu.style.display = 'none';
+    m.btn.setAttribute('aria-expanded', 'false');
+  }
+
+  menus.forEach(m => {
+    m.btn.addEventListener('click', function () {
+      const open = m.menu.style.display === 'block';
+      // Only one dropdown open at a time.
+      menus.forEach(close);
+      if (! open) {
+        m.menu.style.display = 'block';
+        m.btn.setAttribute('aria-expanded', 'true');
+      }
+    });
   });
+
   document.addEventListener('click', function (e) {
-    if (! btn.contains(e.target) && ! menu.contains(e.target)) {
-      menu.style.display = 'none';
-      btn.setAttribute('aria-expanded', 'false');
-    }
+    menus.forEach(m => {
+      if (! m.btn.contains(e.target) && ! m.menu.contains(e.target)) close(m);
+    });
   });
 })();
 </script>
