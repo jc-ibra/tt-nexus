@@ -36,6 +36,21 @@ class EmployeeService
         return $this->model->countWithFilters($filters);
     }
 
+    /**
+     * Summary counts for the directory header. `active` is dropped from the
+     * filters on purpose: the cards break the current selection down BY state,
+     * so they must keep describing the whole selection while one state is being
+     * filtered on.
+     *
+     * @return array{total:int,active:int,inactive:int}
+     */
+    public function stats(array $filters = []): array
+    {
+        unset($filters['active']);
+
+        return $this->model->statsWithFilters($filters);
+    }
+
     public function findById(int $id): ?array
     {
         return $this->model->findWithRelations($id);

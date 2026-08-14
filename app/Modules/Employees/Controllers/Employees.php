@@ -42,6 +42,7 @@ class Employees extends BaseController
             'pageTitle'    => 'Empleados',
             'employees'    => $employees,
             'total'        => $svc->total($filters),
+            'stats'        => $svc->stats($filters),
             'page'         => $page,
             'perPage'      => $perPage,
             'filters'      => $filters,

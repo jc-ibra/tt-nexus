@@ -13,6 +13,21 @@ $exportQuery = array_filter($filters, static fn ($v) => $v !== null && $v !== ''
 $exportUrl   = static function (string $format) use ($exportQuery): string {
     return route_to('employees.export') . '?' . http_build_query($exportQuery + ['format' => $format]);
 };
+
+// Summary cards double as the state filter, keeping every other filter in place.
+$activeFilter = (string) ($filters['active'] ?? '');
+$stateUrl     = static function (?string $active) use ($exportQuery): string {
+    $query = $exportQuery;
+    unset($query['active']);
+    if ($active !== null) {
+        $query['active'] = $active;
+    }
+
+    return route_to('employees.index') . ($query ? '?' . http_build_query($query) : '');
+};
+// Whether the summary describes a subset rather than the whole directory.
+$isNarrowed = ($filters['q'] ?? '') !== '' || ! empty($filters['area_id'])
+    || ! empty($filters['department_id']) || ! empty($filters['position_id']);
 ?>
 
 <div class="page-header">
@@ -51,6 +66,55 @@ $exportUrl   = static function (string $format) use ($exportQuery): string {
     </a>
   <?php endif; ?>
   </div>
+</div>
+
+<!-- Summary -->
+<style>
+.emp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.emp-stat { flex: 0 1 180px; display: block; text-decoration: none; color: inherit; }
+.emp-stat .card-body { padding: var(--space-2) var(--space-3); }
+.emp-stat-label { margin: 0; }
+.emp-stat-value { font-size: var(--text-xl); font-weight: 600; line-height: 1.2; margin: 0; }
+.emp-stat-sub   { margin: 0; }
+a.emp-stat { transition: box-shadow var(--duration-base) ease, transform var(--duration-base) ease; }
+/* The global a:hover adds an underline and the link colour; neither belongs on a card. */
+a.emp-stat:hover { text-decoration: none; color: inherit; box-shadow: var(--shadow-md); transform: translateY(-1px); }
+a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+.emp-stat.is-active { border-color: var(--color-blue-500); box-shadow: 0 0 0 1px var(--color-blue-500); }
+</style>
+
+<div class="emp-stats">
+  <a href="<?= esc($stateUrl(null)) ?>" class="card emp-stat <?= $activeFilter === '' ? 'is-active' : '' ?>"
+     aria-label="Ver todos los empleados">
+    <div class="card-body">
+      <p class="text-sm text-muted emp-stat-label">Empleados</p>
+      <p class="emp-stat-value"><?= number_format($stats['total']) ?></p>
+      <p class="text-sm text-muted emp-stat-sub"><?= $isNarrowed ? 'Con los filtros aplicados' : 'En el directorio' ?></p>
+    </div>
+  </a>
+
+  <a href="<?= esc($stateUrl('1')) ?>" class="card emp-stat <?= $activeFilter === '1' ? 'is-active' : '' ?>"
+     aria-label="Filtrar empleados activos">
+    <div class="card-body">
+      <p class="text-sm text-muted emp-stat-label">Activos</p>
+      <p class="emp-stat-value" style="color:var(--color-success-default);"><?= number_format($stats['active']) ?></p>
+      <p class="text-sm text-muted emp-stat-sub">Estado activo</p>
+    </div>
+  </a>
+
+  <a href="<?= esc($stateUrl('0')) ?>" class="card emp-stat <?= $activeFilter === '0' ? 'is-active' : '' ?>"
+     aria-label="Filtrar empleados inactivos">
+    <div class="card-body">
+      <p class="text-sm text-muted emp-stat-label">Inactivos</p>
+      <p class="emp-stat-value" style="color:var(--text-muted);"><?= number_format($stats['inactive']) ?></p>
+      <p class="text-sm text-muted emp-stat-sub">Estado inactivo</p>
+    </div>
+  </a>
 </div>
 
 <!-- Filters -->

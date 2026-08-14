@@ -152,6 +152,33 @@ class EmployeeModel extends Model
         return $builder->orderBy('e.name', 'ASC')->get()->getResultArray();
     }
 
+    /**
+     * Headline counts for the directory summary, resolved in a single aggregate
+     * query. Callers pass the active filters WITHOUT `active`, so the breakdown
+     * always segments the same population: filtering by "Activos" must not zero
+     * out the "Inactivos" card.
+     *
+     * @return array{total:int,active:int,inactive:int}
+     */
+    public function statsWithFilters(array $filters): array
+    {
+        $builder = $this->db->table('employees_employees e')
+            ->select('COUNT(*) AS total', false)
+            ->select('SUM(CASE WHEN e.active = 1 THEN 1 ELSE 0 END) AS active_count', false)
+            ->select('SUM(CASE WHEN e.active = 0 THEN 1 ELSE 0 END) AS inactive_count', false)
+            ->where('e.deleted_at', null);
+
+        $this->applyFilters($builder, $filters);
+
+        $row = $builder->get()->getRowArray() ?: [];
+
+        return [
+            'total'    => (int) ($row['total'] ?? 0),
+            'active'   => (int) ($row['active_count'] ?? 0),
+            'inactive' => (int) ($row['inactive_count'] ?? 0),
+        ];
+    }
+
     public function countWithFilters(array $filters): int
     {
         $builder = $this->db->table('employees_employees e')
