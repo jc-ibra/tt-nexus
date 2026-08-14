@@ -31,12 +31,13 @@ class BackfillBodyText extends BaseCommand
     protected $group       = 'MailDispatch';
     protected $name        = 'maildispatch:backfill-body-text';
     protected $description = 'Genera el texto plano buscable de los mensajes ya almacenados.';
-    protected $usage       = 'maildispatch:backfill-body-text [--batch=200] [--sleep=0] [--limit=0] [--dry-run]';
+    protected $usage       = 'maildispatch:backfill-body-text [--batch=200] [--sleep=0] [--limit=0] [--dry-run] [--check]';
     protected $options     = [
         '--batch'   => 'Mensajes por lote (default 200). Bájalo si el servidor va justo de RAM.',
         '--sleep'   => 'Pausa en milisegundos entre lotes (default 0). Súbelo para no saturar el disco en producción.',
         '--limit'   => 'Máximo de mensajes a procesar en esta corrida (default: todos).',
-        '--dry-run' => 'Mide sin escribir nada.',
+        '--dry-run' => 'Mide un lote sin escribir nada.',
+        '--check'   => 'Solo reporta cuántos mensajes faltan y termina. Lo usa setup.sh.',
     ];
 
     public function run(array $params): void
@@ -45,6 +46,7 @@ class BackfillBodyText extends BaseCommand
         $sleep = max(0, $this->intOption('sleep', 0));
         $limit = max(0, $this->intOption('limit', 0));
         $dry   = array_key_exists('dry-run', $params) || CLI::getOption('dry-run');
+        $check = array_key_exists('check', $params) || CLI::getOption('check');
 
         $db      = Database::connect();
         $table   = 'maildispatch_messages';
@@ -52,6 +54,15 @@ class BackfillBodyText extends BaseCommand
 
         if ($pending === 0) {
             CLI::write('No hay mensajes pendientes: el texto buscable está al día.', 'green');
+            return;
+        }
+
+        // Modo reporte: el setup avisa que falta trabajo, pero procesarlo es una
+        // decisión del operador (en un buzón grande conviene con --sleep y fuera
+        // del horario de servicio).
+        if ($check) {
+            CLI::write(sprintf('Hay %s mensaje(s) sin texto buscable.', number_format($pending)), 'yellow');
+            CLI::write('Córrelo cuando quieras:  php spark ' . $this->name . ' --sleep 250');
             return;
         }
 

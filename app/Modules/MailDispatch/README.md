@@ -194,15 +194,23 @@ Los mensajes nuevos traen su texto desde la ingesta; los ya almacenados se
 procesan con:
 
 ```bash
+php spark maildispatch:backfill-body-text --check              # solo reportar cuántos faltan
 php spark maildispatch:backfill-body-text                      # todo, lotes de 200
 php spark maildispatch:backfill-body-text --batch 100 --sleep 250   # más suave en producción
 php spark maildispatch:backfill-body-text --limit 1000         # una probada corta
-php spark maildispatch:backfill-body-text --dry-run            # medir sin escribir
+php spark maildispatch:backfill-body-text --dry-run            # medir un lote sin escribir
 ```
 
 Es idempotente y reanudable: solo toma filas con `body_text` en NULL, así que
 interrumpirlo no pierde nada. Mientras corre, la búsqueda por cuerpo solo
 encuentra lo ya procesado; la búsqueda por asunto y solicitante funciona normal.
+
+**No corre en el setup.** Ni `setup.sh` ni `public/setup.php` lo procesan: ambos
+sólo avisan si quedan mensajes pendientes, porque recorrer una tabla grande es
+una decisión que se toma con el buzón a la vista y no en medio de un despliegue
+rutinario. Sin terminal, se procesa abriendo
+`public/setup.php?token=…&only=backfill`, que trabaja por lotes con un
+presupuesto de tiempo y reporta lo que falta (recargar continúa).
 
 > **Orden en producción:** detén el cron de `maildispatch:sync-mailbox`, corre la
 > migración (el primer índice FULLTEXT reconstruye la tabla y no admite

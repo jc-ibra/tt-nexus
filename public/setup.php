@@ -13,8 +13,9 @@
  *   3. Visita:  https://TU-DOMINIO/setup.php?token=un-valor-secreto-largo-y-aleatorio
  *        - &only=migrations   corre solo migraciones
  *        - &only=seeders      corre solo seeders
- *        - &only=backfill     corre solo las tareas de datos posteriores
- *        (sin 'only' corre todo)
+ *        - &only=backfill     procesa las tareas de datos pendientes
+ *        (sin 'only' corre migraciones + seeders; las tareas de datos solo se
+ *         reportan, nunca se procesan salvo que las pidas con only=backfill)
  *   4. IMPORTANTE: BORRA este archivo del servidor cuando termines.
  *
  * No contempla modo Docker (a diferencia de setup.sh).
@@ -83,12 +84,15 @@ $SEEDERS = [
 $only = $_GET['only'] ?? '';
 $runMigrations = ($only === '' || $only === 'migrations');
 $runSeeders    = ($only === '' || $only === 'seeders');
-$runBackfills  = ($only === '' || $only === 'backfill');
 
-// Presupuesto de tiempo para las tareas de datos posteriores a la migración.
-// Se procesa por lotes hasta agotarlo y se reporta lo que falta, para que un
-// histórico grande no choque contra el timeout del servidor web: recargar la
-// página continúa donde se quedó.
+// Las tareas de datos NO corren en el flujo normal: sólo se avisa que hay
+// pendientes. Procesarlas puede implicar recorrer una tabla grande, y eso se
+// decide a propósito, no en medio de un despliegue rutinario.
+$runBackfills  = ($only === 'backfill');
+
+// Al procesar, se trabaja por lotes hasta agotar el presupuesto de tiempo y se
+// reporta lo que falta, para que un histórico grande no choque contra el timeout
+// del servidor web: recargar la página continúa donde se quedó.
 $BACKFILL_SECONDS = 20;
 $BACKFILL_BATCH   = 100;
 
@@ -261,67 +265,72 @@ if ($runSeeders) {
     }
 }
 
-// ── Tareas de datos posteriores a la migración ──────────────────────────────────
+// ── Tareas de datos pendientes ──────────────────────────────────────────────────
 // Una migración crea la estructura; algunas funciones necesitan además rellenar
-// datos derivados de lo ya almacenado. Son idempotentes y reanudables: procesan
-// sólo lo pendiente, así que repetir el setup no cuesta nada.
-if ($runBackfills) {
-    step('Tareas posteriores a la migración');
+// datos derivados de lo ya almacenado. El flujo normal sólo AVISA (una cuenta,
+// nada de escritura); procesar requiere pedirlo con &only=backfill, porque en un
+// histórico grande implica recorrer la tabla entera.
+step('Tareas de datos pendientes');
 
-    // MailDispatch: texto plano buscable del cuerpo de los mensajes. Los correos
-    // nuevos lo traen desde la ingesta; esto cubre los ya almacenados, que sin él
-    // no aparecen al buscar por contenido.
-    try {
-        if ($db->fieldExists('body_text', 'maildispatch_messages')) {
-            $pending = $db->table('maildispatch_messages')->where('body_text IS NULL', null, false)->countAllResults();
+// MailDispatch: texto plano buscable del cuerpo de los mensajes. Los correos
+// nuevos lo traen desde la ingesta; esto cubre los ya almacenados, que sin él no
+// aparecen al buscar por contenido.
+try {
+    if (! $db->fieldExists('body_text', 'maildispatch_messages')) {
+        info('Despacho de Correo: sin búsqueda por contenido en este esquema.');
+    } else {
+        $pendingKey = static fn($b) => $b->where('body_text IS NULL', null, false);
+        $pending    = $pendingKey($db->table('maildispatch_messages'))->countAllResults();
 
-            if ($pending === 0) {
-                ok('Texto buscable de Despacho: al día.');
-            } else {
-                info("Texto buscable de Despacho: {$pending} mensaje(s) pendiente(s).");
-                $deadline = microtime(true) + $BACKFILL_SECONDS;
-                $done     = 0;
+        if ($pending === 0) {
+            ok('Texto buscable de Despacho: al día.');
+        } elseif (! $runBackfills) {
+            warn("Texto buscable de Despacho: {$pending} mensaje(s) sin procesar.");
+            info('No corre en el setup normal. Para procesarlo, abre esta página con  &only=backfill');
+        } else {
+            info("Texto buscable de Despacho: {$pending} mensaje(s) pendiente(s).");
 
-                while ($done < $pending && microtime(true) < $deadline) {
-                    $rows = $db->table('maildispatch_messages')
-                        ->select('id, body')
-                        ->where('body_text IS NULL', null, false)
-                        ->orderBy('id', 'ASC')
-                        ->limit($BACKFILL_BATCH)
-                        ->get()->getResultArray();
+            $deadline = microtime(true) + $BACKFILL_SECONDS;
+            $done     = 0;
 
-                    if ($rows === []) {
-                        break;
-                    }
+            while ($done < $pending && microtime(true) < $deadline) {
+                $rows = $pendingKey($db->table('maildispatch_messages')->select('id, body'))
+                    ->orderBy('id', 'ASC')
+                    ->limit($BACKFILL_BATCH)
+                    ->get()->getResultArray();
 
-                    $updates = [];
-                    foreach ($rows as $r) {
-                        $body = (string) ($r['body'] ?? '');
-                        $updates[] = [
-                            'id'        => (int) $r['id'],
-                            'body_text' => $body === ''
-                                ? ''
-                                : \App\Modules\MailDispatch\Services\ForwardParser::plainText(
-                                    $body,
-                                    \App\Modules\MailDispatch\Models\MessageModel::BODY_TEXT_LIMIT
-                                ),
-                        ];
-                    }
-
-                    $db->table('maildispatch_messages')->updateBatch($updates, 'id');
-                    $done += count($rows);
+                if ($rows === []) {
+                    break;
                 }
 
-                $left = $db->table('maildispatch_messages')->where('body_text IS NULL', null, false)->countAllResults();
-                ok("Texto buscable de Despacho: {$done} mensaje(s) procesado(s).");
-                if ($left > 0) {
-                    warn("Quedan {$left} pendiente(s) por el límite de tiempo. Vuelve a abrir esta página con &only=backfill para continuar.");
+                $updates = [];
+                foreach ($rows as $r) {
+                    $body = (string) ($r['body'] ?? '');
+                    $updates[] = [
+                        'id'        => (int) $r['id'],
+                        'body_text' => $body === ''
+                            ? ''
+                            : \App\Modules\MailDispatch\Services\ForwardParser::plainText(
+                                $body,
+                                \App\Modules\MailDispatch\Models\MessageModel::BODY_TEXT_LIMIT
+                            ),
+                    ];
                 }
+
+                $db->table('maildispatch_messages')->updateBatch($updates, 'id');
+                $done += count($rows);
+            }
+
+            ok("Texto buscable de Despacho: {$done} mensaje(s) procesado(s).");
+
+            $left = $pendingKey($db->table('maildispatch_messages'))->countAllResults();
+            if ($left > 0) {
+                warn("Quedan {$left} pendiente(s) por el límite de tiempo. Recarga esta página con &only=backfill para continuar.");
             }
         }
-    } catch (\Throwable $e) {
-        warn('Texto buscable de Despacho — ' . $e->getMessage());
     }
+} catch (\Throwable $e) {
+    warn('Texto buscable de Despacho — ' . $e->getMessage());
 }
 
 // ── Verificación de tablas críticas ─────────────────────────────────────────────
