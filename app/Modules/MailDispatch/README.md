@@ -153,6 +153,31 @@ nueva → asignada → en_atencion → respondida ⇄ esperando_agente → cerra
 - Un mensaje entrante sobre una conversación `respondida`/`en_atencion` → `esperando_agente`.
 - Una conversación `cerrada` que recibe un entrante se **reabre** en `esperando_agente` conservando su asignación.
 - **Claim atómico:** tomar una conversación es un `UPDATE ... WHERE agent_id IS NULL`; si dos agentes la toman a la vez, solo uno gana y el otro ve "ya fue tomada por X".
+- **Liberar (deshacer el claim):** el agente que la tiene puede devolverla a la bandeja sin esperar a un dispatcher (tomar una que no le tocaba es un error común). Solo la libera quien la tiene; un dispatcher usa la reasignación de siempre. `asignada` regresa a `nueva`; cualquier estado posterior (`en_atencion`, `respondida`, `esperando_agente`) se conserva porque es historia real del hilo.
+
+---
+
+## Reenviar un mensaje del hilo
+
+El agente responde y después cae en cuenta de que faltó copiar a alguien que
+debía enterarse. En vez de rearmar el correo desde Outlook, cada mensaje del
+hilo tiene **Reenviar este mensaje**: se manda tal cual, con sus adjuntos, a los
+destinatarios que se indiquen, con una nota opcional arriba.
+
+- **No es una respuesta al solicitante:** el reenvío deja intactos el estado, la
+  primera respuesta y la última actividad de la conversación. Solo agrega el
+  correo enviado al hilo (para que quede el registro de a quién se notificó) y
+  una entrada `forward` en la bitácora.
+- **Imágenes en línea:** cada parte inline se re-adjunta y su `cid:` se reescribe
+  al Content-ID que asigna el mailer, así el logo de la firma viaja en lugar de
+  romperse.
+- **Permiso:** la misma puerta que responder (la conversación es mía, o soy
+  dispatcher) y el envío desde Nexus activo.
+- **En modo Graph:** usa la acción `/forward` (Microsoft reenvía el original con
+  sus adjuntos). Una respuesta enviada desde Nexus todavía no existe en el buzón
+  hasta que su copia de Enviados se sincroniza; mientras tanto el reenvío avisa
+  que hay que esperar a la siguiente sincronización. En modo IMAP/SMTP no aplica:
+  el correo se arma desde lo guardado.
 
 ---
 

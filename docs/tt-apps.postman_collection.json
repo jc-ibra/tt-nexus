@@ -3322,6 +3322,33 @@
           }
         },
         {
+          "name": "Release conversation (el agente la devuelve a la bandeja)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/release",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "release"
+              ]
+            },
+            "description": "Libera la conversación que tiene asignada quien llama: agent_id queda en null y vuelve a la bandeja principal. Solo puede liberarla el agente que la tiene."
+          }
+        },
+        {
           "name": "Verify conversation (autocierre)",
           "request": {
             "method": "POST",
@@ -3686,6 +3713,48 @@
                 }
               }
             }
+          }
+        },
+        {
+          "name": "Forward message (reenviar a alguien más)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/messages/1/forward",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "messages",
+                "1",
+                "forward"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"destino@dominio.com, otro@dominio.com\",\n  \"cc\": \"copia@dominio.com\",\n  \"comment\": \"Te comparto el correo para tu visibilidad.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Reenvía un mensaje del hilo (por ejemplo la respuesta ya enviada) a otras personas, con sus adjuntos. No cambia el estado de la conversación ni le llega al solicitante. Solo el agente que la tiene asignada, o un dispatcher."
           }
         },
         {

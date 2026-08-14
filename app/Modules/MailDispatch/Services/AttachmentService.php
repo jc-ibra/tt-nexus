@@ -176,6 +176,67 @@ class AttachmentService
         return $abs;
     }
 
+    /**
+     * Reads a stored message's attachments back as raw buffers so they can be
+     * re-attached to an outgoing mail (the "reenviar" action). Inline parts are
+     * included and flagged, because the body that travels with them still
+     * references their cid: — dropping them would forward a mail with broken
+     * images (a signature logo, typically).
+     *
+     * Rows whose file is gone from disk are skipped rather than failing the
+     * send: an old thread may have been pruned, and the text is still worth
+     * forwarding. Names are made unique so each inline part can be addressed by
+     * name when its Content-ID is rewritten.
+     *
+     * @return ServiceResult data = array<int,array{name:string,mime:string,content:string,inline:bool,content_id:string}>
+     */
+    public function readForResend(int $messageId): ServiceResult
+    {
+        $files = [];
+        $used  = [];
+        $total = 0;
+
+        foreach ($this->model->forMessage($messageId) as $row) {
+            $path = $this->absolutePath($row);
+            if ($path === null || ! is_file($path)) {
+                continue;
+            }
+            $content = @file_get_contents($path);
+            if ($content === false) {
+                continue;
+            }
+
+            $name = $this->sanitizeName((string) ($row['filename'] ?? 'adjunto'));
+            if (isset($used[$name])) {
+                $used[$name]++;
+                $ext  = pathinfo($name, PATHINFO_EXTENSION);
+                $stem = $ext !== '' ? substr($name, 0, -(strlen($ext) + 1)) : $name;
+                $name = $stem . '-' . $used[$name] . ($ext !== '' ? '.' . $ext : '');
+            } else {
+                $used[$name] = 1;
+            }
+
+            $total  += strlen($content);
+            $files[] = [
+                'name'       => $name,
+                'mime'       => (string) ($row['mime_type'] ?? '') ?: 'application/octet-stream',
+                'content'    => $content,
+                'inline'     => (int) ($row['is_inline'] ?? 0) === 1,
+                'content_id' => (string) ($row['content_id'] ?? ''),
+            ];
+        }
+
+        if ($total > $this->config->maxTotalReplyBytes) {
+            return ServiceResult::fail(
+                'Los adjuntos del mensaje suman ' . $this->humanSize($total)
+                . ' y superan el límite de ' . $this->humanSize($this->config->maxTotalReplyBytes)
+                . ' por correo. Descárgalos y envíalos por separado.'
+            );
+        }
+
+        return ServiceResult::ok($files);
+    }
+
     /** Whether this MIME type may be shown inline in the browser. */
     public function isInlineSafe(?string $mime): bool
     {

@@ -372,6 +372,43 @@ class ConversationService
         return ServiceResult::ok(null, 'Conversación asignada a ' . $this->agentName($targetUserId) . '.');
     }
 
+    /**
+     * An agent hands their own conversation back to the main inbox. Same effect
+     * as a dispatcher unassigning it, but the agent does not need to wait for
+     * one: taking a thread by mistake is common and self-service undo keeps the
+     * queue moving.
+     *
+     * Only the holder may release (a dispatcher reassigns instead, which already
+     * covers taking a thread away from someone else).
+     */
+    public function release(int $id, int $userId): ServiceResult
+    {
+        $conv = $this->conversations->find($id);
+        if ($conv === null) {
+            return ServiceResult::fail('La conversación no existe.');
+        }
+        if ($conv['agent_id'] === null) {
+            return ServiceResult::fail('La conversación ya está en la bandeja, sin asignar.');
+        }
+        if ((int) $conv['agent_id'] !== $userId) {
+            return ServiceResult::fail('Solo puede liberarla ' . $this->agentName((int) $conv['agent_id']) . ', que la tiene asignada.');
+        }
+        if ((string) $conv['status'] === 'cerrada') {
+            return ServiceResult::fail('La conversación está cerrada; reábrela para liberarla.');
+        }
+
+        // "asignada" only means "someone took it", so with no holder it goes back
+        // to "nueva". Any further state the thread reached (en_atencion,
+        // respondida, esperando_agente) is real history and is preserved.
+        $this->conversations->update($id, [
+            'agent_id' => null,
+            'status'   => (string) $conv['status'] === 'asignada' ? 'nueva' : (string) $conv['status'],
+        ]);
+        $this->events->log($id, 'unassign', $userId, (string) $userId, null, 'Liberada por el agente; vuelve a la bandeja.');
+
+        return ServiceResult::ok(null, 'Conversación liberada; vuelve a la bandeja principal.');
+    }
+
     /** Manual state change from the detail view. */
     public function changeStatus(int $id, string $status, int $userId): ServiceResult
     {

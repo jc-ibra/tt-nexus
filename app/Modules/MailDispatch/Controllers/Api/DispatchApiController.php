@@ -101,6 +101,12 @@ class DispatchApiController extends BaseApiController
         return $this->fromResult(service('mailDispatchConversations')->claim($id, $this->userId()));
     }
 
+    /** The holding agent returns the conversation to the main inbox. */
+    public function release(int $id): ResponseInterface
+    {
+        return $this->fromResult(service('mailDispatchConversations')->release($id, $this->userId()));
+    }
+
     public function assign(int $id): ResponseInterface
     {
         if (! $this->canDispatch()) {
@@ -185,6 +191,30 @@ class DispatchApiController extends BaseApiController
             $this->userId(),
             $files,
             (string) ($this->request->getVar('cc') ?? '')
+        ));
+    }
+
+    /** Forwards one message of the thread to other recipients. */
+    public function forwardMessage(int $id, int $messageId): ResponseInterface
+    {
+        $conv = (new \App\Modules\MailDispatch\Models\ConversationModel())->find($id);
+        if ($conv === null) {
+            return $this->error('La conversación no existe.', ResponseInterface::HTTP_NOT_FOUND);
+        }
+        if ((int) ($conv['agent_id'] ?? 0) !== $this->userId() && ! $this->canDispatch()) {
+            return $this->error(
+                'Solo el agente que tiene la conversación puede reenviar sus mensajes.',
+                ResponseInterface::HTTP_FORBIDDEN
+            );
+        }
+
+        return $this->fromResult(service('mailDispatchReplyService')->forward(
+            $id,
+            $messageId,
+            (string) ($this->request->getVar('to') ?? ''),
+            (string) ($this->request->getVar('cc') ?? ''),
+            (string) ($this->request->getVar('comment') ?? ''),
+            $this->userId()
         ));
     }
 

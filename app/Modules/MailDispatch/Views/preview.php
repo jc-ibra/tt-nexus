@@ -98,6 +98,8 @@ $addrList = static function (?string $raw): array {
         <button type="button" class="btn btn-primary md-qa" data-action="claim" data-id="<?= (int) $conv['id'] ?>">Tomar conversación</button>
       <?php elseif ($mine && ! $closed): ?>
         <span class="md-pane-tag">Asignada a ti · <?= esc($conv['agent_name'] ?? '') ?></span>
+        <button type="button" class="btn btn-secondary" data-release="<?= (int) $conv['id'] ?>"
+                title="Devolverla a la bandeja principal, sin asignar">Liberar</button>
       <?php elseif ($conv['agent_name']): ?>
         <span class="md-pane-tag">Asignada a <?= esc($conv['agent_name']) ?></span>
       <?php endif; ?>

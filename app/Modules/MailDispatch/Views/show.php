@@ -9,7 +9,12 @@ $mine   = (int) ($conv['agent_id'] ?? 0) === (int) $currentUserId;
 $eventLabels = [
     'assign' => 'Asignación', 'reassign' => 'Reasignación', 'unassign' => 'Liberación',
     'status' => 'Cambio de estado', 'close' => 'Cierre', 'reopen' => 'Reapertura', 'note' => 'Nota',
+    'forward' => 'Reenvío', 'verify' => 'Verificación', 'autoclose' => 'Autoarchivo', 'autogen' => 'Autogestión',
 ];
+
+// Reenviar usa la misma puerta que responder: envío activo, y la conversación
+// es mía (o soy dispatcher). Quien no la tiene no manda correo en su nombre.
+$canForward = ! empty($sendEnabled) && ($mine || $canDispatch);
 
 // Fecha amigable en español: "04 ago 2026 · 20:30".
 $meses = [1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
@@ -160,6 +165,21 @@ $addrList = static function (?string $raw): array {
   .md-msg-body-frame { width:100%; border:0; min-height:280px; max-height:calc(100vh - 260px); background:#fff; display:block; }
   .md-msg-pre { white-space:pre-wrap; word-break:break-word; padding:var(--space-4); margin:0;
     font-family:inherit; font-size:var(--text-sm); color:var(--text-primary); line-height:1.55; }
+
+  /* ---- Reenviar un mensaje del hilo ----
+     <details> para no depender de JS: el formulario vive plegado dentro de cada
+     mensaje y se abre en su lugar, sin modales ni estado que sincronizar. */
+  .md-forward { border-bottom:1px solid var(--border-default); background:var(--bg-page); }
+  .md-forward-toggle { display:inline-flex; align-items:center; gap:var(--space-2); cursor:pointer;
+    padding:var(--space-2) var(--space-4); font-size:var(--text-sm); font-weight:var(--weight-medium);
+    color:var(--action-primary); list-style:none; user-select:none; }
+  .md-forward-toggle::-webkit-details-marker { display:none; }
+  .md-forward-toggle:hover { text-decoration:underline; }
+  .md-forward-toggle svg { width:15px; height:15px; }
+  .md-forward[open] .md-forward-toggle { color:var(--text-primary); }
+  .md-forward-form { padding:0 var(--space-4) var(--space-3); max-width:520px; }
+  .md-forward-form .field-label { margin-bottom:4px; }
+  .md-forward-form .input { margin-bottom:var(--space-2); }
 
   /* ---- Adjuntos ---- */
   .md-attachments { display:flex; flex-wrap:wrap; gap:var(--space-2); padding:var(--space-3) var(--space-4);
@@ -356,6 +376,32 @@ $isOutbound = ! empty($conv['outbound_only']);
           }
         ?>
         <div class="md-msg-collapsible">
+          <?php if ($canForward): ?>
+            <details class="md-forward">
+              <summary class="md-forward-toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+                Reenviar este mensaje
+              </summary>
+              <form action="<?= route_to('dispatch.message.forward', $conv['id'], $m['id']) ?>" method="post" class="md-forward-form">
+                <?= csrf_field() ?>
+                <label class="field-label" for="fwd-to-<?= (int) $m['id'] ?>">Para</label>
+                <input type="text" id="fwd-to-<?= (int) $m['id'] ?>" name="to" class="input" required autocomplete="off"
+                       placeholder="correo@dominio.com, otro@dominio.com">
+                <label class="field-label" for="fwd-cc-<?= (int) $m['id'] ?>">Copia (opcional)</label>
+                <input type="text" id="fwd-cc-<?= (int) $m['id'] ?>" name="cc" class="input" autocomplete="off"
+                       placeholder="correo@dominio.com">
+                <label class="field-label" for="fwd-note-<?= (int) $m['id'] ?>">Nota (opcional)</label>
+                <textarea id="fwd-note-<?= (int) $m['id'] ?>" name="comment" class="input" rows="2"
+                          placeholder="Se agrega arriba del mensaje reenviado."></textarea>
+                <p class="md-file-hint">
+                  Se envía este correo tal cual, con sus adjuntos. No cambia el estado de la conversación
+                  ni le llega al solicitante.
+                </p>
+                <button type="submit" class="btn btn-secondary">Reenviar mensaje</button>
+              </form>
+            </details>
+          <?php endif; ?>
+
           <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
             <div class="md-recipients">
               <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
@@ -495,6 +541,15 @@ $isOutbound = ! empty($conv['outbound_only']);
           <form action="<?= route_to('dispatch.claim', $conv['id']) ?>" method="post" style="margin-bottom:var(--space-3);">
             <?= csrf_field() ?>
             <button type="submit" class="btn btn-primary" style="width:100%;">Tomar conversación</button>
+          </form>
+        <?php endif; ?>
+
+        <?php if ($mine && ! $closed): ?>
+          <!-- Devolver a la bandeja sin depender de un dispatcher (se tomó por error). -->
+          <form action="<?= route_to('dispatch.release', $conv['id']) ?>" method="post" style="margin-bottom:var(--space-3);"
+                onsubmit="return confirm('¿Liberar esta conversación? Volverá a la bandeja principal, sin asignar.');">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-secondary" style="width:100%;">Liberar y devolver a la bandeja</button>
           </form>
         <?php endif; ?>
 

@@ -572,6 +572,19 @@ function mdFitFrame(f) {
       .catch(function () { btn.disabled = false; });
   });
 
+  // Liberar: el agente devuelve su conversación a la bandeja desde el panel.
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-release]');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('¿Liberar esta conversación? Volverá a la bandeja principal, sin asignar.')) return;
+    el.disabled = true;
+    quickPost('<?= base_url('dispatch') ?>/' + el.dataset.release + '/release')
+      .then(function () { location.reload(); })
+      .catch(function () { el.disabled = false; });
+  });
+
   // Autoarchivo: Verificar / Mover a la bandeja (fila y panel de lectura).
   document.addEventListener('click', function (e) {
     var el = e.target.closest('[data-verify], [data-toinbox]');

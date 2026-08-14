@@ -146,11 +146,242 @@ class SmtpReplyService
     }
 
     /**
-     * Sends the reply over SMTP with the stored credentials and threading
-     * headers. Returns a ServiceResult; the SMTP debug output is logged, never
-     * surfaced verbatim to the agent.
+     * Forwards one message of the thread to somebody else. Written for the case
+     * an agent answers and only then realises somebody who had to be notified
+     * was never copied: instead of composing the mail again from Outlook, the
+     * message already in the thread is re-sent, attachments included.
+     *
+     * A forward is not an answer to the requester, so it deliberately leaves the
+     * conversation state alone — no status change, no first_response_at, no
+     * last_activity_at. It only appends the sent mail to the thread (so there is
+     * a record of who was notified) and audits it.
+     *
+     * @param string $to      Destinatarios, separados por coma o punto y coma.
+     * @param string $cc      Copias opcionales.
+     * @param string $comment Nota opcional del agente, arriba del mensaje reenviado.
      */
-    private function send(array $smtp, string $to, string $subject, string $html, string $messageId, ?array $target, array $files = [], array $cc = []): ServiceResult
+    public function forward(int $conversationId, int $messageId, string $to, string $cc, string $comment, int $userId): ServiceResult
+    {
+        if (! $this->settings->isSendEnabled()) {
+            return ServiceResult::fail('El envío desde Nexus está deshabilitado o el SMTP no está configurado.');
+        }
+
+        $conv = $this->conversations->find($conversationId);
+        if ($conv === null) {
+            return ServiceResult::fail('La conversación no existe.');
+        }
+
+        $msg = $this->messages->where('id', $messageId)->where('conversation_id', $conversationId)->first();
+        if ($msg === null) {
+            return ServiceResult::fail('El mensaje no pertenece a esta conversación.');
+        }
+
+        $toRes = $this->parseList($to, '', 'destinatarios', 'Demasiados destinatarios: el máximo es ' . self::MAX_CC . ' por reenvío.');
+        if (! $toRes->success) {
+            return $toRes;
+        }
+        $toList = (array) $toRes->data;
+        if ($toList === []) {
+            return ServiceResult::fail('Indica a quién quieres reenviar el mensaje.');
+        }
+
+        $ccRes = $this->parseList($cc, '', 'copia', 'Demasiadas copias: el máximo es ' . self::MAX_CC . ' por reenvío.');
+        if (! $ccRes->success) {
+            return $ccRes;
+        }
+        // Nobody should get the same mail twice because they were typed in both fields.
+        $ccList = array_values(array_diff((array) $ccRes->data, $toList));
+
+        $filesRes = $this->attachments->readForResend($messageId);
+        if (! $filesRes->success) {
+            return $filesRes;
+        }
+        $files = (array) $filesRes->data;
+
+        $subject = $this->forwardSubject((string) ($msg['subject'] ?? ($conv['subject'] ?? '')));
+
+        $smtp      = $this->settings->effectiveSmtp();
+        $fromEmail = $smtp['from_email'];
+        $domain    = substr(strrchr($fromEmail, '@') ?: '@localhost', 1);
+        $rfcMessageId = '<nexus-' . bin2hex(random_bytes(12)) . '@' . $domain . '>';
+
+        $bodyHtml = $this->forwardHtml($msg, $comment);
+
+        $send = $this->sendForward($smtp, $toList, $ccList, $subject, $bodyHtml, $rfcMessageId, $files);
+        if (! $send->success) {
+            return $send;
+        }
+
+        $now = date('Y-m-d H:i:s');
+
+        // The sent mail joins the thread so the agent can see who was notified.
+        // Its files are not copied to disk again: they are the very attachments
+        // already stored under the message that was forwarded.
+        $this->messages->insert([
+            'conversation_id'     => $conversationId,
+            'graph_id'            => 'nexus:' . bin2hex(random_bytes(10)),
+            'internet_message_id' => $rfcMessageId,
+            'direction'           => 'out',
+            'from_name'           => $smtp['from_name'],
+            'from_email'          => $fromEmail,
+            'to_recipients'       => implode(', ', $toList),
+            'cc_recipients'       => $ccList !== [] ? implode(', ', $ccList) : null,
+            'subject'             => $subject,
+            'body_preview'        => ForwardParser::plainText($bodyHtml, 255),
+            'body'                => $bodyHtml,
+            'body_is_html'        => 1,
+            'has_attachments'     => $files !== [] ? 1 : 0,
+            'received_at'         => $now,
+        ]);
+
+        $this->conversations->set('message_count', 'message_count + 1', false)
+            ->where('id', $conversationId)->update();
+
+        $everyone = array_merge($toList, $ccList);
+        $this->events->log(
+            $conversationId,
+            'forward',
+            $userId,
+            null,
+            null,
+            'Mensaje reenviado a: ' . implode(', ', $everyone) . '.'
+        );
+
+        return ServiceResult::ok(null, 'Mensaje reenviado a ' . implode(', ', $everyone) . '.');
+    }
+
+    /** "RV: <asunto>", without stacking a second prefix on an already-forwarded one. */
+    private function forwardSubject(string $subject): string
+    {
+        $subject = trim($subject);
+        if ($subject === '') {
+            return 'RV: (sin asunto)';
+        }
+        foreach (['rv:', 'fw:', 'fwd:'] as $prefix) {
+            if (stripos($subject, $prefix) === 0) {
+                return $subject;
+            }
+        }
+
+        return 'RV: ' . $subject;
+    }
+
+    /**
+     * The forwarded mail's body: the agent's optional note, then the standard
+     * "mensaje reenviado" header block, then the original message.
+     */
+    private function forwardHtml(array $msg, string $comment): string
+    {
+        $note = trim($comment) !== '' ? $this->normalizeBody($comment) . '<br>' : '';
+
+        $rows = [
+            'De'     => $this->senderLine($msg),
+            'Fecha'  => $this->spanishDate((string) ($msg['received_at'] ?? '')),
+            'Asunto' => (string) ($msg['subject'] ?? ''),
+            'Para'   => (string) ($msg['to_recipients'] ?? ''),
+            'CC'     => (string) ($msg['cc_recipients'] ?? ''),
+        ];
+
+        $head = '';
+        foreach ($rows as $k => $v) {
+            $v = trim($v);
+            if ($v === '') {
+                continue;
+            }
+            $head .= '<div><strong>' . esc($k) . ':</strong> ' . esc($v) . '</div>';
+        }
+
+        $body = (int) ($msg['body_is_html'] ?? 0) === 1 && trim((string) $msg['body']) !== ''
+            ? $this->sanitizeHtml((string) $msg['body'])
+            : nl2br(esc((string) (trim((string) ($msg['body'] ?? '')) !== '' ? $msg['body'] : ($msg['body_preview'] ?? ''))));
+
+        return $note
+            . '<div style="border-top:1px solid #e1e4e8; margin-top:16px; padding-top:8px;">'
+            . '<div style="color:#6b7885; font-size:12px; margin-bottom:6px;">---------- Mensaje reenviado ----------</div>'
+            . '<div style="font-size:12px; color:#3c4a57;">' . $head . '</div>'
+            . '<div style="margin-top:12px;">' . $body . '</div>'
+            . '</div>';
+    }
+
+    /** "Nombre <correo>", collapsing to whichever half the message actually has. */
+    private function senderLine(array $msg): string
+    {
+        $name  = trim((string) ($msg['from_name'] ?? ''));
+        $email = trim((string) ($msg['from_email'] ?? ''));
+
+        if ($email === '') {
+            return $name;
+        }
+        if ($name === '' || strcasecmp($name, $email) === 0) {
+            return $email;
+        }
+
+        return $name . ' <' . $email . '>';
+    }
+
+    /** "14 ago 2026 12:33" for the forwarded header block. */
+    private function spanishDate(string $raw): string
+    {
+        $ts = strtotime($raw);
+        if ($ts === false) {
+            return '';
+        }
+        $meses = [1 => 'ene', 2 => 'feb', 3 => 'mar', 4 => 'abr', 5 => 'may', 6 => 'jun',
+                  7 => 'jul', 8 => 'ago', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic'];
+
+        return date('j', $ts) . ' ' . ($meses[(int) date('n', $ts)] ?? '') . ' ' . date('Y', $ts) . ' ' . date('H:i', $ts);
+    }
+
+    /**
+     * Sends the forwarded mail. Unlike a reply it carries no threading headers:
+     * it is a new mail to a different audience, and threading it under the
+     * customer's conversation would drop it into the wrong mailbox thread.
+     *
+     * Inline parts keep working: each one is attached as 'inline' and the cid:
+     * reference in the body is rewritten to the Content-ID the mailer assigns,
+     * so a signature logo travels instead of breaking.
+     *
+     * @param array<int,array{name:string,mime:string,content:string,inline:bool,content_id:string}> $files
+     */
+    private function sendForward(array $smtp, array $to, array $cc, string $subject, string $html, string $messageId, array $files): ServiceResult
+    {
+        $email = $this->mailer($smtp);
+        $email->setFrom($smtp['from_email'], $smtp['from_name']);
+        $email->setTo(implode(',', $to));
+        if ($cc !== []) {
+            $email->setCC(implode(',', $cc));
+        }
+        $email->setSubject($subject);
+        $email->setHeader('Message-ID', $messageId);
+
+        foreach ($files as $f) {
+            $email->attach($f['content'], $f['inline'] ? 'inline' : 'attachment', $f['name'], $f['mime']);
+
+            if ($f['inline'] && $f['content_id'] !== '') {
+                $cid = $email->setAttachmentCID($f['name']);
+                if (is_string($cid) && $cid !== '') {
+                    $html = str_ireplace(
+                        ['cid:<' . $f['content_id'] . '>', 'cid:' . $f['content_id']],
+                        'cid:' . $cid,
+                        $html
+                    );
+                }
+            }
+        }
+
+        // Set after the rewrite so the body carries the final Content-IDs.
+        $email->setMessage($html);
+
+        if (! $email->send(false)) {
+            log_message('error', '[SmtpReplyService] forward failed: ' . $email->printDebugger(['headers']));
+            return ServiceResult::fail('No se pudo reenviar el mensaje por SMTP. Revisa las credenciales SMTP.');
+        }
+
+        return ServiceResult::ok();
+    }
+
+    /** A fresh Email instance configured with the effective SMTP credentials. */
+    private function mailer(array $smtp): \CodeIgniter\Email\Email
     {
         $config = new EmailConfig();
         $config->protocol   = 'smtp';
@@ -163,7 +394,17 @@ class SmtpReplyService
         $config->charset    = 'UTF-8';
         $config->wordWrap   = true;
 
-        $email = \Config\Services::email($config, false);
+        return \Config\Services::email($config, false);
+    }
+
+    /**
+     * Sends the reply over SMTP with the stored credentials and threading
+     * headers. Returns a ServiceResult; the SMTP debug output is logged, never
+     * surfaced verbatim to the agent.
+     */
+    private function send(array $smtp, string $to, string $subject, string $html, string $messageId, ?array $target, array $files = [], array $cc = []): ServiceResult
+    {
+        $email = $this->mailer($smtp);
         $email->setFrom($smtp['from_email'], $smtp['from_name']);
         $email->setTo($to);
         if ($cc !== []) {
@@ -220,6 +461,22 @@ class SmtpReplyService
      */
     private function parseCc(string $raw, string $to): ServiceResult
     {
+        return $this->parseList(
+            $raw,
+            $to,
+            'copia',
+            'Demasiadas copias: el máximo es ' . self::MAX_CC . ' por respuesta.'
+        );
+    }
+
+    /**
+     * Shared address-list parser: splits, validates, lowercases and de-duplicates,
+     * dropping `$exclude` (the address that already goes as the main recipient).
+     *
+     * @return ServiceResult data = string[] of validated addresses
+     */
+    private function parseList(string $raw, string $exclude, string $label, string $overflowMessage): ServiceResult
+    {
         $raw = trim($raw);
         if ($raw === '') {
             return ServiceResult::ok([]);
@@ -227,26 +484,26 @@ class SmtpReplyService
 
         $parts = preg_split('/[,;\s]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        $valid   = [];
-        $invalid = [];
-        $toLower = strtolower($to);
+        $valid        = [];
+        $invalid      = [];
+        $excludeLower = strtolower(trim($exclude));
         foreach ($parts as $part) {
             $addr = strtolower(trim($part, " \t\n\r\0\x0B<>"));
             if (! filter_var($addr, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $part;
                 continue;
             }
-            if ($addr === $toLower) {
+            if ($excludeLower !== '' && $addr === $excludeLower) {
                 continue; // ya va como destinatario principal
             }
             $valid[$addr] = $addr;
         }
 
         if ($invalid !== []) {
-            return ServiceResult::fail('Correo inválido en copia: ' . implode(', ', $invalid));
+            return ServiceResult::fail('Correo inválido en ' . $label . ': ' . implode(', ', $invalid));
         }
         if (count($valid) > self::MAX_CC) {
-            return ServiceResult::fail('Demasiadas copias: el máximo es ' . self::MAX_CC . ' por respuesta.');
+            return ServiceResult::fail($overflowMessage);
         }
 
         return ServiceResult::ok(array_values($valid));

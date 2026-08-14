@@ -45,7 +45,10 @@ $routes->group('dispatch', [
     // Conversation detail + actions.
     $routes->get('(:num)',            'Dispatch::show/$1',        ['as' => 'dispatch.show']);
     $routes->post('(:num)/claim',     'Dispatch::claim/$1',       ['as' => 'dispatch.claim']);
+    $routes->post('(:num)/release',   'Dispatch::release/$1',     ['as' => 'dispatch.release']);   // el agente la devuelve a la bandeja
     $routes->post('(:num)/assign',    'Dispatch::assign/$1',      ['as' => 'dispatch.assign']);
+    // Reenviar un mensaje del hilo a alguien más (copia olvidada).
+    $routes->post('(:num)/messages/(:num)/forward', 'Dispatch::forwardMessage/$1/$2', ['as' => 'dispatch.message.forward']);
     $routes->post('(:num)/status',    'Dispatch::changeStatus/$1', ['as' => 'dispatch.status']);
     $routes->post('(:num)/verify',    'Dispatch::verify/$1',      ['as' => 'dispatch.verify']);    // autoarchivo
     $routes->post('(:num)/to-inbox',  'Dispatch::moveToInbox/$1', ['as' => 'dispatch.toinbox']);   // autoarchivo
@@ -99,7 +102,9 @@ $routes->group('api/v1/dispatch', [
     $routes->get('conversations/(:num)',     'DispatchApiController::showConversation/$1');
     $routes->get('attachments/(:num)',       'DispatchApiController::downloadAttachment/$1');
     $routes->post('conversations/(:num)/claim',  'DispatchApiController::claim/$1');
+    $routes->post('conversations/(:num)/release', 'DispatchApiController::release/$1');
     $routes->post('conversations/(:num)/assign', 'DispatchApiController::assign/$1');
+    $routes->post('conversations/(:num)/messages/(:num)/forward', 'DispatchApiController::forwardMessage/$1/$2');
     $routes->post('conversations/(:num)/status', 'DispatchApiController::changeStatus/$1');
     $routes->post('conversations/(:num)/verify', 'DispatchApiController::verify/$1');       // autoarchivo
     $routes->post('conversations/(:num)/to-inbox', 'DispatchApiController::moveToInbox/$1'); // autoarchivo

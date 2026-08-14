@@ -136,6 +136,17 @@ class Dispatch extends BaseController
         return $this->respond($id, $result);
     }
 
+    /**
+     * The holding agent hands the conversation back to the main inbox. Taking a
+     * thread that turns out to be someone else's is common; before this they had
+     * to wait for a dispatcher to unassign it.
+     */
+    public function release(int $id): ResponseInterface
+    {
+        $result = service('mailDispatchConversations')->release($id, $this->userId());
+        return $this->respond($id, $result);
+    }
+
     public function assign(int $id): ResponseInterface
     {
         if (! $this->canDispatch()) {
@@ -287,6 +298,35 @@ class Dispatch extends BaseController
             $files,
             (string) ($this->request->getPost('cc') ?? '')
         );
+        return $this->back($id, $result);
+    }
+
+    /**
+     * Forwards one message of the thread to somebody else (the agent replied and
+     * forgot to copy someone who had to be notified). Restricted to the agent
+     * holding the conversation, or a dispatcher — the same gate as replying.
+     */
+    public function forwardMessage(int $id, int $messageId): ResponseInterface
+    {
+        $conv = (new ConversationModel())->find($id);
+        if ($conv === null) {
+            return $this->back($id, \App\Modules\Core\Services\ServiceResult::fail('La conversación no existe.'));
+        }
+        if ((int) ($conv['agent_id'] ?? 0) !== $this->userId() && ! $this->canDispatch()) {
+            return $this->back($id, \App\Modules\Core\Services\ServiceResult::fail(
+                'Solo el agente que tiene la conversación puede reenviar sus mensajes.'
+            ));
+        }
+
+        $result = service('mailDispatchReplyService')->forward(
+            $id,
+            $messageId,
+            (string) ($this->request->getPost('to') ?? ''),
+            (string) ($this->request->getPost('cc') ?? ''),
+            (string) ($this->request->getPost('comment') ?? ''),
+            $this->userId()
+        );
+
         return $this->back($id, $result);
     }
 

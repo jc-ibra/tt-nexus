@@ -217,6 +217,41 @@ class GraphMailService
         ]);
     }
 
+    /**
+     * Forwards an existing message to other people. Graph re-sends the original
+     * with its attachments intact, so nothing has to be rebuilt on our side; the
+     * agent's optional note travels as the `comment`.
+     *
+     * @param string[] $to extra recipients (already validated)
+     * @param string[] $cc
+     */
+    public function forward(string $graphMessageId, string $comment, array $to, array $cc = []): array
+    {
+        $tok = $this->token();
+        if (! $tok['success']) {
+            return $tok;
+        }
+
+        $url = $this->config->graphBase . '/users/' . rawurlencode($this->mailbox)
+            . '/messages/' . rawurlencode($graphMessageId) . '/forward';
+
+        $addr = static fn(array $list): array => array_map(
+            static fn(string $a) => ['emailAddress' => ['address' => $a]],
+            $list
+        );
+
+        $payload = ['comment' => $comment, 'toRecipients' => $addr($to)];
+        if ($cc !== []) {
+            $payload['message'] = ['ccRecipients' => $addr($cc)];
+        }
+
+        return $this->raw('POST', $url, json_encode($payload), [
+            'Authorization: Bearer ' . $tok['data'],
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ]);
+    }
+
     // -----------------------------------------------------------------------
     // HTTP primitive
     // -----------------------------------------------------------------------
