@@ -33,8 +33,21 @@ class DispatchApiController extends BaseApiController
         if (! in_array($filter, self::FILTERS, true)) {
             $filter = 'all';
         }
-        $rows = (new ConversationModel())->forQueue($filter, $this->userId());
-        return $this->success(['filter' => $filter, 'conversations' => $rows]);
+
+        // Mismo buscador que la bandeja web: asunto, solicitante, folio y el
+        // cuerpo de los mensajes (índice FULLTEXT sobre el texto plano).
+        $q    = trim((string) ($this->request->getGet('q') ?? ''));
+        $rows = (new ConversationModel())->forQueue($filter, $this->userId(), 25, $q);
+
+        return $this->success([
+            'filter'        => $filter,
+            'q'             => $q,
+            'conversations' => $rows,
+            'body_matches'  => $q === '' ? [] : (new MessageModel())->snippetsFor(
+                array_map(static fn(array $r): int => (int) $r['id'], $rows),
+                $q
+            ),
+        ]);
     }
 
     public function showConversation(int $id): ResponseInterface

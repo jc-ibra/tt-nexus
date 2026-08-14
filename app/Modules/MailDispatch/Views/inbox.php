@@ -24,6 +24,37 @@ $hl = static function (?string $text) use ($q): string {
     return preg_replace('/(' . preg_quote(esc($q), '/') . ')/iu', '<mark class="md-hl">$1</mark>', $safe) ?? $safe;
 };
 
+// El extracto del cuerpo llega ya recortado del modelo, así que aquí solo se
+// resalta palabra por palabra: el término buscado casi nunca aparece completo y
+// literal dentro del fragmento, que es lo que $hl da por hecho.
+$terms = $q === '' ? [] : array_values(array_filter(
+    preg_split('/[\s\pP]+/u', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+    static fn(string $t): bool => mb_strlen($t) >= 3
+));
+
+$hlTerms = static function (string $text) use ($terms): string {
+    $safe = esc($text);
+    foreach ($terms as $t) {
+        $safe = preg_replace('/(' . preg_quote(esc($t), '/') . ')/iu', '<mark class="md-hl">$1</mark>', $safe) ?? $safe;
+    }
+    return $safe;
+};
+
+// ¿La coincidencia ya se ve en la propia fila? Entonces el extracto sobra.
+$visibleMatch = static function (array $c) use ($q): bool {
+    if ($q === '') {
+        return true;
+    }
+    foreach (['subject', 'requester_name', 'requester_email', 'glpi_folio'] as $field) {
+        if (mb_stripos((string) ($c[$field] ?? ''), $q) !== false) {
+            return true;
+        }
+    }
+    return false;
+};
+
+$bodySnippets = $bodySnippets ?? [];
+
 $tabHref = static function (string $key) use ($q): string {
     $qs = ['filter' => $key];
     if ($q !== '') $qs['q'] = $q;
@@ -151,6 +182,12 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-line2 { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
   .gm-subject { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     font-size:var(--text-sm); color:var(--text-secondary); }
+
+  /* Línea 3 (solo al buscar): por qué salió esta fila, cuando la coincidencia
+     está en el cuerpo del correo y no en el asunto ni en el remitente. */
+  .gm-hit { display:flex; align-items:baseline; gap:6px; min-width:0; font-size:var(--text-xs); color:var(--text-muted); }
+  .gm-hit-tag { flex:0 0 auto; font-weight:var(--weight-semibold); color:var(--text-subdued); }
+  .gm-hit-text { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
   /* Sin leer -> solo el remitente en negrita (el asunto queda en peso normal). */
   .gm-row.is-unread .gm-sender { font-weight:var(--weight-bold); }
@@ -339,6 +376,10 @@ $initials = static function (?string $name, ?string $email): string {
             $tone    = $statusTones[$c['status']] ?? 'neutral';
             $unread  = in_array($c['status'], ['nueva', 'esperando_agente'], true);
             $cls = 'gm-row' . ($unread ? ' is-unread' : '') . ($breach ? ' is-breach' : '');
+            // El extracto solo aporta cuando el motivo de la coincidencia NO se
+            // ve ya en la fila; si el término está en el asunto o el remitente,
+            // repetirlo abajo solo ensucia la lista.
+            $hit = $visibleMatch($c) ? '' : (string) ($bodySnippets[(int) $c['id']] ?? '');
         ?>
           <a class="<?= $cls ?>" href="<?= route_to('dispatch.show', $c['id']) ?>" data-id="<?= (int) $c['id'] ?>"
              data-preview="<?= esc(base_url('dispatch/' . (int) $c['id'] . '/preview'), 'attr') ?>">
@@ -390,6 +431,12 @@ $initials = static function (?string $name, ?string $email): string {
                   <span class="gm-status <?= esc($tone) ?>"><?= esc($statusLabels[$c['status']] ?? $c['status']) ?></span>
                 <?php endif; ?>
               </span>
+              <?php if ($hit !== ''): ?>
+                <span class="gm-hit">
+                  <span class="gm-hit-tag">En el mensaje:</span>
+                  <span class="gm-hit-text"><?= $hlTerms($hit) ?></span>
+                </span>
+              <?php endif; ?>
             </span>
           </a>
         <?php endforeach; ?>

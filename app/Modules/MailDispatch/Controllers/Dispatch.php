@@ -51,6 +51,13 @@ class Dispatch extends BaseController
         // so each row is a plain date comparison instead of a calendar walk.
         $slaUnassigned = $settings->slaUnassignedMinutes();
 
+        // Por qué salió cada fila: solo para las de esta página, así el costo lo
+        // fija el tamaño de página y no cuántas conversaciones coincidieron.
+        $bodySnippets = $q === '' ? [] : (new MessageModel())->snippetsFor(
+            array_map(static fn(array $r): int => (int) $r['id'], $rows),
+            $q
+        );
+
         return view('App\Modules\MailDispatch\Views\inbox', [
             'pageTitle'     => 'Bandeja · Despacho de Correo',
             'filter'        => $filter,
@@ -65,6 +72,7 @@ class Dispatch extends BaseController
             'businessHours' => $calendar->isEnabled(),
             'slaResponse'   => $settings->slaFirstResponseMinutes(),
             'counts'        => (new ConversationModel())->counts($userId, $q),
+            'bodySnippets'  => $bodySnippets,
             'canDispatch'   => $this->canDispatch(),
         ]);
     }

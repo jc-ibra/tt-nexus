@@ -156,6 +156,62 @@ nueva → asignada → en_atencion → respondida ⇄ esperando_agente → cerra
 
 ---
 
+## Búsqueda (incluye el cuerpo del correo)
+
+El buscador de la bandeja cubre asunto, solicitante, correo, folio GLPI **y el
+contenido de los mensajes**. Las dos mitades funcionan distinto a propósito:
+
+| Campo | Cómo busca |
+|---|---|
+| Asunto, solicitante, correo, folio | `LIKE` por coincidencia parcial en cualquier posición. Tabla chica, sin costo. |
+| Cuerpo del mensaje | Índice `FULLTEXT` sobre `body_text`, por palabra completa con comodín al final. |
+
+**Por qué no se busca sobre `body`.** El cuerpo guardado es HTML de Outlook: 85 KB
+promedio, de los cuales apenas una quinta parte es contenido. Un `LIKE` sobre esa
+columna no puede usar índice (escanea la tabla entera en cada búsqueda, decenas
+de GB en un buzón real) y además encontraría coincidencias dentro del CSS y del
+markup. Por eso se indexa `body_text`, la proyección en texto plano que produce
+`ForwardParser::plainText()`, recortada a 64 000 caracteres por mensaje.
+
+`MessageModel` la deriva en un callback `beforeInsert`, así que la escriben por
+igual la ingesta y los dos servicios de respuesta, sin que ninguna ruta pueda
+olvidarla.
+
+**Lo que cambia para el agente:** en el cuerpo se buscan palabras completas.
+`pinpad` encuentra `pinpads` (comodín al final) pero no existe comodín al inicio,
+y los términos de menos de 3 letras se ignoran (`innodb_ft_min_token_size`).
+Varias palabras se combinan con AND: escribir más términos acota. Es insensible a
+mayúsculas y acentos por la colación de la columna. En asunto y solicitante no
+cambia nada. Una búsqueda se resuelve como máximo a 2 000 conversaciones; más
+allá de eso conviene acotar el término.
+
+Cuando la coincidencia viene del cuerpo y no se ve en la fila, la bandeja muestra
+el extracto con el término resaltado, para que el agente sepa por qué salió.
+
+### Backfill (mensajes anteriores)
+
+Los mensajes nuevos traen su texto desde la ingesta; los ya almacenados se
+procesan con:
+
+```bash
+php spark maildispatch:backfill-body-text                      # todo, lotes de 200
+php spark maildispatch:backfill-body-text --batch 100 --sleep 250   # más suave en producción
+php spark maildispatch:backfill-body-text --limit 1000         # una probada corta
+php spark maildispatch:backfill-body-text --dry-run            # medir sin escribir
+```
+
+Es idempotente y reanudable: solo toma filas con `body_text` en NULL, así que
+interrumpirlo no pierde nada. Mientras corre, la búsqueda por cuerpo solo
+encuentra lo ya procesado; la búsqueda por asunto y solicitante funciona normal.
+
+> **Orden en producción:** detén el cron de `maildispatch:sync-mailbox`, corre la
+> migración (el primer índice FULLTEXT reconstruye la tabla y no admite
+> escrituras concurrentes), vuelve a encender el cron y corre el backfill con
+> `--sleep` mientras el equipo trabaja. Detalle completo en el encabezado de
+> `2026-08-13-110001_AddBodyTextSearchToMessages`.
+
+---
+
 ## Horario de servicio (reloj del SLA)
 
 Los umbrales de SLA (Administración → Despacho de Correo → **Conexión**) se

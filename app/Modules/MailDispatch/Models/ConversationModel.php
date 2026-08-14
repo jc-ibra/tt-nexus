@@ -44,6 +44,17 @@ class ConversationModel extends Model
         'closed_at',
     ];
 
+    /**
+     * Conversations whose message bodies match the search terms. Memoized inside
+     * MessageModel, so the list query and the tab badges share one lookup.
+     *
+     * @return array<int,int>
+     */
+    private function bodyMatchIds(string $q): array
+    {
+        return (new MessageModel())->conversationIdsMatching($q);
+    }
+
     /** Find a conversation by its Graph conversationId (threading key). */
     public function findByGraphId(string $conversationId): ?array
     {
@@ -118,16 +129,26 @@ class ConversationModel extends Model
                 break;
         }
 
-        // Free-text search across subject, requester and GLPI folio. Grouped so
-        // the OR set does not break the filter's AND conditions above.
+        // Free-text search across subject, requester, GLPI folio and the message
+        // bodies. Grouped so the OR set does not break the filter's AND
+        // conditions above.
         $q = trim($q);
         if ($q !== '') {
             $b->groupStart()
               ->like('maildispatch_conversations.subject', $q)
               ->orLike('maildispatch_conversations.requester_name', $q)
               ->orLike('maildispatch_conversations.requester_email', $q)
-              ->orLike('maildispatch_conversations.glpi_folio', $q)
-              ->groupEnd();
+              ->orLike('maildispatch_conversations.glpi_folio', $q);
+
+            // The body lives in another table and is searched through its
+            // FULLTEXT index, which resolves to a bounded id list. Joining
+            // instead would run one index lookup per candidate row.
+            $bodyIds = $this->bodyMatchIds($q);
+            if ($bodyIds !== []) {
+                $b->orWhereIn('maildispatch_conversations.id', $bodyIds);
+            }
+
+            $b->groupEnd();
         }
 
         // Paginated: the pager is available afterwards via $model->pager. The
@@ -290,15 +311,20 @@ class ConversationModel extends Model
      */
     public function counts(?int $userId, string $q = ''): array
     {
-        $q = trim($q);
-        $search = function ($b) use ($q) {
+        $q       = trim($q);
+        $bodyIds = $q !== '' ? $this->bodyMatchIds($q) : [];
+
+        $search = function ($b) use ($q, $bodyIds) {
             if ($q !== '') {
                 $b->groupStart()
                   ->like('subject', $q)
                   ->orLike('requester_name', $q)
                   ->orLike('requester_email', $q)
-                  ->orLike('glpi_folio', $q)
-                  ->groupEnd();
+                  ->orLike('glpi_folio', $q);
+                if ($bodyIds !== []) {
+                    $b->orWhereIn('id', $bodyIds);
+                }
+                $b->groupEnd();
             }
             return $b;
         };

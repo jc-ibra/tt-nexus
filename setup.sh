@@ -222,6 +222,17 @@ run_seeder "App\Modules\MailDispatch\Database\Seeders\MailDispatchModuleSeeder" 
 # TechBot
 run_seeder "App\Modules\TechBot\Database\Seeders\TechBotModuleSeeder"             "TechBotModuleSeeder"
 
+# ── Tareas de datos posteriores a la migración ─────────────────────────────────
+# Una migración crea la estructura; algunas funciones necesitan además rellenar
+# datos derivados de lo ya almacenado. Idempotentes: procesan sólo lo pendiente,
+# así que en un setup rutinario no hacen nada.
+step "Tareas posteriores a la migración"
+
+# MailDispatch: texto plano buscable del cuerpo de los mensajes. Los correos
+# nuevos lo traen desde la ingesta; esto cubre los ya almacenados.
+info "Texto buscable de Despacho de Correo"
+spark maildispatch:backfill-body-text || warn "El backfill reportó avisos (revisa arriba); puedes reintentarlo cuando quieras."
+
 # ── Verificación de esquema ────────────────────────────────────────────────────
 # Confirma que CADA tabla declarada por las migraciones exista físicamente. Es la
 # red de seguridad contra el problema recurrente de "tablas faltantes": si algo

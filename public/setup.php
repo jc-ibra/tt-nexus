@@ -13,7 +13,8 @@
  *   3. Visita:  https://TU-DOMINIO/setup.php?token=un-valor-secreto-largo-y-aleatorio
  *        - &only=migrations   corre solo migraciones
  *        - &only=seeders      corre solo seeders
- *        (sin 'only' corre ambos)
+ *        - &only=backfill     corre solo las tareas de datos posteriores
+ *        (sin 'only' corre todo)
  *   4. IMPORTANTE: BORRA este archivo del servidor cuando termines.
  *
  * No contempla modo Docker (a diferencia de setup.sh).
@@ -82,6 +83,14 @@ $SEEDERS = [
 $only = $_GET['only'] ?? '';
 $runMigrations = ($only === '' || $only === 'migrations');
 $runSeeders    = ($only === '' || $only === 'seeders');
+$runBackfills  = ($only === '' || $only === 'backfill');
+
+// Presupuesto de tiempo para las tareas de datos posteriores a la migración.
+// Se procesa por lotes hasta agotarlo y se reporta lo que falta, para que un
+// histórico grande no choque contra el timeout del servidor web: recargar la
+// página continúa donde se quedó.
+$BACKFILL_SECONDS = 20;
+$BACKFILL_BATCH   = 100;
 
 // ── Salida HTML tipo consola ────────────────────────────────────────────────────
 header('Content-Type: text/html; charset=UTF-8');
@@ -249,6 +258,69 @@ if ($runSeeders) {
         } catch (\Throwable $e) {
             warn($label . ' — ' . $e->getMessage() . ' (puede ser que ya existan los datos)');
         }
+    }
+}
+
+// ── Tareas de datos posteriores a la migración ──────────────────────────────────
+// Una migración crea la estructura; algunas funciones necesitan además rellenar
+// datos derivados de lo ya almacenado. Son idempotentes y reanudables: procesan
+// sólo lo pendiente, así que repetir el setup no cuesta nada.
+if ($runBackfills) {
+    step('Tareas posteriores a la migración');
+
+    // MailDispatch: texto plano buscable del cuerpo de los mensajes. Los correos
+    // nuevos lo traen desde la ingesta; esto cubre los ya almacenados, que sin él
+    // no aparecen al buscar por contenido.
+    try {
+        if ($db->fieldExists('body_text', 'maildispatch_messages')) {
+            $pending = $db->table('maildispatch_messages')->where('body_text IS NULL', null, false)->countAllResults();
+
+            if ($pending === 0) {
+                ok('Texto buscable de Despacho: al día.');
+            } else {
+                info("Texto buscable de Despacho: {$pending} mensaje(s) pendiente(s).");
+                $deadline = microtime(true) + $BACKFILL_SECONDS;
+                $done     = 0;
+
+                while ($done < $pending && microtime(true) < $deadline) {
+                    $rows = $db->table('maildispatch_messages')
+                        ->select('id, body')
+                        ->where('body_text IS NULL', null, false)
+                        ->orderBy('id', 'ASC')
+                        ->limit($BACKFILL_BATCH)
+                        ->get()->getResultArray();
+
+                    if ($rows === []) {
+                        break;
+                    }
+
+                    $updates = [];
+                    foreach ($rows as $r) {
+                        $body = (string) ($r['body'] ?? '');
+                        $updates[] = [
+                            'id'        => (int) $r['id'],
+                            'body_text' => $body === ''
+                                ? ''
+                                : \App\Modules\MailDispatch\Services\ForwardParser::plainText(
+                                    $body,
+                                    \App\Modules\MailDispatch\Models\MessageModel::BODY_TEXT_LIMIT
+                                ),
+                        ];
+                    }
+
+                    $db->table('maildispatch_messages')->updateBatch($updates, 'id');
+                    $done += count($rows);
+                }
+
+                $left = $db->table('maildispatch_messages')->where('body_text IS NULL', null, false)->countAllResults();
+                ok("Texto buscable de Despacho: {$done} mensaje(s) procesado(s).");
+                if ($left > 0) {
+                    warn("Quedan {$left} pendiente(s) por el límite de tiempo. Vuelve a abrir esta página con &only=backfill para continuar.");
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        warn('Texto buscable de Despacho — ' . $e->getMessage());
     }
 }
 

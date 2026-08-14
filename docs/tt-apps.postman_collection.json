@@ -3221,7 +3221,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dispatch/conversations?filter=unassigned",
+              "raw": "{{base_url}}/api/v1/dispatch/conversations?filter=unassigned&q=",
               "host": [
                 "{{base_url}}"
               ],
@@ -3235,6 +3235,11 @@
                 {
                   "key": "filter",
                   "value": "unassigned"
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Búsqueda libre: asunto, solicitante, correo y folio GLPI por coincidencia parcial, más el CUERPO de los mensajes por índice FULLTEXT (palabras completas con comodín al final; se ignoran términos de menos de 3 letras). Cuando la coincidencia viene del cuerpo, `body_matches` trae el extracto por conversación."
                 }
               ]
             }
