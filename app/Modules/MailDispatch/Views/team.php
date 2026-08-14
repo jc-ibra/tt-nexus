@@ -2,13 +2,21 @@
 <?= $this->section('content') ?>
 
 <?php
+// Todos los tiempos de esta pantalla se miden contra el horario de servicio, así
+// que un correo del viernes por la tarde no consume el SLA durante el fin de
+// semana. Con el horario activo, un "día" es un día de servicio (no 24 h): decir
+// "2 d" sobre 2880 minutos hábiles daría a entender casi una semana de trabajo.
+$calendar   = service('mailDispatchCalendar');
+$minsOf     = static fn(?string $dt): int => $calendar->elapsedMinutes($dt);
+$dayMinutes = $calendar->minutesPerDay();
+
 // Minutos -> "8 min" / "3 h" / "2 d". Sirve tanto para la espera de la bandeja
 // sin asignar como para el silencio del hilo más rezagado de cada agente.
-$ago = static function (int $minutes): string {
-    if ($minutes <= 0)   return 'sin pendientes';
-    if ($minutes < 60)   return $minutes . ' min';
-    if ($minutes < 1440) return (int) floor($minutes / 60) . ' h';
-    return (int) floor($minutes / 1440) . ' d';
+$ago = static function (int $minutes) use ($dayMinutes): string {
+    if ($minutes <= 0)          return 'sin pendientes';
+    if ($minutes < 60)          return $minutes . ' min';
+    if ($minutes < $dayMinutes) return (int) floor($minutes / 60) . ' h';
+    return (int) floor($minutes / $dayMinutes) . ' d';
 };
 
 $initials = static function (string $name): string {
@@ -30,17 +38,11 @@ $clock = static function (?string $dt): string {
     return date('d/m H:i', $ts);
 };
 
-// Minutos transcurridos desde una fecha (para SLA y silencio de cada hilo).
-$minsOf = static function (?string $dt): int {
-    $ts = $dt ? strtotime($dt) : false;
-    return $ts === false ? 0 : max(0, (int) floor((time() - $ts) / 60));
-};
-
 // "8 min" / "3 h" / "2 d" en seco, para las fichas de las filas.
-$span = static function (int $minutes): string {
-    if ($minutes < 60)   return max(0, $minutes) . ' min';
-    if ($minutes < 1440) return (int) floor($minutes / 60) . ' h';
-    return (int) floor($minutes / 1440) . ' d';
+$span = static function (int $minutes) use ($dayMinutes): string {
+    if ($minutes < 60)          return max(0, $minutes) . ' min';
+    if ($minutes < $dayMinutes) return (int) floor($minutes / 60) . ' h';
+    return (int) floor($minutes / $dayMinutes) . ' d';
 };
 
 // Iniciales del solicitante para el avatar de la fila.
@@ -75,7 +77,7 @@ foreach ($rows as $r) {
     $idle    = $minsOf($r['last_activity_at'] ?: $r['received_at']);
     $breach  = $noReply && $slaFirst > 0 && $wait > $slaFirst;
     $waiting = ($r['status'] ?? '') === 'esperando_agente';
-    $stale   = ! $noReply && $idle >= 1440;
+    $stale   = ! $noReply && $idle >= $dayMinutes;
 
     $flags = [];
     if ($noReply) $flags[] = 'unanswered';
@@ -104,7 +106,7 @@ foreach ($rows as $r) {
         'slaPct'  => $noReply && $slaFirst > 0 ? min(100, (int) round($wait * 100 / $slaFirst)) : 0,
         // Cuánto tardó la primera respuesta, para los hilos ya atendidos.
         'firstIn' => $noReply || empty($r['received_at']) ? 0
-            : max(0, (int) floor((strtotime((string) $r['first_response_at']) - strtotime((string) $r['received_at'])) / 60)),
+            : $calendar->minutesBetween((string) $r['received_at'], (string) $r['first_response_at']),
     ];
 }
 
@@ -288,6 +290,12 @@ $chips = [
   <div class="page-header-content">
     <h1 class="page-title">Equipo</h1>
     <p class="page-subtitle">Qué trae cada agente en este momento. Se actualiza solo cada 30 segundos.</p>
+    <?php if (! empty($totals['businessHours'])): ?>
+      <p class="page-subtitle" style="margin-top:var(--space-1);">
+        Tiempos en horas hábiles: <?= esc($totals['scheduleSummary']) ?>
+        <?= empty($totals['isOpenNow']) ? ' · fuera de horario, el reloj del SLA está detenido' : '' ?>
+      </p>
+    <?php endif; ?>
   </div>
   <div class="page-actions">
     <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Bandeja</a>

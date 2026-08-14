@@ -42,8 +42,14 @@ class Dispatch extends BaseController
         $q       = trim((string) ($this->request->getGet('q') ?? ''));
         $conv    = new ConversationModel();
         $rows    = $conv->forQueue($filter, $userId, 15, $q);
-        $config  = new MailDispatchConfig();
+        $config   = new MailDispatchConfig();
         $settings = service('mailDispatchSettings');
+        $calendar = service('mailDispatchCalendar');
+
+        // The assignment SLA is resolved once into a wall-clock frontier: a
+        // thread received before it has burned the budget in business minutes,
+        // so each row is a plain date comparison instead of a calendar walk.
+        $slaUnassigned = $settings->slaUnassignedMinutes();
 
         return view('App\Modules\MailDispatch\Views\inbox', [
             'pageTitle'     => 'Bandeja · Despacho de Correo',
@@ -54,7 +60,9 @@ class Dispatch extends BaseController
             'total'         => $conv->pager ? $conv->pager->getTotal('default') : count($rows),
             'statusLabels'  => $config->statusLabels,
             'statusTones'   => $config->statusTones,
-            'slaUnassigned' => $settings->slaUnassignedMinutes(),
+            'slaUnassigned' => $slaUnassigned,
+            'slaCutoff'     => $slaUnassigned > 0 ? $calendar->cutoff($slaUnassigned) : '',
+            'businessHours' => $calendar->isEnabled(),
             'slaResponse'   => $settings->slaFirstResponseMinutes(),
             'counts'        => (new ConversationModel())->counts($userId, $q),
             'canDispatch'   => $this->canDispatch(),

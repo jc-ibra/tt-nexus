@@ -2,10 +2,9 @@
 <?= $this->section('content') ?>
 
 <?php
-$minsOf = static function (?string $dt): int {
-    $ts = $dt ? strtotime($dt) : false;
-    return $ts === false ? 0 : (int) floor((time() - $ts) / 60);
-};
+// Frontera del SLA de asignación ya resuelta por el controlador contra el
+// horario de servicio: lo recibido antes de este instante excedió el umbral.
+$slaCutoff = $slaCutoff ?? '';
 
 $tabs = [
     'unassigned' => ['Sin asignar', 'M22 12h-6l-2 3h-4l-2-3H2'],
@@ -336,7 +335,7 @@ $initials = static function (?string $name, ?string $email): string {
             $isAuto  = $c['status'] === 'autoarchivo';
             $isAutogen = $c['status'] === 'autogenerado';
             $isUnassigned = $c['agent_id'] === null && ! in_array($c['status'], ['cerrada', 'autoarchivo', 'autogenerado'], true);
-            $breach  = $isUnassigned && $slaUnassigned > 0 && $minsOf($c['received_at']) > $slaUnassigned;
+            $breach  = $isUnassigned && $slaCutoff !== '' && (string) $c['received_at'] < $slaCutoff;
             $tone    = $statusTones[$c['status']] ?? 'neutral';
             $unread  = in_array($c['status'], ['nueva', 'esperando_agente'], true);
             $cls = 'gm-row' . ($unread ? ' is-unread' : '') . ($breach ? ' is-breach' : '');
@@ -355,7 +354,7 @@ $initials = static function (?string $name, ?string $email): string {
                 <?php if (! empty($c['has_attachments'])): ?>
                   <svg class="gm-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 <?php endif; ?>
-                <?php if ($breach): ?><span class="gm-sla" title="SLA de asignación excedido">SLA</span><?php endif; ?>
+                <?php if ($breach): ?><span class="gm-sla" title="SLA de asignación excedido<?= ! empty($businessHours) ? ' (contado en horas hábiles)' : '' ?>">SLA</span><?php endif; ?>
                 <span class="gm-time"><?= esc($gmailTime($c['last_activity_at'] ?? $c['received_at'])) ?></span>
               </span>
               <span class="gm-line2">

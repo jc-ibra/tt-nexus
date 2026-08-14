@@ -6,6 +6,7 @@ namespace App\Modules\MailDispatch\Services;
 
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\MailDispatch\Models\AgentModel;
+use App\Modules\MailDispatch\Models\BusinessExceptionModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\AutogenRuleModel;
 use App\Modules\MailDispatch\Models\AutogenWhitelistModel;
@@ -228,6 +229,30 @@ class MailDispatchSettings
     public function slaFirstResponseMinutes(): int
     {
         return max(0, (int) $this->model->get('sla_first_response_minutes', '120'));
+    }
+
+    // -----------------------------------------------------------------------
+    // Horario de servicio (reloj del SLA)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Whether the SLA clock only runs inside the service schedule. Off means
+     * plain wall-clock minutes, the behaviour that predates the calendar.
+     */
+    public function businessHoursEnabled(): bool
+    {
+        return $this->model->get('business_hours_enabled', '0') === '1';
+    }
+
+    /**
+     * Raw weekly schedule as stored: weekday (1 = Monday … 7 = Sunday) =>
+     * ['closed' => bool, 'open' => 'HH:MM', 'close' => 'HH:MM']. Normalizing and
+     * filling gaps is BusinessCalendar's job.
+     */
+    public function businessHoursSchedule(): array
+    {
+        $decoded = json_decode($this->model->get('business_hours_schedule', ''), true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**
@@ -490,6 +515,111 @@ class MailDispatchSettings
         }
 
         return ServiceResult::ok(null, 'Reglas de autoarchivo actualizadas.');
+    }
+
+    /**
+     * Saves the service schedule that drives the SLA clock: the master toggle,
+     * the seven weekday windows, and the dated exceptions.
+     *
+     * $post['day'] is a map 1..7 => ['closed' => '1'?, 'open' => 'HH:MM',
+     * 'close' => 'HH:MM']; $post['exception'] is a list of rows with date,
+     * closed, open, close and note. Exceptions are rebuilt wholesale (no FK
+     * references them), so removing a row from the form removes the holiday.
+     */
+    public function saveSchedule(array $post): ServiceResult
+    {
+        $days     = (array) ($post['day'] ?? []);
+        $schedule = [];
+
+        foreach (BusinessCalendar::DAY_LABELS as $dow => $label) {
+            $row    = (array) ($days[$dow] ?? []);
+            $closed = ! empty($row['closed']);
+            $open   = BusinessCalendar::normalizeTime((string) ($row['open'] ?? ''), '');
+            $close  = BusinessCalendar::normalizeTime((string) ($row['close'] ?? ''), '');
+
+            if (! $closed) {
+                if ($open === '' || $close === '') {
+                    return ServiceResult::fail("{$label}: indica la hora de apertura y la de cierre, o marca el día como cerrado.");
+                }
+                if ($close <= $open) {
+                    return ServiceResult::fail("{$label}: la hora de cierre debe ser posterior a la de apertura.");
+                }
+            }
+
+            $schedule[(string) $dow] = [
+                'closed' => $closed,
+                'open'   => $open !== '' ? $open : '09:00',
+                'close'  => $close !== '' ? $close : '18:00',
+            ];
+        }
+
+        $enabled = ! empty($post['business_hours_enabled']);
+        $anyOpen = false;
+        foreach ($schedule as $row) {
+            $anyOpen = $anyOpen || ! $row['closed'];
+        }
+        if ($enabled && ! $anyOpen) {
+            return ServiceResult::fail('Con todos los días cerrados el reloj del SLA nunca avanzaría: deja al menos un día abierto.');
+        }
+
+        // Validate the exceptions before touching anything, so a bad row leaves
+        // the stored calendar intact.
+        $exceptions = [];
+        foreach ((array) ($post['exception'] ?? []) as $row) {
+            $date = trim((string) ($row['date'] ?? ''));
+            $note = trim((string) ($row['note'] ?? ''));
+            if ($date === '') {
+                // An empty add-slot; only complain if the operator typed a note.
+                if ($note !== '') {
+                    return ServiceResult::fail("La excepción «{$note}» necesita una fecha.");
+                }
+                continue;
+            }
+
+            $ts = strtotime($date);
+            if ($ts === false) {
+                return ServiceResult::fail("La fecha «{$date}» de una excepción no es válida.");
+            }
+            $date = date('Y-m-d', $ts);
+
+            if (isset($exceptions[$date])) {
+                return ServiceResult::fail("Hay dos excepciones para el {$date}: deja solo una.");
+            }
+
+            $isClosed = ! empty($row['closed']);
+            $open     = BusinessCalendar::normalizeTime((string) ($row['open'] ?? ''), '');
+            $close    = BusinessCalendar::normalizeTime((string) ($row['close'] ?? ''), '');
+
+            if (! $isClosed) {
+                if ($open === '' || $close === '') {
+                    return ServiceResult::fail("La excepción del {$date} es de horario reducido: indica apertura y cierre, o márcala como cerrada.");
+                }
+                if ($close <= $open) {
+                    return ServiceResult::fail("La excepción del {$date}: la hora de cierre debe ser posterior a la de apertura.");
+                }
+            }
+
+            $exceptions[$date] = [
+                'exception_date' => $date,
+                'is_closed'      => $isClosed ? 1 : 0,
+                'open_time'      => $isClosed || $open === '' ? null : $open . ':00',
+                'close_time'     => $isClosed || $close === '' ? null : $close . ':00',
+                'note'           => $note !== '' ? mb_substr($note, 0, 160) : null,
+            ];
+        }
+
+        $this->model->setMany([
+            'business_hours_enabled'  => $enabled ? '1' : '0',
+            'business_hours_schedule' => json_encode($schedule, JSON_UNESCAPED_UNICODE),
+        ]);
+
+        $exModel = new BusinessExceptionModel();
+        $exModel->where('id >', 0)->delete();
+        foreach ($exceptions as $ex) {
+            $exModel->insert($ex);
+        }
+
+        return ServiceResult::ok(null, 'Horario de servicio guardado.');
     }
 
     // -----------------------------------------------------------------------

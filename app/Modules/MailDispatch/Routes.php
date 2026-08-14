@@ -73,6 +73,8 @@ $routes->group('admin/dispatch', [
     $routes->post('test-connection',  'MailDispatchAdmin::testConnection', ['as' => 'dispatch.settings.test']);
     // Agents (who participates + who is dispatcher).
     $routes->post('agents',           'MailDispatchAdmin::saveAgents',    ['as' => 'dispatch.agents.save']);
+    // Service calendar: weekly schedule + holidays that stop the SLA clock.
+    $routes->post('schedule',         'MailDispatchAdmin::saveSchedule',  ['as' => 'dispatch.schedule.save']);
     // Dispositions catalog.
     $routes->post('dispositions',     'MailDispatchAdmin::saveDispositions', ['as' => 'dispatch.dispositions.save']);
     // Auto-triage rules (route matching mail to the autoarchivo bucket).
@@ -135,4 +137,7 @@ $routes->group('api/v1/admin/dispatch', [
     $routes->post('purge', 'DispatchApiController::purge');
     // Retroactively apply one saved autoarchivo rule to the unassigned main inbox.
     $routes->post('rules/(:num)/apply', 'DispatchApiController::applyRule/$1');
+    // Service calendar behind the SLA clock (weekly schedule + holidays).
+    $routes->get('schedule',  'DispatchApiController::schedule');
+    $routes->post('schedule', 'DispatchApiController::saveSchedule');
 });

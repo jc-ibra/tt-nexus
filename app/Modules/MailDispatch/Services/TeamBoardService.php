@@ -28,7 +28,8 @@ class TeamBoardService
         private ConversationModel $conversations,
         private AgentModel $agents,
         private EventModel $events,
-        private MailDispatchSettings $settings
+        private MailDispatchSettings $settings,
+        private BusinessCalendar $calendar
     ) {}
 
     /**
@@ -41,17 +42,22 @@ class TeamBoardService
     {
         $workload = $this->conversations->teamWorkload();
         $slaFirst = $this->settings->slaFirstResponseMinutes();
-        $breaches = $this->conversations->slaBreachesByAgent($slaFirst);
+
+        // Off the clock the SLA does not run, so the breach frontier is the
+        // instant $slaFirst *business* minutes back, not $slaFirst minutes back.
+        $breaches = $slaFirst > 0
+            ? $this->conversations->slaBreachesByAgent($this->calendar->cutoff($slaFirst))
+            : [];
 
         $cards = [];
         foreach ($this->agents->activeAgents() as $agent) {
             $id   = (int) $agent['user_id'];
             $load = $workload[$id] ?? [
-                'open'                => 0,
-                'unanswered'          => 0,
-                'pending'             => 0,
-                'oldest_idle_minutes' => 0,
-                'closed_today'        => 0,
+                'open'            => 0,
+                'unanswered'      => 0,
+                'pending'         => 0,
+                'oldest_activity' => '',
+                'closed_today'    => 0,
             ];
             $breached = $breaches[$id] ?? 0;
 
@@ -62,7 +68,7 @@ class TeamBoardService
                 'open'         => $load['open'],
                 'unanswered'   => $load['unanswered'],
                 'pending'      => $load['pending'],
-                'oldestIdle'   => $load['oldest_idle_minutes'],
+                'oldestIdle'   => $this->calendar->elapsedMinutes($load['oldest_activity'] ?: null),
                 'closedToday'  => $load['closed_today'],
                 'breached'     => $breached,
                 'tone'         => $this->toneFor($load['open'], $load['unanswered'], $breached),
@@ -86,12 +92,13 @@ class TeamBoardService
         }
 
         $unassigned = $this->conversations->unassignedLoad();
+        $oldestWait = $this->calendar->elapsedMinutes($unassigned['oldest_received_at'] ?: null);
 
         return [
             'unassigned' => [
                 'open'       => $unassigned['open'],
-                'oldestWait' => $unassigned['oldest_wait_minutes'],
-                'tone'       => $this->unassignedTone($unassigned['oldest_wait_minutes']),
+                'oldestWait' => $oldestWait,
+                'tone'       => $this->unassignedTone($oldestWait),
             ],
             'agents'   => $cards,
             'activity' => $this->describeActivity($this->events->recentActivity($activityLimit)),
@@ -102,6 +109,11 @@ class TeamBoardService
                 'breached'   => array_sum(array_column($cards, 'breached')),
                 'orphaned'   => $orphaned,
                 'slaFirst'   => $slaFirst,
+                // Service calendar context: the board labels its times as
+                // business hours only when the clock actually honours it.
+                'businessHours'    => $this->calendar->isEnabled(),
+                'scheduleSummary'  => $this->calendar->summary(),
+                'isOpenNow'        => $this->calendar->isOpenAt(),
             ],
         ];
     }

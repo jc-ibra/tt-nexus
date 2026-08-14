@@ -85,6 +85,7 @@ use App\Modules\ServiceDesk\Services\WidgetTicketService;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel as MailDispatchAgentModel;
 use App\Modules\MailDispatch\Models\AttachmentModel as MailDispatchAttachmentModel;
+use App\Modules\MailDispatch\Models\BusinessExceptionModel as MailDispatchBusinessExceptionModel;
 use App\Modules\MailDispatch\Models\ConversationModel as MailDispatchConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel as MailDispatchDispositionModel;
 use App\Modules\MailDispatch\Models\EventModel as MailDispatchEventModel;
@@ -95,6 +96,7 @@ use App\Modules\MailDispatch\Models\RuleModel as MailDispatchRuleModel;
 use App\Modules\MailDispatch\Models\SyncRunModel as MailDispatchSyncRunModel;
 use App\Modules\MailDispatch\Models\SyncStateModel as MailDispatchSyncStateModel;
 use App\Modules\MailDispatch\Services\AttachmentService as MailDispatchAttachmentService;
+use App\Modules\MailDispatch\Services\BusinessCalendar as MailDispatchBusinessCalendar;
 use App\Modules\MailDispatch\Services\ConversationService as MailDispatchConversationService;
 use App\Modules\MailDispatch\Services\GraphMailService;
 use App\Modules\MailDispatch\Services\ImapMailService;
@@ -603,6 +605,22 @@ class Services extends BaseService
             new MailDispatchConversationModel(),
             new MailDispatchMessageModel(),
             self::mailDispatchSettings(),
+            self::mailDispatchCalendar(),
+        );
+    }
+
+    /**
+     * Service calendar behind the SLA clock (weekly schedule + holidays). Shared:
+     * it memoizes the schedule and the exception table for the whole request.
+     */
+    public static function mailDispatchCalendar(bool $getShared = true): MailDispatchBusinessCalendar
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchCalendar');
+        }
+        return new MailDispatchBusinessCalendar(
+            self::mailDispatchSettings(),
+            new MailDispatchBusinessExceptionModel(),
         );
     }
 
@@ -617,6 +635,7 @@ class Services extends BaseService
             new MailDispatchAgentModel(),
             new MailDispatchEventModel(),
             self::mailDispatchSettings(),
+            self::mailDispatchCalendar(),
         );
     }
 

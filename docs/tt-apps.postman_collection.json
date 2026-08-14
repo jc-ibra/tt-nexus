@@ -4006,6 +4006,66 @@
             },
             "description": "Aplica retroactivamente una regla de autoarchivo GUARDADA (por id) a la bandeja principal: archiva las conversaciones sin asignar (agent_id NULL) y no procesadas (no cerrada/autoarchivo/autogenerado) cuyo remitente/asunto coincidan con la regla. Devuelve el número de conversaciones movidas."
           }
+        },
+        {
+          "name": "Get service calendar (SuperAdmin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dispatch/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dispatch",
+                "schedule"
+              ]
+            },
+            "description": "Horario de servicio que rige el reloj del SLA: `enabled` (si el SLA solo corre en horario hábil), `summary` (resumen legible), `open_now`, `weekly` (mapa 1=lunes .. 7=domingo con closed/open/close) y `exceptions` (festivos y horarios reducidos por fecha)."
+          }
+        },
+        {
+          "name": "Save service calendar (SuperAdmin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business_hours_enabled\": \"1\",\n  \"day\": {\n    \"1\": { \"open\": \"09:00\", \"close\": \"19:00\" },\n    \"2\": { \"open\": \"09:00\", \"close\": \"19:00\" },\n    \"3\": { \"open\": \"09:00\", \"close\": \"19:00\" },\n    \"4\": { \"open\": \"09:00\", \"close\": \"19:00\" },\n    \"5\": { \"open\": \"09:00\", \"close\": \"19:00\" },\n    \"6\": { \"open\": \"09:00\", \"close\": \"15:00\" },\n    \"7\": { \"closed\": \"1\", \"open\": \"09:00\", \"close\": \"15:00\" }\n  },\n  \"exception\": [\n    { \"date\": \"2026-09-16\", \"closed\": \"1\", \"note\": \"Independencia\" },\n    { \"date\": \"2026-12-24\", \"open\": \"09:00\", \"close\": \"13:00\", \"note\": \"Nochebuena\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dispatch/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dispatch",
+                "schedule"
+              ]
+            },
+            "description": "Guarda el horario de servicio. Los siete días son obligatorios: cada uno con `open`/`close` (HH:MM) o `closed: \"1\"`. Las excepciones se reconstruyen completas: las fechas que no vengan en el arreglo se eliminan. Con `business_hours_enabled` apagado el SLA vuelve a contarse a reloj corrido."
+          }
         }
       ]
     },

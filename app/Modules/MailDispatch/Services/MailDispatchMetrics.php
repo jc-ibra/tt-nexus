@@ -22,7 +22,8 @@ class MailDispatchMetrics
     public function __construct(
         private ConversationModel $conversations,
         private MessageModel $messages,
-        private MailDispatchSettings $settings
+        private MailDispatchSettings $settings,
+        private BusinessCalendar $calendar
     ) {
         $this->db = \Config\Database::connect();
     }
@@ -45,6 +46,10 @@ class MailDispatchMetrics
             'sla'                   => [
                 'unassigned_minutes'     => $this->settings->slaUnassignedMinutes(),
                 'first_response_minutes' => $this->settings->slaFirstResponseMinutes(),
+            ],
+            'business_hours'        => [
+                'enabled'  => $this->calendar->isEnabled(),
+                'schedule' => $this->calendar->summary(),
             ],
         ];
     }
@@ -70,16 +75,44 @@ class MailDispatchMetrics
         return $b->countAllResults();
     }
 
-    /** Average minutes between two datetime columns (ignoring nulls). */
+    /**
+     * Average minutes between two datetime columns (ignoring nulls).
+     *
+     * With the service calendar on, the average has to be built in PHP: the
+     * elapsed time of each pair depends on the schedule and the holidays, which
+     * SQL knows nothing about. Only the two columns are pulled, so the extra
+     * cost is one narrow scan of the range instead of an aggregate.
+     */
     private function avgMinutes(string $startCol, string $endCol, string $from, string $to, ?int $agentId): ?float
     {
+        if (! $this->calendar->isEnabled()) {
+            $b = $this->db->table('maildispatch_conversations')
+                ->select("AVG(TIMESTAMPDIFF(MINUTE, {$startCol}, {$endCol})) AS avg_min")
+                ->where("{$endCol} IS NOT NULL", null, false)
+                ->where('received_at >=', $from)->where('received_at <=', $to);
+            $this->applyAgent($b, $agentId);
+            $row = $b->get()->getRow();
+            return $row && $row->avg_min !== null ? round((float) $row->avg_min, 1) : null;
+        }
+
         $b = $this->db->table('maildispatch_conversations')
-            ->select("AVG(TIMESTAMPDIFF(MINUTE, {$startCol}, {$endCol})) AS avg_min")
+            ->select("{$startCol} AS start_at, {$endCol} AS end_at")
             ->where("{$endCol} IS NOT NULL", null, false)
+            ->where("{$startCol} IS NOT NULL", null, false)
             ->where('received_at >=', $from)->where('received_at <=', $to);
         $this->applyAgent($b, $agentId);
-        $row = $b->get()->getRow();
-        return $row && $row->avg_min !== null ? round((float) $row->avg_min, 1) : null;
+        $rows = $b->get()->getResultArray();
+
+        if ($rows === []) {
+            return null;
+        }
+
+        $total = 0;
+        foreach ($rows as $r) {
+            $total += $this->calendar->minutesBetween((string) $r['start_at'], (string) $r['end_at']);
+        }
+
+        return round($total / count($rows), 1);
     }
 
     /** Per-agent open count and handled (closed-in-range) count. */

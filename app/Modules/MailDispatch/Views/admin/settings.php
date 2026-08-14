@@ -25,6 +25,9 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   /* Even vertical rhythm for the per-rule editor cards (fields + grids). */
   #md-autogestion .card .card > .card-body > * { margin-bottom:var(--space-4); }
   #md-autogestion .card .card > .card-body > *:last-child { margin-bottom:0; }
+  /* Horario: un día cerrado atenúa sus horas sin deshabilitarlas, para no
+     perder el horario configurado al reabrirlo. */
+  .md-day-off td:nth-child(n+3) { opacity:.45; }
   /* SMTP source toggle: show only the active mode's block. */
   .md-smtp-core, .md-smtp-own { display:none; }
   #md-smtp.mode-core .md-smtp-core { display:block; }
@@ -50,6 +53,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
 <div class="md-tabs" role="tablist" aria-label="Secciones de configuración">
   <button type="button" class="md-tab is-active" role="tab" data-panel="md-conexion" data-hash="conexion">Conexión</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-agentes" data-hash="agentes">Agentes</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-horario" data-hash="horario">Horario</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-disposiciones" data-hash="disposiciones">Disposiciones</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Autoarchivo</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-autogestion" data-hash="autogestion">Autogestión</button>
@@ -200,6 +204,15 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           <label class="field-label" for="sla_first_response_minutes">Máximo sin primera respuesta</label>
           <input type="number" id="sla_first_response_minutes" name="sla_first_response_minutes" class="input" min="0" value="<?= $val('sla_first_response_minutes', '120') ?>">
         </div>
+        <p class="field-help" style="margin-top:var(--space-3);">
+          <?php if ($bool('business_hours_enabled')): ?>
+            Estos minutos se cuentan <strong>solo dentro del horario de servicio</strong>
+            (<?= esc($scheduleSummary) ?>). Ajústalo en la pestaña <strong>Horario</strong>.
+          <?php else: ?>
+            Estos minutos se cuentan a reloj corrido, incluidas noches y fines de semana. Para que el SLA
+            respete el horario de la mesa, actívalo en la pestaña <strong>Horario</strong>.
+          <?php endif; ?>
+        </p>
       </div>
     </div>
 
@@ -330,6 +343,101 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
                 </td>
               </tr>
             <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ====================== Horario de servicio ====================== -->
+<div id="md-horario" class="md-panel" role="tabpanel">
+  <form action="<?= route_to('dispatch.schedule.save') ?>" method="post" style="max-width:820px;">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Horario de servicio</h2>
+        <button type="submit" class="btn btn-primary">Guardar horario</button>
+      </div>
+      <div class="card-body">
+        <label class="field-check" style="margin-bottom:var(--space-2);">
+          <input type="checkbox" name="business_hours_enabled" value="1" <?= $bool('business_hours_enabled') ? 'checked' : '' ?>>
+          <span>Contar el SLA solo dentro del horario de servicio</span>
+        </label>
+        <p class="field-help" style="margin-bottom:var(--space-4);">
+          Encendido, el reloj de los umbrales de SLA se detiene fuera del horario: un correo que llega el viernes
+          a las 18:55 reanuda su conteo el lunes a la apertura, no el sábado de madrugada.
+          Apagado, todo se mide a reloj corrido (comportamiento anterior).
+        </p>
+
+        <table class="table" style="width:100%;" id="md-schedule-table">
+          <thead><tr>
+            <th>Día</th>
+            <th style="text-align:center; width:110px;">Cerrado</th>
+            <th style="width:150px;">Apertura</th>
+            <th style="width:150px;">Cierre</th>
+          </tr></thead>
+          <tbody>
+            <?php foreach ($scheduleRows as $dow => $day): ?>
+              <tr data-day-row class="<?= $day['closed'] ? 'md-day-off' : '' ?>">
+                <td><?= esc($dayLabels[$dow]) ?></td>
+                <td style="text-align:center;">
+                  <input type="checkbox" data-day-closed name="day[<?= (int) $dow ?>][closed]" value="1" <?= $day['closed'] ? 'checked' : '' ?>>
+                </td>
+                <td><input type="time" name="day[<?= (int) $dow ?>][open]" class="input" value="<?= esc($day['open']) ?>"></td>
+                <td><input type="time" name="day[<?= (int) $dow ?>][close]" class="input" value="<?= esc($day['close']) ?>"></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Excepciones: días festivos y cierres puntuales</h2></div>
+      <div class="card-body" style="padding:0;">
+        <p class="md-hint" style="padding:var(--space-4);">
+          Cada fila manda sobre el horario semanal en esa fecha. Marca <strong>Cerrado</strong> para un festivo
+          completo, o deja la casilla vacía y captura un horario reducido. Borra la fecha de una fila para
+          eliminar la excepción al guardar.
+        </p>
+        <table class="table" style="width:100%;" id="md-exceptions-table">
+          <thead><tr>
+            <th style="width:170px;">Fecha</th>
+            <th style="text-align:center; width:110px;">Cerrado</th>
+            <th style="width:140px;">Apertura</th>
+            <th style="width:140px;">Cierre</th>
+            <th>Nota</th>
+          </tr></thead>
+          <tbody>
+            <?php
+              $exRows = $exceptions ?? [];
+              $exIdx  = 0;
+            ?>
+            <?php foreach ($exRows as $ex): ?>
+              <?php $exClosed = (int) ($ex['is_closed'] ?? 1) === 1; ?>
+              <tr data-day-row class="<?= $exClosed ? 'md-day-off' : '' ?>">
+                <td><input type="date" name="exception[<?= $exIdx ?>][date]" class="input" value="<?= esc(substr((string) $ex['exception_date'], 0, 10)) ?>"></td>
+                <td style="text-align:center;">
+                  <input type="checkbox" data-day-closed name="exception[<?= $exIdx ?>][closed]" value="1" <?= $exClosed ? 'checked' : '' ?>>
+                </td>
+                <td><input type="time" name="exception[<?= $exIdx ?>][open]" class="input" value="<?= esc(substr((string) ($ex['open_time'] ?? ''), 0, 5)) ?>"></td>
+                <td><input type="time" name="exception[<?= $exIdx ?>][close]" class="input" value="<?= esc(substr((string) ($ex['close_time'] ?? ''), 0, 5)) ?>"></td>
+                <td><input type="text" name="exception[<?= $exIdx ?>][note]" class="input" value="<?= esc((string) ($ex['note'] ?? '')) ?>" maxlength="160"></td>
+              </tr>
+              <?php $exIdx++; ?>
+            <?php endforeach; ?>
+            <?php for ($i = 0; $i < 3; $i++): ?>
+              <tr data-day-row class="md-day-off">
+                <td><input type="date" name="exception[<?= $exIdx ?>][date]" class="input"></td>
+                <td style="text-align:center;"><input type="checkbox" data-day-closed name="exception[<?= $exIdx ?>][closed]" value="1" checked></td>
+                <td><input type="time" name="exception[<?= $exIdx ?>][open]" class="input"></td>
+                <td><input type="time" name="exception[<?= $exIdx ?>][close]" class="input"></td>
+                <td><input type="text" name="exception[<?= $exIdx ?>][note]" class="input" placeholder="Ej. Día de la Independencia" maxlength="160"></td>
+              </tr>
+              <?php $exIdx++; ?>
+            <?php endfor; ?>
           </tbody>
         </table>
       </div>
@@ -722,6 +830,15 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   }
   smtpRadios.forEach(function (r) { r.addEventListener('change', applySmtpMode); });
   applySmtpMode();
+
+  // Horario: atenuar las horas de los días marcados como cerrados.
+  Array.prototype.slice.call(document.querySelectorAll('[data-day-closed]')).forEach(function (box) {
+    var row = box.closest('[data-day-row]');
+    if (!row) { return; }
+    box.addEventListener('change', function () {
+      row.classList.toggle('md-day-off', box.checked);
+    });
+  });
 
   // Probar conexión (AJAX)
   var btn = document.getElementById('md-test-btn');

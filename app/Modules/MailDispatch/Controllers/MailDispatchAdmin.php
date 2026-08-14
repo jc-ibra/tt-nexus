@@ -9,10 +9,12 @@ use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel;
 use App\Modules\MailDispatch\Models\AutogenRuleModel;
 use App\Modules\MailDispatch\Models\AutogenWhitelistModel;
+use App\Modules\MailDispatch\Models\BusinessExceptionModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\RuleModel;
 use App\Modules\MailDispatch\Models\SyncRunModel;
 use App\Modules\MailDispatch\Models\SyncStateModel;
+use App\Modules\MailDispatch\Services\BusinessCalendar;
 use App\Modules\MailDispatch\Services\GraphMailService;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -82,9 +84,17 @@ class MailDispatchAdmin extends BaseController
             $pluginRef = [];
         }
 
+        $calendar = service('mailDispatchCalendar');
+
         return view('App\Modules\MailDispatch\Views\admin\settings', [
             'pageTitle'    => 'Configuración · Despacho de Correo',
             'settings'     => $settings->all(),
+            // Service calendar: weekly windows, dated exceptions and the one-line
+            // summary the SLA card quotes.
+            'scheduleRows'    => $calendar->weeklySchedule(),
+            'dayLabels'       => BusinessCalendar::DAY_LABELS,
+            'scheduleSummary' => $calendar->summary(),
+            'exceptions'      => (new BusinessExceptionModel())->allOrdered(),
             'hasSecret'    => $settings->hasSecret(),
             'hasImapPassword' => $settings->hasImapPassword(),
             'hasSmtpPassword' => $settings->hasSmtpPassword(),
@@ -177,6 +187,14 @@ class MailDispatchAdmin extends BaseController
     {
         $result = service('mailDispatchSettings')->saveRules($this->request->getPost());
         return redirect()->to(route_to('dispatch.settings') . '#reglas')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /** Service calendar that the SLA clock honours: weekly windows + holidays. */
+    public function saveSchedule(): ResponseInterface
+    {
+        $result = service('mailDispatchSettings')->saveSchedule($this->request->getPost());
+        return redirect()->to(route_to('dispatch.settings') . '#horario')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 

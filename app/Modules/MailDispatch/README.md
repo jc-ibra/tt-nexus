@@ -28,6 +28,7 @@ buzón que recibe todo por regla de reenvío). Ver «Proveedores» abajo.
 | `MailboxSyncService` | Orquesta la sincronización delta por carpeta (Inbox + Enviados), idempotente y resumible. Registra estado y corridas. |
 | `ConversationService` | Núcleo: ingesta con hilado (conversationId + fallback In-Reply-To/References), dirección in/out, máquina de estados, **claim atómico**, asignación, cierre, reapertura y bitácora. |
 | `MailDispatchMetrics` | Analítica de solo lectura para el tablero (F2) y export CSV. |
+| `BusinessCalendar` | Reloj del SLA: convierte cualquier par de fechas a **minutos hábiles** según el horario de servicio y las excepciones. Ver "Horario de servicio" abajo. |
 | `ReplyService` | Envío de respuesta al hilo vía Graph (F3), gated por el toggle de admin. |
 | `MailDispatchSettings` | Accesor tipado sobre `maildispatch_settings`; el secret se cifra con `CredentialCipher`. |
 
@@ -152,6 +153,41 @@ nueva → asignada → en_atencion → respondida ⇄ esperando_agente → cerra
 - Un mensaje entrante sobre una conversación `respondida`/`en_atencion` → `esperando_agente`.
 - Una conversación `cerrada` que recibe un entrante se **reabre** en `esperando_agente` conservando su asignación.
 - **Claim atómico:** tomar una conversación es un `UPDATE ... WHERE agent_id IS NULL`; si dos agentes la toman a la vez, solo uno gana y el otro ve "ya fue tomada por X".
+
+---
+
+## Horario de servicio (reloj del SLA)
+
+Los umbrales de SLA (Administración → Despacho de Correo → **Conexión**) se
+cuentan por omisión a reloj corrido. Con la pestaña **Horario** el conteo se
+limita al horario real de la mesa, de modo que un correo que llega el viernes a
+las 18:55 no consume su SLA durante el fin de semana.
+
+| Concepto | Dónde vive |
+|---|---|
+| Interruptor + horario semanal | `maildispatch_settings`: `business_hours_enabled`, `business_hours_schedule` (JSON, 1 = lunes … 7 = domingo) |
+| Festivos y cierres puntuales | Tabla `maildispatch_business_exceptions` (una fila por fecha: cerrado todo el día u horario reducido) |
+| Cálculo | `BusinessCalendar` |
+
+`BusinessCalendar` expone dos operaciones y con ellas se resuelve todo:
+
+- `elapsedMinutes($desde)`: minutos hábiles consumidos. Lo usan el tablero de
+  equipo y sus fichas por hilo.
+- `cutoff($minutos)`: el instante de reloj tal que `received_at < cutoff`
+  equivale a "ya excedió $minutos hábiles". Permite que la consulta de
+  incumplimientos y el semáforo de la bandeja sigan siendo una comparación de
+  fechas indexada, sin recorrer el calendario fila por fila.
+
+Con el interruptor apagado ambas funciones devuelven minutos de reloj corrido,
+es decir el comportamiento previo a la existencia del calendario.
+
+Alcance del calendario cuando está activo: semáforo SLA de la bandeja, espera de
+la bandeja sin asignar, "Fuera de SLA" y medidores del tablero de equipo, y los
+promedios de primera asignación / primera respuesta en Métricas. No altera
+fechas almacenadas: `received_at`, `first_response_at` y compañía siguen siendo
+instantes reales; solo cambia cómo se mide la distancia entre ellos.
+
+API espejo (SuperAdmin): `GET|POST /api/v1/admin/dispatch/schedule`.
 
 ---
 

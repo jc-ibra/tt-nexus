@@ -8,6 +8,7 @@ use App\Modules\Core\Controllers\Api\BaseApiController;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AgentModel;
 use App\Modules\MailDispatch\Models\AttachmentModel;
+use App\Modules\MailDispatch\Models\BusinessExceptionModel;
 use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
@@ -325,6 +326,35 @@ class DispatchApiController extends BaseApiController
     public function applyRule(int $id): ResponseInterface
     {
         return $this->fromResult(service('mailDispatchConversations')->applyRuleToInbox($id, $this->userId()));
+    }
+
+    /** The service calendar that the SLA clock honours. SuperAdmin only. */
+    public function schedule(): ResponseInterface
+    {
+        $calendar = service('mailDispatchCalendar');
+
+        return $this->success([
+            'enabled'    => $calendar->isEnabled(),
+            'summary'    => $calendar->summary(),
+            'open_now'   => $calendar->isOpenAt(),
+            'weekly'     => $calendar->weeklySchedule(),
+            'exceptions' => (new BusinessExceptionModel())->allOrdered(),
+        ]);
+    }
+
+    /**
+     * Saves the service calendar. Mirrors the admin form, so the payload is the
+     * same shape: `business_hours_enabled`, `day[1..7][closed|open|close]` and a
+     * list of `exception[]` rows. Exceptions are rebuilt wholesale.
+     */
+    public function saveSchedule(): ResponseInterface
+    {
+        $post = $this->request->getJSON(true);
+        if (! is_array($post)) {
+            $post = (array) $this->request->getRawInput();
+        }
+
+        return $this->fromResult(service('mailDispatchSettings')->saveSchedule($post));
     }
 
     // -----------------------------------------------------------------------

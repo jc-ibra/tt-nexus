@@ -141,13 +141,14 @@ class ConversationModel extends Model
      * right now, not a historical aggregate (that is what Métricas is for).
      *
      * "Sin responder" counts open threads the agent owns that never got a first
-     * response, which is the queue that actually hurts. `oldest_idle_minutes`
-     * measures silence since the last activity on the agent's stalest thread.
+     * response, which is the queue that actually hurts. `oldest_activity` is the
+     * last activity on the agent's stalest thread; turning that into elapsed
+     * minutes is the caller's job, since only it knows the service calendar.
      *
      * Agents with nothing open still appear (zeroed) so the board shows who is
      * free; the caller merges this with the active-agent roster.
      *
-     * @return array<int,array{agent_id:int,open:int,unanswered:int,pending:int,oldest_idle_minutes:int,closed_today:int}>
+     * @return array<int,array{agent_id:int,open:int,unanswered:int,pending:int,oldest_activity:string,closed_today:int}>
      */
     public function teamWorkload(): array
     {
@@ -164,15 +165,13 @@ class ConversationModel extends Model
 
         $rows = [];
         foreach ($open as $r) {
-            $oldest = (string) ($r['oldest_activity'] ?? '');
-            $ts     = $oldest !== '' ? strtotime($oldest) : false;
             $rows[(int) $r['agent_id']] = [
-                'agent_id'            => (int) $r['agent_id'],
-                'open'                => (int) $r['open_count'],
-                'unanswered'          => (int) $r['unanswered'],
-                'pending'             => (int) $r['pending'],
-                'oldest_idle_minutes' => $ts === false ? 0 : max(0, (int) floor((time() - $ts) / 60)),
-                'closed_today'        => 0,
+                'agent_id'        => (int) $r['agent_id'],
+                'open'            => (int) $r['open_count'],
+                'unanswered'      => (int) $r['unanswered'],
+                'pending'         => (int) $r['pending'],
+                'oldest_activity' => (string) ($r['oldest_activity'] ?? ''),
+                'closed_today'    => 0,
             ];
         }
 
@@ -188,12 +187,12 @@ class ConversationModel extends Model
         foreach ($closed as $r) {
             $id = (int) $r['agent_id'];
             $rows[$id] ??= [
-                'agent_id'            => $id,
-                'open'                => 0,
-                'unanswered'          => 0,
-                'pending'             => 0,
-                'oldest_idle_minutes' => 0,
-                'closed_today'        => 0,
+                'agent_id'        => $id,
+                'open'            => 0,
+                'unanswered'      => 0,
+                'pending'         => 0,
+                'oldest_activity' => '',
+                'closed_today'    => 0,
             ];
             $rows[$id]['closed_today'] = (int) $r['closed_count'];
         }
@@ -203,9 +202,10 @@ class ConversationModel extends Model
 
     /**
      * Unassigned bucket for the team board: how many are waiting for someone to
-     * take them and how long the oldest one has been sitting there.
+     * take them and when the oldest one arrived (the caller converts that into
+     * elapsed minutes through the service calendar).
      *
-     * @return array{open:int,oldest_wait_minutes:int}
+     * @return array{open:int,oldest_received_at:string}
      */
     public function unassignedLoad(): array
     {
@@ -217,25 +217,26 @@ class ConversationModel extends Model
             ->where('outbound_only', 0)
             ->get()->getRowArray();
 
-        $oldest = (string) ($row['oldest'] ?? '');
-        $ts     = $oldest !== '' ? strtotime($oldest) : false;
-
         return [
-            'open'                => (int) ($row['open_count'] ?? 0),
-            'oldest_wait_minutes' => $ts === false ? 0 : max(0, (int) floor((time() - $ts) / 60)),
+            'open'               => (int) ($row['open_count'] ?? 0),
+            'oldest_received_at' => (string) ($row['oldest'] ?? ''),
         ];
     }
 
     /**
      * How many open threads each agent owns that breached the first-response
-     * SLA: still unanswered and received more than $slaMinutes ago. Drives the
-     * red state of the agent cards.
+     * SLA: still unanswered and received before $receivedBefore. Drives the red
+     * state of the agent cards.
+     *
+     * The caller passes the cutoff instant rather than a number of minutes,
+     * because with a service calendar in play "SLA minutes ago" is not simply
+     * now minus N — BusinessCalendar::cutoff() resolves it.
      *
      * @return array<int,int> agent id => breached count
      */
-    public function slaBreachesByAgent(int $slaMinutes): array
+    public function slaBreachesByAgent(string $receivedBefore): array
     {
-        if ($slaMinutes <= 0) {
+        if (trim($receivedBefore) === '') {
             return [];
         }
 
@@ -245,7 +246,7 @@ class ConversationModel extends Model
             ->whereNotIn('c.status', ['cerrada', 'autoarchivo', 'autogenerado'])
             ->where('c.agent_id IS NOT NULL', null, false)
             ->where('c.first_response_at IS NULL', null, false)
-            ->where('c.received_at <', date('Y-m-d H:i:s', time() - $slaMinutes * 60))
+            ->where('c.received_at <', $receivedBefore)
             ->groupBy('c.agent_id')
             ->get()->getResultArray();
 

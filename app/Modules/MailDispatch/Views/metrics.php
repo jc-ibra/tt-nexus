@@ -80,6 +80,12 @@ $qs = http_build_query($personal
   <div class="md-kpi"><div class="md-kpi-value"><?= $fmtMin($avg_first_response_min) ?></div><div class="md-kpi-label">Prom. primera respuesta</div></div>
 </div>
 
+<?php if (! empty($business_hours['enabled'])): ?>
+  <p class="text-muted" style="margin:calc(-1 * var(--space-3)) 0 var(--space-5); font-size:var(--text-sm);">
+    Los promedios se miden en horas hábiles: <?= esc($business_hours['schedule']) ?>.
+  </p>
+<?php endif; ?>
+
 <?php if (! $personal): ?>
 <div class="card" style="margin-bottom:var(--space-5);">
   <div class="card-header"><h2 class="card-title">Volumen por agente</h2></div>
