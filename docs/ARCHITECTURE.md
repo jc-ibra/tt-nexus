@@ -404,3 +404,65 @@ All views extend the main layout via CI4's `renderSection` / `extend`:
 ```
 
 CSS global stylesheet (`public/css/app.css`) declares all design tokens from `DESIGN.md §13` as `:root` variables. Component CSS imports or inline styles must only use these tokens.
+
+---
+
+## 11. PWA (instalación en el escritorio)
+
+Nexus se puede instalar como aplicación de escritorio desde Chrome o Edge. Son
+cuatro piezas, todas estáticas salvo el parcial:
+
+```
+public/manifest.json                          ← nombre, colores, íconos, display: standalone
+public/sw.js                                  ← service worker
+public/offline.html                           ← pantalla sin conexión (estilos propios, no depende de app.css)
+public/img/icons/                             ← icon-192, icon-512, icon-maskable-512
+app/Modules/Core/Views/partials/pwa.php       ← <link rel="manifest">, theme-color y registro del SW
+```
+
+El parcial va en el `<head>` de **ambos** layouts (`main.php` y `auth.php`): la app
+instalada puede abrir primero en el login, y sin manifiesto ahí el navegador
+considera que esa pantalla quedó fuera del alcance de la aplicación.
+
+**Requisitos del navegador:** HTTPS (salvo `localhost`), manifiesto con íconos de
+192 y 512, y un service worker registrado con manejador `fetch`. Sin cualquiera
+de los tres no aparece el botón de instalar.
+
+### Reglas del service worker
+
+Un service worker vive en el navegador de cada usuario y sobrevive a los
+despliegues, así que `public/sw.js` se mantiene deliberadamente estrecho:
+
+- **El HTML nunca se cachea.** Toda navegación va a la red; si falla, se muestra
+  `offline.html`. Nexus es una app con sesión y una página guardada podría
+  mostrarle a un usuario datos de otro en una computadora compartida.
+- **Solo intercepta GET del mismo origen bajo `css/`, `js/` e `img/`**, que hoy
+  contienen únicamente activos de la aplicación. Si alguna vez se sirve contenido
+  de usuario bajo esas rutas (fotos, adjuntos), hay que excluirlo antes.
+- **No toca** POST, `/api/v1`, el login ni las descargas (exportaciones a
+  CSV/Excel): pasan de largo con sus cookies y su token CSRF intactos.
+- Los estáticos se sirven de caché y se revalidan en segundo plano
+  (*stale-while-revalidate*), contra el servidor y no contra la caché del
+  navegador.
+
+### Despliegues de CSS/JS
+
+Las páginas piden los estáticos con la fecha de modificación del archivo en la
+URL (`css/app.css?v=1785916675`), vía el helper `asset_url()` de
+`app/Common.php`. **Es lo que hace que un cambio se vea de inmediato.**
+
+Sin esa marca la URL nunca cambiaría, y como el servidor no manda
+`Cache-Control` en los estáticos (solo `ETag`), el navegador aplica su
+heurística de frescura y puede dar por buena la copia guardada durante horas;
+el service worker, además, serviría su copia y el usuario vería HTML nuevo con
+CSS viejo. Con la marca, un archivo modificado es una URL distinta: no hay nada
+guardado bajo esa clave, se pide a la red y no existe la ventana de
+inconsistencia. El service worker borra solo las versiones anteriores del mismo
+archivo para que la caché no crezca con cada despliegue.
+
+Al agregar un `<link>` o `<script>` a un archivo de `public/`, usa `asset_url()`
+en lugar de `base_url()`.
+
+**Para desactivarlo:** pon `DISABLED = true` en `public/sw.js` y despliega. El
+worker borra sus cachés y se desinstala solo en la siguiente visita, sin que los
+usuarios tengan que hacer nada.

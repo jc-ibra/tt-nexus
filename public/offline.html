@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexión - Nexus</title>
+  <link rel="icon" type="image/png" href="img/tt-icon.png">
+  <!--
+    Los estilos van aquí dentro a propósito: esta página tiene que verse bien
+    justo cuando no hay red, sin depender de que app.css esté en caché.
+  -->
+  <style>
+    :root {
+      --blue: #1773C8;
+      --blue-dark: #135FA6;
+      --page: #F6F6F7;
+      --surface: #FFFFFF;
+      --text: #202223;
+      --muted: #6D7175;
+      --border: #E1E3E5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--page);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .08);
+      padding: 32px;
+      text-align: center;
+    }
+    .logo { width: 64px; height: 64px; margin: 0 auto 20px; display: block; }
+    h1 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+    p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+    button {
+      appearance: none;
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      font: inherit;
+      font-weight: 500;
+      font-size: 14px;
+      padding: 10px 20px;
+      min-height: 44px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: var(--blue-dark); }
+    button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .hint { margin: 20px 0 0; font-size: 12px; color: var(--muted); }
+    @media (prefers-color-scheme: dark) {
+      :root { --page: #1A1C1D; --surface: #232526; --text: #E9EAEB; --muted: #A7ACB1; --border: #35383A; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="logo" src="img/tt-icon.png" alt="" aria-hidden="true">
+    <h1>Sin conexión</h1>
+    <p>
+      No se pudo contactar al servidor de Nexus. Revisa tu conexión a internet
+      o la VPN, y vuelve a intentarlo.
+    </p>
+    <button type="button" onclick="location.reload()">Reintentar</button>
+    <p class="hint">Nexus necesita conexión para consultar y guardar información.</p>
+  </main>
+</body>
+</html>

@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= esc($pageTitle ?? 'Dashboard') ?> - Nexus</title>
   <link rel="icon" type="image/png" href="<?= base_url('img/tt-icon.png') ?>">
-  <link rel="stylesheet" href="<?= base_url('css/app.css') ?>">
+  <link rel="stylesheet" href="<?= asset_url('css/app.css') ?>">
+  <?= $this->include('App\Modules\Core\Views\partials\pwa') ?>
   <?= $this->renderSection('head') ?>
 </head>
 <body>
@@ -47,7 +48,7 @@
   </main>
 
 </div>
-<script src="<?= base_url('js/app.js') ?>"></script>
+<script src="<?= asset_url('js/app.js') ?>"></script>
 <script>
 (function () {
   var shell = document.getElementById('app-shell');

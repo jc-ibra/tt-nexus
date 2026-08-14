@@ -442,5 +442,5 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script src="<?= base_url('js/kpi-glpi-dashboard.js') ?>" defer></script>
+<script src="<?= asset_url('js/kpi-glpi-dashboard.js') ?>" defer></script>
 <?= $this->endSection() ?>
