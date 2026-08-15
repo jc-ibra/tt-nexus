@@ -12,6 +12,10 @@ $routes->group('employees', [
     'filter'    => ['auth', 'module_access:employees'],
 ], function (RouteCollection $routes): void {
 
+    // Read-only analytics panel for RRHH. Literal segment, so it is never
+    // captured by the /(:num) show route declared further down.
+    $routes->get('dashboard',         'EmployeeDashboard::index',    ['as' => 'employees.dashboard']);
+
     // Mailbox autocomplete proxy (kept above /(:num) so it does not collide).
     $routes->get('mailboxes-search',  'Employees::mailboxesSearch',  ['as' => 'employees.mailboxes-search']);
     $routes->get('employees-search',  'Employees::searchEmployees',  ['as' => 'employees.search']);
@@ -141,8 +145,9 @@ $routes->group('api/v1/employees', [
     $routes->put('positions/(:num)',      'EmployeePositionsApiController::update/$1');
     $routes->delete('positions/(:num)',   'EmployeePositionsApiController::delete/$1');
 
-    // Search must precede (:num) to avoid being captured.
+    // Search and dashboard must precede (:num) to avoid being captured.
     $routes->get('search',              'EmployeesApiController::search');
+    $routes->get('dashboard',           'EmployeeDashboardApiController::index');
 
     // Employees CRUD
     $routes->get('/',                   'EmployeesApiController::index');

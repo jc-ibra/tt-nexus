@@ -81,7 +81,13 @@ $moduleSubnav = [
             'url'    => base_url('employees'),
             'active' => $currentPath === '/employees'
                 || (str_starts_with($currentPath, '/employees')
-                    && ! str_starts_with($currentPath, '/employees/catalogs')),
+                    && ! str_starts_with($currentPath, '/employees/catalogs')
+                    && ! str_starts_with($currentPath, '/employees/dashboard')),
+        ],
+        [
+            'label'  => 'Panel',
+            'url'    => base_url('employees/dashboard'),
+            'active' => str_starts_with($currentPath, '/employees/dashboard'),
         ],
         [
             'label'  => 'Áreas',

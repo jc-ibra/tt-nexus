@@ -1871,6 +1871,53 @@
           "response": []
         },
         {
+          "name": "Dashboard Snapshot (read-only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "dashboard"
+              ]
+            },
+            "description": "Agregados de la plantilla para el panel de RRHH: resumen, distribución por área, departamento, puesto, estado y ubicación, antigüedad, altas y bajas por mes, tramo de control y calidad de datos. Solo lectura."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/employees/dashboard"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"generated_at\": \"2026-08-15 10:00:00\",\n    \"scope\": \"active\",\n    \"summary\": {\n      \"total\": 320,\n      \"active\": 298,\n      \"inactive\": 22,\n      \"hires_12m\": 41,\n      \"exits_12m\": 17,\n      \"avg_tenure_months\": 38.4,\n      \"areas\": 9,\n      \"departments\": 24,\n      \"positions\": 61,\n      \"states\": 18,\n      \"locations\": 12\n    },\n    \"by_area\": [\n      { \"id\": 3, \"name\": \"Operaciones\", \"total\": 120 }\n    ],\n    \"by_department\": [],\n    \"by_position\": [],\n    \"by_state\": [],\n    \"by_location\": [],\n    \"tenure\": [\n      { \"label\": \"Menos de 1 año\", \"total\": 41 }\n    ],\n    \"movements\": [\n      { \"month\": \"2026-08\", \"hires\": 3, \"exits\": 1 }\n    ],\n    \"span_of_control\": [\n      { \"id\": 12, \"name\": \"Ana Ruiz\", \"total\": 14 }\n    ],\n    \"missing_data\": {\n      \"no_area\": 0,\n      \"no_department\": 0,\n      \"no_position\": 0,\n      \"no_state\": 2,\n      \"no_location\": 5,\n      \"no_date_entry\": 0,\n      \"no_manager\": 31\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
           "name": "Upload Employee Photo",
           "request": {
             "method": "POST",
