@@ -149,6 +149,8 @@
   --sidebar-section-label: #6B7885;
   --sidebar-hover-bg:      rgba(255, 255, 255, 0.06);
   --sidebar-active-bg:     rgba(255, 255, 255, 0.10);
+  --sidebar-scrollbar:       rgba(255, 255, 255, 0.14);
+  --sidebar-scrollbar-hover: rgba(255, 255, 255, 0.28);
   --sidebar-active-text:   #FFFFFF;
   --sidebar-accent:        var(--color-blue-400);
 }
@@ -205,6 +207,30 @@ img, svg { display: block; max-width: 100%; }
   min-height: 0;
   overflow-y: auto;
   margin: var(--space-3) 0;
+  /* Firefox: barra delgada, sin riel, del mismo tono translúcido que el hover. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-scrollbar) transparent;
+}
+
+/* WebKit (Chrome, Edge, Safari): el scroll del menú se pinta con el lenguaje
+   del sidebar. Sin esto sale la barra gris del sistema, pensada para fondos
+   claros, y sobre el azul oscuro canta. Se nota, pero no compite. */
+.sidebar-nav::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-scrollbar);
+  border-radius: var(--radius-full);
+  /* Borde transparente + recorte al padding: adelgaza el pulgar a 4px y lo
+     separa del borde, en vez de pegarlo al filo del menú. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sidebar-scrollbar-hover);
 }
 
 .app-main {
