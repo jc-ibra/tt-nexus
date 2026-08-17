@@ -202,7 +202,7 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
               <?php if (! empty($e['primary_email'])): ?>
                 <?= esc($e['primary_email']) ?>
                 <?php if (! empty($e['has_mailbox']) || ! empty($e['has_mailcow_account'])): ?>
-                  <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón en Mailcow">Buzón</span>
+                  <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón de correo Staff">Buzón</span>
                 <?php endif; ?>
               <?php else: ?>
                 <span class="badge badge-warning" title="Sin correo institucional; falta aprovisionar">Pendiente por provisionar</span>
@@ -219,26 +219,12 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
             <td>
               <?php
                 // Fixed display order; color encodes the account state per system.
-                $byKey = [];
-                foreach (($provisioning[$e['id']] ?? []) as $a) {
-                    $byKey[$a['system_key']] = $a;
-                }
-                $systemsDisplay = ['mailcow' => 'Mailcow', 'glpi' => 'GLPI', 'intranet' => 'Intranet'];
-                $accessBadges   = [];
-                foreach ($systemsDisplay as $sysKey => $sysLabel) {
-                    $status = $byKey[$sysKey]['status'] ?? null;
-                    // A registered Mailcow mailbox counts as a Mailcow account even
-                    // if the employee has not been formally dado de alta in systems:
-                    // the buzón was verified against Mailcow before being saved, and
-                    // the alta only adopts it later into provisioning_external_accounts.
-                    if ($sysKey === 'mailcow' && $status === null && (! empty($e['has_mailbox']) || ! empty($e['has_mailcow_account']))) {
-                        $status = 'active';
-                    }
-                    if ($status === null) {
-                        continue;
-                    }
-                    $accessBadges[] = ['label' => $sysLabel, 'status' => $status];
-                }
+                // Registered email accounts count as accesses too — see
+                // EmployeeAccessSummary, shared with the export.
+                $accessBadges = \App\Modules\Employees\Services\EmployeeAccessSummary::badges(
+                    $e,
+                    $provisioning[$e['id']] ?? [],
+                );
               ?>
               <?php if ($accessBadges === []): ?>
                 <span class="text-muted text-sm">Sin accesos</span>

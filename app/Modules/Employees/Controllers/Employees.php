@@ -398,7 +398,7 @@ class Employees extends BaseController
         $mailboxEmail = trim((string) ($this->request->getPost('mailbox_email') ?? ''));
 
         if (! filter_var($mailboxEmail, FILTER_VALIDATE_EMAIL)) {
-            session()->setFlashdata('error', 'Selecciona un buzón válido de Mailcow.');
+            session()->setFlashdata('error', 'Selecciona un buzón Staff válido.');
             return redirect()->to(route_to('employees.show', $id));
         }
 

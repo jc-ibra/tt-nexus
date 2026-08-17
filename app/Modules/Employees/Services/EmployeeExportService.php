@@ -20,12 +20,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class EmployeeExportService
 {
-    private const SYSTEM_LABELS = [
-        'mailcow'  => 'Mailcow',
-        'glpi'     => 'GLPI',
-        'intranet' => 'Intranet',
-    ];
-
     private const STATUS_LABELS = [
         'active'  => 'activa',
         'pending' => 'en proceso',
@@ -141,30 +135,14 @@ class EmployeeExportService
     }
 
     /**
-     * Same reading as the "Accesos" badges on the directory: one entry per system
-     * where the employee holds an account, with its state. A registered Mailcow
-     * mailbox counts as a Mailcow account even without a formal alta en sistemas.
+     * Exactly the reading of the "Accesos" badges on the directory — same source,
+     * same labels, same order — with the state spelled out instead of coloured.
      */
     private function accessLabel(array $row, array $accounts): string
     {
-        $byKey = [];
-        foreach ($accounts as $a) {
-            $byKey[$a['system_key']] = $a;
-        }
-
         $parts = [];
-        foreach (self::SYSTEM_LABELS as $key => $label) {
-            $status = $byKey[$key]['status'] ?? null;
-
-            if ($key === 'mailcow' && $status === null && (! empty($row['has_mailbox']) || ! empty($row['has_mailcow_account']))) {
-                $status = 'active';
-            }
-
-            if ($status === null) {
-                continue;
-            }
-
-            $parts[] = $label . ' (' . (self::STATUS_LABELS[$status] ?? 'deshabilitada') . ')';
+        foreach (EmployeeAccessSummary::badges($row, $accounts) as $badge) {
+            $parts[] = $badge['label'] . ' (' . (self::STATUS_LABELS[$badge['status']] ?? 'deshabilitada') . ')';
         }
 
         return $parts === [] ? 'Sin accesos' : implode(', ', $parts);

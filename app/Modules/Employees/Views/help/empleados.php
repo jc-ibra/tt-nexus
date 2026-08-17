@@ -106,7 +106,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
     <p>
       <strong>Regla de oro:</strong> los nombres oficiales solo se cambian desde Nexus. Si editas el
-      nombre, los apellidos o la foto de alguien que ya tiene cuenta en GLPI, Mailcow o Intranet, el
+      nombre, los apellidos o la foto de alguien que ya tiene cuenta en GLPI, Staff o Intranet, el
       cambio se sincroniza automáticamente hacia esos sistemas. Así el nombre nunca queda distinto en
       cada lado.
     </p>
@@ -164,14 +164,14 @@
     con etiquetas por sistema. El color indica el estado de la cuenta en cada uno:
   </p>
   <ul>
-    <li><span class="badge badge-success">Mailcow</span> cuenta activa.</li>
+    <li><span class="badge badge-success">Cuenta Staff</span> cuenta activa.</li>
     <li><span class="badge badge-warning">GLPI</span> alta en proceso.</li>
     <li><span class="badge badge-neutral">Intranet</span> cuenta deshabilitada.</li>
   </ul>
   <p>
     Cuando un colaborador todavía no tiene correo institucional, aparece la etiqueta
     <span class="badge badge-warning">Pendiente por provisionar</span>. Desde la ficha puedes vincular
-    un buzón de Mailcow que ya exista, o generar sus accesos desde el panel de Aprovisionamiento.
+    un buzón Staff que ya exista, o generar sus accesos desde el panel de Aprovisionamiento.
   </p>
   <div class="help-callout help-callout-warning">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -219,7 +219,7 @@
       <div class="help-faq-body">
         <p>
           Sí. Si el colaborador ya tiene cuenta en esos sistemas, al guardar el cambio de nombre,
-          apellidos o foto la plataforma lo propaga automáticamente a GLPI, Mailcow e Intranet.
+          apellidos o foto la plataforma lo propaga automáticamente a GLPI, Staff e Intranet.
         </p>
       </div>
     </details>

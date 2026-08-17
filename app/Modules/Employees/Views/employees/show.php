@@ -85,7 +85,7 @@ $canManageEmployees = service('access')->canAccessModule('employees');
         $hasMicrosoft = ! empty(array_filter($emailAccounts ?? [], fn($a) => $a['type'] === 'microsoft'));
       ?>
       <?php if ($hasMailcow): ?>
-        <span class="badge badge-info" style="margin-left:var(--space-1);">Mailcow</span>
+        <span class="badge badge-info" style="margin-left:var(--space-1);"><?= esc(\App\Modules\Employees\Services\EmployeeAccessSummary::LABEL_MAILCOW) ?></span>
       <?php endif; ?>
       <?php if ($hasMicrosoft): ?>
         <span class="badge badge-neutral" style="margin-left:var(--space-1);">Microsoft 365</span>

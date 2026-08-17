@@ -337,14 +337,14 @@ class EmployeeService
         $res = $this->mailboxesService->mailboxExists($email);
 
         if (! $res->success) {
-            return 'No se pudo validar el buzón contra Mailcow: ' . $res->message
-                . ' Intenta de nuevo cuando Mailcow esté disponible.';
+            return 'No se pudo validar el buzón contra el servidor Staff: ' . $res->message
+                . ' Intenta de nuevo cuando el servidor esté disponible.';
         }
 
         if (empty($res->data['exists'])) {
-            return 'El buzón ' . $email . ' no existe en Mailcow. Verifica el correo. '
-                . 'Solo puedes registrar una cuenta Mailcow que ya exista; para crear un buzón nuevo '
-                . 'usa "Dar de alta en sistemas" con Mailcow seleccionado.';
+            return 'El buzón ' . $email . ' no existe en el servidor Staff. Verifica el correo. '
+                . 'Solo puedes registrar una cuenta Staff que ya exista; para crear un buzón nuevo '
+                . 'usa "Dar de alta en sistemas" con Cuenta Staff seleccionada.';
         }
 
         return null;
@@ -385,7 +385,7 @@ class EmployeeService
 
         $this->model->skipValidation(true)->update($id, $updates);
 
-        return ServiceResult::ok(null, 'Buzón de Mailcow vinculado correctamente.');
+        return ServiceResult::ok(null, 'Buzón Staff vinculado correctamente.');
     }
 
     public function unlinkMailbox(int $id): ServiceResult
@@ -396,7 +396,7 @@ class EmployeeService
 
         $this->model->skipValidation(true)->update($id, ['has_mailbox' => 0]);
 
-        return ServiceResult::ok(null, 'Buzón de Mailcow desvinculado.');
+        return ServiceResult::ok(null, 'Buzón Staff desvinculado.');
     }
 
     public function saveUploadedPhoto(int $id, UploadedFile $file): ServiceResult

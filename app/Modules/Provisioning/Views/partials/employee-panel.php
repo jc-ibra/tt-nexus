@@ -12,6 +12,20 @@
  */
 $canProvision = service('access')->canAccessModule('provisioning');
 
+/**
+ * Display-only naming. This partial is rendered exclusively inside the employee
+ * file (/employees), where a Mailcow account is presented as "Cuenta Staff" —
+ * the same wording as the directory's Accesos column. The platform name is
+ * untouched everywhere else: the DB, the connectors, and Provisioning's own
+ * screens (admin/provisioning/systems) keep calling it Mailcow.
+ */
+$systemLabel = static function (array $system): string {
+    return strtolower((string) ($system['key'] ?? '')) === 'mailcow'
+        ? \App\Modules\Employees\Services\EmployeeAccessSummary::LABEL_MAILCOW
+        : (string) ($system['name'] ?? '');
+};
+$mailcowLabel = \App\Modules\Employees\Services\EmployeeAccessSummary::LABEL_MAILCOW;
+
 $employeeId    = (int) ($employee['id'] ?? 0);
 $emailAccounts = $emailAccounts ?? [];
 $msLicenses    = $msLicenses ?? [];
@@ -254,7 +268,7 @@ if ($canReactivate && ! $isProvisioned) {
               <tr>
                 <td>
                   <?php if ($acc['type'] === 'mailcow'): ?>
-                    <span class="badge badge-info">Mailcow</span>
+                    <span class="badge badge-info"><?= esc($mailcowLabel) ?></span>
                   <?php elseif ($acc['type'] === 'microsoft'): ?>
                     <span class="badge badge-neutral">Microsoft</span>
                   <?php else: ?>
@@ -308,7 +322,7 @@ if ($canReactivate && ! $isProvisioned) {
               <label class="field-label" for="ea-type">Tipo <span class="required">*</span></label>
               <select id="ea-type" name="type" class="select" required>
                 <option value="">Selecciona...</option>
-                <option value="mailcow">Mailcow</option>
+                <option value="mailcow"><?= esc($mailcowLabel) ?></option>
                 <option value="microsoft">Microsoft 365</option>
                 <option value="none">Sin correo electrónico</option>
               </select>
@@ -318,11 +332,11 @@ if ($canReactivate && ! $isProvisioned) {
               <label class="field-label" for="ea-email">Correo electrónico <span class="required">*</span></label>
               <input type="email" id="ea-email" name="email" class="input" placeholder="usuario@dominio.com" maxlength="255">
               <div id="ea-mailcow-validate" style="display:none; align-items:center; gap:var(--space-2); margin-top:var(--space-1);">
-                <button type="button" id="ea-validate-btn" class="btn btn-tertiary btn-sm">Validar en Mailcow</button>
+                <button type="button" id="ea-validate-btn" class="btn btn-tertiary btn-sm">Validar buzón</button>
                 <span id="ea-validate-status" class="text-sm text-muted"></span>
               </div>
               <p id="ea-mailcow-hint" class="prov-field-hint" style="display:none; margin-top:var(--space-1);">
-                Registra un buzón que ya exista en Mailcow. Solo se vincula: no se crea ni se cambia su contraseña. Al dar de alta en GLPI e Intranet quedará ligado para futuras bajas y cambios de contraseña.
+                Registra un buzón Staff que ya exista. Solo se vincula: no se crea ni se cambia su contraseña. Al dar de alta en GLPI e Intranet quedará ligado para futuras bajas y cambios de contraseña.
               </p>
             </div>
 
@@ -347,7 +361,7 @@ if ($canReactivate && ! $isProvisioned) {
                 <span>Marcar como cuenta principal</span>
               </label>
               <p class="prov-field-hint" style="margin-top:var(--space-1);">
-                La cuenta principal es la llave institucional que se replica al crear al usuario en GLPI e Intranet. Debe ser una cuenta institucional (Mailcow o Microsoft); un correo personal nunca es la principal. Al crear un buzón de Mailcow queda como principal automáticamente. Solo puede haber una cuenta principal: marcarla aquí quita la marca de cualquier otra.
+                La cuenta principal es la llave institucional que se replica al crear al usuario en GLPI e Intranet. Debe ser una cuenta institucional (Staff o Microsoft); un correo personal nunca es la principal. Al crear un buzón Staff queda como principal automáticamente. Solo puede haber una cuenta principal: marcarla aquí quita la marca de cualquier otra.
               </p>
             </div>
 
@@ -413,19 +427,19 @@ if ($canReactivate && ! $isProvisioned) {
               <td style="padding-left:var(--space-4);">
                 <?php if ($selectable): ?>
                   <input type="checkbox" class="prov-sys-check" value="<?= $sysId ?>"
-                         data-system="<?= esc($s['name']) ?>" data-key="<?= esc($s['key']) ?>" data-account-status="<?= esc($status) ?>"
+                         data-system="<?= esc($systemLabel($s)) ?>" data-key="<?= esc($s['key']) ?>" data-account-status="<?= esc($status) ?>"
                          data-has-account="<?= $hasRealAccount ? '1' : '0' ?>" checked
-                         aria-label="Incluir <?= esc($s['name']) ?> en operaciones masivas">
+                         aria-label="Incluir <?= esc($systemLabel($s)) ?> en operaciones masivas">
                 <?php elseif (! $isActiveSystem): ?>
-                  <input type="checkbox" disabled title="Sistema inactivo" aria-label="<?= esc($s['name']) ?> inactivo">
+                  <input type="checkbox" disabled title="Sistema inactivo" aria-label="<?= esc($systemLabel($s)) ?> inactivo">
                 <?php else: // $mailcowLocked — the only remaining reason a row is never selectable ?>
                   <input type="checkbox" disabled
-                         title="Este empleado ya tiene un buzón Mailcow; no se puede crear otro. GLPI e Intranet usarán el buzón existente."
-                         aria-label="Mailcow: el empleado ya tiene un buzón, no se puede crear otro">
+                         title="Este empleado ya tiene un buzón Staff; no se puede crear otro. GLPI e Intranet usarán el buzón existente."
+                         aria-label="<?= esc($mailcowLabel) ?>: el empleado ya tiene un buzón, no se puede crear otro">
                 <?php endif; ?>
               </td>
               <td>
-                <strong><?= esc($s['name']) ?></strong>
+                <strong><?= esc($systemLabel($s)) ?></strong>
                 <?php if (! $isActiveSystem): ?>
                   <br><span class="badge badge-neutral" style="font-size:var(--text-xs);">Inactivo en Nexus</span>
                 <?php elseif ($mailcowLocked): ?>
@@ -456,7 +470,7 @@ if ($canReactivate && ! $isProvisioned) {
                 <?php if ($status === 'active'): $rowHasAction = true; ?>
                   <form method="post" action="<?= route_to('provisioning.employee.system.deprovision', $employeeId, $sysId) ?>"
                         style="display:inline;"
-                        onsubmit="return confirm('¿Desactivar la cuenta en <?= esc($s['name']) ?>?');">
+                        onsubmit="return confirm('¿Desactivar la cuenta en <?= esc($systemLabel($s)) ?>?');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Desactivar</button>
                   </form>
@@ -517,7 +531,7 @@ if ($canReactivate && ! $isProvisioned) {
                 <?php if ($isLinked): $rowHasAction = true; ?>
                   <form method="post" action="<?= route_to('provisioning.employee.system.unlink', $employeeId, $sysId) ?>"
                         style="display:inline;"
-                        onsubmit="return confirm('¿Quitar el vínculo con <?= esc($s['name']) ?>? La cuenta seguirá intacta allá; solo se elimina la liga en Nexus.');">
+                        onsubmit="return confirm('¿Quitar el vínculo con <?= esc($systemLabel($s)) ?>? La cuenta seguirá intacta allá; solo se elimina la liga en Nexus.');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Desvincular</button>
                   </form>
@@ -594,13 +608,13 @@ if ($canReactivate && ! $isProvisioned) {
     <!-- Panel: Alta en sistemas (only shown for a brand-new employee with no accounts) -->
     <div id="prov-panel-alta" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-alta' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
-        Crea la cuenta en los sistemas seleccionados. Solo se listan los que aún no tienen cuenta. Si incluyes Mailcow, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
+        Crea la cuenta en los sistemas seleccionados. Solo se listan los que aún no tienen cuenta. Si incluyes <?= esc($mailcowLabel) ?>, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
       </p>
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         ¿El usuario ya existe en GLPI? No lo des de alta aquí: usa <strong>Vincular cuenta existente</strong> en la fila de GLPI para ligar la cuenta que ya tiene.
       </p>
       <div id="prov-inst-email-warn" class="banner banner-warning" style="display:none; margin:0 0 var(--space-3);">
-        <div class="banner-body">Este empleado no tiene un correo institucional principal. Incluye Mailcow en el alta, o registra/marca como principal una cuenta institucional (Mailcow o Microsoft) antes de dar de alta en GLPI o Intranet. El correo personal no se usa como llave.</div>
+        <div class="banner-body">Este empleado no tiene un correo institucional principal. Incluye <?= esc($mailcowLabel) ?> en el alta, o registra/marca como principal una cuenta institucional (Staff o Microsoft) antes de dar de alta en GLPI o Intranet. El correo personal no se usa como llave.</div>
       </div>
       <form method="post" action="<?= route_to('provisioning.employee.provision', $employeeId) ?>"
             class="prov-bulk-form prov-form"
@@ -622,7 +636,7 @@ if ($canReactivate && ! $isProvisioned) {
           <span class="prov-copy-ok">Copiado</span>
         </div>
         <div id="prov-mailbox-email-wrap" class="prov-field" style="display:none;">
-          <label class="prov-field-label">Correo de buzón Mailcow <span class="prov-req">*</span></label>
+          <label class="prov-field-label">Correo de buzón Staff <span class="prov-req">*</span></label>
           <p class="prov-field-hint">Formato: nombre.apellido · Si ya existe se usará nombre.apellido1, etc.</p>
           <div class="prov-mailbox-row">
             <input type="text" id="prov-mailbox-local" class="input" placeholder="nombre.apellido"
@@ -798,10 +812,10 @@ if ($canReactivate && ! $isProvisioned) {
             validateStat.textContent = json.message || 'Ya está ligado a otro empleado';
             validateStat.style.color = 'var(--color-critical-default)';
           } else if (json.status === 'success' && json.exists) {
-            validateStat.textContent = 'Existe en Mailcow';
+            validateStat.textContent = 'El buzón existe';
             validateStat.style.color = 'var(--color-success-default)';
           } else if (json.status === 'success') {
-            validateStat.textContent = 'No existe en Mailcow';
+            validateStat.textContent = 'El buzón no existe';
             validateStat.style.color = 'var(--color-critical-default)';
           } else {
             validateStat.textContent = json.message || 'No se pudo validar';
@@ -1314,7 +1328,7 @@ if ($canReactivate && ! $isProvisioned) {
           <?php foreach ($log as $l): ?>
             <tr>
               <td class="text-sm"><?= esc(date('d/m/Y H:i', strtotime($l['created_at']))) ?></td>
-              <td class="text-sm"><?= esc($l['system_name'] ?: '-') ?></td>
+              <td class="text-sm"><?= esc($l['system_name'] ? $systemLabel(['key' => $l['system_key'] ?? '', 'name' => $l['system_name']]) : '-') ?></td>
               <td class="text-sm"><code><?= esc($l['operation']) ?></code></td>
               <td>
                 <?php if ($l['status'] === 'success'): ?>
