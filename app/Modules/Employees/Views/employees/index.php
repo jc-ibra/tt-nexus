@@ -201,7 +201,7 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
             <td class="text-muted text-sm">
               <?php if (! empty($e['primary_email'])): ?>
                 <?= esc($e['primary_email']) ?>
-                <?php if (! empty($e['has_mailbox'])): ?>
+                <?php if (! empty($e['has_mailbox']) || ! empty($e['has_mailcow_account'])): ?>
                   <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón en Mailcow">Buzón</span>
                 <?php endif; ?>
               <?php else: ?>
@@ -228,8 +228,10 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
                 foreach ($systemsDisplay as $sysKey => $sysLabel) {
                     $status = $byKey[$sysKey]['status'] ?? null;
                     // A registered Mailcow mailbox counts as a Mailcow account even
-                    // if the employee has not been formally dado de alta in systems.
-                    if ($sysKey === 'mailcow' && $status === null && ! empty($e['has_mailbox'])) {
+                    // if the employee has not been formally dado de alta in systems:
+                    // the buzón was verified against Mailcow before being saved, and
+                    // the alta only adopts it later into provisioning_external_accounts.
+                    if ($sysKey === 'mailcow' && $status === null && (! empty($e['has_mailbox']) || ! empty($e['has_mailcow_account']))) {
                         $status = 'active';
                     }
                     if ($status === null) {

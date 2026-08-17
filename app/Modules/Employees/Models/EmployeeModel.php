@@ -111,12 +111,30 @@ class EmployeeModel extends Model
             . " ORDER BY ea.id ASC LIMIT 1) AS primary_email";
     }
 
+    /**
+     * Correlated subquery flagging employees who hold a Mailcow email account.
+     *
+     * A mailbox registered from the employee file is verified against Mailcow
+     * before it is saved, so it is a real access from that moment on — even
+     * though `has_mailbox` is only raised by the alta and the operational row in
+     * `provisioning_external_accounts` only appears when the alta adopts it.
+     * Without this the directory reads "Sin accesos" for someone who already has
+     * a buzón. `$alias` is the alias of employees_employees (never user input).
+     */
+    private function mailcowAccountSubquery(string $alias = 'e'): string
+    {
+        return "EXISTS (SELECT 1 FROM employee_email_accounts ea_mc"
+            . " WHERE ea_mc.employee_id = {$alias}.id AND ea_mc.type = 'mailcow'"
+            . " AND ea_mc.email IS NOT NULL AND ea_mc.email != '') AS has_mailcow_account";
+    }
+
     public function paginateWithFilters(array $filters, int $perPage = 20, int $page = 1): array
     {
         $offset  = ($page - 1) * $perPage;
         $builder = $this->db->table('employees_employees e')
             ->select('e.id, e.employee_number, e.name, e.lastname, e.email, e.has_mailbox, e.photo, e.active, e.date_entry, a.name AS area_name, d.name AS department_name, p.name AS position_name')
             ->select($this->primaryEmailSubquery(), false)
+            ->select($this->mailcowAccountSubquery(), false)
             ->join('employees_areas a',       'a.id = e.area_id',       'left')
             ->join('employees_departments d', 'd.id = e.department_id', 'left')
             ->join('employees_positions p',   'p.id = e.position_id',   'left')
@@ -142,6 +160,7 @@ class EmployeeModel extends Model
         $builder = $this->db->table('employees_employees e')
             ->select('e.id, e.employee_number, e.name, e.lastname, e.has_mailbox, e.active, a.name AS area_name, d.name AS department_name, p.name AS position_name')
             ->select($this->primaryEmailSubquery(), false)
+            ->select($this->mailcowAccountSubquery(), false)
             ->join('employees_areas a',       'a.id = e.area_id',       'left')
             ->join('employees_departments d', 'd.id = e.department_id', 'left')
             ->join('employees_positions p',   'p.id = e.position_id',   'left')

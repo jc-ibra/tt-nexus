@@ -156,7 +156,7 @@ class EmployeeExportService
         foreach (self::SYSTEM_LABELS as $key => $label) {
             $status = $byKey[$key]['status'] ?? null;
 
-            if ($key === 'mailcow' && $status === null && ! empty($row['has_mailbox'])) {
+            if ($key === 'mailcow' && $status === null && (! empty($row['has_mailbox']) || ! empty($row['has_mailcow_account']))) {
                 $status = 'active';
             }
 
