@@ -47,6 +47,7 @@ use App\Modules\Provisioning\Services\ConnectorFactory;
 use App\Modules\Provisioning\Services\CredentialCipher;
 use App\Modules\Provisioning\Services\GlpiCatalogService;
 use App\Modules\Provisioning\Services\GlpiDbConnection;
+use App\Modules\Provisioning\Services\GlpiUserDirectory;
 use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
 use App\Modules\ServiceDesk\Config\ServiceDesk as ServiceDeskConfig;
@@ -356,6 +357,14 @@ class Services extends BaseService
             return static::getSharedInstance('glpiCatalogService');
         }
         return new GlpiCatalogService(self::glpiDbConnection(), new GlpiCatalogs(), new GlpiCatalogPrefModel());
+    }
+
+    public static function glpiUserDirectory(bool $getShared = true): GlpiUserDirectory
+    {
+        if ($getShared) {
+            return static::getSharedInstance('glpiUserDirectory');
+        }
+        return new GlpiUserDirectory(self::glpiDbConnection(), self::connectorFactory());
     }
 
     // -----------------------------------------------------------------------

@@ -14,7 +14,7 @@ class ProvisioningExternalAccountModel extends Model
     protected $useTimestamps = true;
 
     protected $allowedFields = [
-        'employee_id', 'system_id', 'external_id', 'status',
+        'employee_id', 'system_id', 'external_id', 'status', 'origin',
         'last_message', 'last_sync_at',
     ];
 
@@ -23,6 +23,84 @@ class ProvisioningExternalAccountModel extends Model
         return $this->where('employee_id', $employeeId)
             ->where('system_id', $systemId)
             ->first();
+    }
+
+    /**
+     * The employee (other than $exceptEmployeeId) already holding this external
+     * account on the given system, or null when the account is free.
+     *
+     * An external user is one person: linking the same GLPI user to two
+     * employees would make a baja or a password change act on the wrong file.
+     * The (employee_id, system_id) unique key cannot catch this — it guards the
+     * opposite direction — so this is the check that keeps mapping honest.
+     */
+    public function findLinkedToOtherEmployee(int $systemId, string $externalId, int $exceptEmployeeId): ?array
+    {
+        $externalId = trim($externalId);
+        if ($externalId === '') {
+            return null;
+        }
+
+        $sql = 'SELECT a.id, a.employee_id, a.status, a.origin,
+                       e.name AS employee_name, e.lastname AS employee_lastname, e.employee_number
+                FROM provisioning_external_accounts a
+                LEFT JOIN employees_employees e ON e.id = a.employee_id
+                WHERE a.system_id = ? AND a.external_id = ? AND a.employee_id != ?
+                LIMIT 1';
+
+        return $this->db->query($sql, [$systemId, $externalId, $exceptEmployeeId])->getRowArray() ?: null;
+    }
+
+    /**
+     * external_id => owner label, for the external accounts among $externalIds
+     * that belong to an employee other than $exceptEmployeeId.
+     *
+     * Lets a search result mark the candidates that are already taken in a
+     * single query instead of one lookup per row.
+     *
+     * @param array<int,string|int> $externalIds
+     * @return array<string,string>
+     */
+    public function mapOwnersForExternalIds(int $systemId, array $externalIds, int $exceptEmployeeId): array
+    {
+        $externalIds = array_values(array_unique(array_filter(
+            array_map(fn($id) => trim((string) $id), $externalIds),
+            fn(string $id) => $id !== '',
+        )));
+        if ($externalIds === []) {
+            return [];
+        }
+
+        $rows = $this->select('provisioning_external_accounts.external_id, e.name, e.lastname, e.employee_number')
+            ->join('employees_employees e', 'e.id = provisioning_external_accounts.employee_id', 'left')
+            ->where('provisioning_external_accounts.system_id', $systemId)
+            ->where('provisioning_external_accounts.employee_id !=', $exceptEmployeeId)
+            ->whereIn('provisioning_external_accounts.external_id', $externalIds)
+            ->findAll();
+
+        $map = [];
+        foreach ($rows as $r) {
+            $who = trim(($r['name'] ?? '') . ' ' . ($r['lastname'] ?? ''));
+            $num = trim((string) ($r['employee_number'] ?? ''));
+            $map[(string) $r['external_id']] = $who !== ''
+                ? $who . ($num !== '' ? " (#{$num})" : '')
+                : 'otro empleado';
+        }
+
+        return $map;
+    }
+
+    /**
+     * Drops the employee's row for a system. Only removes Nexus' mapping: the
+     * account in the external system is never touched.
+     */
+    public function removeFor(int $employeeId, int $systemId): bool
+    {
+        $existing = $this->findFor($employeeId, $systemId);
+        if (! $existing) {
+            return false;
+        }
+        return (bool) $this->delete($existing['id']);
     }
 
     /**

@@ -134,6 +134,74 @@ class ProvisioningApiController extends BaseApiController
             : $this->error($result->message);
     }
 
+    /**
+     * Maps an account that already exists in the system (today: GLPI) to the
+     * employee, instead of creating a new one. Body: {"external_id": 47}.
+     */
+    public function linkEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
+    {
+        $system = (new ProvisioningSystemModel())->find($systemId);
+        if (! $system) {
+            return $this->notFound('Sistema no encontrado.');
+        }
+        if (($system['key'] ?? '') !== 'glpi') {
+            return $this->error('Vincular una cuenta existente solo está disponible para GLPI.');
+        }
+
+        $in         = $this->request->getJSON(true) ?? [];
+        $glpiUserId = (int) ($in['external_id'] ?? 0);
+        if ($glpiUserId <= 0) {
+            return $this->validationError(['external_id' => 'Indica el id del usuario de GLPI a vincular.']);
+        }
+
+        $result = service('provisioningOrchestrator')->linkGlpiAccount($employeeId, $glpiUserId);
+
+        return $result->success
+            ? $this->success($result->data)
+            : $this->error($result->message);
+    }
+
+    public function unlinkEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
+    {
+        $result = service('provisioningOrchestrator')->unlinkAccount($employeeId, $systemId);
+
+        return $result->success
+            ? $this->success($result->data)
+            : $this->error($result->message);
+    }
+
+    /**
+     * Search users that already exist in GLPI. Query: ?q=term&employee_id=12
+     * (employee_id is optional; it only flags candidates already taken).
+     */
+    public function searchGlpiUsers(): ResponseInterface
+    {
+        $term       = trim((string) ($this->request->getGet('q') ?? ''));
+        $employeeId = (int) ($this->request->getGet('employee_id') ?? 0);
+
+        $result = service('glpiUserDirectory')->search($term);
+        if (! $result->success) {
+            return $this->error($result->message, ResponseInterface::HTTP_BAD_GATEWAY);
+        }
+
+        $users = $result->data['users'] ?? [];
+        $glpi  = (new ProvisioningSystemModel())->findByKey('glpi');
+
+        if ($glpi && $users !== [] && $employeeId > 0) {
+            $owners = (new ProvisioningExternalAccountModel())->mapOwnersForExternalIds(
+                (int) $glpi['id'],
+                array_column($users, 'id'),
+                $employeeId,
+            );
+            foreach ($users as &$u) {
+                $u['linked_to'] = $owners[(string) $u['id']] ?? null;
+            }
+            unset($u);
+        }
+
+        return $this->success($users);
+    }
+
     // ----- Bitácora y reintentos -----
 
     public function log(): ResponseInterface

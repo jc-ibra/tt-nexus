@@ -219,6 +219,161 @@ class GlpiConnector implements SystemConnector
     }
 
     // -----------------------------------------------------------------------
+    // User lookup (linking a pre-existing GLPI account to an employee)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Reads a single GLPI user by id, including its e-mail addresses.
+     *
+     * This is the authoritative check before a link is persisted: whatever the
+     * search backend returned, the external_id we store must be one this very
+     * connector can later disable / re-enable / re-password.
+     *
+     * payload: ['id','login','firstname','realname','fullname','email',
+     *           'is_active','is_deleted']
+     */
+    public function getUser(int|string $userId): ConnectorResult
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0) {
+            return ConnectorResult::fail('Id de usuario de GLPI inválido.', 'GLPI_BAD_USER_ID');
+        }
+
+        $session = $this->initSession();
+        if (! $session['success']) {
+            return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+        }
+
+        $resp = $this->request('GET', 'User/' . $userId, null, $session['token']);
+        if (! $resp['success']) {
+            $this->killSession($session['token']);
+            return ConnectorResult::fail($resp['error'], 'GLPI_USER_NOT_FOUND', $this->buildDebug($resp));
+        }
+
+        $user = is_array($resp['data']) ? $resp['data'] : [];
+        if (empty($user['id'])) {
+            $this->killSession($session['token']);
+            return ConnectorResult::fail("GLPI no devolvió el usuario {$userId}.", 'GLPI_USER_NOT_FOUND', $resp['data']);
+        }
+
+        // Emails live in a sub-resource. A failure here is not fatal: the link
+        // only needs the id, the address is shown for the operator's confidence.
+        $email = '';
+        $mails = $this->request('GET', 'User/' . $userId . '/UserEmail', null, $session['token']);
+        if ($mails['success'] && is_array($mails['data'])) {
+            $email = $this->pickDefaultEmail($mails['data']);
+        }
+        $this->killSession($session['token']);
+
+        return ConnectorResult::ok(
+            'Usuario de GLPI localizado.',
+            (string) $user['id'],
+            $this->normalizeUser($user, $email),
+        );
+    }
+
+    /**
+     * Free-text search over GLPI users, used as the fallback when the direct
+     * GLPI database connection is not configured.
+     *
+     * GLPI's `searchText` ANDs the fields it receives, so a single call can only
+     * match one column. We fan out over login / surname / first name and merge
+     * by id, keeping the whole thing inside one API session.
+     *
+     * payload: ['users' => [ ...normalized user rows... ]]
+     */
+    public function searchUsers(string $term, int $limit = 25): ConnectorResult
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return ConnectorResult::ok('Búsqueda vacía.', null, ['users' => []]);
+        }
+
+        $session = $this->initSession();
+        if (! $session['success']) {
+            return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+        }
+
+        $range = '0-' . max(0, $limit - 1);
+        $found = [];
+
+        foreach (['name', 'realname', 'firstname'] as $field) {
+            if (count($found) >= $limit) {
+                break;
+            }
+            $endpoint = 'User?' . http_build_query([
+                'searchText' => [$field => $term],
+                'range'      => $range,
+                'is_deleted' => 0,
+            ]);
+
+            $resp = $this->request('GET', $endpoint, null, $session['token']);
+            if (! $resp['success'] || ! is_array($resp['data'])) {
+                continue;
+            }
+
+            foreach ($resp['data'] as $row) {
+                if (! is_array($row) || empty($row['id'])) {
+                    continue;
+                }
+                $id = (int) $row['id'];
+                if (isset($found[$id]) || ! empty($row['is_deleted'])) {
+                    continue;
+                }
+                $found[$id] = $this->normalizeUser($row, '');
+                if (count($found) >= $limit) {
+                    break;
+                }
+            }
+        }
+
+        $this->killSession($session['token']);
+
+        return ConnectorResult::ok('Búsqueda ejecutada.', null, ['users' => array_values($found)]);
+    }
+
+    /**
+     * @param array<string,mixed> $user Raw GLPI User row
+     */
+    private function normalizeUser(array $user, string $email): array
+    {
+        $firstname = trim((string) ($user['firstname'] ?? ''));
+        $realname  = trim((string) ($user['realname'] ?? ''));
+        $fullname  = trim($firstname . ' ' . $realname);
+
+        return [
+            'id'         => (int) ($user['id'] ?? 0),
+            'login'      => (string) ($user['name'] ?? ''),
+            'firstname'  => $firstname,
+            'realname'   => $realname,
+            'fullname'   => $fullname !== '' ? $fullname : (string) ($user['name'] ?? ''),
+            'email'      => $email,
+            'is_active'  => (int) ($user['is_active'] ?? 0) === 1,
+            'is_deleted' => (int) ($user['is_deleted'] ?? 0) === 1,
+        ];
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows glpi UserEmail rows
+     */
+    private function pickDefaultEmail(array $rows): string
+    {
+        $fallback = '';
+        foreach ($rows as $row) {
+            if (! is_array($row) || empty($row['email'])) {
+                continue;
+            }
+            if ((int) ($row['is_default'] ?? 0) === 1) {
+                return (string) $row['email'];
+            }
+            if ($fallback === '') {
+                $fallback = (string) $row['email'];
+            }
+        }
+        return $fallback;
+    }
+
+    // -----------------------------------------------------------------------
     // Tickets (bulk import — Service Desk module)
     // -----------------------------------------------------------------------
 

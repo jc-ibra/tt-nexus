@@ -36,11 +36,17 @@ $routes->group('provisioning', [
     $routes->post('employees/(:num)/reactivate',             'Provisioning::reactivateEmployee/$1',         ['as' => 'provisioning.employee.reactivate']);
     $routes->post('employees/(:num)/systems/(:num)/provision',   'Provisioning::provisionEmployeeOnSystem/$1/$2',   ['as' => 'provisioning.employee.system.provision']);
     $routes->post('employees/(:num)/systems/(:num)/deprovision', 'Provisioning::deprovisionEmployeeOnSystem/$1/$2', ['as' => 'provisioning.employee.system.deprovision']);
+    // Alternative flow: map an account that already exists in the system (GLPI) instead of creating one.
+    $routes->post('employees/(:num)/systems/(:num)/link',        'Provisioning::linkEmployeeOnSystem/$1/$2',        ['as' => 'provisioning.employee.system.link']);
+    $routes->post('employees/(:num)/systems/(:num)/unlink',      'Provisioning::unlinkEmployeeOnSystem/$1/$2',      ['as' => 'provisioning.employee.system.unlink']);
 
     // Mailcow AJAX helpers (used from employee panel, accessible to all provisioning users)
     $routes->get('mailcow-domains', 'Provisioning::mailcowDomains', ['as' => 'provisioning.mailcow-domains']);
     $routes->get('suggest-mailbox', 'Provisioning::suggestMailbox', ['as' => 'provisioning.suggest-mailbox']);
     $routes->get('validate-mailbox', 'Provisioning::validateMailbox', ['as' => 'provisioning.validate-mailbox']);
+
+    // GLPI user lookup (used by the "vincular cuenta existente" picker)
+    $routes->get('glpi-users/search', 'Provisioning::glpiUserSearch', ['as' => 'provisioning.glpi-users.search']);
 });
 
 // -----------------------------------------------------------------------
@@ -119,6 +125,11 @@ $routes->group('api/v1/provisioning', [
     $routes->post('employees/(:num)/password',    'ProvisioningApiController::changePassword/$1');
     $routes->post('employees/(:num)/systems/(:num)/provision',   'ProvisioningApiController::provisionEmployeeOnSystem/$1/$2');
     $routes->post('employees/(:num)/systems/(:num)/deprovision', 'ProvisioningApiController::deprovisionEmployeeOnSystem/$1/$2');
+    $routes->post('employees/(:num)/systems/(:num)/link',        'ProvisioningApiController::linkEmployeeOnSystem/$1/$2');
+    $routes->post('employees/(:num)/systems/(:num)/unlink',      'ProvisioningApiController::unlinkEmployeeOnSystem/$1/$2');
+
+    // GLPI user lookup (candidates for the link flow)
+    $routes->get('glpi-users',                'ProvisioningApiController::searchGlpiUsers');
 
     // Audit log and retries
     $routes->get('log',                       'ProvisioningApiController::log');

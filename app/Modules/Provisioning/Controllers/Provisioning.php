@@ -292,6 +292,95 @@ class Provisioning extends BaseController
     }
 
     /**
+     * ALTERNATIVE FLOW — bind a GLPI user that already exists to the employee
+     * instead of creating a new one. The route is system-agnostic so other
+     * connectors can adopt it later; today only GLPI implements linking.
+     */
+    public function linkEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
+    {
+        $system = (new ProvisioningSystemModel())->find($systemId);
+        if (! $system) {
+            session()->setFlashdata('error', 'Sistema no encontrado.');
+            return redirect()->to(route_to('employees.show', $employeeId));
+        }
+
+        if (($system['key'] ?? '') !== 'glpi') {
+            session()->setFlashdata('error', 'Vincular una cuenta existente solo está disponible para GLPI.');
+            return redirect()->to(route_to('employees.show', $employeeId));
+        }
+
+        $glpiUserId = (int) ($this->request->getPost('external_id') ?? 0);
+        if ($glpiUserId <= 0) {
+            session()->setFlashdata('error', 'Selecciona un usuario de GLPI antes de vincular.');
+            return redirect()->to(route_to('employees.show', $employeeId));
+        }
+
+        $result = service('provisioningOrchestrator')->linkGlpiAccount($employeeId, $glpiUserId);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(route_to('employees.show', $employeeId));
+    }
+
+    /**
+     * Removes the mapping to a linked account. Never touches the external system.
+     */
+    public function unlinkEmployeeOnSystem(int $employeeId, int $systemId): ResponseInterface
+    {
+        $result = service('provisioningOrchestrator')->unlinkAccount($employeeId, $systemId);
+
+        $result->success
+            ? session()->setFlashdata('success', $result->message)
+            : session()->setFlashdata('error', $result->message);
+
+        return redirect()->to(route_to('employees.show', $employeeId));
+    }
+
+    /**
+     * AJAX: search users that already exist in GLPI, so the operator can pick the
+     * one to map. Read-only. Candidates already held by another employee come
+     * back flagged with `linked_to` so the UI can block them up front (the link
+     * action re-checks server-side).
+     */
+    public function glpiUserSearch(): ResponseInterface
+    {
+        $term       = trim((string) ($this->request->getGet('q') ?? ''));
+        $employeeId = (int) ($this->request->getGet('employee_id') ?? 0);
+
+        $result = service('glpiUserDirectory')->search($term);
+        if (! $result->success) {
+            return $this->response->setJSON([
+                'status'  => 'error',
+                'data'    => [],
+                'message' => $result->message ?: 'No se pudo buscar en GLPI.',
+            ]);
+        }
+
+        $users = $result->data['users'] ?? [];
+
+        $glpi = (new ProvisioningSystemModel())->findByKey('glpi');
+        if ($glpi && $users !== [] && $employeeId > 0) {
+            $owners = (new ProvisioningExternalAccountModel())->mapOwnersForExternalIds(
+                (int) $glpi['id'],
+                array_column($users, 'id'),
+                $employeeId,
+            );
+            foreach ($users as &$u) {
+                $u['linked_to'] = $owners[(string) $u['id']] ?? null;
+            }
+            unset($u);
+        }
+
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'data'    => $users,
+            'message' => $result->message,
+        ]);
+    }
+
+    /**
      * On successful provision/password, the temporary password is shown ONCE so the operator
      * can hand it to the employee. It is not persisted anywhere reachable from the UI.
      */

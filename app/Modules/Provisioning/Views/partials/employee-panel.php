@@ -43,10 +43,8 @@ if ($canProvision) {
 }
 
 // A deprovisioned employee (has accounts, but none active) is reactivated, not
-// re-created. "Alta" is only for a brand-new employee with no accounts at all.
-$canReactivate  = $hasDisabled;
-$showAlta       = ! $hasAnyAccount;
-$defaultReactiv = $canReactivate && ! $isProvisioned;
+// re-created.
+$canReactivate = $hasDisabled;
 // Has accounts, but none active → the employee is deprovisioned (dado de baja).
 $isDeprovisioned = $hasAnyAccount && ! $isProvisioned;
 
@@ -57,6 +55,39 @@ $hasMailcowMailbox = ! empty(array_filter(
     $emailAccounts,
     fn($a) => ($a['type'] ?? '') === 'mailcow' && trim((string) ($a['email'] ?? '')) !== ''
 ));
+
+// Systems where an alta still has something to create: active, without a real
+// account (an external_id), and not held back by a one-per-employee lock. This
+// is what decides whether "Alta en sistemas" is offered — NOT "the employee has
+// no accounts at all". Linking an existing GLPI user leaves Mailcow/Intranet
+// pending, and that alta has to stay reachable.
+$creatableSystemIds = [];
+foreach ($systems as $s) {
+    if ((int) ($s['is_active'] ?? 0) !== 1) {
+        continue;
+    }
+    $acc = $accountsBySystem[(int) $s['id']] ?? null;
+    if ($acc && trim((string) ($acc['external_id'] ?? '')) !== '') {
+        continue;
+    }
+    if (strtolower((string) ($s['key'] ?? '')) === 'mailcow' && $hasMailcowMailbox) {
+        continue;
+    }
+    $creatableSystemIds[] = (int) $s['id'];
+}
+$showAlta = $creatableSystemIds !== [];
+
+// Exactly one panel opens by default. Alta and "Cambiar contraseña" can now both
+// be available at once (partially provisioned employee), so the default has to be
+// chosen explicitly instead of each tab deciding on its own.
+$defaultPanel = null;
+if ($canReactivate && ! $isProvisioned) {
+    $defaultPanel = 'prov-panel-reactivar';
+} elseif ($showAlta) {
+    $defaultPanel = 'prov-panel-alta';
+} elseif ($isProvisioned) {
+    $defaultPanel = 'prov-panel-password';
+}
 ?>
 
 <style>
@@ -135,6 +166,38 @@ $hasMailcowMailbox = ! empty(array_filter(
 .prov-mailbox-row .select { flex: 1 1 45%; min-width: 0; }
 .prov-mailbox-at { color: var(--text-muted); font-weight: 600; }
 .prov-actions { margin-top: var(--space-4); }
+
+/* ── GLPI "vincular cuenta existente" picker ───────────────────────────────── */
+.glpi-link-panel {
+  margin-top: var(--space-2);
+  min-width: 380px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.glpi-link-results {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-2, 8px);
+}
+.glpi-link-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-100);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.glpi-link-option:last-child { border-bottom: none; }
+.glpi-link-option:hover { background: var(--color-neutral-50); }
+.glpi-link-option.is-taken { cursor: not-allowed; opacity: 0.6; }
+.glpi-link-option.is-taken:hover { background: transparent; }
+.glpi-link-option input { margin-top: 3px; flex-shrink: 0; }
+.glpi-link-name { font-weight: var(--weight-medium); color: var(--text-primary); }
+.glpi-link-meta { font-size: var(--text-xs); color: var(--text-muted); }
 </style>
 
 <div class="card" style="margin-bottom: var(--space-4);">
@@ -325,33 +388,40 @@ $hasMailcowMailbox = ! empty(array_filter(
             $isActiveSystem = (int) $s['is_active'] === 1;
             $status         = $account['status'] ?? 'sin_cuenta';
             $hasAccount     = $status !== 'sin_cuenta';
-            // Once the employee is provisioned, the only bulk actions are
-            // "Cambiar contraseña" and "Dar de baja" — both require an existing
-            // account. A system without an account must not be selectable so we
-            // never attempt to change a password / disable on a nonexistent
-            // account (which the backend now skips regardless).
+            // A real account is one with an external_id. A failed creation leaves
+            // a row in status 'error' without one: it must still count as "no
+            // account" so the alta (or a link) can act on it.
+            $externalId     = trim((string) ($account['external_id'] ?? ''));
+            $hasRealAccount = $externalId !== '';
+            $isLinked       = $hasRealAccount && ($account['origin'] ?? 'created') === 'linked';
             // One-mailbox lock: block selecting Mailcow for creation when the
             // employee already has a Mailcow mailbox but no provisioning account
             // for it yet (the alta would otherwise create a second one).
             $isMailcowRow  = strtolower((string) ($s['key'] ?? '')) === 'mailcow';
+            $isGlpiRow     = strtolower((string) ($s['key'] ?? '')) === 'glpi';
             $mailcowLocked = $isMailcowRow && $hasMailcowMailbox && ! $hasAccount;
-            $selectable    = $isActiveSystem && ! ($isProvisioned && ! $hasAccount) && ! $mailcowLocked;
+            // Which bulk actions a system qualifies for depends on the open panel
+            // (alta needs no account, contraseña/baja need one). That scoping is
+            // applied in JS against data-has-account; here we only rule out what
+            // is never selectable.
+            $selectable    = $isActiveSystem && ! $mailcowLocked;
+            // Alternative flow: GLPI users that already exist can be mapped
+            // instead of created, but only while the employee has no GLPI access.
+            $canLinkGlpi   = $isGlpiRow && $isActiveSystem && ! $hasRealAccount;
           ?>
             <tr>
               <td style="padding-left:var(--space-4);">
                 <?php if ($selectable): ?>
                   <input type="checkbox" class="prov-sys-check" value="<?= $sysId ?>"
-                         data-system="<?= esc($s['name']) ?>" data-key="<?= esc($s['key']) ?>" data-account-status="<?= esc($status) ?>" checked
+                         data-system="<?= esc($s['name']) ?>" data-key="<?= esc($s['key']) ?>" data-account-status="<?= esc($status) ?>"
+                         data-has-account="<?= $hasRealAccount ? '1' : '0' ?>" checked
                          aria-label="Incluir <?= esc($s['name']) ?> en operaciones masivas">
                 <?php elseif (! $isActiveSystem): ?>
                   <input type="checkbox" disabled title="Sistema inactivo" aria-label="<?= esc($s['name']) ?> inactivo">
-                <?php elseif ($mailcowLocked): ?>
+                <?php else: // $mailcowLocked — the only remaining reason a row is never selectable ?>
                   <input type="checkbox" disabled
                          title="Este empleado ya tiene un buzón Mailcow; no se puede crear otro. GLPI e Intranet usarán el buzón existente."
                          aria-label="Mailcow: el empleado ya tiene un buzón, no se puede crear otro">
-                <?php else: ?>
-                  <input type="checkbox" disabled title="Sin cuenta en este sistema; no aplica para cambiar contraseña ni dar de baja"
-                         aria-label="<?= esc($s['name']) ?> sin cuenta">
                 <?php endif; ?>
               </td>
               <td>
@@ -360,6 +430,9 @@ $hasMailcowMailbox = ! empty(array_filter(
                   <br><span class="badge badge-neutral" style="font-size:var(--text-xs);">Inactivo en Nexus</span>
                 <?php elseif ($mailcowLocked): ?>
                   <br><span class="badge badge-info" style="font-size:var(--text-xs);">Buzón ya registrado</span>
+                <?php elseif ($isLinked): ?>
+                  <br><span class="badge badge-info" style="font-size:var(--text-xs);"
+                            title="Cuenta preexistente mapeada a este empleado; Nexus no la creó.">Vinculada</span>
                 <?php endif; ?>
               </td>
               <td>
@@ -378,14 +451,19 @@ $hasMailcowMailbox = ! empty(array_filter(
               <td class="text-sm"><?= esc($account['external_id'] ?? '-') ?></td>
               <td class="text-sm"><?= esc($account['last_message'] ?? '-') ?></td>
               <td style="text-align:right;">
-                <?php if ($status === 'active'): ?>
+                <?php $rowHasAction = false; ?>
+
+                <?php if ($status === 'active'): $rowHasAction = true; ?>
                   <form method="post" action="<?= route_to('provisioning.employee.system.deprovision', $employeeId, $sysId) ?>"
                         style="display:inline;"
                         onsubmit="return confirm('¿Desactivar la cuenta en <?= esc($s['name']) ?>?');">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Desactivar</button>
                   </form>
-                <?php elseif ($status === 'error' && $isMailcowRow): ?>
+                <?php endif; ?>
+
+                <?php // A failed creation (error without external_id) is the only case a retry applies to. ?>
+                <?php if ($status === 'error' && ! $hasRealAccount && $isMailcowRow): $rowHasAction = true; ?>
                   <details class="mc-retry" style="text-align:left;">
                     <summary class="btn btn-tertiary btn-sm" style="display:inline-flex; list-style:none;">Reintentar alta</summary>
                     <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>"
@@ -402,13 +480,50 @@ $hasMailcowMailbox = ! empty(array_filter(
                       <button type="submit" class="btn btn-primary btn-sm">Crear buzón</button>
                     </form>
                   </details>
-                <?php elseif ($status === 'error'): ?>
+                <?php elseif ($status === 'error' && ! $hasRealAccount): $rowHasAction = true; ?>
                   <form method="post" action="<?= route_to('provisioning.employee.system.provision', $employeeId, $sysId) ?>"
                         style="display:inline;">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-tertiary btn-sm">Reintentar alta</button>
                   </form>
-                <?php else: ?>
+                <?php endif; ?>
+
+                <?php // Alternative flow: map a GLPI user that already exists. ?>
+                <?php if ($canLinkGlpi): $rowHasAction = true; ?>
+                  <details class="glpi-link" style="text-align:left;">
+                    <summary class="btn btn-tertiary btn-sm" style="display:inline-flex; list-style:none;">Vincular cuenta existente</summary>
+                    <div class="glpi-link-panel" style="white-space:normal;">
+                      <p class="prov-field-hint" style="margin:0;">
+                        Busca un usuario que ya existe en GLPI y lígalo a este empleado. Nexus no crea ni modifica nada en GLPI: la cuenta queda ligada para futuras bajas, cambios de contraseña y reactivaciones.
+                      </p>
+                      <input type="text" id="glpi-link-q" class="input" placeholder="Nombre, apellido, login o correo"
+                             autocomplete="off" spellcheck="false">
+                      <p id="glpi-link-status" class="text-sm text-muted" style="margin:0;">Escribe al menos 3 caracteres.</p>
+                      <div id="glpi-link-results" class="glpi-link-results" style="display:none;"></div>
+                      <div id="glpi-link-warn" class="banner banner-warning" style="display:none; margin:0;">
+                        <div class="banner-body"></div>
+                      </div>
+                      <form method="post" action="<?= route_to('provisioning.employee.system.link', $employeeId, $sysId) ?>"
+                            id="glpi-link-form"
+                            onsubmit="return confirm('¿Ligar este usuario de GLPI al empleado? No se creará ninguna cuenta nueva.');">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="external_id" id="glpi-link-id">
+                        <button type="submit" class="btn btn-primary btn-sm" id="glpi-link-submit" disabled>Vincular cuenta seleccionada</button>
+                      </form>
+                    </div>
+                  </details>
+                <?php endif; ?>
+
+                <?php if ($isLinked): $rowHasAction = true; ?>
+                  <form method="post" action="<?= route_to('provisioning.employee.system.unlink', $employeeId, $sysId) ?>"
+                        style="display:inline;"
+                        onsubmit="return confirm('¿Quitar el vínculo con <?= esc($s['name']) ?>? La cuenta seguirá intacta allá; solo se elimina la liga en Nexus.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-tertiary btn-sm">Desvincular</button>
+                  </form>
+                <?php endif; ?>
+
+                <?php if (! $rowHasAction): ?>
                   <span class="text-muted text-sm">—</span>
                 <?php endif; ?>
               </td>
@@ -421,19 +536,19 @@ $hasMailcowMailbox = ! empty(array_filter(
     <!-- Action tab bar -->
     <div style="border-top:1px solid var(--color-neutral-200); display:flex;">
       <?php if ($showAlta): ?>
-        <button type="button" class="prov-tab-btn is-active" data-panel="prov-panel-alta" aria-expanded="true">
+        <button type="button" class="prov-tab-btn <?= $defaultPanel === 'prov-panel-alta' ? 'is-active' : '' ?>" data-panel="prov-panel-alta" aria-expanded="<?= $defaultPanel === 'prov-panel-alta' ? 'true' : 'false' ?>">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Alta en sistemas
         </button>
       <?php endif; ?>
       <?php if ($canReactivate): ?>
-        <button type="button" class="prov-tab-btn <?= $defaultReactiv ? 'is-active' : '' ?>" data-panel="prov-panel-reactivar" aria-expanded="<?= $defaultReactiv ? 'true' : 'false' ?>">
+        <button type="button" class="prov-tab-btn <?= $defaultPanel === 'prov-panel-reactivar' ? 'is-active' : '' ?>" data-panel="prov-panel-reactivar" aria-expanded="<?= $defaultPanel === 'prov-panel-reactivar' ? 'true' : 'false' ?>">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           Reactivar
         </button>
       <?php endif; ?>
       <?php if ($isProvisioned): ?>
-        <button type="button" class="prov-tab-btn is-active" data-panel="prov-panel-password" aria-expanded="true">
+        <button type="button" class="prov-tab-btn <?= $defaultPanel === 'prov-panel-password' ? 'is-active' : '' ?>" data-panel="prov-panel-password" aria-expanded="<?= $defaultPanel === 'prov-panel-password' ? 'true' : 'false' ?>">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Cambiar contraseña
         </button>
@@ -446,7 +561,7 @@ $hasMailcowMailbox = ! empty(array_filter(
 
     <!-- Panel: Reactivar (shown when the employee has disabled accounts) -->
     <?php if ($canReactivate): ?>
-    <div id="prov-panel-reactivar" class="prov-panel" style="display:<?= $defaultReactiv ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-reactivar" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-reactivar' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Reactiva al empleado en todos los sistemas donde ya tiene cuenta (GLPI, Intranet y Correo). No se crean cuentas nuevas: solo se vuelven a habilitar las existentes. Como regla de seguridad, cada reactivación asigna una contraseña nueva a todos sus accesos.
       </p>
@@ -477,9 +592,12 @@ $hasMailcowMailbox = ! empty(array_filter(
     <?php endif; ?>
 
     <!-- Panel: Alta en sistemas (only shown for a brand-new employee with no accounts) -->
-    <div id="prov-panel-alta" class="prov-panel" style="display:<?= $showAlta ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-alta" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-alta' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
-        Crea la cuenta en los sistemas seleccionados. Si incluyes Mailcow, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
+        Crea la cuenta en los sistemas seleccionados. Solo se listan los que aún no tienen cuenta. Si incluyes Mailcow, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
+      </p>
+      <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
+        ¿El usuario ya existe en GLPI? No lo des de alta aquí: usa <strong>Vincular cuenta existente</strong> en la fila de GLPI para ligar la cuenta que ya tiene.
       </p>
       <div id="prov-inst-email-warn" class="banner banner-warning" style="display:none; margin:0 0 var(--space-3);">
         <div class="banner-body">Este empleado no tiene un correo institucional principal. Incluye Mailcow en el alta, o registra/marca como principal una cuenta institucional (Mailcow o Microsoft) antes de dar de alta en GLPI o Intranet. El correo personal no se usa como llave.</div>
@@ -523,7 +641,7 @@ $hasMailcowMailbox = ! empty(array_filter(
     </div>
 
     <!-- Panel: Cambiar contraseña -->
-    <div id="prov-panel-password" class="prov-panel" style="display:<?= $isProvisioned ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-password" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-password' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Actualiza la contraseña en los sistemas seleccionados que tengan una cuenta existente. Los sistemas sin cuenta se omiten: no se crea ninguna cuenta desde aquí.
       </p>
@@ -590,18 +708,36 @@ $hasMailcowMailbox = ! empty(array_filter(
       return 'false';
   })() ?>;
 
+  // The employee's primary institutional address, used to warn when the GLPI
+  // account being linked carries a different one.
+  const PRIMARY_EMAIL = <?= json_encode((static function () use ($emailAccounts): string {
+      foreach ($emailAccounts as $a) {
+          if ((int) ($a['is_primary'] ?? 0) === 1 && trim((string) ($a['email'] ?? '')) !== '') {
+              return trim((string) $a['email']);
+          }
+      }
+      return '';
+  })(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+  // Every system checkbox, and the subset that actually counts for the open
+  // action panel (disabled ones are out of scope — see applyPanelScope).
+  const checks         = () => [...document.querySelectorAll('.prov-sys-check')];
+  const selectedChecks = () => checks().filter(cb => cb.checked && ! cb.disabled);
+
   // The institutional-email rule: GLPI/Intranet cannot be provisioned without an
   // institutional key. It is satisfied by either creating Mailcow in the same
   // alta, or an existing primary institutional account.
   function institutionalRuleViolated() {
     if (HAS_INSTITUTIONAL_PRIMARY) return false;
-    const selected = [...document.querySelectorAll('.prov-sys-check')]
-      .filter(cb => cb.checked)
-      .map(cb => (cb.dataset.key || '').toLowerCase());
+    const selected  = selectedChecks().map(cb => (cb.dataset.key || '').toLowerCase());
     const mailcow   = selected.includes('mailcow');
     const needsInst = selected.includes('glpi') || selected.includes('intranet');
     return needsInst && ! mailcow;
   }
+
+  // Assigned by the "Dar de alta" block below; called whenever the selection or
+  // the open panel changes so the submit guard stays in sync.
+  let refreshAltaState = function () {};
 
   // ── Email account form: type-dependent fields + add/edit modes ─────────────
   const typeSelect = document.getElementById('ea-type');
@@ -732,18 +868,62 @@ $hasMailcowMailbox = ! empty(array_filter(
 
   // ── Select-all toggle ──────────────────────────────────────────────────────
   const selectAll = document.getElementById('prov-select-all');
-  const checks    = () => [...document.querySelectorAll('.prov-sys-check')];
+
+  function syncSelectAll() {
+    if (! selectAll) return;
+    const scoped = checks().filter(cb => ! cb.disabled);
+    selectAll.disabled      = scoped.length === 0;
+    selectAll.checked       = scoped.length > 0 && scoped.every(cb => cb.checked);
+    selectAll.indeterminate = ! selectAll.checked && scoped.some(cb => cb.checked);
+  }
 
   if (selectAll) {
     selectAll.addEventListener('change', function () {
-      checks().forEach(cb => { cb.checked = this.checked; });
+      checks().forEach(cb => { if (! cb.disabled) cb.checked = this.checked; });
+      syncSelectAll();
     });
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('prov-sys-check')) {
-        selectAll.checked = checks().every(cb => cb.checked);
-        selectAll.indeterminate = !selectAll.checked && checks().some(cb => cb.checked);
+        syncSelectAll();
       }
     });
+  }
+
+  // ── Panel-aware system scope ───────────────────────────────────────────────
+  // The three bulk actions apply to different sets: an alta only makes sense for
+  // systems WITHOUT an account, a password change or a baja only for those WITH
+  // one. Now that both tabs can be available at the same time (e.g. GLPI linked,
+  // Mailcow still pending), the selection has to follow the open panel instead
+  // of being frozen at render time. The backend skips inapplicable systems
+  // anyway; this keeps the checkboxes from lying about what will happen.
+  function activePanelId() {
+    const btn = document.querySelector('.prov-tab-btn.is-active');
+    return btn ? btn.dataset.panel : null;
+  }
+
+  function applyPanelScope() {
+    const panel = activePanelId();
+    checks().forEach(cb => {
+      const has = cb.dataset.hasAccount === '1';
+      let allowed = true;
+      let reason  = '';
+
+      if (panel === 'prov-panel-alta') {
+        allowed = ! has;
+        reason  = 'Ya tiene cuenta en este sistema; el alta no aplica.';
+      } else if (panel === 'prov-panel-password' || panel === 'prov-panel-baja') {
+        allowed = has;
+        reason  = 'Sin cuenta en este sistema; no aplica para esta acción.';
+      }
+
+      cb.disabled = ! allowed;
+      cb.checked  = allowed;
+      cb.title    = allowed ? '' : reason;
+    });
+
+    syncSelectAll();
+    updateMailboxEmailField();
+    refreshAltaState();
   }
 
   // ── Tab panel toggle ───────────────────────────────────────────────────────
@@ -763,13 +943,15 @@ $hasMailcowMailbox = ! empty(array_filter(
         this.classList.add('is-active');
         this.setAttribute('aria-expanded', 'true');
       }
+
+      applyPanelScope();
     });
   });
 
   // ── Inject system_ids[] into a form before submit ─────────────────────────
   function injectSystemIds(form) {
     form.querySelectorAll('input[name="system_ids[]"]').forEach(el => el.remove());
-    const selected = checks().filter(cb => cb.checked);
+    const selected = selectedChecks();
     if (selected.length === 0) {
       alert('Selecciona al menos un sistema antes de continuar.');
       return false;
@@ -835,10 +1017,7 @@ $hasMailcowMailbox = ! empty(array_filter(
 
   function updateMailboxEmailField() {
     if (! mailboxWrap) return;
-    const mailcowChecked = [...checks()].some(cb => {
-      const name = (cb.dataset.system || '').toLowerCase();
-      return cb.checked && name === 'mailcow';
-    });
+    const mailcowChecked = selectedChecks().some(cb => (cb.dataset.system || '').toLowerCase() === 'mailcow');
     mailboxWrap.style.display = mailcowChecked ? '' : 'none';
     assembleMailboxEmail();
   }
@@ -871,11 +1050,14 @@ $hasMailcowMailbox = ! empty(array_filter(
     const instWarn = document.getElementById('prov-inst-email-warn');
     const updateAltaSubmitState = function () {
       const hasPassword = altaPwInput.value.trim().length > 0;
-      const hasSystem   = checks().some(cb => cb.checked);
+      const hasSystem   = selectedChecks().length > 0;
       const violated    = institutionalRuleViolated();
       if (instWarn) instWarn.style.display = violated ? '' : 'none';
       altaSubmit.disabled = ! (hasPassword && hasSystem) || violated;
     };
+
+    // Expose it to applyPanelScope, which changes the selection wholesale.
+    refreshAltaState = updateAltaSubmitState;
 
     // Programmatic value changes (e.g. "Generar contraseña") don't fire 'input',
     // so the generate handler dispatches one to keep this in sync.
@@ -980,6 +1162,133 @@ $hasMailcowMailbox = ! empty(array_filter(
         .catch(() => {});
     }
   }());
+
+  // ── GLPI "vincular cuenta existente": search + pick ────────────────────────
+  (function initGlpiLink() {
+    const input   = document.getElementById('glpi-link-q');
+    const status  = document.getElementById('glpi-link-status');
+    const results = document.getElementById('glpi-link-results');
+    const warn    = document.getElementById('glpi-link-warn');
+    const hidden  = document.getElementById('glpi-link-id');
+    const submit  = document.getElementById('glpi-link-submit');
+    if (! input || ! results || ! hidden || ! submit) return;
+
+    let timer = null;
+    let seq   = 0; // guards against a slow early response overwriting a newer one
+
+    const clearSelection = function () {
+      hidden.value      = '';
+      submit.disabled   = true;
+      warn.style.display = 'none';
+    };
+
+    const escapeHtml = function (value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+
+    const render = function (users) {
+      clearSelection();
+
+      if (! users.length) {
+        results.style.display = 'none';
+        results.innerHTML     = '';
+        status.textContent    = 'Sin coincidencias en GLPI.';
+        return;
+      }
+
+      results.innerHTML = users.map(function (u) {
+        const taken = !! u.linked_to;
+        const meta  = [
+          'id ' + u.id,
+          u.login ? 'login: ' + u.login : '',
+          u.email || '',
+          u.is_active ? '' : 'Inactivo en GLPI',
+          taken ? 'Ya ligado a ' + u.linked_to : '',
+        ].filter(Boolean).map(escapeHtml).join(' · ');
+
+        return '<label class="glpi-link-option' + (taken ? ' is-taken' : '') + '">'
+          + '<input type="radio" name="glpi_user_pick" value="' + Number(u.id) + '"'
+          + ' data-email="' + escapeHtml(u.email || '') + '"'
+          + ' data-active="' + (u.is_active ? '1' : '0') + '"'
+          + (taken ? ' disabled' : '') + '>'
+          + '<span><span class="glpi-link-name">' + escapeHtml(u.fullname || u.login || ('#' + u.id)) + '</span>'
+          + '<br><span class="glpi-link-meta">' + meta + '</span></span>'
+          + '</label>';
+      }).join('');
+
+      results.style.display = '';
+      status.textContent    = users.length + ' resultado(s). Selecciona el usuario a ligar.';
+    };
+
+    const search = function () {
+      const term = input.value.trim();
+      clearSelection();
+
+      if (term.length < 3) {
+        results.style.display = 'none';
+        results.innerHTML     = '';
+        status.textContent    = 'Escribe al menos 3 caracteres.';
+        return;
+      }
+
+      const mine = ++seq;
+      status.textContent = 'Buscando en GLPI...';
+
+      fetch(BASE + 'provisioning/glpi-users/search?q=' + encodeURIComponent(term) + '&employee_id=' + EMPLOYEE_ID,
+            { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(function (json) {
+          if (mine !== seq) return;
+          if (json.status !== 'success') {
+            results.style.display = 'none';
+            status.textContent    = json.message || 'No se pudo consultar GLPI.';
+            return;
+          }
+          render(json.data || []);
+        })
+        .catch(function () {
+          if (mine !== seq) return;
+          results.style.display = 'none';
+          status.textContent    = 'Error de conexión al consultar GLPI.';
+        });
+    };
+
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(search, 300);
+    });
+
+    results.addEventListener('change', function (e) {
+      if (e.target.name !== 'glpi_user_pick') return;
+
+      hidden.value    = e.target.value;
+      submit.disabled = false;
+
+      // Advisory warnings only: adopting a legacy account whose address differs
+      // from the institutional key is exactly what this flow is for.
+      const notes = [];
+      const email = e.target.dataset.email || '';
+      if (e.target.dataset.active !== '1') {
+        notes.push('La cuenta está desactivada en GLPI. Al vincularla quedará como "Desactivada" y podrás habilitarla con Reactivar.');
+      }
+      if (PRIMARY_EMAIL && email && email.toLowerCase() !== PRIMARY_EMAIL.toLowerCase()) {
+        notes.push('El correo en GLPI (' + email + ') no coincide con el correo institucional principal (' + PRIMARY_EMAIL + ').');
+      }
+
+      if (notes.length) {
+        warn.querySelector('.banner-body').textContent = notes.join(' ');
+        warn.style.display = '';
+      } else {
+        warn.style.display = 'none';
+      }
+    });
+  }());
+
+  // Align the checkbox selection with whichever panel opened by default. Runs
+  // last so every handler it depends on is already wired.
+  applyPanelScope();
 
 }());
 </script>

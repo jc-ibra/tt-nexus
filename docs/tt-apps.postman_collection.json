@@ -2432,6 +2432,116 @@
       ]
     },
     {
+      "name": "Provisioning — Cuentas externas",
+      "description": "Flujo alternativo al alta: en lugar de crear el usuario, se mapea uno que YA existe en el sistema externo (hoy solo GLPI). El vínculo queda ligado al empleado, así que baja, cambio de contraseña, reactivación y sincronización de perfil actúan sobre esa cuenta. Nada se crea ni se modifica en GLPI.",
+      "item": [
+        {
+          "name": "Buscar usuarios existentes en GLPI",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "description": "Busca candidatos a vincular. `q` requiere 3+ caracteres. `employee_id` es opcional: solo marca con `linked_to` los candidatos que ya pertenecen a otro empleado.",
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/glpi-users?q=perez&employee_id=12",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "glpi-users"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "perez"
+                },
+                {
+                  "key": "employee_id",
+                  "value": "12"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Vincular cuenta existente de GLPI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "`external_id` es el id del usuario en GLPI. Falla si el empleado ya tiene acceso a GLPI, si ese usuario ya está ligado a otro empleado, o si GLPI no lo reconoce. El estado guardado refleja el `is_active` real de GLPI.",
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/employees/12/systems/1/link",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "employees",
+                "12",
+                "systems",
+                "1",
+                "link"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"external_id\": 47\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desvincular cuenta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "description": "Elimina solo el mapeo en Nexus; la cuenta sigue intacta en el sistema externo. Restringido a cuentas vinculadas: una creada por Nexus debe darse de baja, no desvincularse.",
+            "url": {
+              "raw": "{{base_url}}/api/v1/provisioning/employees/12/systems/1/unlink",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "provisioning",
+                "employees",
+                "12",
+                "systems",
+                "1",
+                "unlink"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Provisioning — GLPI Catalogs",
       "item": [
         {

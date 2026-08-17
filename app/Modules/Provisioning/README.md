@@ -175,6 +175,26 @@ Sirve para que el botón **Probar conexión** del panel de Nexus tenga algo conc
 
 `/empleados/{id}` muestra el panel **Aprovisionamiento**: estado por sistema, botones de **Crear**, **Desactivar**, **Reintentar alta** y, en el pie, **Alta en todos**, **Baja en todos** y **Cambiar contraseña**.
 
+### Flujo alternativo: vincular una cuenta que ya existe
+
+Para bases de usuarios heredadas hay un segundo camino que **no crea nada** en el sistema destino: se mapea la cuenta existente al empleado. Hoy lo implementan dos sistemas:
+
+| Sistema | Cómo se vincula |
+|---|---|
+| Mailcow | Se registra el buzón como cuenta de correo del empleado. El alta lo detecta, omite la creación y lo adopta (`adoptExistingMailcowMailbox`). |
+| GLPI | Botón **Vincular cuenta existente** en la fila de GLPI: buscador de usuarios y confirmación (`linkGlpiAccount`). |
+
+Reglas del vínculo de GLPI:
+
+- Un empleado tiene **un solo** acceso a GLPI, y un usuario de GLPI pertenece a **un solo** empleado. Ambas direcciones se validan antes de guardar.
+- El id se verifica contra GLPI por la API REST antes de persistirlo, para que una baja o un cambio de contraseña posteriores no fallen sobre un id fantasma.
+- El estado guardado refleja el `is_active` real de GLPI: un usuario desactivado allá entra como `disabled` y se habilita con **Reactivar**.
+- Si el correo del usuario en GLPI no coincide con el correo institucional principal, se advierte pero no se bloquea: adoptar cuentas heredadas es justo el propósito.
+
+Una vez vinculada, la cuenta es indistinguible de una creada por Nexus para baja, contraseña, reactivación y `syncEmployeeProfile`. La columna `provisioning_external_accounts.origin` (`created` / `linked`) conserva la diferencia, alimenta el badge **Vinculada** y restringe **Desvincular**, que solo elimina el mapeo en Nexus y nunca toca el sistema externo.
+
+El buscador de usuarios es híbrido: usa la conexión directa a la base de datos de GLPI cuando está configurada (una sola consulta sobre login, nombre, apellido y correo) y cae a la API REST cuando no lo está. La verificación previa a guardar siempre es por API.
+
 ### Desde la API
 
 ```http
@@ -183,6 +203,9 @@ POST /api/v1/provisioning/employees/{id}/deprovision
 POST /api/v1/provisioning/employees/{id}/password
 POST /api/v1/provisioning/employees/{id}/systems/{systemId}/provision
 POST /api/v1/provisioning/employees/{id}/systems/{systemId}/deprovision
+POST /api/v1/provisioning/employees/{id}/systems/{systemId}/link      # body: {"external_id": 47}
+POST /api/v1/provisioning/employees/{id}/systems/{systemId}/unlink
+GET  /api/v1/provisioning/glpi-users?q=perez&employee_id={id}
 
 GET  /api/v1/provisioning/systems
 PUT  /api/v1/provisioning/systems/{id}

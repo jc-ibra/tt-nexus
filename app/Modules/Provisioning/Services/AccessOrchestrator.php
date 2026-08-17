@@ -450,6 +450,157 @@ class AccessOrchestrator
             : ServiceResult::fail([$result['message']], $result);
     }
 
+    /**
+     * ALTERNATIVE FLOW — map a GLPI user that already exists instead of creating
+     * one. Nothing is written to GLPI: the account is only bound to the employee
+     * so every later operation (baja, contraseña, reactivación, sincronización de
+     * perfil) acts on it, exactly as it would on an account Nexus had created.
+     *
+     * Guarantees:
+     *   - One GLPI access per employee: an employee that already has a linked or
+     *     created GLPI account must be unlinked first.
+     *   - One employee per GLPI user: linking a user held by somebody else is
+     *     refused, naming who holds it.
+     *   - The id is verified through the REST connector before it is stored, so a
+     *     future disable/password can never fail on an id GLPI does not know.
+     *   - The stored status mirrors GLPI: a user disabled there lands as
+     *     'disabled' here, so "Reactivar" is the honest next step.
+     */
+    public function linkGlpiAccount(int $employeeId, int $glpiUserId): ServiceResult
+    {
+        $employee = $this->loadEmployee($employeeId);
+        if (! $employee) {
+            return ServiceResult::fail('Empleado no encontrado.');
+        }
+
+        $system = $this->systems->findByKey('glpi');
+        if (! $system) {
+            return ServiceResult::fail('El sistema GLPI no está registrado en Nexus.');
+        }
+        if ((int) ($system['is_active'] ?? 0) !== 1) {
+            return ServiceResult::fail('El sistema GLPI está inactivo en Nexus; actívalo antes de vincular cuentas.');
+        }
+        $systemId = (int) $system['id'];
+
+        $existing = $this->accounts->findFor($employeeId, $systemId);
+        if ($existing && ! empty($existing['external_id'])) {
+            return ServiceResult::fail(
+                'Este empleado ya tiene una cuenta de GLPI ligada (id ' . $existing['external_id'] .
+                '). Cada empleado solo puede tener un acceso a GLPI: desvincula la actual antes de mapear otra.'
+            );
+        }
+
+        $conflict = $this->accounts->findLinkedToOtherEmployee($systemId, (string) $glpiUserId, $employeeId);
+        if ($conflict !== null) {
+            $who   = trim(($conflict['employee_name'] ?? '') . ' ' . ($conflict['employee_lastname'] ?? ''));
+            $num   = trim((string) ($conflict['employee_number'] ?? ''));
+            $label = $who !== '' ? $who . ($num !== '' ? " (#{$num})" : '') : ('empleado #' . ($conflict['employee_id'] ?? '?'));
+
+            return ServiceResult::fail(
+                'El usuario de GLPI #' . $glpiUserId . ' ya está ligado a otro empleado: ' . $label .
+                '. Un usuario de GLPI pertenece a una sola persona.'
+            );
+        }
+
+        // Authoritative check: the connector that will later disable / re-password
+        // this account has to be able to see it right now.
+        $lookup = service('glpiUserDirectory')->fetch($glpiUserId);
+        if (! $lookup->success) {
+            return ServiceResult::fail($lookup->message);
+        }
+        /** @var array<string,mixed> $user */
+        $user     = $lookup->data;
+        $isActive = ! empty($user['is_active']);
+        $login    = (string) ($user['login'] ?? $glpiUserId);
+
+        $message = 'Cuenta existente de GLPI vinculada: ' . $login . ' (id ' . $glpiUserId . '). No fue creada por Nexus.';
+
+        $warnings = [];
+        if (! $isActive) {
+            $warnings[] = 'La cuenta está desactivada en GLPI; usa "Reactivar" para habilitarla y asignarle contraseña.';
+        }
+
+        // Advisory only: adopting a legacy account whose address differs from the
+        // institutional key is the whole point of this flow, so it never blocks.
+        $primary      = (new EmployeeEmailAccountModel())->getPrimary($employeeId);
+        $primaryEmail = trim((string) ($primary['email'] ?? ''));
+        $glpiEmail    = trim((string) ($user['email'] ?? ''));
+        if ($primaryEmail !== '' && $glpiEmail !== '' && strcasecmp($primaryEmail, $glpiEmail) !== 0) {
+            $warnings[] = 'El correo en GLPI (' . $glpiEmail . ') no coincide con el correo institucional principal (' . $primaryEmail . ').';
+        }
+
+        $this->accounts->upsert($employeeId, $systemId, [
+            'external_id'  => (string) $glpiUserId,
+            'status'       => $isActive ? 'active' : 'disabled',
+            'origin'       => 'linked',
+            'last_message' => $message,
+        ]);
+
+        $this->log->record([
+            'employee_id'      => $employeeId,
+            'system_id'        => $systemId,
+            'operation'        => 'link',
+            'status'           => 'success',
+            'message'          => $message,
+            'external_id'      => (string) $glpiUserId,
+            'executor_user_id' => session()->get('user_id') ?: null,
+            'ip_address'       => $this->ip(),
+        ]);
+
+        return ServiceResult::ok(
+            ['external_id' => (string) $glpiUserId, 'user' => $user, 'warnings' => $warnings],
+            trim($message . ' ' . implode(' ', $warnings)),
+        );
+    }
+
+    /**
+     * Removes Nexus' mapping to an external account. The account itself is NEVER
+     * touched in the external system — this is the escape hatch for a wrong
+     * mapping, not a way to delete users.
+     *
+     * Restricted to accounts with origin 'linked'. Unlinking one Nexus created
+     * would orphan a real user nobody can reach anymore from here; "Dar de baja"
+     * is the right action for those.
+     */
+    public function unlinkAccount(int $employeeId, int $systemId): ServiceResult
+    {
+        $system = $this->systems->find($systemId);
+        if (! $system) {
+            return ServiceResult::fail('Sistema no encontrado.');
+        }
+        $systemName = (string) ($system['name'] ?? $system['key']);
+
+        $existing = $this->accounts->findFor($employeeId, $systemId);
+        if (! $existing) {
+            return ServiceResult::fail('Este empleado no tiene una cuenta registrada en ' . $systemName . '.');
+        }
+
+        if (($existing['origin'] ?? 'created') !== 'linked') {
+            return ServiceResult::fail(
+                'La cuenta en ' . $systemName . ' fue creada por Nexus, no vinculada. Desvincularla dejaría al usuario sin dueño en Nexus; usa "Dar de baja" para desactivarla.'
+            );
+        }
+
+        $externalId = (string) ($existing['external_id'] ?? '');
+        $this->accounts->removeFor($employeeId, $systemId);
+
+        $message = 'Vínculo con ' . $systemName . ' eliminado (id ' . ($externalId !== '' ? $externalId : 'sin id') .
+            '). La cuenta sigue intacta en ' . $systemName . '; solo se quitó la liga en Nexus.';
+
+        $this->log->record([
+            'employee_id'      => $employeeId,
+            'system_id'        => $systemId,
+            'operation'        => 'unlink',
+            'status'           => 'success',
+            'message'          => $message,
+            'external_id'      => $externalId !== '' ? $externalId : null,
+            'executor_user_id' => session()->get('user_id') ?: null,
+            'ip_address'       => $this->ip(),
+        ]);
+
+        return ServiceResult::ok(['external_id' => $externalId], $message);
+    }
+
     public function deprovisionOnSystem(int $employeeId, int $systemId): ServiceResult
     {
         $employee = $this->loadEmployee($employeeId);
@@ -750,6 +901,12 @@ class AccessOrchestrator
         if ($operation === 'disable' && $result->success) {
             $accountUpdate['status'] = 'disabled';
         }
+        // Only a creation establishes the origin. Later operations must leave it
+        // alone, or the first baja on a LINKED account would relabel it as one
+        // Nexus created and silently unlock "Desvincular"'s guard.
+        if ($operation === 'create') {
+            $accountUpdate['origin'] = 'created';
+        }
         $this->accounts->upsert((int) $employee['id'], (int) $system['id'], $accountUpdate);
 
         if (! $result->success) {
@@ -854,6 +1011,7 @@ class AccessOrchestrator
         $this->accounts->upsert($employeeId, $systemId, [
             'external_id'  => $email,
             'status'       => 'active',
+            'origin'       => 'linked',
             'last_message' => 'Buzón existente vinculado desde el alta (no creado por Nexus).',
         ]);
 
