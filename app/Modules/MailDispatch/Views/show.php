@@ -253,7 +253,8 @@ $addrList = static function (?string $raw): array {
     <h1 class="page-title" style="max-width:60ch;"><?= esc($conv['subject'] ?: '(sin asunto)') ?></h1>
   </div>
   <div class="page-actions">
-    <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Volver a la bandeja</a>
+    <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Ir a bandeja principal</a>
+    <a href="<?= base_url('dispatch?filter=mine') ?>" class="btn btn-secondary">Ir a mis conversaciones</a>
   </div>
 </div>
 
