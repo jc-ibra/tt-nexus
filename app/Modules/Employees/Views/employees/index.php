@@ -201,9 +201,6 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
             <td class="text-muted text-sm">
               <?php if (! empty($e['primary_email'])): ?>
                 <?= esc($e['primary_email']) ?>
-                <?php if (! empty($e['has_mailbox']) || ! empty($e['has_mailcow_account'])): ?>
-                  <span class="badge badge-info" style="margin-left:var(--space-1);" title="Buzón de correo Staff">Buzón</span>
-                <?php endif; ?>
               <?php else: ?>
                 <span class="badge badge-warning" title="Sin correo institucional; falta aprovisionar">Pendiente por provisionar</span>
               <?php endif; ?>
