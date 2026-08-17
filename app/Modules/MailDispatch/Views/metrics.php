@@ -7,8 +7,21 @@ $fmtMin = static function (?float $m): string {
     if ($m < 60) return round($m) . ' min';
     return round($m / 60, 1) . ' h';
 };
-$maxDaily = 0;
-foreach (($daily_volume ?? []) as $d) { $maxDaily = max($maxDaily, (int) $d['total']); }
+// Daily volume chart: the axis is scaled to a round step so the gridlines read
+// as whole conversations, always leaving one step of headroom above the tallest
+// bar for its number.
+$daily     = $daily_volume ?? [];
+$maxDaily  = 0;
+$totalDaily = 0;
+foreach ($daily as $d) { $maxDaily = max($maxDaily, (int) $d['total']); $totalDaily += (int) $d['total']; }
+$dailyStep = 1;
+foreach ([1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000] as $s) {
+    if ((int) ceil($maxDaily / $s) <= 4) { $dailyStep = $s; break; }
+}
+$dailyAxisMax = ((int) floor($maxDaily / $dailyStep) + 1) * $dailyStep;
+// Numbers over every bar only while they fit; past that the tooltip carries them.
+$showDailyNums = count($daily) > 0 && count($daily) <= 31;
+$dailyLabelStep = max(1, (int) ceil(count($daily) / 16));
 $maxDisp = 0;
 foreach (($dispositions ?? []) as $d) { $maxDisp = max($maxDisp, (int) $d['total']); }
 $personal = $personal ?? false;
@@ -31,8 +44,17 @@ $qs = http_build_query($personal
   .md-bar-track { flex:1; background:var(--bg-surface-alt); border-radius:var(--radius-sm); height:18px; overflow:hidden; }
   .md-bar-fill { height:100%; background:var(--action-primary); }
   .md-bar-num { width:48px; text-align:right; font-size:var(--text-sm); color:var(--text-muted); }
-  .md-daily { display:flex; align-items:flex-end; gap:4px; height:120px; padding-top:var(--space-2); }
-  .md-daily-col { flex:1; background:var(--action-primary); border-radius:2px 2px 0 0; min-height:2px; }
+  .md-chart { display:grid; grid-template-columns:auto 1fr; column-gap:var(--space-2); row-gap:4px; }
+  .md-chart-axis { position:relative; height:160px; }
+  .md-chart-axis span { position:absolute; right:0; transform:translateY(-50%); font-size:var(--text-xs); color:var(--text-muted); line-height:1; font-variant-numeric:tabular-nums; }
+  .md-chart-plot { position:relative; height:160px; display:flex; align-items:flex-end; gap:4px; border-bottom:1px solid var(--border-default); }
+  .md-chart-grid { position:absolute; left:0; right:0; height:1px; background:var(--border-default); opacity:.45; }
+  .md-daily-col { position:relative; flex:1; min-width:4px; height:100%; display:flex; flex-direction:column; justify-content:flex-end; }
+  .md-daily-bar { background:var(--action-primary); border-radius:2px 2px 0 0; }
+  .md-daily-num { font-size:var(--text-xs); color:var(--text-muted); text-align:center; line-height:1.4; font-variant-numeric:tabular-nums; }
+  .md-daily-num.is-zero { color:var(--text-disabled); }
+  .md-chart-x { grid-column:2; display:flex; gap:4px; }
+  .md-chart-x span { flex:1; min-width:4px; text-align:center; font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap; overflow:hidden; }
   .md-filters { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end; }
 </style>
 
@@ -124,15 +146,38 @@ $qs = http_build_query($personal
 <div class="card">
   <div class="card-header"><h2 class="card-title">Volumen diario recibido</h2></div>
   <div class="card-body">
-    <?php if (empty($daily_volume)): ?>
+    <?php if (empty($daily)): ?>
       <p class="text-muted">Sin datos en el rango.</p>
     <?php else: ?>
-      <div class="md-daily">
-        <?php foreach ($daily_volume as $d): $h = $maxDaily ? max(2, round((int) $d['total'] / $maxDaily * 118)) : 2; ?>
-          <div class="md-daily-col" style="height:<?= $h ?>px;" title="<?= esc($d['day']) ?>: <?= (int) $d['total'] ?>"></div>
-        <?php endforeach; ?>
+      <div class="md-chart">
+        <div class="md-chart-axis" aria-hidden="true">
+          <?php for ($v = $dailyAxisMax; $v >= 0; $v -= $dailyStep): ?>
+            <span style="top:<?= round((1 - $v / $dailyAxisMax) * 100, 2) ?>%;"><?= $v ?></span>
+          <?php endfor; ?>
+        </div>
+        <div class="md-chart-plot">
+          <?php for ($v = $dailyAxisMax; $v >= 0; $v -= $dailyStep): ?>
+            <span class="md-chart-grid" style="top:<?= round((1 - $v / $dailyAxisMax) * 100, 2) ?>%;"></span>
+          <?php endfor; ?>
+          <?php foreach ($daily as $d): $t = (int) $d['total']; ?>
+            <div class="md-daily-col" title="<?= esc($d['day']) ?>: <?= $t ?> <?= $t === 1 ? 'conversación' : 'conversaciones' ?>">
+              <?php if ($showDailyNums): ?>
+                <span class="md-daily-num<?= $t === 0 ? ' is-zero' : '' ?>"><?= $t ?></span>
+              <?php endif; ?>
+              <div class="md-daily-bar" style="height:<?= $t > 0 ? round(max(1.5, $t / $dailyAxisMax * 100), 2) : 0 ?>%;"></div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+        <div class="md-chart-x" aria-hidden="true">
+          <?php foreach ($daily as $i => $d): ?>
+            <span><?= $i % $dailyLabelStep === 0 ? esc(date('d/m', strtotime($d['day']))) : '' ?></span>
+          <?php endforeach; ?>
+        </div>
       </div>
-      <p class="text-muted text-xs" style="margin-top:var(--space-2);"><?= esc($daily_volume[0]['day']) ?> a <?= esc(end($daily_volume)['day']) ?></p>
+      <p class="text-muted text-xs" style="margin-top:var(--space-3);">
+        <?= esc($daily[0]['day']) ?> a <?= esc(end($daily)['day']) ?> ·
+        <?= (int) $totalDaily ?> conversaciones recibidas · máximo diario <?= (int) $maxDaily ?>
+      </p>
     <?php endif; ?>
   </div>
 </div>

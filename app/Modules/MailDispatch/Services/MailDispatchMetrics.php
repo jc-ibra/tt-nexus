@@ -176,7 +176,14 @@ class MailDispatchMetrics
         ], $rows);
     }
 
-    /** Inbound volume per day (received_at) across the range. */
+    /**
+     * Inbound volume per day (received_at) across the range.
+     *
+     * The series is zero-filled: a day with no mail produces no row, and a
+     * chart fed only with the rows draws Friday next to Monday as if they were
+     * consecutive, which misreads a quiet weekend as sustained volume. Absurdly
+     * long ranges fall back to the raw rows so the payload stays bounded.
+     */
     private function dailyVolume(string $from, string $to, ?int $agentId): array
     {
         $b = $this->db->table('maildispatch_conversations')
@@ -186,7 +193,26 @@ class MailDispatchMetrics
         $this->applyAgent($b, $agentId);
         $rows = $b->get()->getResultArray();
 
-        return array_map(static fn($r) => ['day' => $r['day'], 'total' => (int) $r['total']], $rows);
+        $byDay = [];
+        foreach ($rows as $r) {
+            $byDay[(string) $r['day']] = (int) $r['total'];
+        }
+
+        $start = new \DateTimeImmutable(substr($from, 0, 10));
+        $end   = new \DateTimeImmutable(substr($to, 0, 10));
+        $span  = (int) $start->diff($end)->days;
+
+        if ($end < $start || $span > 366) {
+            return array_map(static fn($r) => ['day' => $r['day'], 'total' => (int) $r['total']], $rows);
+        }
+
+        $out = [];
+        for ($i = 0; $i <= $span; $i++) {
+            $day   = $start->modify("+{$i} days")->format('Y-m-d');
+            $out[] = ['day' => $day, 'total' => $byDay[$day] ?? 0];
+        }
+
+        return $out;
     }
 
     // -----------------------------------------------------------------------
