@@ -143,6 +143,17 @@ class ServiceDeskAdmin extends BaseController
     /**
      * Saves the AI creator configuration (Claude API key, model, limits).
      */
+    /**
+     * Bulk update + close block: enable switch, reopen/verify toggles and the
+     * default solution text used when a row does not carry its own.
+     */
+    public function saveUpdate(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveUpdate($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#update')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
     public function saveAi(): ResponseInterface
     {
         $result = service('serviceDeskSettings')->saveAi($this->request->getPost());

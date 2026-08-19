@@ -32,12 +32,18 @@ $routes->group('servicedesk', [
     // Bulk import: upload + validate + enqueue
     $routes->post('imports', 'ServiceDesk::upload', ['as' => 'servicedesk.imports.upload']);
 
+    // Bulk update + close: same Excel, but TICKET_ID filled in by the operator.
+    $routes->get('actualizar',  'ServiceDesk::updateForm',   ['as' => 'servicedesk.update']);
+    $routes->post('actualizar', 'ServiceDesk::uploadUpdate', ['as' => 'servicedesk.update.upload']);
+
     // Import history + monitoring
     $routes->get('imports',                'ServiceDesk::imports',        ['as' => 'servicedesk.imports.index']);
     $routes->get('imports/(:num)',         'ServiceDesk::show/$1',        ['as' => 'servicedesk.imports.show']);
     $routes->get('imports/(:num)/status',  'ServiceDesk::status/$1',      ['as' => 'servicedesk.imports.status']);
     $routes->get('imports/(:num)/log',     'ServiceDesk::log/$1',         ['as' => 'servicedesk.imports.log']);
     $routes->get('imports/(:num)/output',  'ServiceDesk::downloadOutput/$1', ['as' => 'servicedesk.imports.output']);
+    // Aplicar de verdad una simulación terminada, reusando su mismo archivo.
+    $routes->post('imports/(:num)/aplicar', 'ServiceDesk::applySimulation/$1', ['as' => 'servicedesk.imports.apply']);
 });
 
 // -----------------------------------------------------------------------
@@ -54,6 +60,8 @@ $routes->group('admin/servicedesk', [
     $routes->post('ai',            'ServiceDeskAdmin::saveAi',        ['as' => 'servicedesk.ai.save']);
     // Self-service widget config (embed, origins, hardware mapping, limits).
     $routes->post('widget',        'ServiceDeskAdmin::saveWidget',    ['as' => 'servicedesk.widget.save']);
+    // Bulk update + close: enable, reopen/verify toggles, default solution text.
+    $routes->post('update',        'ServiceDeskAdmin::saveUpdate',    ['as' => 'servicedesk.update.save']);
     // Category -> CLIENTE mapping + supported categories for the template.
     $routes->get('categories',     'ServiceDeskAdmin::categories',     ['as' => 'servicedesk.categories']);
     $routes->post('categories',    'ServiceDeskAdmin::saveCategories', ['as' => 'servicedesk.categories.save']);
@@ -111,6 +119,12 @@ $routes->group('api/v1/servicedesk', [
     $routes->get('imports',         'ServiceDeskApiController::listImports');
     $routes->post('imports',        'ServiceDeskApiController::createImport');
     $routes->get('imports/(:num)',  'ServiceDeskApiController::showImport/$1');
+
+    // Bulk update + close (mirror of the web actions). Same job table, mode=update.
+    $routes->get('updates',         'ServiceDeskApiController::listUpdates');
+    $routes->post('updates',        'ServiceDeskApiController::createUpdate');
+    $routes->get('updates/(:num)',  'ServiceDeskApiController::showImport/$1');
+    $routes->post('updates/(:num)/apply', 'ServiceDeskApiController::applyUpdate/$1');
 
     // Daily backlog report (mirror of the web action): preview data + trigger send.
     $routes->get('backlog/preview', 'ServiceDeskApiController::backlogPreview');

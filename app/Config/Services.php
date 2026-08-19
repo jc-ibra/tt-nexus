@@ -59,6 +59,7 @@ use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use App\Modules\ServiceDesk\Services\BacklogReportService;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
+use App\Modules\ServiceDesk\Services\GlpiValueResolver;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
 use App\Modules\HelpdeskSupervisor\Models\HelpdeskSupervisorSettingsModel;
 use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
@@ -81,6 +82,7 @@ use App\Modules\AgentKpis\Models\KpiSnapshotModel;
 use App\Modules\AgentKpis\Services\KpiCalculationService;
 use App\Modules\AgentKpis\Services\QualitativeEvaluationService;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
+use App\Modules\ServiceDesk\Services\TicketBulkUpdater;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
 use App\Modules\ServiceDesk\Services\TicketImportValidator;
 use App\Modules\ServiceDesk\Services\TicketTemplateBuilder;
@@ -392,6 +394,23 @@ class Services extends BaseService
         );
     }
 
+    /**
+     * Cachés de resolución nombre <-> id contra el GLPI vivo. Compartido por el
+     * importador y el actualizador para que ambos resuelvan igual y un lote no
+     * repita miles de consultas idénticas.
+     */
+    public static function glpiValueResolver(bool $getShared = true): GlpiValueResolver
+    {
+        if ($getShared) {
+            return static::getSharedInstance('glpiValueResolver');
+        }
+        return new GlpiValueResolver(
+            self::glpiDbConnection(),
+            self::glpiCatalogService(),
+            new ServiceDeskCategoryMapModel(),
+        );
+    }
+
     public static function ticketTemplateBuilder(bool $getShared = true): TicketTemplateBuilder
     {
         if ($getShared) {
@@ -405,7 +424,12 @@ class Services extends BaseService
         if ($getShared) {
             return static::getSharedInstance('ticketImportValidator');
         }
-        return new TicketImportValidator(self::glpiSchemaIntrospector(), self::serviceDeskSettings());
+        return new TicketImportValidator(
+            self::glpiSchemaIntrospector(),
+            self::serviceDeskSettings(),
+            self::glpiDbConnection(),
+            new ServiceDeskConfig(),
+        );
     }
 
     public static function serviceDeskImporter(bool $getShared = true): TicketBulkImporter
@@ -416,12 +440,32 @@ class Services extends BaseService
         return new TicketBulkImporter(
             self::glpiSchemaIntrospector(),
             self::glpiDbConnection(),
-            self::glpiCatalogService(),
+            self::glpiValueResolver(),
             self::connectorFactory(),
             self::serviceDeskSettings(),
             new ServiceDeskImportModel(),
             new ServiceDeskConfig(),
-            new ServiceDeskCategoryMapModel(),
+        );
+    }
+
+    /**
+     * Motor de actualización/cierre masivo: plancha sobre tickets que ya existen.
+     * Mismo trabajo, mismo worker y mismo historial que el importador; lo que
+     * cambia es que escribe en vez de crear (servicedesk_imports.mode = 'update').
+     */
+    public static function serviceDeskUpdater(bool $getShared = true): TicketBulkUpdater
+    {
+        if ($getShared) {
+            return static::getSharedInstance('serviceDeskUpdater');
+        }
+        return new TicketBulkUpdater(
+            self::glpiSchemaIntrospector(),
+            self::glpiDbConnection(),
+            self::glpiValueResolver(),
+            self::connectorFactory(),
+            self::serviceDeskSettings(),
+            new ServiceDeskImportModel(),
+            new ServiceDeskConfig(),
         );
     }
 

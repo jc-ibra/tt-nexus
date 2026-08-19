@@ -60,6 +60,7 @@ $originBadge = static function (?string $source): string {
     <p class="page-subtitle">Inserción masiva de tickets a GLPI con sus campos adicionales.</p>
   </div>
   <div class="page-actions">
+    <a href="<?= route_to('servicedesk.update') ?>" class="btn btn-secondary">Actualizar y cerrar</a>
     <a href="<?= route_to('servicedesk.imports.index') ?>" class="btn btn-secondary">Historial</a>
   </div>
 </div>
@@ -149,7 +150,7 @@ $originBadge = static function (?string $source): string {
 
   <!-- Recent imports -->
   <div class="card" style="margin-top: var(--space-4);">
-    <div class="card-header"><h2 class="card-title">Importaciones recientes</h2></div>
+    <div class="card-header"><h2 class="card-title">Altas recientes</h2></div>
     <div class="card-body" style="padding:0;">
       <?php if (empty($imports)): ?>
         <p class="text-muted" style="padding: var(--space-4);">Aún no hay importaciones.</p>

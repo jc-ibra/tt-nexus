@@ -10,8 +10,14 @@ use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 
 /**
- * Processes queued Service Desk bulk-import jobs. Run via cron; a lock file
- * prevents overlapping runs (imports must be serialized).
+ * Processes queued Service Desk bulk jobs. Run via cron; a lock file prevents
+ * overlapping runs (writes to GLPI must be serialized).
+ *
+ * One queue, two engines, dispatched by servicedesk_imports.mode:
+ *   'create' -> TicketBulkImporter  (alta masiva)
+ *   'update' -> TicketBulkUpdater   (plancha de datos + cierre masivo)
+ * Sharing the queue is deliberate: it keeps both engines behind the same lock,
+ * so an import and an update can never hit GLPI at the same time.
  *
  *   php spark servicedesk:process-imports
  *   * * * * * cd /path && php spark servicedesk:process-imports >> /dev/null 2>&1
@@ -20,7 +26,7 @@ class ProcessImports extends BaseCommand
 {
     protected $group       = 'ServiceDesk';
     protected $name        = 'servicedesk:process-imports';
-    protected $description = 'Procesa los trabajos de importación masiva de tickets encolados.';
+    protected $description = 'Procesa los trabajos encolados de alta masiva y de actualización/cierre masivo de tickets.';
     protected $usage       = 'servicedesk:process-imports [--max <n>]';
     protected $options     = [
         '--max' => 'Máximo de trabajos a procesar en esta corrida (default: todos los pendientes).',
@@ -43,22 +49,29 @@ class ProcessImports extends BaseCommand
         }
 
         try {
-            $imports  = new ServiceDeskImportModel();
-            $importer = service('serviceDeskImporter');
+            $imports = new ServiceDeskImportModel();
 
             $done = 0;
             while (($job = $imports->nextPending()) !== null) {
-                $id = (int) $job['id'];
-                CLI::write(sprintf('[%s] Procesando importación #%d (%s)…', date('H:i:s'), $id, $job['source_filename'] ?? ''), 'cyan');
+                $id     = (int) $job['id'];
+                $mode   = (string) ($job['mode'] ?? 'create');
+                $isUpd  = $mode === 'update';
+                $engine = $isUpd ? service('serviceDeskUpdater') : service('serviceDeskImporter');
+                $label  = $isUpd
+                    ? ((int) ($job['dry_run'] ?? 0) === 1 ? 'simulación' : 'actualización')
+                    : 'importación';
+
+                CLI::write(sprintf('[%s] Procesando %s #%d (%s)…', date('H:i:s'), $label, $id, $job['source_filename'] ?? ''), 'cyan');
 
                 try {
-                    $importer->run($id);
+                    $engine->run($id);
                     $fresh = $imports->find($id);
                     CLI::write(sprintf(
-                        '  #%d: %s — %s ok, %s con error.',
+                        '  #%d: %s — %s ok, %s sin cambios, %s con problema.',
                         $id,
                         $fresh['status'] ?? 'ready',
                         $fresh['succeeded_rows'] ?? 0,
+                        $fresh['skipped_rows'] ?? 0,
                         $fresh['failed_rows'] ?? 0,
                     ), 'green');
                 } catch (\Throwable $e) {
@@ -72,9 +85,9 @@ class ProcessImports extends BaseCommand
             }
 
             if ($done === 0) {
-                CLI::write('No hay importaciones pendientes.', 'yellow');
+                CLI::write('No hay trabajos pendientes.', 'yellow');
             } else {
-                CLI::write(sprintf('[%s] Listo. %d importación(es) procesada(s).', date('H:i:s'), $done), 'green');
+                CLI::write(sprintf('[%s] Listo. %d trabajo(s) procesado(s).', date('H:i:s'), $done), 'green');
             }
         } finally {
             $lock->release();

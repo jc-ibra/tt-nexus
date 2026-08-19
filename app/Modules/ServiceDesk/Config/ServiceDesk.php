@@ -133,6 +133,32 @@ class ServiceDesk extends BaseConfig
     public string $ticketIdHeader = 'TICKET_ID';
 
     /**
+     * Optional column, only meaningful in UPDATE mode: the text written as the
+     * GLPI solution when the row closes the ticket. Absent or empty falls back
+     * to the SuperAdmin's default text.
+     */
+    public string $solutionHeader = 'SOLUCION';
+
+    /**
+     * Output columns the bulk UPDATER appends to the result workbook.
+     * RESULTADO: what happened to the row. CAMBIOS: field-by-field diff applied.
+     */
+    public string $updateResultHeader  = 'RESULTADO';
+    public string $updateChangesHeader = 'CAMBIOS';
+
+    /**
+     * In UPDATE mode an empty cell means "leave this field alone", so blanking a
+     * wrong value needs an explicit token. Case-insensitive.
+     */
+    public string $clearSentinel = '[VACIAR]';
+
+    /**
+     * Status a closed ticket is reopened to before planchar-ing its fields
+     * (GLPI blocks edits on closed tickets). 2 = En curso.
+     */
+    public int $reopenStatusId = 2;
+
+    /**
      * Plugin field name (in the "Clientes Externos" container) that holds the
      * branch. Business rule: the SUCURSAL segment of the homologated title
      * (CLIENTE - SUCURSAL - TITULO) is taken from this field, and only applies

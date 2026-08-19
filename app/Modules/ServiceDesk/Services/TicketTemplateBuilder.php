@@ -53,6 +53,22 @@ class TicketTemplateBuilder
         $plan    = $this->introspector->buildPlan($containerIds, true);
         $columns = $plan['columns'];
 
+        // Columna que solo cobra sentido al ACTUALIZAR: el texto que se registra
+        // como solución de GLPI al cerrar el ticket. Se agrega aquí y no en
+        // buildPlan() a propósito: el plan es el contrato del alta masiva, y una
+        // columna extra en la hoja es simplemente ignorada por el importador.
+        $config = config('App\Modules\ServiceDesk\Config\ServiceDesk');
+        $columns[] = [
+            'header'   => $config->solutionHeader,
+            'kind'     => 'update',
+            'type'     => 'textarea',
+            'required' => false,
+            'desc'     => 'Solo se usa en Actualizar y cerrar: texto que se registra como solución en GLPI '
+                . 'cuando la fila cierra el ticket. Si se deja vacío se usa el texto configurado por el administrador.',
+            'example'  => 'Se reemplazó el equipo y se validó con el usuario.',
+            'options'  => [],
+        ];
+
         $spreadsheet = new Spreadsheet();
 
         $listas = $spreadsheet->getActiveSheet();
@@ -206,6 +222,22 @@ class TicketTemplateBuilder
         ]);
         $ws->getRowDimension(1)->setRowHeight(30);
 
+        // El mismo archivo sirve para dar de alta y para corregir/cerrar, y las
+        // reglas se invierten entre un modo y otro. Decirlo aquí evita que el
+        // operador llene el archivo con las reglas equivocadas.
+        $ws->mergeCells('A2:E2');
+        $ws->getCell('A2')->setValue(
+            'Este archivo sirve para dos cosas. ALTA MASIVA (/servicedesk): llena todo lo requerido y deja TICKET_ID vacío. '
+            . 'ACTUALIZAR Y CERRAR (/servicedesk/actualizar): pon el id del ticket en TICKET_ID y llena SOLO las columnas que quieras corregir; '
+            . 'una celda vacía no toca ese campo, y [VACIAR] borra el valor. Ojo: N/A, NAN y NONE se leen como celda vacía. '
+            . 'Si pones ESTATUS = RESUELTO o CERRADO, el ticket se cierra registrando la solución.'
+        );
+        $ws->getStyle('A2')->applyFromArray([
+            'font' => ['size' => 9, 'italic' => true, 'color' => ['argb' => self::HEAD_DK]],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true, 'horizontal' => Alignment::HORIZONTAL_LEFT],
+        ]);
+        $ws->getRowDimension(2)->setRowHeight(46);
+
         $headers = ['CAMPO', 'DESCRIPCIÓN', 'REQUERIDO', 'TIPO', 'VALORES / EJEMPLO'];
         $widths  = [32, 55, 14, 16, 55];
         foreach ($headers as $i => $h) {
@@ -223,7 +255,9 @@ class TicketTemplateBuilder
         $row = 4;
         foreach ($columns as $col) {
             if ($col['kind'] === 'output') {
-                $req = 'NO LLENAR';
+                $req = 'NO LLENAR (al importar)';
+            } elseif ($col['kind'] === 'update') {
+                $req = 'Solo al actualizar';
             } else {
                 $req = ! empty($col['required']) ? 'Sí' : 'No';
             }

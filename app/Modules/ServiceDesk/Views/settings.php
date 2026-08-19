@@ -80,6 +80,10 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
           aria-selected="true" aria-controls="sd-panel-import" data-panel="sd-panel-import" data-hash="import">
     Importación
   </button>
+  <button type="button" class="sd-tab" id="sd-tab-update" role="tab"
+          aria-selected="false" aria-controls="sd-panel-update" tabindex="-1" data-panel="sd-panel-update" data-hash="update">
+    Actualización masiva
+  </button>
   <button type="button" class="sd-tab" id="sd-tab-ai" role="tab"
           aria-selected="false" aria-controls="sd-panel-ai" tabindex="-1" data-panel="sd-panel-ai" data-hash="ai">
     Creador con IA
@@ -178,6 +182,82 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
     </div>
   </form>
 </div><!-- /sd-panel-import -->
+
+<!-- Tab: Actualización masiva -->
+<div id="sd-panel-update" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-update" style="display:none;">
+  <form id="sd-update" action="<?= route_to('servicedesk.update.save') ?>" method="post" style="max-width: 760px;">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Actualización y cierre masivo</h2>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-4);">
+          Permite subir el mismo Excel del importador con la columna TICKET_ID llena para corregir tickets que
+          ya existen en GLPI y cerrarlos. Una celda llena se escribe encima de lo que haya; una celda vacía no
+          se toca.
+        </p>
+
+        <div class="banner banner-warning" role="alert" style="margin-bottom: var(--space-4);">
+          <div class="banner-body">
+            Es una operación destructiva y, al cerrar tickets, GLPI envía sus notificaciones a los
+            solicitantes. Habilítala solo cuando el equipo sepa correr primero una simulación.
+          </div>
+        </div>
+
+        <label class="field-check" style="margin-bottom: var(--space-3);">
+          <input type="checkbox" name="update_enabled" value="1" <?= ($s['update_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>Habilitar la sección Actualizar y cerrar para el rol Service Desk</span>
+        </label>
+
+        <label class="field-check" style="margin-bottom: var(--space-3);">
+          <input type="checkbox" name="update_reopen_closed" value="1" <?= ($s['update_reopen_closed'] ?? '1') === '1' ? 'checked' : '' ?>>
+          <span>
+            Reabrir tickets cerrados para poder corregirlos
+            <span class="text-muted text-sm">
+              · GLPI bloquea la edición de cerrados. Se reabren, se escriben y se vuelven a cerrar con su
+              fecha original. Sin esto no se pueden corregir tickets ya cerrados.
+            </span>
+          </span>
+        </label>
+
+        <label class="field-check" style="margin-bottom: var(--space-3);">
+          <input type="checkbox" name="update_verify_writes" value="1" <?= ($s['update_verify_writes'] ?? '1') === '1' ? 'checked' : '' ?>>
+          <span>
+            Verificar cada escritura releyendo el ticket
+            <span class="text-muted text-sm">
+              · si una regla de negocio de GLPI reescribe el valor, la fila se reporta como DESVIACION en
+              lugar de darse por buena.
+            </span>
+          </span>
+        </label>
+
+        <label class="field-check" style="margin-bottom: var(--space-4);">
+          <input type="checkbox" name="update_rehomologate_title" value="1" <?= ($s['update_rehomologate_title'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>
+            Rehomologar el título al cambiar la categoría
+            <span class="text-muted text-sm">
+              · cuando la fila cambia CATEGORIA pero no trae TITULO, intercambia el prefijo CLIENTE del
+              título. Solo actúa si el título empieza exactamente con el cliente anterior.
+            </span>
+          </span>
+        </label>
+
+        <div class="field">
+          <label class="field-label" for="update_solution_text">Texto de solución por default</label>
+          <textarea id="update_solution_text" name="update_solution_text" class="input" rows="3"
+                    maxlength="2000"><?= esc($s['update_solution_text'] ?? 'Cierre masivo desde Nexus. Ticket atendido y validado.') ?></textarea>
+          <p class="text-muted text-sm" style="margin-top: var(--space-1);">
+            Se registra como solución en GLPI al cerrar un ticket cuya fila no trae la columna SOLUCION.
+            Los tickets que ya tenían una solución no se ensucian con otra.
+          </p>
+        </div>
+      </div>
+    </div>
+  </form>
+</div><!-- /sd-panel-update -->
 
 <!-- Tab: Creador con IA -->
 <div id="sd-panel-ai" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-ai" style="display:none;">

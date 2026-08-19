@@ -167,6 +167,79 @@ TXT;
     }
 
     // ------------------------------------------------------------------
+    // Bulk UPDATE / close (planchado de datos sobre tickets existentes)
+    // ------------------------------------------------------------------
+
+    /** Texto de solución por default cuando la fila no trae columna SOLUCION. */
+    public const UPDATE_DEFAULT_SOLUTION = 'Cierre masivo desde Nexus. Ticket atendido y validado.';
+
+    /**
+     * Apagado por default: planchar y cerrar en masa es destructivo y dispara
+     * notificaciones de GLPI, así que el SuperAdmin lo habilita a conciencia.
+     */
+    public function updateEnabled(): bool
+    {
+        return $this->model->get('update_enabled', '0') === '1';
+    }
+
+    /**
+     * Reabrir un ticket cerrado (a "En curso") para poder escribirle y volver a
+     * cerrarlo. GLPI bloquea la edición de cerrados, así que sin esto el caso de
+     * "ticket cerrado con datos mínimos" no se puede corregir.
+     */
+    public function updateReopenClosed(): bool
+    {
+        return $this->model->get('update_reopen_closed', '1') === '1';
+    }
+
+    /**
+     * Releer el ticket tras escribir y reportar DESVIACION cuando un valor no se
+     * quedó. Atrapa las reglas de negocio de GLPI reescribiendo la categoría.
+     */
+    public function updateVerifyWrites(): bool
+    {
+        return $this->model->get('update_verify_writes', '1') === '1';
+    }
+
+    /**
+     * Rearmar el prefijo CLIENTE del título cuando cambia la categoría pero la
+     * fila NO trae TITULO. Apagado por default: reescribir un título existente
+     * sin que se pida es adivinar.
+     */
+    public function updateRehomologateTitle(): bool
+    {
+        return $this->model->get('update_rehomologate_title', '0') === '1';
+    }
+
+    public function updateSolutionText(): string
+    {
+        $text = trim($this->model->get('update_solution_text', ''));
+
+        return $text !== '' ? $text : self::UPDATE_DEFAULT_SOLUTION;
+    }
+
+    /**
+     * Persiste el bloque de actualización masiva del formulario del SuperAdmin.
+     */
+    public function saveUpdate(array $input): ServiceResult
+    {
+        $solution = trim((string) ($input['update_solution_text'] ?? ''));
+        if ($solution === '') {
+            $solution = self::UPDATE_DEFAULT_SOLUTION;
+        }
+
+        $this->model->setMany([
+            'update_enabled'            => ! empty($input['update_enabled']) ? '1' : '0',
+            'update_reopen_closed'      => ! empty($input['update_reopen_closed']) ? '1' : '0',
+            'update_verify_writes'      => ! empty($input['update_verify_writes']) ? '1' : '0',
+            'update_rehomologate_title' => ! empty($input['update_rehomologate_title']) ? '1' : '0',
+            'update_solution_text'      => mb_substr($solution, 0, 2000),
+        ]);
+
+        return ServiceResult::ok(null, 'Configuración de actualización masiva guardada.');
+    }
+
+    // ------------------------------------------------------------------
     // AI ticket creator (Claude API)
     // ------------------------------------------------------------------
 

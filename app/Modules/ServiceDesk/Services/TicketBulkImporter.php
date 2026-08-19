@@ -8,10 +8,8 @@ use App\Modules\Core\Models\UserModel;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Provisioning\Connectors\GlpiConnector;
 use App\Modules\Provisioning\Services\ConnectorFactory;
-use App\Modules\Provisioning\Services\GlpiCatalogService;
 use App\Modules\Provisioning\Services\GlpiDbConnection;
 use App\Modules\ServiceDesk\Config\ServiceDesk as ServiceDeskConfig;
-use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
@@ -26,26 +24,16 @@ class TicketBulkImporter
 {
     private const SHEET = 'DATOS';
 
-    /** @var array<string,int> dropdown value cache: "table\0UPPERNAME" => id */
-    private array $dropdownCache = [];
-    /** @var array<string,int>|null category name(UPPER) => id */
-    private ?array $categoryMap = null;
-    /** @var array<string,int>|null user "REALNAME FIRSTNAME"(UPPER) => id */
-    private ?array $userMap = null;
-    /** @var array<int,string>|null category id => CLIENTE label */
-    private ?array $clienteMap = null;
-
     private string $logPath = '';
 
     public function __construct(
         private GlpiSchemaIntrospector $introspector,
         private GlpiDbConnection $glpiDb,
-        private GlpiCatalogService $catalogs,
+        private GlpiValueResolver $resolver,
         private ConnectorFactory $connectors,
         private ServiceDeskSettings $settings,
         private ServiceDeskImportModel $imports,
         private ServiceDeskConfig $config,
-        private ServiceDeskCategoryMapModel $categoryMapModel,
     ) {}
 
     /**
@@ -341,7 +329,7 @@ class TicketBulkImporter
         // Homologated title: CLIENTE - SUCURSAL - TITULO (uppercase, empty parts
         // dropped). CLIENTE is mapped from the category by the SuperAdmin;
         // SUCURSAL comes from the Clientes Externos field when present.
-        $cliente  = $this->clienteForCategory(ValueParser::str($get('itilcategories_id')));
+        $cliente  = $this->resolver->clienteForCategoryName(ValueParser::str($get('itilcategories_id')));
         $sucursal = $sucursalHeader !== null ? (ValueParser::str($f[$sucursalHeader] ?? null) ?? '') : '';
         $titulo   = ValueParser::str($get('name')) ?? '';
         $parts    = array_values(array_filter([$cliente, $sucursal, $titulo], static fn($p) => $p !== ''));
@@ -361,7 +349,7 @@ class TicketBulkImporter
 
         // Category (resolved against live GLPI).
         if (isset($baseCols['itilcategories_id'])) {
-            $catId = $this->resolveCategory(ValueParser::str($get('itilcategories_id')));
+            $catId = $this->resolver->categoryId(ValueParser::str($get('itilcategories_id')));
             if ($catId > 0) {
                 $payload['itilcategories_id'] = $catId;
             }
@@ -382,7 +370,7 @@ class TicketBulkImporter
 
         // Assignee by GLPI display name.
         if (isset($baseCols['_users_id_assign'])) {
-            $userId = $this->resolveUser(ValueParser::str($get('_users_id_assign')));
+            $userId = $this->resolver->userId(ValueParser::str($get('_users_id_assign')));
             if ($userId > 0) {
                 $payload['_users_id_assign'] = $userId;
             }
@@ -421,7 +409,7 @@ class TicketBulkImporter
             $value = $f[$col['header']] ?? null;
 
             if ($col['type'] === 'dropdown') {
-                $insert[$col['column']] = $this->resolveDropdown($col['dropdownTable'], ValueParser::str($value), $autocreate);
+                $insert[$col['column']] = $this->resolver->dropdownId($col['dropdownTable'], ValueParser::str($value), $autocreate);
             } elseif ($col['type'] === 'date') {
                 $insert[$col['column']] = ValueParser::date($value);
             } elseif ($col['type'] === 'number') {
@@ -439,7 +427,9 @@ class TicketBulkImporter
         // Fall back to a compact dump of non-empty plugin fields.
         $lines = [];
         foreach ($f as $header => $value) {
-            if ($header === $this->config->ticketIdHeader) {
+            // SOLUCION solo aplica al actualizar; nunca debe acabar en la
+            // descripción de un ticket recién creado.
+            if ($header === $this->config->ticketIdHeader || $header === $this->config->solutionHeader) {
                 continue;
             }
             $isBase = false;
@@ -476,92 +466,6 @@ class TicketBulkImporter
             }
         }
         return null;
-    }
-
-    /**
-     * CLIENTE label mapped by the SuperAdmin for the row's category (empty when
-     * the category is unmapped or missing).
-     */
-    private function clienteForCategory(?string $categoryName): string
-    {
-        if ($categoryName === null || $categoryName === '') {
-            return '';
-        }
-        $id = $this->resolveCategory($categoryName);
-        if ($id <= 0) {
-            return '';
-        }
-        if ($this->clienteMap === null) {
-            $this->clienteMap = $this->categoryMapModel->clienteMap();
-        }
-        return $this->clienteMap[$id] ?? '';
-    }
-
-    private function resolveDropdown(?string $table, ?string $name, bool $autocreate): int
-    {
-        if ($table === null || $name === null || $name === '') {
-            return 0;
-        }
-        $key = $table . "\0" . mb_strtoupper($name);
-        if (isset($this->dropdownCache[$key])) {
-            return $this->dropdownCache[$key];
-        }
-
-        $existing = $this->catalogs->findByName($table, $name);
-        if ($existing !== null) {
-            return $this->dropdownCache[$key] = (int) $existing['id'];
-        }
-
-        if ($autocreate) {
-            $res = $this->catalogs->ensureValue($table, $name);
-            if ($res->success) {
-                return $this->dropdownCache[$key] = (int) ($res->data['id'] ?? 0);
-            }
-        }
-
-        return $this->dropdownCache[$key] = 0;
-    }
-
-    private function resolveCategory(?string $name): int
-    {
-        if ($name === null || $name === '') {
-            return 0;
-        }
-        if ($this->categoryMap === null) {
-            $this->categoryMap = [];
-            $db = $this->glpiDb->connection();
-            if ($db->tableExists('glpi_itilcategories')) {
-                $cols = $db->getFieldNames('glpi_itilcategories');
-                $nameCol = in_array('completename', $cols, true) ? 'completename' : 'name';
-                foreach ($db->table('glpi_itilcategories')->select("id, {$nameCol} AS n")->get()->getResultArray() as $r) {
-                    $k = mb_strtoupper(trim((string) $r['n']));
-                    if ($k !== '') {
-                        $this->categoryMap[$k] = (int) $r['id'];
-                    }
-                }
-            }
-        }
-        return $this->categoryMap[mb_strtoupper(trim($name))] ?? 0;
-    }
-
-    private function resolveUser(?string $displayName): int
-    {
-        if ($displayName === null || $displayName === '') {
-            return 0;
-        }
-        if ($this->userMap === null) {
-            $this->userMap = [];
-            $db = $this->glpiDb->connection();
-            if ($db->tableExists('glpi_users')) {
-                foreach ($db->table('glpi_users')->select('id, realname, firstname')->where('is_active', 1)->get()->getResultArray() as $r) {
-                    $k = mb_strtoupper(trim(trim((string) $r['realname']) . ' ' . trim((string) $r['firstname'])));
-                    if ($k !== '') {
-                        $this->userMap[$k] = (int) $r['id'];
-                    }
-                }
-            }
-        }
-        return $this->userMap[mb_strtoupper(trim($displayName))] ?? 0;
     }
 
     /**

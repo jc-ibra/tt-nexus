@@ -6,6 +6,7 @@ namespace App\Modules\ServiceDesk\Controllers\Api;
 
 use App\Modules\Core\Controllers\Api\BaseApiController;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
+use App\Modules\ServiceDesk\Services\TicketImportValidator;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -64,7 +65,15 @@ class ServiceDeskApiController extends BaseApiController
      */
     public function listImports(): ResponseInterface
     {
-        return $this->success((new ServiceDeskImportModel())->recent(100));
+        return $this->success((new ServiceDeskImportModel())->recent(100, null, 'create'));
+    }
+
+    /**
+     * GET /api/v1/servicedesk/updates
+     */
+    public function listUpdates(): ResponseInterface
+    {
+        return $this->success((new ServiceDeskImportModel())->recent(100, null, 'update'));
     }
 
     /**
@@ -112,6 +121,7 @@ class ServiceDeskApiController extends BaseApiController
             'name'            => $this->request->getPost('name') ?: $file->getClientName(),
             'source_filename' => $file->getClientName(),
             'status'          => 'pending',
+            'mode'            => 'create',
             'total_rows'      => (int) ($validation->data['totalRows'] ?? 0),
             'uploaded_by'     => null,
         ], true);
@@ -134,6 +144,143 @@ class ServiceDeskApiController extends BaseApiController
             'status'   => 'pending',
             'total'    => (int) ($validation->data['totalRows'] ?? 0),
             'warnings' => $validation->data['warnings'] ?? [],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/servicedesk/updates  (multipart: file, name?, dry_run?)
+     *
+     * Mirror of the web update action: validates the Excel in update mode and
+     * enqueues a mode=update job on the SAME queue the importer uses, so both
+     * engines stay behind the same worker lock.
+     *
+     * dry_run=1 simulates: computes and reports every change without writing to
+     * GLPI. Given how destructive a bulk plancha is, callers should run it once.
+     */
+    public function createUpdate(): ResponseInterface
+    {
+        if (! service('serviceDeskSettings')->updateEnabled()) {
+            return $this->error('La actualización masiva está deshabilitada.', 403);
+        }
+
+        $file = $this->request->getFile('file');
+        if ($file === null || ! $file->isValid() || strtolower($file->getExtension()) !== 'xlsx') {
+            return $this->error('Adjunta un archivo .xlsx válido en el campo «file».', 422);
+        }
+
+        $tmpDir = WRITEPATH . 'servicedesk/tmp';
+        if (! is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0775, true);
+        }
+        $tmpPath = $tmpDir . '/api_update_' . bin2hex(random_bytes(6)) . '.xlsx';
+        $file->move($tmpDir, basename($tmpPath));
+
+        $validation = service('ticketImportValidator')
+            ->validateFile($tmpPath, TicketImportValidator::MODE_UPDATE);
+        if (! $validation->success) {
+            @unlink($tmpPath);
+            return $this->validationError($validation->errors);
+        }
+
+        $dryRun  = $this->request->getPost('dry_run') ? 1 : 0;
+        $imports = new ServiceDeskImportModel();
+
+        $importId = $imports->insert([
+            'name'            => $this->request->getPost('name') ?: $file->getClientName(),
+            'source_filename' => $file->getClientName(),
+            'status'          => 'pending',
+            'mode'            => 'update',
+            'dry_run'         => $dryRun,
+            'total_rows'      => (int) ($validation->data['totalRows'] ?? 0),
+            'uploaded_by'     => null,
+        ], true);
+
+        $jobDir = WRITEPATH . 'servicedesk/uploads/' . $importId;
+        @mkdir($jobDir, 0775, true);
+        $sourcePath = $jobDir . '/source.xlsx';
+        rename($tmpPath, $sourcePath);
+
+        $logDir = WRITEPATH . 'servicedesk/logs';
+        @mkdir($logDir, 0775, true);
+
+        $imports->update($importId, [
+            'source_path' => $sourcePath,
+            'log_path'    => $logDir . '/update_' . $importId . '.log',
+        ]);
+
+        return $this->successCreated([
+            'id'        => $importId,
+            'status'    => 'pending',
+            'mode'      => 'update',
+            'dry_run'   => (bool) $dryRun,
+            'total'     => (int) ($validation->data['totalRows'] ?? 0),
+            'closedIds' => $validation->data['closedIds'] ?? [],
+            'warnings'  => $validation->data['warnings'] ?? [],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/servicedesk/updates/{id}/apply
+     *
+     * Mirror of the web action: takes a FINISHED simulation and enqueues the
+     * same workbook for real (dry_run = 0), so what gets applied is exactly what
+     * was reviewed. The simulation job is left untouched as evidence.
+     */
+    public function applyUpdate(int $id): ResponseInterface
+    {
+        if (! service('serviceDeskSettings')->updateEnabled()) {
+            return $this->error('La actualización masiva está deshabilitada.', 403);
+        }
+
+        $imports = new ServiceDeskImportModel();
+        $job     = $imports->find($id);
+        if ($job === null) {
+            return $this->notFound('Carga no encontrada.');
+        }
+        if ((string) ($job['mode'] ?? '') !== 'update' || (int) ($job['dry_run'] ?? 0) !== 1) {
+            return $this->error('Solo se puede aplicar una simulación de actualización.', 422);
+        }
+        if ((string) $job['status'] !== 'ready') {
+            return $this->error('La simulación todavía no termina.', 409);
+        }
+
+        $source = (string) ($job['source_path'] ?? '');
+        if ($source === '' || ! is_file($source)) {
+            return $this->error('Ya no está el archivo de la simulación; vuelve a subirlo.', 410);
+        }
+
+        $newId = $imports->insert([
+            'name'            => 'Aplicación de la simulación #' . $id . ': ' . ($job['name'] ?? ''),
+            'source_filename' => $job['source_filename'],
+            'status'          => 'pending',
+            'mode'            => 'update',
+            'dry_run'         => 0,
+            'total_rows'      => (int) $job['total_rows'],
+            'uploaded_by'     => null,
+        ], true);
+
+        $jobDir = WRITEPATH . 'servicedesk/uploads/' . $newId;
+        @mkdir($jobDir, 0775, true);
+        $newSource = $jobDir . '/source.xlsx';
+        if (! @copy($source, $newSource)) {
+            $imports->delete($newId);
+            return $this->error('No se pudo preparar el archivo para aplicarlo.', 500);
+        }
+
+        $logDir = WRITEPATH . 'servicedesk/logs';
+        @mkdir($logDir, 0775, true);
+        $imports->update($newId, [
+            'source_path' => $newSource,
+            'log_path'    => $logDir . '/update_' . $newId . '.log',
+        ]);
+
+        return $this->successCreated([
+            'id'          => $newId,
+            'status'      => 'pending',
+            'mode'        => 'update',
+            'dry_run'     => false,
+            'simulatedBy' => $id,
+            'total'       => (int) $job['total_rows'],
         ]);
     }
 

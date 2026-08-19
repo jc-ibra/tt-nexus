@@ -46,7 +46,7 @@ app/Modules/
   KPIsOperativos/    # Operational KPIs sourced from GLPI. Routes /kpi/*, key `kpis_operativos`
   Mailboxes/         # Mailcow mailbox admin via API. Routes /mailboxes/*, key `mailboxes` (UI display "Buzones")
   Provisioning/      # Identity lifecycle orchestrator → GLPI, Mailcow, Intranet. Routes /aprovisionamiento/*, key `provisioning` (UI display "Aprovisionamiento")
-  ServiceDesk/       # Bulk ticket import into GLPI with plugin additional-fields. Routes /servicedesk/*, key `servicedesk` (UI display "Service Desk")
+  ServiceDesk/       # Bulk ticket import into GLPI with plugin additional-fields + bulk update/close of existing tickets. Routes /servicedesk/*, key `servicedesk` (UI display "Service Desk")
   MailDispatch/      # Shared M365 mailbox dispatching via Graph. Routes /dispatch/*, key `mail_dispatch`
   TechBot/           # Telegram bot for field technicians to document GLPI tickets. Routes /techbot/*, key `techbot`
 ```

@@ -431,6 +431,168 @@ class GlpiConnector implements SystemConnector
         return ConnectorResult::ok("Ticket creado en GLPI (id={$ticketId}).", (string) $ticketId, $resp['data']);
     }
 
+
+    /**
+     * Reads ONE ticket by id. Returns the raw GLPI row in data (id, name, status,
+     * itilcategories_id, type, closedate, solvedate, ...).
+     *
+     * Like createTicket(), reuses $sessionToken when given so a bulk loop opens a
+     * single session.
+     */
+    public function getTicket(int $ticketId, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $resp = $this->request('GET', "Ticket/{$ticketId}", null, $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_TICKET_NOT_FOUND', $this->buildDebug($resp));
+        }
+        if (! is_array($resp['data']) || ! isset($resp['data']['id'])) {
+            return ConnectorResult::fail("GLPI no devolvió el ticket {$ticketId}.", 'GLPI_TICKET_NOT_FOUND', $resp['data']);
+        }
+
+        return ConnectorResult::ok("Ticket {$ticketId} leído.", (string) $ticketId, $resp['data']);
+    }
+
+    /**
+     * Updates an EXISTING ticket. Only the keys present in $input are sent, so the
+     * caller controls exactly what gets overwritten (the bulk updater relies on
+     * this: an empty Excel cell must leave the field untouched).
+     *
+     * Note GLPI runs its business rules on update too, so a value sent here can
+     * still be rewritten server-side. Callers that care must re-read the ticket.
+     *
+     * @param array $input GLPI Ticket fields already mapped to GLPI keys.
+     */
+    public function updateTicket(int $ticketId, array $input, ?string $sessionToken = null): ConnectorResult
+    {
+        if ($input === []) {
+            return ConnectorResult::ok("Sin cambios para el ticket {$ticketId}.", (string) $ticketId);
+        }
+
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $input['id'] = $ticketId;
+        $resp = $this->request('PUT', "Ticket/{$ticketId}", ['input' => $input], $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_TICKET_UPDATE_FAILED', $this->buildDebug($resp));
+        }
+
+        // GLPI puede RECHAZAR un campo y aun así responder HTTP 200: devuelve
+        // [{"<id>": true, "message": "Datos no válidos. Actualización cancelada"}]
+        // y guarda lo que sí era válido. Sin leer ese mensaje, un rechazo parcial
+        // pasa por éxito. Se devuelve al llamador en vez de interpretarlo aquí:
+        // el texto viene del idioma de GLPI y no es fiable para decidir por él.
+        return ConnectorResult::ok("Ticket {$ticketId} actualizado.", (string) $ticketId, [
+            'response'    => $resp['data'],
+            'glpiMessage' => $this->extractApiMessage($resp['data']),
+        ]);
+    }
+
+    /**
+     * Adds an ITILSolution to a ticket. GLPI moves the ticket to "solved" (5) by
+     * itself when a solution is created, so closing is: addSolution() and then
+     * updateTicket() with the final status/dates.
+     *
+     * Closing with a bare status PUT (no solution) leaves the ticket closed with
+     * no solution recorded, which GLPI's own reports flag as anomalous — that is
+     * why the bulk updater always goes through here.
+     */
+    public function addSolution(int $ticketId, string $content, ?int $authorUserId = null, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $input = [
+            'itemtype' => 'Ticket',
+            'items_id' => $ticketId,
+            'content'  => $content,
+        ];
+        if ($authorUserId !== null && $authorUserId > 0) {
+            $input['users_id'] = $authorUserId;
+        }
+
+        $resp = $this->request('POST', 'ITILSolution', ['input' => $input], $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_SOLUTION_FAILED', $this->buildDebug($resp));
+        }
+
+        $solutionId = $this->extractId($resp['data']);
+        return ConnectorResult::ok(
+            "Solución registrada en el ticket {$ticketId}.",
+            $solutionId !== null ? (string) $solutionId : null,
+            $resp['data'],
+        );
+    }
+
+    /**
+     * Removes ONE actor row from a ticket (glpi_tickets_users), by the id of the
+     * relation itself, not of the user.
+     *
+     * GLPI has no "replace the assignee" input: `_users_id_assign` on a PUT ADDS
+     * an actor and leaves the previous ones in place. Reassigning therefore means
+     * add-then-remove, and this is the remove half. It goes through the REST API
+     * so the change lands in the ticket history like any manual edit.
+     */
+    public function removeTicketActor(int $relationId, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $resp = $this->request('DELETE', "Ticket_User/{$relationId}", null, $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_ACTOR_DELETE_FAILED', $this->buildDebug($resp));
+        }
+
+        return ConnectorResult::ok("Actor {$relationId} eliminado del ticket.");
+    }
+
     // -----------------------------------------------------------------------
     // Session
     // -----------------------------------------------------------------------
@@ -546,6 +708,20 @@ class GlpiConnector implements SystemConnector
             'debug'    => $resp['debug'] ?? null,
             'response' => $resp['data'] ?? null,
         ];
+    }
+
+    /**
+     * Session message GLPI attaches to a 200 response (errors and warnings land
+     * here instead of in the HTTP status).
+     */
+    private function extractApiMessage(mixed $data): string
+    {
+        if (! is_array($data)) {
+            return '';
+        }
+        $message = $data['message'] ?? ($data[0]['message'] ?? '');
+
+        return is_string($message) ? trim($message) : '';
     }
 
     private function extractId(mixed $data): ?int

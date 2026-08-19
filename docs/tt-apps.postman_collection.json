@@ -2819,7 +2819,7 @@
       ]
     },
     {
-      "name": "Service Desk — Import",
+      "name": "Service Desk — Import & Bulk update",
       "item": [
         {
           "name": "List containers / schema",
@@ -2973,6 +2973,135 @@
                 "1"
               ]
             }
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk update — enqueue (upload xlsx con TICKET_ID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "El mismo .xlsx del importador, con TICKET_ID lleno. Celda llena = se plancha; celda vacía = no se toca; [VACIAR] borra el valor."
+                },
+                {
+                  "key": "name",
+                  "value": "Corrección de categorías y cierre",
+                  "type": "text"
+                },
+                {
+                  "key": "dry_run",
+                  "value": "1",
+                  "type": "text",
+                  "description": "1 = simular: calcula y reporta todos los cambios sin escribir en GLPI. Recomendado antes de aplicar."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/updates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "updates"
+              ]
+            },
+            "description": "Valida el Excel en modo actualización y encola un trabajo mode=update en la MISMA cola del importador.\n\nRequiere que el SuperAdmin haya habilitado la actualización masiva (update_enabled), si no responde 403.\n\nReglas:\n- TICKET_ID es la única columna obligatoria y debe existir en GLPI.\n- ESTATUS = RESUELTO o CERRADO registra una ITILSolution y cierra el ticket.\n- Los tickets ya cerrados se reabren para escribirles y se vuelven a cerrar con su fecha original.\n- Cerrar en masa dispara las notificaciones de GLPI a los solicitantes.\n\nRespuesta: id, total, closedIds (tickets que se reabrirán) y warnings."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk update — list jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/updates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "updates"
+              ]
+            },
+            "description": "Historial de trabajos mode=update (plancha y cierre). Los de alta masiva van en /imports."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk update — show job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/updates/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "updates",
+                "1"
+              ]
+            },
+            "description": "Progreso y contadores del trabajo: succeeded_rows (aplicados), skipped_rows (sin cambios), failed_rows (errores y DESVIACION)."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk update — apply a finished simulation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/updates/1/apply",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "updates",
+                "1",
+                "apply"
+              ]
+            },
+            "description": "Toma una simulación TERMINADA (mode=update, dry_run=1, status=ready) y encola el MISMO archivo para aplicarlo de verdad (dry_run=0). Así lo que se aplica es exactamente lo que se revisó, sin resubir nada.\n\nLa simulación original no se modifica: queda como evidencia.\n\nErrores: 403 si la actualización masiva está deshabilitada, 422 si el trabajo no es una simulación de actualización, 409 si aún no termina, 410 si ya no está su archivo."
           },
           "response": []
         },

@@ -37,6 +37,23 @@ final class HelpCenter
     public static function topics(): array
     {
         return [
+            'actualizacion-masiva' => [
+                'key'     => 'actualizacion-masiva',
+                'title'   => 'Actualizar y cerrar tickets',
+                'module'  => 'servicedesk',
+                'icon'    => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><polyline points="21 3 21 9 15 9"/><polyline points="9 12 11 14 15 10"/></svg>',
+                'summary' => 'Corrige en masa los datos de tickets que ya existen en GLPI y ciérralos, subiendo el mismo Excel del importador con la columna TICKET_ID llena.',
+                'view'    => 'App\Modules\ServiceDesk\Views\help\actualizacion-masiva',
+                'sections' => [
+                    ['id' => 'intro',       'label' => 'Para qué sirve'],
+                    ['id' => 'reglas',      'label' => 'Cómo se llena el archivo'],
+                    ['id' => 'proceso',     'label' => 'Cómo se aplica un lote'],
+                    ['id' => 'resultados',  'label' => 'Qué significa cada resultado'],
+                    ['id' => 'cierre',      'label' => 'Qué pasa al cerrar'],
+                    ['id' => 'cuidados',    'label' => 'Antes de un lote grande'],
+                    ['id' => 'faq',         'label' => 'Preguntas frecuentes'],
+                ],
+            ],
             'empleados' => [
                 'key'     => 'empleados',
                 'title'   => 'Empleados',

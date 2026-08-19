@@ -445,6 +445,19 @@ Estructura: `[icon] [título] [descripción] [acción opcional]`
 .banner-critical { background: var(--color-critical-surface); border-color: #FFBFB6;               color: var(--color-critical-strong); }
 ```
 
+**El rol ARIA decide si el banner desaparece solo.** `public/js/app.js` auto-oculta a los
+5 segundos todo `.banner[role="status"]`, porque ese rol marca los mensajes flash de una
+acción recién hecha ("Guardado", "Carga #12 encolada").
+
+| Uso | Rol | Conducta |
+|---|---|---|
+| Mensaje flash de una acción recién ejecutada | `role="status"` | Se desvanece a los 5 s |
+| Advertencia que el usuario debe seguir viendo | `role="alert"` | Permanente, y el lector de pantalla la anuncia |
+| Texto explicativo permanente de la pantalla | sin rol | Permanente y silencioso para el lector de pantalla |
+
+Poner `role="status"` en un banner explicativo lo hace desaparecer a media lectura y deja
+al usuario sin el contexto. Si el banner explica cómo funciona la pantalla, va sin rol.
+
 ---
 
 ### 8.6 Navegación lateral (Sidebar)

@@ -21,10 +21,13 @@ class ServiceDeskImportModel extends Model
         'log_path',
         'status',
         'source',
+        'mode',
         'total_rows',
         'processed_rows',
         'succeeded_rows',
         'failed_rows',
+        'skipped_rows',
+        'dry_run',
         'error_message',
         'uploaded_by',
         'started_at',
@@ -41,9 +44,10 @@ class ServiceDeskImportModel extends Model
 
     /**
      * Recent jobs for the history view, with the requesting Nexus user's name
-     * (uploaded_by_name; null for API/system imports).
+     * (uploaded_by_name; null for API/system imports). $mode narrows the list to
+     * one engine ('create' alta masiva / 'update' plancha y cierre); null lists both.
      */
-    public function recent(int $limit = 50, ?int $userId = null): array
+    public function recent(int $limit = 50, ?int $userId = null, ?string $mode = null): array
     {
         $builder = $this
             ->select('servicedesk_imports.*, core_users.name AS uploaded_by_name, core_users.email AS uploaded_by_email')
@@ -51,6 +55,9 @@ class ServiceDeskImportModel extends Model
             ->orderBy('servicedesk_imports.id', 'DESC');
         if ($userId !== null) {
             $builder->where('servicedesk_imports.uploaded_by', $userId);
+        }
+        if ($mode !== null) {
+            $builder->where('servicedesk_imports.mode', $mode);
         }
         return $builder->findAll($limit);
     }
