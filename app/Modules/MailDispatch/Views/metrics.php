@@ -82,7 +82,7 @@ $qs = http_build_query($personal
   .md-chart-x span { flex:1; min-width:4px; text-align:center; font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap; overflow:hidden; }
   .md-filters { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end; }
   /* Tarjeta en vivo (misma lectura que la de Equipo, en una sola columna). */
-  .mm-card { display:flex; flex-direction:column; gap:var(--space-3); max-width:280px; }
+  .mm-card { display:flex; flex-direction:column; gap:var(--space-4); max-width:300px; }
   .mm-head { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
   .mm-av { flex:0 0 auto; width:32px; height:32px; border-radius:var(--radius-full); background:var(--color-neutral-100);
            color:var(--text-secondary); display:inline-flex; align-items:center; justify-content:center;
@@ -93,33 +93,66 @@ $qs = http_build_query($personal
   .mm-open .n { font-size:28px; font-weight:var(--weight-bold); line-height:1; color:var(--text-primary); }
   .mm-open .u { font-size:var(--text-sm); color:var(--text-muted); }
   .mm-metrics { border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); overflow:hidden; }
-  .mm-metric { display:flex; justify-content:space-between; gap:var(--space-3); padding:6px var(--space-3); font-size:var(--text-sm); }
+  .mm-metric { display:flex; justify-content:space-between; gap:var(--space-3);
+               padding:var(--space-2) var(--space-3); font-size:var(--text-sm); }
   .mm-metric + .mm-metric { border-top:1px solid var(--color-neutral-200); }
   .mm-metric .k { color:var(--text-muted); }
   .mm-metric .v { font-weight:var(--weight-bold); font-variant-numeric:tabular-nums; color:var(--text-primary); }
   .mm-metric .v.is-warning  { color:var(--color-warning-strong); }
   .mm-metric .v.is-critical { color:var(--color-critical-strong); }
   .mm-metric .v.is-on       { color:var(--action-primary); }
-  .mm-foot { display:flex; flex-direction:column; gap:4px; font-size:var(--text-xs); color:var(--text-muted); }
+  .mm-foot { display:flex; flex-direction:column; gap:var(--space-2); font-size:var(--text-xs); color:var(--text-muted); }
   .mm-line { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
   .mm-dot { flex:0 0 auto; width:6px; height:6px; border-radius:var(--radius-full); background:var(--color-neutral-300); }
   .mm-silence.s-critical { color:var(--color-critical-strong); font-weight:var(--weight-medium); }
   .mm-silence.s-critical .mm-dot { background:var(--color-critical-default); }
   .mm-silence.s-warning  .mm-dot { background:var(--color-warning-default); }
   .mm-silence.s-ok       .mm-dot { background:var(--color-success-default); }
-  .mm-split { display:grid; grid-template-columns:280px minmax(0,1fr); gap:var(--space-5); align-items:stretch; }
-  @media (max-width: 860px) { .mm-split { grid-template-columns:1fr; } .mm-card { max-width:none; } }
-  /* Lado derecho: qué hacer con lo que dice la tarjeta, no una explicación de
-     ella. Lo que significa cada término vive en el término mismo (title). */
-  .mm-now { display:flex; flex-direction:column; gap:var(--space-3); max-width:520px; }
+  /* Dos bloques con aire real entre ellos: el filete separa "lo que traigo" de
+     "qué hago con ello" sin necesidad de dos tarjetas. */
+  .mm-split { display:grid; align-items:stretch; row-gap:var(--space-8); column-gap:var(--space-10);
+              grid-template-columns:300px minmax(0,1fr); }
+  /* Columna del medio: qué hacer con lo que dice la tarjeta, no una explicación
+     de ella. Lo que significa cada término vive en el término mismo (title). */
+  .mm-now { display:flex; flex-direction:column; gap:var(--space-4);
+            border-left:1px solid var(--color-neutral-200); padding-left:var(--space-10); }
+  .mm-now .mm-sub, .mm-now .mm-note { max-width:62ch; }
+  @media (max-width: 860px) {
+    .mm-split { grid-template-columns:1fr; column-gap:0; }
+    .mm-card { max-width:none; }
+    .mm-now { border-left:0; padding-left:0; padding-top:var(--space-6);
+              border-top:1px solid var(--color-neutral-200); }
+  }
   .mm-lead { font-size:var(--text-xl); font-weight:var(--weight-bold); color:var(--text-primary); line-height:1.25; }
   .mm-lead.is-critical { color:var(--color-critical-strong); }
   .mm-lead.is-warning  { color:var(--color-warning-strong); }
   .mm-sub { font-size:var(--text-sm); color:var(--text-secondary); }
   .mm-cta { display:flex; flex-wrap:wrap; gap:var(--space-2); }
-  .mm-note { margin-top:auto; padding-top:var(--space-3); border-top:1px solid var(--color-neutral-200);
-             font-size:var(--text-xs); color:var(--text-muted); line-height:1.6; }
-  .mm-note a { color:var(--text-link); }
+  .mm-note { font-size:var(--text-xs); color:var(--text-muted); line-height:1.6; }
+  /* La ayuda como destino, no como nota al pie: un enlace suelto entre letra
+     chica no se ve como algo a lo que valga la pena entrar. */
+  /* Al pie de la columna, a la altura del borde inferior de la tarjeta. Sin
+     estirarse: una caja alta y vacía se lee como un error de maquetado. */
+  .mm-aside { margin-top:auto; padding-top:var(--space-6); }
+  .mm-help { max-width:560px; display:flex; align-items:center; gap:var(--space-4);
+             padding:var(--space-4); border:1px solid var(--border-default); border-radius:var(--radius-md);
+             background:var(--bg-surface); text-decoration:none; color:var(--text-primary);
+             transition:border-color var(--duration-base) var(--ease-default),
+                        background var(--duration-base) var(--ease-default); }
+  .mm-help:hover { border-color:var(--action-primary); background:var(--color-blue-50); text-decoration:none; }
+  .mm-help:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
+  .mm-help-ic { flex:0 0 auto; width:34px; height:34px; border-radius:var(--radius-full);
+                background:var(--color-blue-50); color:var(--action-primary);
+                display:inline-flex; align-items:center; justify-content:center; }
+  .mm-help:hover .mm-help-ic { background:var(--bg-surface); }
+  .mm-help-ic svg { width:18px; height:18px; }
+  .mm-help-t { min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .mm-help-t b { font-size:var(--text-sm); font-weight:var(--weight-bold); color:var(--text-primary); }
+  .mm-help-t span { font-size:var(--text-xs); color:var(--text-muted); }
+  .mm-help-go { margin-left:auto; flex:0 0 auto; color:var(--text-muted); display:inline-flex;
+                transition:transform var(--duration-base) var(--ease-default); }
+  .mm-help-go svg { width:16px; height:16px; }
+  .mm-help:hover .mm-help-go { transform:translateX(2px); color:var(--action-primary); }
   .md-leads { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-4); }
   .md-lead { min-width:0; }
   .md-lead + .md-lead { border-left:1px solid var(--border-default); padding-left:var(--space-4); }
@@ -210,7 +243,7 @@ $qs = http_build_query($personal
   ?>
   <div class="card" style="margin-bottom:var(--space-5);">
     <div class="card-header"><h2 class="card-title">Lo que traigo ahora</h2></div>
-    <div class="card-body">
+    <div class="card-body" style="padding:var(--space-6) var(--space-8);">
       <div class="mm-split">
         <div class="mm-card">
           <div class="mm-head">
@@ -271,8 +304,22 @@ $qs = http_build_query($personal
             Foto de este momento: no depende del rango de fechas de abajo, y es lo mismo que ve el
             despachador de ti en Equipo.
             <?= ! empty($myCtx['businessHours']) ? ' Tiempos en horas hábiles: ' . esc($myCtx['scheduleSummary']) . '.' : '' ?>
-            <a href="<?= base_url('help/metricas-despacho') ?>">Cómo se calcula cada número</a>
           </p>
+
+          <div class="mm-aside">
+            <a class="mm-help" href="<?= base_url('help/metricas-despacho') ?>">
+              <span class="mm-help-ic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </span>
+              <span class="mm-help-t">
+                <b>¿De dónde salen estos números?</b>
+                <span>Qué cuenta cada uno y qué acciones tuyas lo mueven</span>
+              </span>
+              <span class="mm-help-go">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+              </span>
+            </a>
+          </div>
         </div>
       </div>
     </div>
