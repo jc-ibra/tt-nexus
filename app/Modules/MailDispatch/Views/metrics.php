@@ -27,6 +27,26 @@ $dailyLabelStep = max(1, (int) ceil(count($daily) / 16));
 $maxActions = 0;
 foreach (($by_agent ?? []) as $a) { $maxActions = max($maxActions, (int) $a['actions']); }
 
+// Tarjeta en vivo de "Mis métricas": mismos números que ve el despachador en
+// Equipo, así que usa el mismo vocabulario de tiempos (horas hábiles cuando el
+// horario de servicio está activo).
+$myCard    = $myCard ?? null;
+$myCtx     = $myContext ?? [];
+$myDayMins = (int) ($myCtx['minutesPerDay'] ?? 1440);
+
+$mmSpan = static function (int $minutes) use ($myDayMins): string {
+    if ($minutes < 60)       return max(0, $minutes) . ' min';
+    if ($minutes < $myDayMins) return (int) floor($minutes / 60) . ' h';
+    return (int) floor($minutes / $myDayMins) . ' d';
+};
+
+$mmInitials = static function (string $name): string {
+    $parts = preg_split('/\s+/', trim($name)) ?: [];
+    $ini   = '';
+    foreach (array_slice($parts, 0, 2) as $p) { $ini .= mb_strtoupper(mb_substr($p, 0, 1)); }
+    return $ini !== '' ? $ini : '?';
+};
+
 $maxDisp = 0;
 foreach (($dispositions ?? []) as $d) { $maxDisp = max($maxDisp, (int) $d['total']); }
 $personal = $personal ?? false;
@@ -61,6 +81,45 @@ $qs = http_build_query($personal
   .md-chart-x { grid-column:2; display:flex; gap:4px; }
   .md-chart-x span { flex:1; min-width:4px; text-align:center; font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap; overflow:hidden; }
   .md-filters { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end; }
+  /* Tarjeta en vivo (misma lectura que la de Equipo, en una sola columna). */
+  .mm-card { display:flex; flex-direction:column; gap:var(--space-3); max-width:280px; }
+  .mm-head { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
+  .mm-av { flex:0 0 auto; width:32px; height:32px; border-radius:var(--radius-full); background:var(--color-neutral-100);
+           color:var(--text-secondary); display:inline-flex; align-items:center; justify-content:center;
+           font-size:var(--text-xs); font-weight:var(--weight-bold); }
+  .mm-name { font-weight:var(--weight-bold); color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mm-role { display:block; font-size:var(--text-xs); color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; }
+  .mm-open { display:flex; align-items:baseline; gap:var(--space-2); }
+  .mm-open .n { font-size:28px; font-weight:var(--weight-bold); line-height:1; color:var(--text-primary); }
+  .mm-open .u { font-size:var(--text-sm); color:var(--text-muted); }
+  .mm-metrics { border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); overflow:hidden; }
+  .mm-metric { display:flex; justify-content:space-between; gap:var(--space-3); padding:6px var(--space-3); font-size:var(--text-sm); }
+  .mm-metric + .mm-metric { border-top:1px solid var(--color-neutral-200); }
+  .mm-metric .k { color:var(--text-muted); }
+  .mm-metric .v { font-weight:var(--weight-bold); font-variant-numeric:tabular-nums; color:var(--text-primary); }
+  .mm-metric .v.is-warning  { color:var(--color-warning-strong); }
+  .mm-metric .v.is-critical { color:var(--color-critical-strong); }
+  .mm-metric .v.is-on       { color:var(--action-primary); }
+  .mm-foot { display:flex; flex-direction:column; gap:4px; font-size:var(--text-xs); color:var(--text-muted); }
+  .mm-line { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
+  .mm-dot { flex:0 0 auto; width:6px; height:6px; border-radius:var(--radius-full); background:var(--color-neutral-300); }
+  .mm-silence.s-critical { color:var(--color-critical-strong); font-weight:var(--weight-medium); }
+  .mm-silence.s-critical .mm-dot { background:var(--color-critical-default); }
+  .mm-silence.s-warning  .mm-dot { background:var(--color-warning-default); }
+  .mm-silence.s-ok       .mm-dot { background:var(--color-success-default); }
+  .mm-split { display:grid; grid-template-columns:280px minmax(0,1fr); gap:var(--space-5); align-items:stretch; }
+  @media (max-width: 860px) { .mm-split { grid-template-columns:1fr; } .mm-card { max-width:none; } }
+  /* Lado derecho: qué hacer con lo que dice la tarjeta, no una explicación de
+     ella. Lo que significa cada término vive en el término mismo (title). */
+  .mm-now { display:flex; flex-direction:column; gap:var(--space-3); max-width:520px; }
+  .mm-lead { font-size:var(--text-xl); font-weight:var(--weight-bold); color:var(--text-primary); line-height:1.25; }
+  .mm-lead.is-critical { color:var(--color-critical-strong); }
+  .mm-lead.is-warning  { color:var(--color-warning-strong); }
+  .mm-sub { font-size:var(--text-sm); color:var(--text-secondary); }
+  .mm-cta { display:flex; flex-wrap:wrap; gap:var(--space-2); }
+  .mm-note { margin-top:auto; padding-top:var(--space-3); border-top:1px solid var(--color-neutral-200);
+             font-size:var(--text-xs); color:var(--text-muted); line-height:1.6; }
+  .mm-note a { color:var(--text-link); }
   .md-leads { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-4); }
   .md-lead { min-width:0; }
   .md-lead + .md-lead { border-left:1px solid var(--border-default); padding-left:var(--space-4); }
@@ -88,6 +147,7 @@ $qs = http_build_query($personal
         : 'Backlog, tiempos de respuesta y volumen por agente.' ?></p>
   </div>
   <div class="page-actions">
+    <a href="<?= base_url('help/metricas-despacho') ?>" class="btn btn-secondary">Cómo se calculan</a>
     <a href="<?= base_url($exportBase) ?><?= $qs ? '?' . esc($qs, 'url') : '' ?>" class="btn btn-secondary">Exportar CSV</a>
     <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Bandeja</a>
   </div>
@@ -113,6 +173,111 @@ $qs = http_build_query($personal
     </form>
   </div>
 </div>
+
+<?php if ($personal && $myCard !== null): ?>
+  <?php
+  $silence = $myCard['silentFor'] === null
+      ? 'Sin actividad registrada'
+      : ($myCard['silentFor'] < 1 ? 'Activo ahora mismo' : 'Sin actividad: ' . $mmSpan((int) $myCard['silentFor']));
+
+  // Una sola frase con lo más urgente de la tarjeta, para no obligar al agente a
+  // deducirlo de cuatro cifras. El orden es el de la atención: lo vencido antes
+  // que lo pendiente, y lo pendiente antes que lo tranquilo.
+  $plural = static fn(int $n, string $one, string $many): string => $n === 1 ? $one : $many;
+
+  if ($myCard['breached'] > 0) {
+      $leadTone = 'is-critical';
+      $lead = $myCard['breached'] . ' ' . $plural($myCard['breached'], 'conversación fuera de SLA', 'conversaciones fuera de SLA');
+      $sub  = 'Rebasaron el tiempo de primera respuesta y siguen sin contestar. Empieza por ahí.';
+  } elseif ($myCard['unanswered'] > 0) {
+      $leadTone = 'is-warning';
+      $lead = $myCard['unanswered'] . ' ' . $plural($myCard['unanswered'], 'conversación sin responder', 'conversaciones sin responder');
+      $sub  = 'Todavía dentro del tiempo acordado, pero nadie ha contestado el primer correo.';
+  } elseif ($myCard['pending'] > 0) {
+      $leadTone = '';
+      $lead = $myCard['pending'] . ' ' . $plural($myCard['pending'], 'conversación te espera', 'conversaciones te esperan');
+      $sub  = 'El solicitante ya respondió y la pelota está de tu lado.';
+  } elseif ($myCard['open'] > 0) {
+      $leadTone = '';
+      $lead = 'Todo contestado';
+      $sub  = $myCard['open'] . ' ' . $plural($myCard['open'], 'conversación abierta', 'conversaciones abiertas')
+            . ', ninguna esperando respuesta tuya.';
+  } else {
+      $leadTone = '';
+      $lead = 'Sin trabajo pendiente';
+      $sub  = 'No traes conversaciones abiertas en este momento.';
+  }
+  ?>
+  <div class="card" style="margin-bottom:var(--space-5);">
+    <div class="card-header"><h2 class="card-title">Lo que traigo ahora</h2></div>
+    <div class="card-body">
+      <div class="mm-split">
+        <div class="mm-card">
+          <div class="mm-head">
+            <span class="mm-av"><?= esc($mmInitials($myCard['name'])) ?></span>
+            <span>
+              <span class="mm-name"><?= esc($myCard['name']) ?></span>
+              <span class="mm-role"><?= $myCard['is_dispatcher'] ? 'Despachador' : 'Agente' ?></span>
+            </span>
+          </div>
+          <div class="mm-open">
+            <span class="n"><?= (int) $myCard['open'] ?></span>
+            <span class="u">en curso</span>
+          </div>
+          <div class="mm-metrics">
+            <div class="mm-metric">
+              <span class="k">Sin responder</span>
+              <span class="v <?= $myCard['unanswered'] > 0 ? 'is-warning' : '' ?>"><?= (int) $myCard['unanswered'] ?></span>
+            </div>
+            <div class="mm-metric">
+              <span class="k">En espera</span>
+              <span class="v <?= $myCard['pending'] > 0 ? 'is-on' : '' ?>"><?= (int) $myCard['pending'] ?></span>
+            </div>
+            <div class="mm-metric">
+              <span class="k">Fuera de SLA</span>
+              <span class="v <?= $myCard['breached'] > 0 ? 'is-critical' : '' ?>"><?= (int) $myCard['breached'] ?></span>
+            </div>
+            <div class="mm-metric">
+              <span class="k">Cerradas hoy</span>
+              <span class="v <?= $myCard['closedToday'] > 0 ? 'is-on' : '' ?>"><?= (int) $myCard['closedToday'] ?></span>
+            </div>
+          </div>
+          <div class="mm-foot">
+            <div class="mm-line" title="Cuánto lleva quieta tu conversación más rezagada.">
+              <span class="mm-dot"></span>
+              <span><?= $myCard['open'] > 0
+                  ? 'Sin movimiento ' . esc($mmSpan((int) $myCard['oldestIdle']))
+                  : 'Sin conversaciones abiertas' ?></span>
+            </div>
+            <div class="mm-line mm-silence s-<?= esc($myCard['silentTone']) ?>"
+                 title="Cuánto llevas tú sin registrar ninguna acción en Nexus.">
+              <span class="mm-dot"></span>
+              <span><?= esc($silence) ?></span>
+            </div>
+          </div>
+        </div>
+        <div class="mm-now">
+          <div>
+            <p class="mm-lead <?= $leadTone ?>"><?= esc($lead) ?></p>
+            <p class="mm-sub"><?= esc($sub) ?></p>
+          </div>
+          <div class="mm-cta">
+            <?php if ($myCard['open'] > 0): ?>
+              <a class="btn btn-primary" href="<?= base_url('dispatch?filter=mine') ?>">Ver mis conversaciones</a>
+            <?php endif; ?>
+            <a class="btn btn-secondary" href="<?= base_url('dispatch?filter=unassigned') ?>">Bandeja sin asignar</a>
+          </div>
+          <p class="mm-note">
+            Foto de este momento: no depende del rango de fechas de abajo, y es lo mismo que ve el
+            despachador de ti en Equipo.
+            <?= ! empty($myCtx['businessHours']) ? ' Tiempos en horas hábiles: ' . esc($myCtx['scheduleSummary']) . '.' : '' ?>
+            <a href="<?= base_url('help/metricas-despacho') ?>">Cómo se calcula cada número</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+<?php endif; ?>
 
 <div class="md-kpis">
   <?php if (! $personal): ?>

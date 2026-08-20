@@ -448,7 +448,14 @@ class Dispatch extends BaseController
 
         $data = service('mailDispatchMetrics')->dashboard($from ?: null, $to ?: null, $userId);
 
+        // Live snapshot of what the agent is holding right now, identical to the
+        // card the dispatcher sees on Equipo. Null if they are not an active
+        // agent of the module (a supervisor looking at their own metrics).
+        $snapshot = service('mailDispatchTeamBoard')->cardFor($userId);
+
         return view('App\Modules\MailDispatch\Views\metrics', array_merge($data, [
+            'myCard'    => $snapshot['card'] ?? null,
+            'myContext' => $snapshot['context'] ?? [],
             'pageTitle' => 'Mis métricas · Despacho de Correo',
             'from'      => $from,
             'to'        => $to,

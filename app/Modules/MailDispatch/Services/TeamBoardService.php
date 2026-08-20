@@ -142,6 +142,38 @@ class TeamBoardService
     }
 
     /**
+     * The same card the team board draws, for a single agent.
+     *
+     * Built by running the board's own queries and picking one row rather than
+     * by writing a second, narrower set: an agent comparing this card with what
+     * the dispatcher sees must never find two different numbers.
+     *
+     * Returns null when the user is not an active agent of the module.
+     *
+     * @return array{card:array<string,mixed>,context:array<string,mixed>}|null
+     */
+    public function cardFor(int $userId): ?array
+    {
+        // Not board(0): findAll(0) means "no limit" in CI4, which would pull
+        // the whole audit log for a feed this caller does not even use.
+        foreach ($this->board(1)['agents'] as $card) {
+            if ($card['agent_id'] === $userId) {
+                return [
+                    'card'    => $card,
+                    'context' => [
+                        'slaFirst'        => $this->settings->slaFirstResponseMinutes(),
+                        'businessHours'   => $this->calendar->isEnabled(),
+                        'scheduleSummary' => $this->calendar->summary(),
+                        'minutesPerDay'   => $this->calendar->minutesPerDay(),
+                    ],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Turns raw audit rows into one readable sentence each. The log stores user
      * ids in from_value/to_value for assignment events, so those are resolved to
      * names in a single extra query.
