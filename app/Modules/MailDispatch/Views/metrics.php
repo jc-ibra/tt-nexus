@@ -22,6 +22,11 @@ $dailyAxisMax = ((int) floor($maxDaily / $dailyStep) + 1) * $dailyStep;
 // Numbers over every bar only while they fit; past that the tooltip carries them.
 $showDailyNums = count($daily) > 0 && count($daily) <= 31;
 $dailyLabelStep = max(1, (int) ceil(count($daily) / 16));
+// Barra proporcional de la columna "Acciones": hace legible de un vistazo quién
+// cargó el periodo, sin pedirle al lector que compare números a mano.
+$maxActions = 0;
+foreach (($by_agent ?? []) as $a) { $maxActions = max($maxActions, (int) $a['actions']); }
+
 $maxDisp = 0;
 foreach (($dispositions ?? []) as $d) { $maxDisp = max($maxDisp, (int) $d['total']); }
 $personal = $personal ?? false;
@@ -56,6 +61,23 @@ $qs = http_build_query($personal
   .md-chart-x { grid-column:2; display:flex; gap:4px; }
   .md-chart-x span { flex:1; min-width:4px; text-align:center; font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap; overflow:hidden; }
   .md-filters { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end; }
+  .md-leads { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-4); }
+  .md-lead { min-width:0; }
+  .md-lead + .md-lead { border-left:1px solid var(--border-default); padding-left:var(--space-4); }
+  .md-lead-label { font-size:var(--text-xs); color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; }
+  .md-lead-name { font-size:var(--text-base); font-weight:var(--weight-bold); color:var(--text-primary);
+                  margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .md-lead-value { font-size:var(--text-sm); color:var(--text-secondary); margin-top:2px; }
+  .md-lead-empty { font-size:var(--text-sm); color:var(--text-disabled); margin-top:6px; }
+  .table th.md-num, .table td.md-num { text-align:right; font-variant-numeric:tabular-nums; }
+  /* Que el nombre absorba el sobrante: así las columnas numéricas quedan juntas
+     y se comparan de un vistazo, en vez de repartidas por todo el ancho. */
+  .md-agents th:first-child, .md-agents td:first-child { width:100%; }
+  .md-actions-cell { display:flex; align-items:center; gap:var(--space-2); justify-content:flex-end; }
+  .md-actions-track { flex:1; max-width:120px; height:6px; border-radius:var(--radius-full);
+                      background:var(--bg-surface-alt); overflow:hidden; }
+  .md-actions-fill { height:100%; background:var(--action-primary); }
+  @media (max-width: 720px) { .md-lead + .md-lead { border-left:0; padding-left:0; } }
 </style>
 
 <div class="page-header">
@@ -109,17 +131,77 @@ $qs = http_build_query($personal
 <?php endif; ?>
 
 <?php if (! $personal): ?>
+<?php
+// Cuatro preguntas distintas, no un "mejor agente": quién carga más, quién se
+// movió más, quién cerró más y quién contesta más rápido rara vez son la misma
+// persona, y fingir que sí sería la herramienta equivocada para un supervisor.
+$h = $highlights ?? [];
+$leads = [
+    ['Mayor carga actual', $h['load']    ?? null, static fn($v) => (int) $v . ' abiertas ahora'],
+    ['Más actividad',      $h['actions'] ?? null, static fn($v) => (int) $v . ' acciones en el rango'],
+    ['Más cierres',        $h['closed']  ?? null, static fn($v) => (int) $v . ' cerradas en el rango'],
+    ['Respuesta más rápida', $h['fastest'] ?? null, static fn($v) => $fmtMin((float) $v) . ' de promedio'],
+];
+?>
 <div class="card" style="margin-bottom:var(--space-5);">
-  <div class="card-header"><h2 class="card-title">Volumen por agente</h2></div>
+  <div class="card-header"><h2 class="card-title">Destacados del periodo</h2></div>
+  <div class="card-body">
+    <div class="md-leads">
+      <?php foreach ($leads as [$label, $lead, $fmt]): ?>
+        <div class="md-lead">
+          <div class="md-lead-label"><?= esc($label) ?></div>
+          <?php if ($lead === null): ?>
+            <div class="md-lead-empty">Sin datos suficientes</div>
+          <?php else: ?>
+            <div class="md-lead-name" title="<?= esc($lead['agent_name'], 'attr') ?>"><?= esc($lead['agent_name']) ?></div>
+            <div class="md-lead-value">
+              <?= esc($fmt($lead['value'])) ?><?= isset($lead['sample']) ? ' · ' . (int) $lead['sample'] . ' conversaciones' : '' ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:var(--space-5);">
+  <div class="card-header"><h2 class="card-title">Actividad por agente</h2></div>
   <div class="card-body" style="padding:0;">
     <?php if (empty($by_agent)): ?>
       <p class="text-muted" style="padding:var(--space-4);">Sin datos en el rango.</p>
     <?php else: ?>
-      <table class="table" style="width:100%;">
-        <thead><tr><th>Agente</th><th>Abiertas</th><th>Cerradas (rango)</th></tr></thead>
+      <table class="table md-agents" style="width:100%;">
+        <thead>
+          <tr>
+            <th>Agente</th>
+            <th class="md-num" title="Conversaciones que trae abiertas en este momento, sin importar el rango.">Abiertas ahora</th>
+            <th class="md-num">Cerradas</th>
+            <th class="md-num" title="Respuestas enviadas desde Nexus dentro del rango.">Respuestas</th>
+            <th class="md-num" title="Veces que tomó o reasignó una conversación.">Asignaciones</th>
+            <th class="md-num" title="Prom. de primera respuesta de sus conversaciones recibidas en el rango.">Prom. 1ª resp.</th>
+            <th class="md-num">Acciones</th>
+          </tr>
+        </thead>
         <tbody>
           <?php foreach ($by_agent as $a): ?>
-            <tr><td><?= esc($a['agent_name']) ?></td><td><?= (int) $a['open'] ?></td><td><?= (int) $a['closed'] ?></td></tr>
+            <tr>
+              <td><?= esc($a['agent_name']) ?></td>
+              <td class="md-num"><?= (int) $a['open'] ?></td>
+              <td class="md-num"><?= (int) $a['closed'] ?></td>
+              <td class="md-num"><?= (int) $a['replies'] ?></td>
+              <td class="md-num"><?= (int) $a['taken'] ?></td>
+              <td class="md-num" title="<?= (int) $a['first_response_n'] ?> conversación(es) medidas">
+                <?= $a['first_response_min'] === null ? '-' : esc($fmtMin((float) $a['first_response_min'])) ?>
+              </td>
+              <td class="md-num">
+                <div class="md-actions-cell">
+                  <span class="md-actions-track" aria-hidden="true">
+                    <span class="md-actions-fill" style="width:<?= $maxActions > 0 ? round((int) $a['actions'] / $maxActions * 100) : 0 ?>%; display:block;"></span>
+                  </span>
+                  <span><?= (int) $a['actions'] ?></span>
+                </div>
+              </td>
+            </tr>
           <?php endforeach; ?>
         </tbody>
       </table>

@@ -17,6 +17,9 @@ use CodeIgniter\Database\BaseConnection;
  */
 class MailDispatchMetrics
 {
+    /** Conversations an agent must have answered before winning on speed. */
+    private const SPEED_MIN_SAMPLE = 3;
+
     private BaseConnection $db;
 
     public function __construct(
@@ -40,7 +43,8 @@ class MailDispatchMetrics
             'closed'               => $this->countClosed($fromDt, $toDt, $agentId),
             'avg_first_assignment_min' => $this->avgMinutes('received_at', 'assigned_at', $fromDt, $toDt, $agentId),
             'avg_first_response_min'   => $this->avgMinutes('received_at', 'first_response_at', $fromDt, $toDt, $agentId),
-            'by_agent'              => $this->byAgent($fromDt, $toDt),
+            'by_agent'              => $agents = $this->byAgent($fromDt, $toDt),
+            'highlights'            => $this->highlights($agents),
             'dispositions'          => $this->dispositionDistribution($fromDt, $toDt, $agentId),
             'daily_volume'          => $this->dailyVolume($fromDt, $toDt, $agentId),
             'sla'                   => [
@@ -115,7 +119,15 @@ class MailDispatchMetrics
         return round($total / count($rows), 1);
     }
 
-    /** Per-agent open count and handled (closed-in-range) count. */
+    /**
+     * One row per agent with everything the productivity panel reads: what they
+     * are holding right now, what they closed in the range, and what they
+     * actually did in it.
+     *
+     * "Open" is current state and "closed" is range-scoped on purpose — the
+     * first answers "who is loaded today", the second "who moved work". They
+     * are labelled that way in the table so the mix cannot be misread.
+     */
     private function byAgent(string $from, string $to): array
     {
         // Open conversations currently owned by each agent.
@@ -127,14 +139,18 @@ class MailDispatchMetrics
             ->groupBy('c.agent_id')
             ->get()->getResultArray();
 
+        $blank = [
+            'open' => 0, 'closed' => 0, 'actions' => 0, 'replies' => 0,
+            'taken' => 0, 'notes' => 0, 'first_response_min' => null, 'first_response_n' => 0,
+        ];
+
         $map = [];
         foreach ($open as $r) {
-            $map[(int) $r['agent_id']] = [
+            $map[(int) $r['agent_id']] = $blank + [
                 'agent_id'   => (int) $r['agent_id'],
                 'agent_name' => $r['agent_name'],
-                'open'       => (int) $r['open_count'],
-                'closed'     => 0,
             ];
+            $map[(int) $r['agent_id']]['open'] = (int) $r['open_count'];
         }
 
         $closed = $this->db->table('maildispatch_conversations c')
@@ -147,15 +163,151 @@ class MailDispatchMetrics
 
         foreach ($closed as $r) {
             $id = (int) $r['agent_id'];
-            if (! isset($map[$id])) {
-                $map[$id] = ['agent_id' => $id, 'agent_name' => $r['agent_name'], 'open' => 0, 'closed' => 0];
-            }
+            $map[$id] ??= $blank + ['agent_id' => $id, 'agent_name' => $r['agent_name']];
             $map[$id]['closed'] = (int) $r['closed_count'];
         }
 
+        foreach ($this->activityByAgent($from, $to) as $id => $act) {
+            $map[$id] ??= $blank + ['agent_id' => $id, 'agent_name' => $act['agent_name']];
+            $map[$id]['actions'] = $act['actions'];
+            $map[$id]['replies'] = $act['replies'];
+            $map[$id]['taken']   = $act['taken'];
+            $map[$id]['notes']   = $act['notes'];
+        }
+
+        foreach ($this->firstResponseByAgent($from, $to) as $id => $avg) {
+            if (isset($map[$id])) {
+                $map[$id]['first_response_min'] = $avg['avg'];
+                $map[$id]['first_response_n']   = $avg['n'];
+            }
+        }
+
         $out = array_values($map);
-        usort($out, static fn($a, $b) => ($b['open'] + $b['closed']) <=> ($a['open'] + $a['closed']));
+        // Most movement first: this table is read to find who carried the range.
+        usort($out, static fn($a, $b) => [$b['actions'], $b['closed'], $b['open']]
+                                     <=> [$a['actions'], $a['closed'], $a['open']]);
         return $out;
+    }
+
+    /**
+     * What each agent actually did in the range, straight from the audit log.
+     *
+     * A reply is logged as a status transition into 'respondida' by both the
+     * Graph and the SMTP sender, which is why replies are counted that way and
+     * not from maildispatch_messages — outbound messages carry no author.
+     *
+     * @return array<int,array{agent_name:string,actions:int,replies:int,taken:int,notes:int}>
+     */
+    private function activityByAgent(string $from, string $to): array
+    {
+        $rows = $this->db->table('maildispatch_events e')
+            ->select('e.user_id, u.name AS agent_name')
+            ->select('COUNT(*) AS actions', false)
+            ->select("SUM(CASE WHEN e.type = 'status' AND e.to_value = 'respondida' THEN 1 ELSE 0 END) AS replies", false)
+            ->select("SUM(CASE WHEN e.type IN ('assign', 'reassign') THEN 1 ELSE 0 END) AS taken", false)
+            ->select("SUM(CASE WHEN e.type = 'note' THEN 1 ELSE 0 END) AS notes", false)
+            ->join('core_users u', 'u.id = e.user_id', 'inner')
+            ->where('e.created_at >=', $from)->where('e.created_at <=', $to)
+            ->groupBy('e.user_id')
+            ->get()->getResultArray();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r['user_id']] = [
+                'agent_name' => (string) $r['agent_name'],
+                'actions'    => (int) $r['actions'],
+                'replies'    => (int) $r['replies'],
+                'taken'      => (int) $r['taken'],
+                'notes'      => (int) $r['notes'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Average first-response time per agent over the range, on the service
+     * calendar when it is on (same reasoning as avgMinutes: the schedule is not
+     * something SQL can apply).
+     *
+     * @return array<int,array{avg:float,n:int}>
+     */
+    private function firstResponseByAgent(string $from, string $to): array
+    {
+        $b = $this->db->table('maildispatch_conversations')
+            ->select('agent_id, received_at, first_response_at')
+            ->where('agent_id IS NOT NULL', null, false)
+            ->where('first_response_at IS NOT NULL', null, false)
+            ->where('received_at IS NOT NULL', null, false)
+            ->where('received_at >=', $from)->where('received_at <=', $to);
+
+        $totals = [];
+        foreach ($b->get()->getResultArray() as $r) {
+            $id = (int) $r['agent_id'];
+            $totals[$id] ??= ['sum' => 0, 'n' => 0];
+            $totals[$id]['sum'] += $this->calendar->isEnabled()
+                ? $this->calendar->minutesBetween((string) $r['received_at'], (string) $r['first_response_at'])
+                : (int) round((strtotime((string) $r['first_response_at']) - strtotime((string) $r['received_at'])) / 60);
+            $totals[$id]['n']++;
+        }
+
+        $out = [];
+        foreach ($totals as $id => $t) {
+            $out[$id] = ['avg' => round($t['sum'] / $t['n'], 1), 'n' => $t['n']];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Who stands out in the range, one agent per question. Deliberately four
+     * different questions: the heaviest load, the most movement, the most
+     * closures and the fastest first reply — no single "best agent" score,
+     * because these four rarely point at the same person and pretending they
+     * do would be the wrong tool for a supervisor.
+     *
+     * The speed award needs a minimum sample so one lucky thread cannot win it.
+     *
+     * @param  array<int,array<string,mixed>> $agents
+     * @return array<string,array<string,mixed>|null>
+     */
+    private function highlights(array $agents): array
+    {
+        $best = static function (array $rows, callable $value, bool $lowest = false): ?array {
+            $winner = null;
+            foreach ($rows as $r) {
+                $v = $value($r);
+                if ($v === null) {
+                    continue;
+                }
+                if ($winner === null || ($lowest ? $v < $winner['value'] : $v > $winner['value'])) {
+                    $winner = ['agent_id' => $r['agent_id'], 'agent_name' => $r['agent_name'], 'value' => $v];
+                }
+            }
+
+            return $winner !== null && ($lowest || $winner['value'] > 0) ? $winner : null;
+        };
+
+        $withSample = array_filter(
+            $agents,
+            static fn(array $r): bool => $r['first_response_min'] !== null && $r['first_response_n'] >= self::SPEED_MIN_SAMPLE
+        );
+
+        $fastest = $best($withSample, static fn(array $r) => $r['first_response_min'], true);
+        if ($fastest !== null) {
+            foreach ($agents as $r) {
+                if ($r['agent_id'] === $fastest['agent_id']) {
+                    $fastest['sample'] = $r['first_response_n'];
+                }
+            }
+        }
+
+        return [
+            'load'    => $best($agents, static fn(array $r) => $r['open']),
+            'actions' => $best($agents, static fn(array $r) => $r['actions']),
+            'closed'  => $best($agents, static fn(array $r) => $r['closed']),
+            'fastest' => $fastest,
+        ];
     }
 
     /** Distribution of dispositions among conversations closed in range. */
