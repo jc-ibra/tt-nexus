@@ -45,6 +45,24 @@ $span = static function (int $minutes) use ($dayMinutes): string {
     return (int) floor($minutes / $dayMinutes) . ' d';
 };
 
+// Cuánto lleva el agente sin mover nada él mismo. Es distinto de "sin
+// movimiento": ese mide el hilo más rezagado que trae, y un agente sin hilos
+// abiertos no lo responde en absoluto.
+$silenceLabel = static function (?int $minutes) use ($span): string {
+    if ($minutes === null) return 'Sin actividad registrada';
+    if ($minutes < 1)      return 'Activo ahora mismo';
+    return 'Sin actividad: ' . $span($minutes);
+};
+
+$silenceTitle = static function (array $c) use ($span): string {
+    if ($c['lastActionAt'] === '') {
+        return $c['name'] . ' no tiene ninguna acción registrada en el módulo.';
+    }
+    return 'Última acción de ' . $c['name'] . ': '
+        . date('d/m/Y H:i', (int) strtotime((string) $c['lastActionAt']))
+        . ' (' . $span((int) $c['silentFor']) . ' de horas hábiles).';
+};
+
 // Iniciales del solicitante para el avatar de la fila.
 $reqInitials = static function (?string $name, ?string $email): string {
     $src = trim((string) $name) !== '' ? trim((string) $name) : trim((string) $email);
@@ -178,13 +196,20 @@ $chips = [
   .tb-metric .v.is-warning  { color:var(--color-warning-strong); }
   .tb-metric .v.is-critical { color:var(--color-critical-strong); }
 
-  .tb-foot { margin-top:auto; display:flex; align-items:center; gap:var(--space-2); min-width:0;
+  .tb-foot { margin-top:auto; display:flex; flex-direction:column; gap:4px; min-width:0;
              font-size:var(--text-xs); color:var(--text-muted); }
-  .tb-foot span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tb-line { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
+  .tb-line span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tb-dot { flex:0 0 auto; width:6px; height:6px; border-radius:var(--radius-full); background:var(--color-neutral-300); }
-  .tb-card.tone-critical .tb-dot { background:var(--color-critical-default); }
-  .tb-card.tone-warning  .tb-dot { background:var(--color-warning-default); }
-  .tb-card.tone-info     .tb-dot { background:var(--action-primary); }
+  /* El punto de la primera línea sigue el tono de la carga; el del silencio va
+     por su cuenta, porque un agente tranquilo puede llevar horas sin moverse. */
+  .tb-card.tone-critical .tb-line:not(.tb-silence) .tb-dot { background:var(--color-critical-default); }
+  .tb-card.tone-warning  .tb-line:not(.tb-silence) .tb-dot { background:var(--color-warning-default); }
+  .tb-card.tone-info     .tb-line:not(.tb-silence) .tb-dot { background:var(--action-primary); }
+  .tb-silence.s-critical { color:var(--color-critical-strong); font-weight:var(--weight-medium); }
+  .tb-silence.s-critical .tb-dot { background:var(--color-critical-default); }
+  .tb-silence.s-warning  .tb-dot { background:var(--color-warning-default); }
+  .tb-silence.s-ok       .tb-dot { background:var(--color-success-default); }
 
   /* ---- Filtros rápidos del detalle (sólo sobre lo que hay en pantalla) ---- */
   .tb-chips { display:flex; flex-wrap:wrap; gap:var(--space-2); padding:var(--space-3) var(--space-4);
@@ -316,6 +341,10 @@ $chips = [
     <div class="n <?= $totals['breached'] > 0 ? 'is-critical' : '' ?>"><?= (int) $totals['breached'] ?></div>
     <div class="l">Fuera de SLA</div>
   </div>
+  <div class="tb-total" title="Agentes sin ninguna acción registrada en las últimas <?= esc($span((int) ($totals['silentAfter'] ?? 240)), 'attr') ?> de horas hábiles.">
+    <div class="n <?= ($totals['silent'] ?? 0) > 0 ? 'is-critical' : '' ?>"><?= (int) ($totals['silent'] ?? 0) ?></div>
+    <div class="l">Sin actividad</div>
+  </div>
   <div class="tb-total">
     <div class="n"><?= (int) $totals['agents'] ?></div>
     <div class="l">Agentes</div>
@@ -356,8 +385,10 @@ $chips = [
           </div>
         </div>
         <div class="tb-foot">
-          <span class="tb-dot"></span>
-          <span><?= $unassigned['open'] > 0 ? 'Pendientes de dueño' : 'Nada por repartir' ?></span>
+          <div class="tb-line">
+            <span class="tb-dot"></span>
+            <span><?= $unassigned['open'] > 0 ? 'Pendientes de dueño' : 'Nada por repartir' ?></span>
+          </div>
         </div>
       </a>
 
@@ -394,8 +425,15 @@ $chips = [
             </div>
           </div>
           <div class="tb-foot">
-            <span class="tb-dot"></span>
-            <span><?= $c['open'] > 0 ? 'Sin movimiento ' . esc($ago($c['oldestIdle'])) : 'Libre' ?></span>
+            <div class="tb-line">
+              <span class="tb-dot"></span>
+              <span><?= $c['open'] > 0 ? 'Sin movimiento ' . esc($ago($c['oldestIdle'])) : 'Libre' ?></span>
+            </div>
+            <div class="tb-line tb-silence s-<?= esc($c['silentTone']) ?>"
+                 title="<?= esc($silenceTitle($c), 'attr') ?>">
+              <span class="tb-dot"></span>
+              <span><?= esc($silenceLabel($c['silentFor'])) ?></span>
+            </div>
           </div>
         </a>
       <?php endforeach; ?>

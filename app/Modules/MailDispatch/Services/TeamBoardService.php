@@ -24,6 +24,14 @@ class TeamBoardService
     /** Agent cards go red past this share of unanswered threads. */
     private const HEAVY_UNANSWERED = 5;
 
+    /**
+     * Silence thresholds, in *business* minutes since the agent's last action.
+     * Two hours without touching anything is worth a look; half a service day
+     * is worth asking about.
+     */
+    private const SILENT_WARN  = 120;
+    private const SILENT_ALERT = 240;
+
     public function __construct(
         private ConversationModel $conversations,
         private AgentModel $agents,
@@ -49,6 +57,11 @@ class TeamBoardService
             ? $this->conversations->slaBreachesByAgent($this->calendar->cutoff($slaFirst))
             : [];
 
+        // "oldestIdle" is about the threads (the stalest one an agent holds);
+        // this is about the person (when they last moved anything), which is a
+        // different question and the only one an idle agent answers at all.
+        $lastAction = $this->events->lastActionByAgent();
+
         $cards = [];
         foreach ($this->agents->activeAgents() as $agent) {
             $id   = (int) $agent['user_id'];
@@ -60,6 +73,7 @@ class TeamBoardService
                 'closed_today'    => 0,
             ];
             $breached = $breaches[$id] ?? 0;
+            $silence  = $this->silenceFor($lastAction[$id] ?? '');
 
             $cards[] = [
                 'agent_id'     => $id,
@@ -72,6 +86,9 @@ class TeamBoardService
                 'closedToday'  => $load['closed_today'],
                 'breached'     => $breached,
                 'tone'         => $this->toneFor($load['open'], $load['unanswered'], $breached),
+                'lastActionAt' => $silence['at'],
+                'silentFor'    => $silence['minutes'],
+                'silentTone'   => $silence['tone'],
             ];
         }
 
@@ -108,6 +125,12 @@ class TeamBoardService
                 'unanswered' => array_sum(array_column($cards, 'unanswered')),
                 'breached'   => array_sum(array_column($cards, 'breached')),
                 'orphaned'   => $orphaned,
+                // How many people have gone quiet long enough to ask about.
+                'silent'     => count(array_filter(
+                    $cards,
+                    static fn (array $c): bool => $c['silentTone'] === 'critical'
+                )),
+                'silentAfter' => self::SILENT_ALERT,
                 'slaFirst'   => $slaFirst,
                 // Service calendar context: the board labels its times as
                 // business hours only when the clock actually honours it.
@@ -194,6 +217,34 @@ class TeamBoardService
         }
 
         return $out;
+    }
+
+    /**
+     * How long an agent has been silent, measured on the service calendar so a
+     * Friday-evening last action does not read as "3 days" on Monday morning.
+     *
+     * minutes = null means the agent has never registered a single action, so
+     * there is no clock to run: the card says so instead of showing a number.
+     *
+     * @return array{at:string,minutes:int|null,tone:string}
+     */
+    private function silenceFor(string $lastActionAt): array
+    {
+        if ($lastActionAt === '') {
+            return ['at' => '', 'minutes' => null, 'tone' => 'critical'];
+        }
+
+        $minutes = $this->calendar->elapsedMinutes($lastActionAt);
+
+        return [
+            'at'      => $lastActionAt,
+            'minutes' => $minutes,
+            'tone'    => match (true) {
+                $minutes >= self::SILENT_ALERT => 'critical',
+                $minutes >= self::SILENT_WARN  => 'warning',
+                default                        => 'ok',
+            },
+        ];
     }
 
     /** Card colour: breaches dominate, then a heavy unanswered pile. */

@@ -58,6 +58,34 @@ class EventModel extends Model
             ->findAll($limit);
     }
 
+    /**
+     * When each agent last did anything at all — replied, took, reassigned,
+     * closed, noted. The board turns this into "lleva N sin moverse".
+     *
+     * Every deliberate action in the module writes an event carrying its actor,
+     * so the audit log already is the activity trail; rows with a null user_id
+     * are the sync worker and the auto-triage rules, which say nothing about a
+     * person and are left out.
+     *
+     * @return array<int,string> user_id => 'Y-m-d H:i:s' of the last action
+     */
+    public function lastActionByAgent(): array
+    {
+        $rows = $this->db->table($this->table)
+            ->select('user_id')
+            ->select('MAX(created_at) AS last_at', false)
+            ->where('user_id IS NOT NULL', null, false)
+            ->groupBy('user_id')
+            ->get()->getResultArray();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r['user_id']] = (string) ($r['last_at'] ?? '');
+        }
+
+        return $out;
+    }
+
     /** Timeline (bitácora + notes) for a conversation, newest first. */
     public function forConversation(int $conversationId): array
     {
