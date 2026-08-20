@@ -74,6 +74,14 @@ class Dispatch extends BaseController
             'counts'        => (new ConversationModel())->counts($userId, $q),
             'bodySnippets'  => $bodySnippets,
             'canDispatch'   => $this->canDispatch(),
+            // Cifras propias del agente en el rail: le dan una razón para mirar
+            // sus métricas a diario en vez de sólo cuando se las piden.
+            'myToday'       => $conv->todayScoreFor(
+                $userId,
+                $settings->slaFirstResponseMinutes() > 0
+                    ? $calendar->cutoff($settings->slaFirstResponseMinutes())
+                    : ''
+            ),
         ]);
     }
 

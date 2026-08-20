@@ -304,6 +304,39 @@ class ConversationModel extends Model
     }
 
     /**
+     * The two numbers the inbox rail shows next to "Mis métricas": what the
+     * agent closed today and what of theirs is already past the first-response
+     * SLA. Kept as its own pair of narrow counts instead of reusing the team
+     * board, which would run seven queries on the busiest page of the module
+     * to answer a question about one person.
+     *
+     * $slaCutoff is the wall-clock frontier the caller already resolved through
+     * the service calendar; empty disables the breach count.
+     *
+     * @return array{closedToday:int,breached:int}
+     */
+    public function todayScoreFor(int $userId, string $slaCutoff = ''): array
+    {
+        $closed = $this->db->table($this->table)
+            ->where('agent_id', $userId)
+            ->where('status', 'cerrada')
+            ->where('closed_at >=', date('Y-m-d 00:00:00'))
+            ->countAllResults();
+
+        $breached = 0;
+        if (trim($slaCutoff) !== '') {
+            $breached = $this->db->table($this->table)
+                ->where('agent_id', $userId)
+                ->whereNotIn('status', ['cerrada', 'autoarchivo', 'autogenerado'])
+                ->where('first_response_at IS NULL', null, false)
+                ->where('received_at <', $slaCutoff)
+                ->countAllResults();
+        }
+
+        return ['closedToday' => $closed, 'breached' => $breached];
+    }
+
+    /**
      * Per-tab counts for the inbox badges. Honors the same free-text search as
      * the list, so the numbers match what each tab would show.
      *

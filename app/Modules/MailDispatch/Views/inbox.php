@@ -113,6 +113,27 @@ $initials = static function (?string $name, ?string $email): string {
     color:var(--text-muted); }
   .gm-rail a.is-active .gm-rail-count { color:var(--color-blue-700); }
   .gm-rail-sep { height:1px; background:var(--border-default); margin:var(--space-2) var(--space-1); }
+  /* "Mis métricas" no es un enlace más de la lista: lleva dos cifras propias del
+     agente que cambian durante el día, que es lo que da motivo para entrar.
+     Va calificado con `.gm-rail a` porque esa regla (más específica que una
+     clase suelta) impone display:flex y una píldora redonda a todo enlace del
+     rail, y aquí hace falta un bloque de dos renglones. */
+  .gm-rail a.gm-me { display:block; align-items:stretch; gap:0;
+           margin:var(--space-1) 0 var(--space-2); padding:var(--space-2) var(--space-3);
+           border:1px solid var(--color-blue-200, #B3D4F0); border-radius:var(--radius-md);
+           background:var(--color-blue-50); color:var(--color-blue-700); text-decoration:none; }
+  .gm-rail a.gm-me:hover { background:var(--color-blue-100, #D6E9FA); color:var(--color-blue-800, #115EA3); }
+  .gm-rail a.gm-me svg { color:currentColor; }
+  .gm-me-top { display:flex; align-items:center; gap:var(--space-3); font-weight:var(--weight-bold);
+               font-size:var(--text-sm); line-height:1.3; }
+  .gm-me-top svg { width:18px; height:18px; flex:0 0 auto; }
+  .gm-me-stats { display:flex; flex-direction:column; gap:2px; margin-top:4px; padding-left:30px;
+                 font-size:var(--text-xs); color:var(--text-secondary); line-height:1.4; }
+  .gm-me-stats b { font-variant-numeric:tabular-nums; color:var(--text-primary); }
+  .gm-me-stats .is-critical, .gm-me-stats .is-critical b { color:var(--color-critical-strong); }
+  .rail-collapsed .gm-rail a.gm-me { padding:var(--space-2) 0; }
+  .rail-collapsed .gm-me-top { justify-content:center; }
+  .rail-collapsed .gm-me-top span, .rail-collapsed .gm-me-stats { display:none; }
   .gm-rail-link { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-2) var(--space-3);
     color:var(--text-secondary); text-decoration:none; font-size:var(--text-sm); font-weight:var(--weight-medium); border-radius:var(--radius-full); }
   .gm-rail-link:hover { background:var(--bg-surface-alt); color:var(--text-primary); }
@@ -330,9 +351,18 @@ $initials = static function (?string $name, ?string $email): string {
       </a>
     <?php endforeach; ?>
     <div class="gm-rail-sep"></div>
-    <a class="gm-rail-link" href="<?= base_url('dispatch/my-metrics') ?>" title="Mis métricas">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span>Mis métricas</span>
+    <?php $me = $myToday ?? ['closedToday' => 0, 'breached' => 0]; ?>
+    <a class="gm-me" href="<?= base_url('dispatch/my-metrics') ?>" title="Mis métricas">
+      <span class="gm-me-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        <span>Mis métricas</span>
+      </span>
+      <span class="gm-me-stats">
+        <span><b><?= (int) $me['closedToday'] ?></b> cerradas hoy</span>
+        <?php if ((int) $me['breached'] > 0): ?>
+          <span class="is-critical"><b><?= (int) $me['breached'] ?></b> mías fuera de SLA</span>
+        <?php endif; ?>
+      </span>
     </a>
     <a class="gm-rail-link" href="<?= base_url('dispatch/signature') ?>" title="Mi firma">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19l7-7 3 3-7 7-3 0z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
