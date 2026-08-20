@@ -130,11 +130,13 @@ class MailDispatchMetrics
      */
     private function byAgent(string $from, string $to): array
     {
-        // Open conversations currently owned by each agent.
+        // Open conversations currently owned by each agent. Same exclusions as
+        // the team board so "abiertas ahora" and its "en curso" never disagree:
+        // auto-archived and auto-generated threads are not work anyone holds.
         $open = $this->db->table('maildispatch_conversations c')
             ->select('c.agent_id, u.name AS agent_name, COUNT(*) AS open_count')
             ->join('core_users u', 'u.id = c.agent_id', 'inner')
-            ->where('c.status !=', 'cerrada')
+            ->whereNotIn('c.status', ['cerrada', 'autoarchivo', 'autogenerado'])
             ->where('c.agent_id IS NOT NULL', null, false)
             ->groupBy('c.agent_id')
             ->get()->getResultArray();
