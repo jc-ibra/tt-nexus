@@ -40,10 +40,25 @@
     align-items: start;
   }
 
+  /* .app-main carries overflow-y:auto but never scrolls (it grows with its
+     content and the window is what scrolls). That still makes it the nearest
+     scrollport for its descendants, which silently disables position:sticky.
+     Restoring visible overflow on this page hands the scrollport back to the
+     viewport, so the table of contents can actually stick. */
+  .app-main { overflow: visible; }
+
   .help-toc {
     position: sticky;
     top: var(--space-4);
+    align-self: start;
+    /* A long guide must not push its own links off screen: the index scrolls
+       inside itself when it does not fit the viewport. */
+    max-height: calc(100vh - var(--space-8));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
+  .help-toc::-webkit-scrollbar { width: 6px; }
+  .help-toc::-webkit-scrollbar-thumb { background: var(--color-neutral-200); border-radius: var(--radius-full, 999px); }
   .help-toc-label {
     font-size: var(--text-xs);
     font-weight: var(--weight-semibold);
@@ -197,7 +212,7 @@
 
   @media (max-width: 860px) {
     .help-layout { grid-template-columns: 1fr; }
-    .help-toc { position: static; margin-bottom: var(--space-4); }
+    .help-toc { position: static; margin-bottom: var(--space-4); max-height: none; overflow: visible; }
     .help-toc-nav { display: flex; flex-wrap: wrap; gap: var(--space-1); }
     .help-toc-nav a { border-left: none; border: 1px solid var(--color-neutral-200); border-radius: var(--radius-full); }
     .help-toc-nav a.is-active { border-color: var(--color-blue-500); }
