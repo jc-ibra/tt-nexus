@@ -41,6 +41,31 @@ class MonthlyEvaluationModel extends Model
             ->first();
     }
 
+    /**
+     * Evaluations of one agent that the supervisor already closed, newest first.
+     * Feeds the agent self-view in Service Desk: drafts and half-computed months
+     * are deliberately left out.
+     *
+     * @param string[] $statuses allowed final_status values
+     */
+    public function publishedForAgent(int $nexusUserId, array $statuses): array
+    {
+        return $this->where('nexus_user_id', $nexusUserId)
+            ->whereIn('final_status', $statuses)
+            ->orderBy('period_year', 'DESC')
+            ->orderBy('period_month', 'DESC')
+            ->findAll();
+    }
+
+    /** One evaluation, but only if it belongs to the given agent (ownership check). */
+    public function findForAgent(int $id, int $nexusUserId, array $statuses): ?array
+    {
+        return $this->where('id', $id)
+            ->where('nexus_user_id', $nexusUserId)
+            ->whereIn('final_status', $statuses)
+            ->first();
+    }
+
     /** Month-by-month history for one agent (oldest first for trend charts). */
     public function historyForAgent(int $nexusUserId): array
     {

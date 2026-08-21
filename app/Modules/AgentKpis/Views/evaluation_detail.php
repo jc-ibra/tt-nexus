@@ -99,8 +99,13 @@ $hasRubric = $eval['qualitative_score'] !== null;
         <textarea id="supervisor_notes" name="supervisor_notes" class="input" rows="3"><?= esc($eval['supervisor_notes'] ?? '') ?></textarea>
       </div>
       <div class="field">
-        <label class="field-label" for="agent_comments">Comentarios del agente (derecho de réplica)</label>
-        <textarea id="agent_comments" name="agent_comments" class="input" rows="3"><?= esc($eval['agent_comments'] ?? '') ?></textarea>
+        <span class="field-label">Comentarios del agente (derecho de réplica)</span>
+        <?php if (trim((string) ($eval['agent_comments'] ?? '')) !== ''): ?>
+          <p style="white-space:pre-line;"><?= esc($eval['agent_comments']) ?></p>
+        <?php else: ?>
+          <p class="text-muted">El agente no ha registrado comentarios.</p>
+        <?php endif; ?>
+        <p class="text-muted text-sm">Solo el agente escribe aquí, desde Service Desk &gt; Mis evaluaciones.</p>
       </div>
     </div>
     <div class="card-footer"><button type="submit" class="btn btn-primary">Guardar notas</button></div>

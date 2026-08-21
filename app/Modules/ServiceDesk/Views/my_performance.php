@@ -17,6 +17,30 @@ $d = static fn($x) => ($ts = strtotime((string) $x)) ? date('d/m/Y', $ts) : (str
   </div>
 </div>
 
+<?php
+// Bridge into the monthly evaluation: the deviations below are what feed those
+// KPIs, so the agent gets the headline result and a way into the full detail.
+$months = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
+?>
+<?php if ($latestEval !== null): ?>
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card-body" style="display:flex; gap:var(--space-4); align-items:center; flex-wrap:wrap; justify-content:space-between;">
+      <div>
+        <p class="text-muted text-sm">Última evaluación mensual publicada</p>
+        <p style="font-size:var(--font-size-xl); font-weight:600; margin:0;">
+          <?= esc($months[(int) $latestEval['period_month']]) ?> <?= (int) $latestEval['period_year'] ?> ·
+          <?php if ((string) $latestEval['final_status'] === 'blocked'): ?>
+            <span class="badge badge-critical">Bloqueada</span>
+          <?php else: ?>
+            <span class="badge badge-success"><?= esc($latestEval['final_score']) ?>%</span>
+          <?php endif; ?>
+        </p>
+      </div>
+      <a href="<?= route_to('servicedesk.myevaluations') ?>" class="btn btn-secondary">Ver mis evaluaciones</a>
+    </div>
+  </div>
+<?php endif; ?>
+
 <?php if (! $available): ?>
   <div class="banner banner-info">
     <div class="banner-content">

@@ -255,12 +255,19 @@ if ($canSeeDispatchTeam) {
     ]]);
 }
 
-// Auditable agents (glpi_user_id set) get a self-view inside Service Desk.
+// Auditable agents (glpi_user_id set) get a self-view inside Service Desk: the
+// audited detail plus their own monthly KPI evaluation, which is captured in
+// the AgentKpis module but read here, scoped to themselves.
 if ($currentUserGlpiId > 0) {
     $moduleSubnav['servicedesk'][] = [
         'label'  => 'Mi desempeño',
         'url'    => base_url('servicedesk/mi-desempeno'),
         'active' => str_starts_with($currentPath, '/servicedesk/mi-desempeno'),
+    ];
+    $moduleSubnav['servicedesk'][] = [
+        'label'  => 'Mis evaluaciones',
+        'url'    => base_url('servicedesk/mis-evaluaciones'),
+        'active' => str_starts_with($currentPath, '/servicedesk/mis-evaluaciones'),
     ];
 }
 ?>

@@ -81,6 +81,7 @@ use App\Modules\AgentKpis\Models\QualitativeScoreModel;
 use App\Modules\AgentKpis\Models\KpiSnapshotModel;
 use App\Modules\AgentKpis\Services\KpiCalculationService;
 use App\Modules\AgentKpis\Services\QualitativeEvaluationService;
+use App\Modules\AgentKpis\Services\AgentKpisBridge;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketBulkUpdater;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
@@ -871,6 +872,18 @@ class Services extends BaseService
             return static::getSharedInstance('agentKpisQualitative');
         }
         return new QualitativeEvaluationService(new MonthlyEvaluationModel(), new QualitativeScoreModel());
+    }
+
+    /**
+     * Read-only, self-scoped view over the monthly evaluations. Consumed by the
+     * ServiceDesk agent self-view; the supervisor UI keeps using the models.
+     */
+    public static function agentKpisBridge(bool $getShared = true): AgentKpisBridge
+    {
+        if ($getShared) {
+            return static::getSharedInstance('agentKpisBridge');
+        }
+        return new AgentKpisBridge(new MonthlyEvaluationModel(), new KpiSnapshotModel(), self::agentKpisQualitative());
     }
 
     public static function helpdeskBridge(bool $getShared = true): HelpdeskSupervisorBridge

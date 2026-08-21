@@ -3240,6 +3240,123 @@
       ]
     },
     {
+      "name": "Service Desk — Autoservicio del agente",
+      "description": "Vista propia del agente: siempre acotada al usuario del token. No hay forma de consultar los datos de otro agente.",
+      "item": [
+        {
+          "name": "Mi desempeño (desviaciones + escalaciones)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/me/performance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "me",
+                "performance"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mis evaluaciones (solo las mías, ya cerradas)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/me/evaluations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "me",
+                "evaluations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de mi evaluación (KPIs + rúbrica)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/me/evaluations/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "me",
+                "evaluations",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mis comentarios (derecho de réplica)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/me/evaluations/1/comments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "me",
+                "evaluations",
+                "1",
+                "comments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent_comments\": \"No estoy de acuerdo con el KPI 2 de este mes porque...\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Service Desk — Widget (público)",
       "description": "Endpoints públicos del widget de autoservicio. NO usan Bearer: se validan con la clave pública del widget (query ?key= o header X-Widget-Key), la allowlist de orígenes y un rate limit por IP. El estatus del ticket es siempre NUEVO y la categoría es la fija configurada en el panel.",
       "item": [
