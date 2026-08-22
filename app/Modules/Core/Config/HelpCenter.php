@@ -16,7 +16,9 @@ namespace App\Modules\Core\Config;
  *   2. Create the content view referenced by `view` (a partial with one
  *      <section id="..."> per entry in `sections`).
  *   3. Point `module` at the module key so the guide is only shown to users
- *      who can access that module. Use null for a guide everyone should see.
+ *      who can access that module. Use null for a guide everyone should see,
+ *      or a list of keys for a guide shared by several modules (any-of: it is
+ *      enough to have access to one of them).
  *
  * Nothing else is required: the sidebar entry, the index cards, the guide
  * layout and its table of contents are all derived from this registry.
@@ -27,7 +29,7 @@ final class HelpCenter
      * @return array<string, array{
      *     key: string,
      *     title: string,
-     *     module: string|null,
+     *     module: string|list<string>|null,
      *     icon: string,
      *     summary: string,
      *     view: string,
@@ -111,6 +113,28 @@ final class HelpCenter
                     ['id' => 'revisar',  'label' => 'Si un número no cuadra'],
                 ],
             ],
+            'aprovisionamiento' => [
+                'key'     => 'aprovisionamiento',
+                'title'   => 'Altas, bajas y contraseñas',
+                // Shared guide: RRHH lo lee desde `employees`, Sistemas desde
+                // `provisioning`. Cada quien ejecuta una mitad del mismo flujo.
+                'module'  => ['employees', 'provisioning'],
+                'icon'    => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><rect x="15" y="10" width="7" height="6" rx="1.5"/><path d="M17 10V8.5a1.8 1.8 0 0 1 3.5 0V10"/></svg>',
+                'summary' => 'Cómo se le crean, cambian y revocan los accesos a un colaborador: la solicitud en GLPI, el alta en sistemas desde Nexus, la contraseña temporal y la baja.',
+                'view'    => 'App\\Modules\\Provisioning\\Views\\help\\aprovisionamiento',
+                'sections' => [
+                    ['id' => 'intro',       'label' => 'Qué es el aprovisionamiento'],
+                    ['id' => 'quien',       'label' => 'Quién hace qué'],
+                    ['id' => 'solicitud',   'label' => 'Pedir el alta o la baja'],
+                    ['id' => 'panel',       'label' => 'La tarjeta de Aprovisionamiento'],
+                    ['id' => 'alta',        'label' => 'Dar de alta en sistemas'],
+                    ['id' => 'contrasena',  'label' => 'La contraseña'],
+                    ['id' => 'entrega',     'label' => 'Cerrar el movimiento y entregar'],
+                    ['id' => 'baja',        'label' => 'Baja y reactivación'],
+                    ['id' => 'casos',       'label' => 'Casos especiales'],
+                    ['id' => 'faq',         'label' => 'Preguntas frecuentes'],
+                ],
+            ],
             'empleados' => [
                 'key'     => 'empleados',
                 'title'   => 'Empleados',
@@ -140,12 +164,7 @@ final class HelpCenter
      */
     public static function accessibleTopics(): array
     {
-        $access = service('access');
-
-        return array_filter(
-            self::topics(),
-            static fn (array $t): bool => empty($t['module']) || $access->canAccessModule($t['module'])
-        );
+        return array_filter(self::topics(), static fn (array $t): bool => self::canAccess($t));
     }
 
     /**
@@ -159,10 +178,25 @@ final class HelpCenter
     }
 
     /**
-     * Whether the current user may open the given topic.
+     * Whether the current user may open the given topic. A topic declaring
+     * several modules is any-of: access to one of them is enough, which is how
+     * a guide can serve two areas that use the same flow from opposite ends
+     * (for example RRHH on `employees` and Sistemas on `provisioning`).
      */
     public static function canAccess(array $topic): bool
     {
-        return empty($topic['module']) || service('access')->canAccessModule($topic['module']);
+        if (empty($topic['module'])) {
+            return true;
+        }
+
+        $access = service('access');
+
+        foreach ((array) $topic['module'] as $moduleKey) {
+            if ($access->canAccessModule($moduleKey)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

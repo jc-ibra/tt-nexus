@@ -128,6 +128,82 @@
   }
   .help-kbd svg { width: 13px; height: 13px; }
 
+  /* Screenshots. Bordered so a screenshot with a white background still reads
+     as a figure and not as part of the page, and lazy-loaded by the guides so a
+     long illustrated article does not pay for every image up front. */
+  .help-figure { margin: var(--space-4) 0; }
+  .help-figure img {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--color-neutral-200);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+  }
+  .help-figure figcaption {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: var(--leading-normal);
+  }
+
+  /* Click a screenshot to see it full size. The zoom cursor is the only hint
+     that the image is interactive, so it is applied by the script and not here:
+     if the script never runs, the image stays an ordinary image and nothing
+     promises behaviour that will not happen. */
+  .help-figure img.is-zoomable { cursor: zoom-in; }
+  .help-figure img.is-zoomable:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+
+  .help-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    background: rgba(15, 23, 32, 0.82);
+    cursor: zoom-out;
+  }
+  .help-lightbox.is-open { display: flex; }
+  .help-lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg, 0 18px 40px rgba(0, 0, 0, 0.35));
+    background: var(--bg-surface);
+  }
+  .help-lightbox-close {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    width: 40px; height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-full, 999px);
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    cursor: pointer;
+  }
+  .help-lightbox-close:hover { background: rgba(255, 255, 255, 0.26); }
+  .help-lightbox-close svg { width: 20px; height: 20px; }
+  .help-lightbox-caption {
+    position: absolute;
+    left: 0; right: 0; bottom: var(--space-4);
+    text-align: center;
+    padding: 0 var(--space-6);
+    color: rgba(255, 255, 255, 0.86);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+
+  @media (max-width: 600px) {
+    .help-lightbox { padding: var(--space-3); }
+  }
+
   /* Numbered steps */
   .help-steps { list-style: none; margin: 0 0 var(--space-4); padding: 0; counter-reset: help-step; }
   .help-steps > li {
@@ -357,6 +433,81 @@
   }
   (scroller === window ? window : scroller).addEventListener('scroll', onScroll, { passive: true });
   updateSpy();
+})();
+
+// Lightbox: click a screenshot to see it full size. Applies to every guide,
+// since the figures use the shared .help-figure markup.
+(function () {
+  var figures = Array.prototype.slice.call(document.querySelectorAll('.help-figure img'));
+  if (!figures.length) return;
+
+  var overlay, overlayImg, overlayCaption, lastFocused;
+
+  function build() {
+    overlay = document.createElement('div');
+    overlay.className = 'help-lightbox';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Imagen ampliada');
+
+    overlayImg = document.createElement('img');
+    // The image itself is not the backdrop: clicking it must not close.
+    overlayImg.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'help-lightbox-close';
+    close.setAttribute('aria-label', 'Cerrar imagen');
+    close.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    close.addEventListener('click', hide);
+
+    overlayCaption = document.createElement('p');
+    overlayCaption.className = 'help-lightbox-caption';
+
+    overlay.appendChild(close);
+    overlay.appendChild(overlayImg);
+    overlay.appendChild(overlayCaption);
+    overlay.addEventListener('click', hide);
+    document.body.appendChild(overlay);
+  }
+
+  function show(img) {
+    if (!overlay) build();
+    lastFocused = img;
+    overlayImg.src = img.currentSrc || img.src;
+    overlayImg.alt = img.alt || '';
+    var caption = img.parentNode.querySelector('figcaption');
+    overlayCaption.textContent = caption ? caption.textContent.trim() : '';
+    overlay.classList.add('is-open');
+    // The page behind must not scroll while the overlay is up.
+    document.body.style.overflow = 'hidden';
+    overlay.querySelector('.help-lightbox-close').focus();
+  }
+
+  function hide() {
+    if (!overlay) return;
+    overlay.classList.remove('is-open');
+    document.body.style.overflow = '';
+    if (lastFocused) lastFocused.focus();
+  }
+
+  figures.forEach(function (img) {
+    img.classList.add('is-zoomable');
+    img.setAttribute('role', 'button');
+    img.setAttribute('tabindex', '0');
+    img.setAttribute('aria-label', 'Ampliar imagen' + (img.alt ? ': ' + img.alt : ''));
+    img.addEventListener('click', function () { show(img); });
+    img.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        show(img);
+      }
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Escape' || e.key === 'Esc') && overlay && overlay.classList.contains('is-open')) hide();
+  });
 })();
 </script>
 <?= $this->endSection() ?>

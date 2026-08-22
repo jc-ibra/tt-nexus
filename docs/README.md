@@ -55,6 +55,7 @@ actualiza el documento **y** la vista.
 | [agentkpis-evaluacion.md](guias/agentkpis-evaluacion.md) | Service Desk > Mis evaluaciones (`app/Modules/ServiceDesk/Views/help/evaluacion.php`) |
 | [maildispatch-metricas.md](guias/maildispatch-metricas.md) | Despacho de Correo > Equipo y Métricas (`app/Modules/MailDispatch/Views/help/metricas.php`) |
 | [manual-mesa-de-ayuda/](guias/manual-mesa-de-ayuda/) | Manual operativo de GLPI para agentes de la MAC. 5 capítulos y 7 anexos. Empieza por [00-indice.md](guias/manual-mesa-de-ayuda/00-indice.md) |
+| [aprovisionamiento_empleados/](guias/aprovisionamiento_empleados/) | Manual de operación de altas, bajas y cambio de contraseña (RRHH + Sistemas), con capturas en `img/`. Espejo in-app: Ayuda > Altas, bajas y contraseñas (`app/Modules/Provisioning/Views/help/aprovisionamiento.php`) |
 
 ## operacion/
 
