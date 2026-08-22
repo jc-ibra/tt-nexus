@@ -8,7 +8,7 @@
 > **Namespace:** `App\Modules\HelpdeskSupervisor`  
 > **UI display:** "Supervisor de Mesa"  
 > **Fase:** 1 de 3  
-> **Prerrequisito:** Leer `NEXUS.md` y `CONEXIONES.md` (ya en el proyecto)
+> **Prerrequisito:** Leer `CLAUDE.md` y `docs/referencia/CONEXIONES.md` (ya en el proyecto)
 
 ---
 

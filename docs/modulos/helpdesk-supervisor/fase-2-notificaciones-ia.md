@@ -3,7 +3,7 @@
 > **Documento:** Especificación técnica para Claude Code  
 > **Módulo:** HelpdeskSupervisor (extensión)  
 > **Fase:** 2 de 3  
-> **Prerrequisitos:** Fase 1 completada y funcional. Leer `NEXUS.md` y `CONEXIONES.md`.
+> **Prerrequisitos:** Fase 1 completada y funcional. Leer `CLAUDE.md` y `docs/referencia/CONEXIONES.md`.
 
 ---
 

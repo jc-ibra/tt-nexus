@@ -2,7 +2,7 @@
 
 > Modulo nuevo para tt-nexus.
 > Canal de Telegram para que los tecnicos de campo documenten y solucionen tickets de GLPI.
-> Este documento es la especificacion funcional y tecnica completa. Consultar `CLAUDE.md` y `docs/CONVENTIONS.md` para convenciones de codigo, estructura de modulo y patrones de CI4.
+> Este documento es la especificacion funcional y tecnica completa. Consultar `CLAUDE.md` y `docs/referencia/CONVENTIONS.md` para convenciones de codigo, estructura de modulo y patrones de CI4.
 
 ---
 

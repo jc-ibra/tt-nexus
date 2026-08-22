@@ -6,7 +6,7 @@
  * match an entry in HelpCenter::topics()['evaluacion-kpis']['sections'] so the
  * table of contents and the scrollspy line up.
  *
- * The prose mirrors docs/agentkpis-evaluacion-para-agentes.md, which is the
+ * The prose mirrors docs/guias/agentkpis-evaluacion.md, which is the
  * printable version handed out as PDF. Keep both in step when the rules change.
  *
  * Thresholds shown here are the ones the calculation service applies

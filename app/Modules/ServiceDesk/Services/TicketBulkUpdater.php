@@ -19,7 +19,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
  * for every row that carries a TICKET_ID it "plancha" the filled cells onto the
  * existing GLPI ticket, closing it when ESTATUS says so.
  *
- * Reglas de oro (decididas con el usuario, ver docs/servicedesk-actualizacion-masiva.md):
+ * Reglas de oro (decididas con el usuario, ver docs/modulos/servicedesk/actualizacion-masiva.md):
  *
  *  - Celda llena = se escribe. Celda vacía = NO se toca. `[VACIAR]` borra.
  *    Esto es lo que permite subir un Excel con solo dos columnas corregidas.

@@ -191,7 +191,7 @@ Sirve como evidencia del lote.
 | `ServiceDesk/Views/index.php`, `imports.php`, `show.php` | Tarjeta de carga, columna MODO, textos por modo |
 | `ServiceDesk/Config/ServiceDesk.php` | `updateResultHeader`, `solutionHeader`, centinela `[VACIAR]` |
 | `Services/TicketTemplateBuilder.php` | Columna opcional `SOLUCION` + nota en `INSTRUCCIONES` |
-| `docs/tt-apps.postman_collection.json` | Endpoints nuevos |
+| `docs/referencia/tt-apps.postman_collection.json` | Endpoints nuevos |
 
 ---
 

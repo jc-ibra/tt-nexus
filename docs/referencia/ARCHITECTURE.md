@@ -332,7 +332,7 @@ HTTP status codes used: `200`, `201`, `204`, `400`, `401`, `403`, `404`, `422`, 
 
 ### Postman Collection
 
-The canonical Postman collection is maintained at `/docs/tt-apps.postman_collection.json`. It must be updated whenever an API endpoint is added or changed. Import it into Postman to test all endpoints.
+The canonical Postman collection is maintained at `/docs/referencia/tt-apps.postman_collection.json`. It must be updated whenever an API endpoint is added or changed. Import it into Postman to test all endpoints.
 
 ---
 

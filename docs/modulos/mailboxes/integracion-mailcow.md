@@ -1,6 +1,6 @@
 # Módulo Mailboxes (Buzones): integración Mailcow
 
-> **Nota de naming.** El módulo se llama `Mailboxes` en código (folder, namespace, URL, key y tabla DB). El nombre **Buzones** es solo el display en UI (sidebar y headings). Ver `CONVENTIONS.md §2.1`.
+> **Nota de naming.** El módulo se llama `Mailboxes` en código (folder, namespace, URL, key y tabla DB). El nombre **Buzones** es solo el display en UI (sidebar y headings). Ver `docs/referencia/CONVENTIONS.md §2.1`.
 
 ## Configuración de la API Key en Mailcow
 

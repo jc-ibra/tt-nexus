@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # reset-db.sh — Reinicia la base de datos de tt-nexus (SOLO PARA TEST)
 #
-# Tiene DOS modos (ver documentación completa en RESET-DB.md, solo local):
+# Tiene DOS modos (ver documentación completa en docs/operacion/reset-db.md, solo local):
 #
 #   (por defecto) HARD reset  -> Borra TODO: hace DROP + CREATE de la base y vuelve
 #                                a correr migraciones + seeders (reutilizando setup.sh).
@@ -63,7 +63,7 @@ done
 # ── Tablas de settings/credenciales/config que el reset SUAVE conserva ───────────
 # (además de todas las tablas de Core: core_*, ci_sessions y migrations).
 # Debe mantenerse sincronizado con $PRESERVE_SETTINGS en public/reset-db.php.
-# Ver RESET-DB.md para la justificación de cada tabla (solo vive en local).
+# Ver docs/operacion/reset-db.md para la justificación de cada tabla (solo vive en local).
 PRESERVE_SETTINGS=(
     # Provisioning
     provisioning_settings

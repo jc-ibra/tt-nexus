@@ -1,6 +1,6 @@
 # Implementación del módulo MailDispatch en tt-nexus
 
-Lee CLAUDE.md, docs/ARCHITECTURE.md y docs/CONVENTIONS.md antes de empezar. Este módulo debe cumplir todas las convenciones existentes del proyecto (estructura modular, controladores delgados, servicios, API espejo, prefijos de tablas, tokens de diseño, filtros de acceso). No repito aquí esas convenciones porque ya las tienes en contexto: este documento define QUÉ construir, no cómo acomodarlo.
+Lee CLAUDE.md, docs/referencia/ARCHITECTURE.md y docs/referencia/CONVENTIONS.md antes de empezar. Este módulo debe cumplir todas las convenciones existentes del proyecto (estructura modular, controladores delgados, servicios, API espejo, prefijos de tablas, tokens de diseño, filtros de acceso). No repito aquí esas convenciones porque ya las tienes en contexto: este documento define QUÉ construir, no cómo acomodarlo.
 
 ---
 

@@ -8,7 +8,7 @@
 > **Namespace:** `App\Modules\AgentKpis`  
 > **UI display:** "Evaluación de Agentes"  
 > **Fase:** 3 de 3  
-> **Prerrequisitos:** Fase 1 completada (HelpdeskSupervisor funcional con datos). Leer `NEXUS.md`, `CONEXIONES.md` y el documento adjunto `sistema_evaluacion_mesa_n1_v2.md`.
+> **Prerrequisitos:** Fase 1 completada (HelpdeskSupervisor funcional con datos). Leer `CLAUDE.md`, `docs/referencia/CONEXIONES.md` y el documento adjunto `sistema_evaluacion_mesa_n1_v2.md`.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > Documento de referencia del estado del módulo **MailDispatch** al momento de
 > hacer commit del avance. El scope completo está en
-> [`modulo-maildispatch.md`](modulo-maildispatch.md). Aquí solo se registra lo
+> [`modulo-maildispatch.md`](../modulos/maildispatch/spec.md). Aquí solo se registra lo
 > que **queda pendiente** para dar el módulo por terminado.
 >
 > **Fecha de corte:** 2026-07-28
@@ -91,7 +91,7 @@ Regla del proyecto: **sin em-dashes (—) ni emojis** en el frontend (usar `:`,
 - [ ] Ejecutar los seeders (`MailDispatchModuleSeeder`) — ya están en `setup.sh`
       y `public/setup.php`.
 - [ ] Alta del cron de `maildispatch:sync-mailbox` en el servidor (entrada ya
-      documentada en `CRONJOBS.md`).
+      documentada en `docs/operacion/cronjobs.md`).
 - [ ] Confirmar visibilidad del módulo en el sidebar y acceso por rol
       (`mail_dispatch`) y la sección de admin restringida a SuperAdmin.
 
@@ -122,9 +122,9 @@ Archivos tocados fuera del módulo, todos necesarios para registrarlo:
 - `app/Config/Services.php` — factories de servicios (`graphMailService`,
   `mailDispatchSettings`, `conversationService`, `mailDispatchMetrics`, etc.).
 - `app/Modules/Core/Views/partials/sidebar.php` — entrada "Despacho de Correo".
-- `docs/tt-apps.postman_collection.json` — endpoints `/api/v1/dispatch/*`.
+- `docs/referencia/tt-apps.postman_collection.json` — endpoints `/api/v1/dispatch/*`.
 - `public/setup.php` y `setup.sh` — alta del `MailDispatchModuleSeeder`.
-- `CRONJOBS.md` — cron de `maildispatch:sync-mailbox`.
+- `docs/operacion/cronjobs.md` — cron de `maildispatch:sync-mailbox`.
 
 > Los cambios en `app/Modules/ServiceDesk/*` presentes en el árbol de trabajo son
 > ajenos a MailDispatch; revisarlos por separado antes del commit si no se quieren

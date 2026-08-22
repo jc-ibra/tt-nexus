@@ -6,7 +6,7 @@
  * match an entry in HelpCenter::topics()['metricas-despacho']['sections'] so the
  * table of contents and the scrollspy line up.
  *
- * The prose mirrors docs/maildispatch-metricas-para-agentes.md, which is the
+ * The prose mirrors docs/guias/maildispatch-metricas.md, which is the
  * printable version handed out as PDF. Keep both in step when the rules change.
  */
 $calendar = service('mailDispatchCalendar');

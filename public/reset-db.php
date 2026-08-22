@@ -92,7 +92,7 @@ $SEEDERS = [
 //
 // Regla de oro: aquí van las tablas que guardan CONFIGURACIÓN hecha a mano por el
 // admin (settings, credenciales, mapeos). NO van las de datos transaccionales,
-// telemetría ni bitácoras de auditoría (esas se vacían y punto). Ver RESET-DB.md.
+// telemetría ni bitácoras de auditoría (esas se vacían y punto). Ver docs/operacion/reset-db.md.
 $PRESERVE_SETTINGS = [
     // Provisioning
     'provisioning_settings',

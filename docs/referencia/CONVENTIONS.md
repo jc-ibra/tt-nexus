@@ -299,7 +299,7 @@ POST   /api/v1/auth/logout
 
 ### Postman Collection
 
-File: `/docs/tt-apps.postman_collection.json`
+File: `/docs/referencia/tt-apps.postman_collection.json`
 
 - Every new API endpoint must be added to the collection immediately.
 - Use Postman environment variables: `{{base_url}}`, `{{api_token}}`.

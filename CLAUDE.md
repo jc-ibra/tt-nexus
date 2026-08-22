@@ -18,7 +18,7 @@ The platform enforces a strict modular architecture where each module encapsulat
 
 ### Module identifiers
 
-All module identifiers (folder, namespace, DB `key`, `route_base`, URL prefix, controllers, services, models, table names, view folder, sidebar key) are in **English** and homologated across every touch point. Spanish appears only in `modules.name` and UI copy. See `docs/CONVENTIONS.md §2.1`.
+All module identifiers (folder, namespace, DB `key`, `route_base`, URL prefix, controllers, services, models, table names, view folder, sidebar key) are in **English** and homologated across every touch point. Spanish appears only in `modules.name` and UI copy. See `docs/referencia/CONVENTIONS.md §2.1`.
 
 ---
 
@@ -26,11 +26,23 @@ All module identifiers (folder, namespace, DB `key`, `route_base`, URL prefix, c
 
 | Document | Purpose |
 |---|---|
-| `docs/ARCHITECTURE.md` | CI4 request lifecycle, module system, controller/service/model patterns, API structure, DB schema design |
-| `docs/CONVENTIONS.md` | PHP/CI4 coding conventions: PSR-12, naming, routes, migrations, security, git commits |
-| `docs/tt-apps.postman_collection.json` | Postman collection — import to test all API endpoints |
+| `docs/referencia/ARCHITECTURE.md` | CI4 request lifecycle, module system, controller/service/model patterns, API structure, DB schema design |
+| `docs/referencia/CONVENTIONS.md` | PHP/CI4 coding conventions: PSR-12, naming, routes, migrations, security, git commits |
+| `docs/referencia/CONEXIONES.md` | Inventory of external integrations: protocol, auth type, where config is stored |
+| `docs/referencia/tt-apps.postman_collection.json` | Postman collection — import to test all API endpoints |
 | `DESIGN.md` | UI/UX design system — all CSS tokens, components, accessibility rules |
 | `app/Modules/Provisioning/README.md` | Provisioning module: Intranet API contract and lifecycle orchestration details |
+| `docs/README.md` | Index of everything under `docs/` — start here to locate a module spec, user guide or runbook |
+
+`docs/` is organized by purpose, not by module:
+
+| Folder | Holds |
+|---|---|
+| `docs/referencia/` | Canonical, always-current rules. If it contradicts another doc, this wins. |
+| `docs/modulos/` | Build specs, one folder per module. Historical intent, not necessarily current state. |
+| `docs/guias/` | End-user prose for agents (help screens mirror these files). |
+| `docs/operacion/` | Runbooks: cron jobs, DB reset, incident fixes. |
+| `docs/pendiente/` | Designed but not built, or built with open items. |
 
 ---
 
@@ -105,9 +117,9 @@ app/Modules/
 - API controllers in `Controllers/Api/` per module, extending `BaseApiController`
 - All API responses use the standard JSON envelope: `{ "status": "success"|"error", "data": ..., "errors": ... }`
 - Non-CRUD actions use a verb suffix: `POST /api/v1/comms/communications/{id}/send`
-- The Postman collection at `docs/tt-apps.postman_collection.json` must be updated whenever an endpoint is added or changed
+- The Postman collection at `docs/referencia/tt-apps.postman_collection.json` must be updated whenever an endpoint is added or changed
 
-See `docs/ARCHITECTURE.md §7` for the full API architecture (auth, versioning, response format, route structure).
+See `docs/referencia/ARCHITECTURE.md §7` for the full API architecture (auth, versioning, response format, route structure).
 
 ### Service Layer & Validation
 
@@ -351,7 +363,7 @@ Location: `app/Modules/[ModuleName]/Views/`
 5. Create migration to register module in `modules` table (prefix every table name with the module slug, e.g. `newmodule_`)
 6. Define web Controllers, API Controllers (in `Controllers/Api/`), Models, and Services
 7. Create a `NewModuleModuleSeeder` to register the module and assign it to the SuperAdmin role
-8. Add the new module's API endpoints to `docs/tt-apps.postman_collection.json`
+8. Add the new module's API endpoints to `docs/referencia/tt-apps.postman_collection.json`
 9. Add the seeder to `setup.sh` (and `public/setup.php`) — migrations are auto-discovered by `migrate --all`, but seeders must be listed explicitly. The `/update-script` skill automates this.
 10. Confirm `php spark db:verify-schema` passes
 

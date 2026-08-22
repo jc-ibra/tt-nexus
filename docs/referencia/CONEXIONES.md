@@ -2,7 +2,7 @@
 
 > **Propósito.** Este documento describe **qué integraciones existen hoy** en tt-nexus y **en qué modo** se conectan: protocolo, tipo de autenticación, dónde se guarda la configuración y si está cifrada. Sirve como punto de partida para planear nuevas integraciones (por ejemplo, para pasar contexto a Claude Desktop).
 >
-> **Alcance.** No se listan rutas ni endpoints concretos de cada API. El foco es el inventario de sistemas disponibles y su modo de conexión. Para el contrato detallado de la Intranet ver `app/Modules/Provisioning/README.md`; para Mailcow ver `docs/mailcow.md`; para MailDispatch ver `docs/modulo-maildispatch.md`.
+> **Alcance.** No se listan rutas ni endpoints concretos de cada API. El foco es el inventario de sistemas disponibles y su modo de conexión. Para el contrato detallado de la Intranet ver `app/Modules/Provisioning/README.md`; para Mailcow ver `docs/modulos/mailboxes/integracion-mailcow.md`; para MailDispatch ver `docs/modulos/maildispatch/spec.md`.
 >
 > Última actualización: 2026-07-28.
 
