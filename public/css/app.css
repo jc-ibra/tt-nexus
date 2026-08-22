@@ -829,6 +829,58 @@ img, svg { display: block; max-width: 100%; }
   cursor: pointer;
 }
 
+/* Choice list — checkboxes/radios that carry a title plus a description.
+   Unlike .field-check (single inline control), each option is a row: the box
+   is top-aligned with the title and the description sits on its own line, so
+   long descriptions never push the label out of alignment. */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: var(--border-width-default) solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+}
+
+.check-option {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-base) var(--ease-default);
+}
+.check-option:hover { background: var(--bg-surface-alt); }
+
+.check-option input[type="checkbox"],
+.check-option input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  /* Optical nudge so the box lines up with the title's cap height. */
+  margin: 2px 0 0;
+  accent-color: var(--action-primary);
+  cursor: pointer;
+}
+
+.check-option-title {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+.check-option-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
 /* --------------------------------------------------------------------------
    9. Cards
    -------------------------------------------------------------------------- */

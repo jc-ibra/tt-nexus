@@ -41,7 +41,7 @@
       <tbody>
         <?php foreach ($users as $user): ?>
         <tr>
-          <td class="font-medium"><?= esc($user['name']) ?></td>
+          <td class="font-medium"><a href="<?= route_to('admin.users.show', $user['id']) ?>"><?= esc($user['name']) ?></a></td>
           <td class="text-muted"><?= esc($user['email']) ?></td>
           <td>
             <?php foreach ($user['roles'] as $role): ?>

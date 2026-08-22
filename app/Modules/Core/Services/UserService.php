@@ -91,6 +91,10 @@ class UserService
         }
 
         $updateData = [
+            // Not a writable column (it is not in $allowedFields, so the model
+            // strips it before the query); it is here so the model's own
+            // is_unique[...,id,{id}] rule can exclude the row being edited.
+            'id'     => $id,
             'name'   => $data['name'],
             'email'  => $data['email'],
             'status' => $data['status'] ?? $user['status'],
@@ -106,7 +110,11 @@ class UserService
             $updateData['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
 
-        $this->userModel->update($id, $updateData);
+        if ($this->userModel->update($id, $updateData) === false) {
+            $errors = $this->userModel->errors();
+
+            return ServiceResult::fail($errors !== [] ? $errors : 'Error al actualizar el usuario.');
+        }
 
         if (isset($data['role_ids'])) {
             $roleIds = is_array($data['role_ids']) ? $data['role_ids'] : [$data['role_ids']];

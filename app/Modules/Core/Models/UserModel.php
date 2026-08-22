@@ -14,7 +14,12 @@ class UserModel extends Model
     protected $useTimestamps  = true;
     protected $returnType    = 'array';
 
+    // The `id` rule is not cosmetic: CI4 only fills the `{id}` placeholder when
+    // `id` is present in the written data AND has its own rule. Without it the
+    // rule stays literal, is_unique matches the row being edited and update()
+    // silently returns false. UserService::update() passes the id for this.
     protected $validationRules = [
+        'id'    => 'permit_empty|is_natural_no_zero',
         'name'  => 'required|max_length[120]',
         'email' => 'required|valid_email|max_length[191]|is_unique[core_users.email,id,{id}]',
     ];

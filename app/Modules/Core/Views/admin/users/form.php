@@ -19,7 +19,7 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
 
 <div class="card" style="max-width: 640px;">
   <div class="card-body">
-    <form action="<?= $isEdit ? route_to('admin.users.update', $user['id']) : route_to('admin.users.store') ?>" method="post">
+    <form id="user-form" action="<?= $isEdit ? route_to('admin.users.update', $user['id']) : route_to('admin.users.store') ?>" method="post">
       <?= csrf_field() ?>
       <div class="form-group">
 
@@ -62,23 +62,28 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
         </div>
 
         <div class="field">
-          <label class="field-label">Roles <span class="required" aria-hidden="true">*</span></label>
+          <label class="field-label" id="roles-label">Roles <span class="required" aria-hidden="true">*</span></label>
           <?php
           $selectedRoleIds = old('role_ids', $user['role_ids'] ?? []);
           if (! is_array($selectedRoleIds)) {
               $selectedRoleIds = [$selectedRoleIds];
           }
+          $selectedRoleIds = array_map('strval', $selectedRoleIds);
           ?>
-          <?php foreach ($roles as $role): ?>
-            <label class="field-check" style="margin-top: var(--space-2);">
-              <input type="checkbox" name="role_ids[]" value="<?= $role['id'] ?>"
-                <?= in_array((string) $role['id'], array_map('strval', $selectedRoleIds), true) ? 'checked' : '' ?>>
-              <span><?= esc($role['name']) ?></span>
-              <?php if ($role['description']): ?>
-                <span class="text-muted text-sm">· <?= esc($role['description']) ?></span>
-              <?php endif; ?>
-            </label>
-          <?php endforeach; ?>
+          <div class="check-list" role="group" aria-labelledby="roles-label">
+            <?php foreach ($roles as $role): ?>
+              <label class="check-option">
+                <input type="checkbox" name="role_ids[]" value="<?= $role['id'] ?>"
+                  <?= in_array((string) $role['id'], $selectedRoleIds, true) ? 'checked' : '' ?>>
+                <span>
+                  <span class="check-option-title"><?= esc($role['name']) ?></span>
+                  <?php if ($role['description']): ?>
+                    <span class="check-option-desc"><?= esc($role['description']) ?></span>
+                  <?php endif; ?>
+                </span>
+              </label>
+            <?php endforeach; ?>
+          </div>
           <?php if ($hasErr('role_ids')): ?><p class="field-error"><?= esc($errors['role_ids']) ?></p><?php endif; ?>
         </div>
 
@@ -87,7 +92,7 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
   </div>
   <div class="card-footer">
     <a href="<?= route_to('admin.users.index') ?>" class="btn btn-secondary">Cancelar</a>
-    <button type="submit" form="" onclick="this.closest('.card').querySelector('form').submit()" class="btn btn-primary">
+    <button type="submit" form="user-form" class="btn btn-primary">
       <?= $isEdit ? 'Guardar cambios' : 'Crear usuario' ?>
     </button>
   </div>
