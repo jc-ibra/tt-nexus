@@ -23,6 +23,9 @@ $routes->group('servicedesk', [
     $routes->post('creator/tickets', 'TicketCreator::create', ['as' => 'servicedesk.creator.create']);
     $routes->post('creator/reset',   'TicketCreator::reset',  ['as' => 'servicedesk.creator.reset']);
 
+    // Assignment matrix: read-only for the whole team (who answers what, and how)
+    $routes->get('asignaciones', 'Assignments::index', ['as' => 'servicedesk.assignments']);
+
     // Agent self-view: my audited deviations (confirmed) + escalations
     $routes->get('mi-desempeno', 'MyPerformance::index', ['as' => 'servicedesk.myperformance']);
 
@@ -76,6 +79,9 @@ $routes->group('admin/servicedesk', [
     $routes->post('backlog',       'ServiceDeskAdmin::saveBacklog',      ['as' => 'servicedesk.backlog.save']);
     $routes->post('backlog/areas', 'ServiceDeskAdmin::saveBacklogAreas', ['as' => 'servicedesk.backlog.areas.save']);
     $routes->post('backlog/test',  'ServiceDeskAdmin::sendBacklogTest',  ['as' => 'servicedesk.backlog.test']);
+    // Assignment matrix: replace it from a workbook, and map each name to a user.
+    $routes->post('assignments',        'ServiceDeskAdmin::saveAssignments',      ['as' => 'servicedesk.assignments.upload']);
+    $routes->post('assignments/agents', 'ServiceDeskAdmin::saveAssignmentAgents', ['as' => 'servicedesk.assignments.agents.save']);
     // Live preview of the introspected plugin containers/fields.
     $routes->get('schema',         'ServiceDeskAdmin::schema',       ['as' => 'servicedesk.schema']);
     // Public self-service landing config (enable, title/intro, key, rate limit).
@@ -143,6 +149,13 @@ $routes->group('api/v1/servicedesk', [
     $routes->get('me/evaluations',                    'MyPerformanceApiController::index');
     $routes->get('me/evaluations/(:num)',             'MyPerformanceApiController::showEvaluation/$1');
     $routes->post('me/evaluations/(:num)/comments',   'MyPerformanceApiController::saveComments/$1');
+
+    // Assignment matrix. Reading is open to the module; replacing it and mapping
+    // people to users are SuperAdmin actions, enforced inside the controller.
+    $routes->get('assignments',         'AssignmentsApiController::index');
+    $routes->post('assignments',        'AssignmentsApiController::upload');
+    $routes->get('assignments/agents',  'AssignmentsApiController::agents');
+    $routes->post('assignments/agents', 'AssignmentsApiController::saveAgents');
 
     // AI ticket creator (mirror of the web actions; stateless conversation).
     $routes->post('creator/columns', 'TicketCreatorApiController::columns');

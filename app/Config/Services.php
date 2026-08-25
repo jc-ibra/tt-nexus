@@ -52,11 +52,13 @@ use App\Modules\Provisioning\Services\MsLicenseService;
 use App\Modules\Provisioning\Services\SystemAdminService;
 use App\Modules\ServiceDesk\Config\ServiceDesk as ServiceDeskConfig;
 use App\Modules\ServiceDesk\Models\ServiceDeskAiUsageModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskAssignmentModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskBacklogAreaModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskBacklogRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
+use App\Modules\ServiceDesk\Services\AssignmentMatrixImporter;
 use App\Modules\ServiceDesk\Services\BacklogReportService;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
 use App\Modules\ServiceDesk\Services\GlpiValueResolver;
@@ -380,6 +382,18 @@ class Services extends BaseService
             return static::getSharedInstance('serviceDeskSettings');
         }
         return new ServiceDeskSettings(new ServiceDeskSettingsModel());
+    }
+
+    public static function assignmentMatrixImporter(bool $getShared = true): AssignmentMatrixImporter
+    {
+        if ($getShared) {
+            return static::getSharedInstance('assignmentMatrixImporter');
+        }
+        return new AssignmentMatrixImporter(
+            new ServiceDeskAssignmentModel(),
+            new ServiceDeskCategoryMapModel(),
+            new ServiceDeskSettingsModel(),
+        );
     }
 
     public static function glpiSchemaIntrospector(bool $getShared = true): GlpiSchemaIntrospector

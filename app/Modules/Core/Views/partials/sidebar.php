@@ -153,6 +153,11 @@ $moduleSubnav = [
             'url'    => base_url('servicedesk/imports'),
             'active' => str_starts_with($currentPath, '/servicedesk/imports'),
         ],
+        [
+            'label'  => 'Asignaciones',
+            'url'    => base_url('servicedesk/asignaciones'),
+            'active' => str_starts_with($currentPath, '/servicedesk/asignaciones'),
+        ],
     ],
     'mail_dispatch' => [
         [

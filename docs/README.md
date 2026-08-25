@@ -40,6 +40,7 @@ qué** algo se hizo así. Para el estado actual, el código manda.
 | MailDispatch | [spec.md](modulos/maildispatch/spec.md) : despacho del buzón compartido de M365. Ver también `pendiente/` |
 | TechBot | [spec.md](modulos/techbot/spec.md) : bot de Telegram para que técnicos de campo documenten tickets de GLPI |
 | ServiceDesk | [actualizacion-masiva.md](modulos/servicedesk/actualizacion-masiva.md) : actualización y cierre masivo de tickets con el mismo Excel del importador |
+| ServiceDesk | [asignaciones.md](modulos/servicedesk/asignaciones.md) : matriz de quién atiende cada categoría, en qué etapa y por qué canal |
 | HelpdeskSupervisor | [fase-1-supervisor.md](modulos/helpdesk-supervisor/fase-1-supervisor.md) : auditoría de GLPI contra el Manual MAC |
 | HelpdeskSupervisor | [fase-2-notificaciones-ia.md](modulos/helpdesk-supervisor/fase-2-notificaciones-ia.md) : notificaciones IA y envío de reportes |
 | AgentKpis | [fase-3-kpis-agentes.md](modulos/helpdesk-supervisor/fase-3-kpis-agentes.md) : evaluación mensual de agentes |

@@ -3240,6 +3240,135 @@
       ]
     },
     {
+      "name": "Service Desk — Asignaciones",
+      "item": [
+        {
+          "name": "Matriz de asignaciones (quién atiende qué)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/assignments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "assignments"
+              ]
+            },
+            "description": "Matriz completa: personas, categorías, etapa (AV/A/D/C) y canal (E/W/I/N-A), más la leyenda vigente y, si el usuario del token está vinculado, `my_agent`."
+          },
+          "response": []
+        },
+        {
+          "name": "Personas de la matriz y su usuario de Nexus",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/assignments/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "assignments",
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reemplazar la matriz (subir xlsx) — SuperAdmin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/assignments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "assignments"
+              ]
+            },
+            "description": "Reemplaza la matriz completa con el contenido del archivo. Si el archivo no se puede interpretar responde 422 con los errores y NO toca la matriz vigente."
+          },
+          "response": []
+        },
+        {
+          "name": "Vincular personas con usuarios — SuperAdmin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agent_user\": {\n    \"1\": 4,\n    \"2\": 7,\n    \"3\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/assignments/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "assignments",
+                "agents"
+              ]
+            },
+            "description": "0 desvincula. Un usuario de Nexus solo puede estar detrás de una persona de la matriz."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Service Desk — Autoservicio del agente",
       "description": "Vista propia del agente: siempre acotada al usuario del token. No hay forma de consultar los datos de otro agente.",
       "item": [

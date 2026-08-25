@@ -96,6 +96,10 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
           aria-selected="false" aria-controls="sd-panel-backlog" tabindex="-1" data-panel="sd-panel-backlog" data-hash="backlog">
     Reporte de Backlog
   </button>
+  <button type="button" class="sd-tab" id="sd-tab-asignaciones" role="tab"
+          aria-selected="false" aria-controls="sd-panel-asignaciones" tabindex="-1" data-panel="sd-panel-asignaciones" data-hash="asignaciones">
+    Asignaciones
+  </button>
 </div>
 
 <!-- Tab: Importación -->
@@ -869,6 +873,117 @@ $bMunCont = (int) ($s['backlog_municipio_container_id'] ?? 0);
   </div>
 
 </div><!-- /sd-panel-backlog -->
+
+<!-- Tab: Asignaciones -->
+<div id="sd-panel-asignaciones" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-asignaciones" style="display:none;">
+
+  <div class="card" style="margin-bottom: var(--space-4); max-width: 860px;">
+    <div class="card-header"><h2 class="card-title">Matriz de asignaciones</h2></div>
+    <div class="card-body">
+      <p class="text-muted text-sm" style="margin-top:0;">
+        Define quién atiende cada categoría de GLPI, en qué etapa del ticket y por qué canal.
+        Los agentes la consultan en Service Desk · Asignaciones; el archivo nunca se les entrega.
+      </p>
+
+      <?php if ($assignCategories > 0): ?>
+        <div style="display:flex; flex-wrap:wrap; gap: var(--space-6); margin-bottom: var(--space-4);">
+          <div>
+            <p class="text-muted text-xs" style="margin:0;">Categorías</p>
+            <p style="margin:0; font-size: var(--text-xl); font-weight: var(--weight-semibold);"><?= (int) $assignCategories ?></p>
+          </div>
+          <div>
+            <p class="text-muted text-xs" style="margin:0;">Personas</p>
+            <p style="margin:0; font-size: var(--text-xl); font-weight: var(--weight-semibold);"><?= count($assignAgents) ?></p>
+          </div>
+          <div>
+            <p class="text-muted text-xs" style="margin:0;">Asignaciones</p>
+            <p style="margin:0; font-size: var(--text-xl); font-weight: var(--weight-semibold);"><?= (int) $assignCells ?></p>
+          </div>
+          <div>
+            <p class="text-muted text-xs" style="margin:0;">Última carga</p>
+            <p style="margin:0;" class="text-sm">
+              <?= $assignUpdatedAt !== '' ? esc(date('d/m/Y H:i', strtotime($assignUpdatedAt))) : '—' ?>
+              <?php if ($assignFilename !== ''): ?>
+                <br><span class="text-muted text-xs"><?= esc($assignFilename) ?></span>
+              <?php endif; ?>
+            </p>
+          </div>
+        </div>
+      <?php else: ?>
+        <div class="banner banner-info" role="status" style="margin-bottom: var(--space-4);">
+          <div class="banner-body">Todavía no se ha cargado ninguna matriz.</div>
+        </div>
+      <?php endif; ?>
+
+      <form action="<?= route_to('servicedesk.assignments.upload') ?>" method="post" enctype="multipart/form-data">
+        <?= csrf_field() ?>
+        <div class="field">
+          <label class="field-label" for="assign_file">Archivo .xlsx</label>
+          <input type="file" id="assign_file" name="file" accept=".xlsx" class="input" required>
+          <p class="field-help">
+            Primera hoja del libro. Fila 1: el nombre de cada persona sobre sus columnas.
+            Fila 2: la etapa de cada columna (AV, A, D, C). Columna A: la ruta completa de la
+            categoría en GLPI. Cada celda: el canal (E, W, I, N/A). A la derecha de la matriz
+            puedes dejar la tabla de significados y se usará como leyenda en pantalla.
+          </p>
+        </div>
+        <?php if ($assignCategories > 0): ?>
+          <div class="banner banner-warning" role="alert" style="margin: var(--space-3) 0;">
+            <div class="banner-body">
+              Al cargar un archivo se reemplaza la matriz completa. Si el archivo tiene un error,
+              no se toca nada y se te explica qué corregir.
+            </div>
+          </div>
+        <?php endif; ?>
+        <button type="submit" class="btn btn-primary">Cargar y reemplazar matriz</button>
+      </form>
+    </div>
+  </div>
+
+  <?php if ($assignAgents !== []): ?>
+    <div class="card" style="max-width: 860px;">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Vincular personas con usuarios</h2>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0;">
+          Al vincular un nombre del archivo con su usuario de Nexus, esa persona podrá filtrar
+          «Solo lo mío» en la pantalla de asignaciones. La vinculación se conserva al recargar el archivo.
+        </p>
+        <form action="<?= route_to('servicedesk.assignments.agents.save') ?>" method="post">
+          <?= csrf_field() ?>
+          <table class="table" style="width:100%;">
+            <thead>
+              <tr><th scope="col">Nombre en el archivo</th><th scope="col">Usuario de Nexus</th></tr>
+            </thead>
+            <tbody>
+              <?php foreach ($assignAgents as $a): ?>
+                <tr>
+                  <td style="font-weight: var(--weight-medium);"><?= esc($a['name']) ?></td>
+                  <td>
+                    <label class="sr-only" for="agent_user_<?= (int) $a['id'] ?>">Usuario para <?= esc($a['name']) ?></label>
+                    <select id="agent_user_<?= (int) $a['id'] ?>" name="agent_user[<?= (int) $a['id'] ?>]" class="input">
+                      <option value="0">Sin vincular</option>
+                      <?php foreach ($assignUsers as $u): ?>
+                        <option value="<?= (int) $u['id'] ?>" <?= (int) $u['id'] === (int) $a['user_id'] ? 'selected' : '' ?>>
+                          <?= esc($u['name']) ?> · <?= esc($u['email']) ?>
+                        </option>
+                      <?php endforeach; ?>
+                    </select>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+          <div style="margin-top: var(--space-4);">
+            <button type="submit" class="btn btn-primary">Guardar vinculaciones</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  <?php endif; ?>
+
+</div><!-- /sd-panel-asignaciones -->
 
 <script>
 (function () {
