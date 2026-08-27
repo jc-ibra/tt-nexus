@@ -390,6 +390,13 @@ class SmtpReplyService
         $config->SMTPPass   = $smtp['pass'];
         $config->SMTPPort   = $smtp['port'];
         $config->SMTPCrypto = $smtp['crypto'];
+        // El relay tarda entre 7 y 11 s en responder al RCPT TO. Con los 5 s por
+        // omisión de CI4, fgets() expira, se aborta antes de DATA y el correo
+        // nunca sale (la respuesta atrasada del RCPT se lee luego como si fuera
+        // la del QUIT). Fijado aquí porque este helper gana sobre Config\Email.
+        $config->SMTPTimeout   = 30;
+        // Un socket ya desincronizado no se recupera reutilizándolo.
+        $config->SMTPKeepAlive = false;
         $config->mailType   = 'html';
         $config->charset    = 'UTF-8';
         $config->wordWrap   = true;

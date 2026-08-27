@@ -48,7 +48,7 @@ class Settings extends BaseController
             $config->SMTPPass   = $smtp['smtp_password'];
             $config->SMTPPort   = (int) ($smtp['smtp_port'] ?: 587);
             $config->SMTPCrypto = $smtp['smtp_crypto'] ?: 'tls';
-            $config->SMTPTimeout = 10;
+            $config->SMTPTimeout = 30;
 
             $mailer = \Config\Services::email($config, false);
             $mailer->clear();
