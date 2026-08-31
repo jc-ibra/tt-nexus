@@ -31,7 +31,15 @@ class AuthApiController extends BaseApiController
             return $this->error($result->message, 401);
         }
 
-        $user       = $result->data;
+        $user = $result->data;
+
+        // No MFA step on the token flow, so the successful password exchange
+        // is the moment the access happened.
+        service('authService')->recordLogin(
+            (int) $user['id'],
+            (string) $this->request->getIPAddress()
+        );
+
         $ttlDays    = (int) env('API_TOKEN_TTL_DAYS', 30);
         $expiresAt  = $ttlDays > 0 ? date('Y-m-d H:i:s', strtotime("+{$ttlDays} days")) : null;
         $tokenModel = new PersonalAccessTokenModel();
@@ -46,6 +54,46 @@ class AuthApiController extends BaseApiController
                 'email' => $user['email'],
             ],
         ]);
+    }
+
+    /**
+     * Mirrors the web invitation landing: reports whether a token is still
+     * redeemable and for which address.
+     */
+    public function invitation(string $token): \CodeIgniter\HTTP\ResponseInterface
+    {
+        $resolved = service('invitationService')->resolve($token);
+
+        if ($resolved === null) {
+            return $this->notFound('El enlace de invitación es inválido, ya fue usado o expiró.');
+        }
+
+        return $this->success([
+            'email'      => $resolved['user']['email'],
+            'name'       => $resolved['user']['name'],
+            'expires_at' => $resolved['invitation']['expires_at'],
+        ]);
+    }
+
+    public function acceptInvitation(string $token): \CodeIgniter\HTTP\ResponseInterface
+    {
+        $data   = (array) $this->request->getJSON(true);
+        $result = service('invitationService')->accept(
+            $token,
+            (string) ($data['name'] ?? ''),
+            (string) ($data['password'] ?? ''),
+            (string) ($data['password_confirm'] ?? ''),
+            false
+        );
+
+        if (! $result->success) {
+            return $this->validationError($result->errors);
+        }
+
+        $user = $result->data;
+        unset($user['password'], $user['mfa_secret']);
+
+        return $this->success($user);
     }
 
     public function logout(): \CodeIgniter\HTTP\ResponseInterface

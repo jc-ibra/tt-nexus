@@ -16,6 +16,10 @@ $routes->group('', ['namespace' => 'App\Modules\Core\Controllers'], function (Ro
     $routes->post('password/reset',             'Auth::sendResetLink',   ['as' => 'password.send']);
     $routes->get('password/reset/(:alphanum)',  'Auth::resetForm/$1',    ['as' => 'password.reset']);
     $routes->post('password/reset/(:alphanum)', 'Auth::resetPassword/$1', ['as' => 'password.update']);
+
+    // Invitation: the token is the only credential, so these stay public.
+    $routes->get('invitation/(:alphanum)',  'Auth::invitation/$1',       ['as' => 'invitation.show']);
+    $routes->post('invitation/(:alphanum)', 'Auth::acceptInvitation/$1', ['as' => 'invitation.accept']);
 });
 
 // -----------------------------------------------------------------------
@@ -61,6 +65,9 @@ $routes->group('admin', ['namespace' => 'App\Modules\Core\Controllers', 'filter'
     $routes->get('users/(:num)/edit',    'Users::edit/$1',    ['as' => 'admin.users.edit',     'filter' => 'super_admin']);
     $routes->post('users/(:num)',        'Users::update/$1',  ['as' => 'admin.users.update',   'filter' => 'super_admin']);
     $routes->post('users/(:num)/delete', 'Users::destroy/$1', ['as' => 'admin.users.destroy',  'filter' => 'super_admin']);
+    $routes->post('users/(:num)/invite',        'Users::invite/$1',           ['as' => 'admin.users.invite',        'filter' => 'super_admin']);
+    $routes->post('users/(:num)/invite/revoke', 'Users::revokeInvitation/$1', ['as' => 'admin.users.invite.revoke', 'filter' => 'super_admin']);
+    $routes->post('users/(:num)/mfa/reset',     'Users::resetMfa/$1',         ['as' => 'admin.users.mfa.reset',     'filter' => 'super_admin']);
 
     // Roles — SuperAdmin only
     $routes->get('roles',                'Roles::index',      ['as' => 'admin.roles.index',    'filter' => 'super_admin']);
@@ -87,12 +94,18 @@ $routes->group('admin/settings', ['namespace' => 'App\Modules\Core\Controllers',
 $routes->group('api/v1/auth', ['namespace' => 'App\Modules\Core\Controllers\Api'], function (RouteCollection $routes): void {
     $routes->post('login',  'AuthApiController::login',  ['as' => 'api.auth.login']);
     $routes->post('logout', 'AuthApiController::logout', ['as' => 'api.auth.logout', 'filter' => 'api_auth']);
+    // Public on purpose: mirrors the web invitation landing, the token authenticates.
+    $routes->get('invitations/(:alphanum)',         'AuthApiController::invitation/$1',       ['as' => 'api.auth.invitation']);
+    $routes->post('invitations/(:alphanum)/accept', 'AuthApiController::acceptInvitation/$1', ['as' => 'api.auth.invitation.accept']);
 });
 
 // -----------------------------------------------------------------------
 // API v1 — Core (protected)
 // -----------------------------------------------------------------------
 $routes->group('api/v1', ['namespace' => 'App\Modules\Core\Controllers\Api', 'filter' => 'api_auth'], function (RouteCollection $routes): void {
+    $routes->post('users/(:num)/invite',        'UsersApiController::invite/$1',           ['as' => 'api.users.invite']);
+    $routes->post('users/(:num)/invite/revoke', 'UsersApiController::revokeInvitation/$1', ['as' => 'api.users.invite.revoke']);
+    $routes->post('users/(:num)/mfa/reset',     'UsersApiController::resetMfa/$1',         ['as' => 'api.users.mfa.reset']);
     $routes->resource('users', ['controller' => 'UsersApiController', 'websafe' => false]);
     $routes->resource('roles', ['controller' => 'RolesApiController', 'websafe' => false]);
 });

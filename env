@@ -20,6 +20,9 @@
 # development; nunca tiene efecto en producción. Uso exclusivo para desarrollo local.
 # MFA_DEV_BYPASS = true
 
+# Horas que dura el enlace de invitación para crear cuenta. Por omisión 72.
+# INVITATION_TTL_HOURS = 72
+
 #--------------------------------------------------------------------
 # APP
 #--------------------------------------------------------------------

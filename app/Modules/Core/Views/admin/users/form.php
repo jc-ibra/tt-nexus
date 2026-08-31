@@ -6,6 +6,8 @@ $isEdit  = $user !== null;
 $errors  = session()->getFlashdata('errors') ?? [];
 $old     = fn(string $key, mixed $default = '') => old($key, $isEdit ? ($user[$key] ?? $default) : $default);
 $hasErr  = fn(string $key) => isset($errors[$key]);
+$isPending  = $isEdit && ($user['status'] ?? '') === 'pending';
+$authMethod = old('auth_method', 'invite');
 ?>
 
 <div class="page-header">
@@ -35,10 +37,34 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
           <?php if ($hasErr('email')): ?><p class="field-error"><?= esc($errors['email']) ?></p><?php endif; ?>
         </div>
 
+        <?php if (! $isEdit): ?>
         <div class="field">
+          <label class="field-label" id="auth-method-label">Cómo obtendrá su acceso</label>
+          <div class="check-list" role="radiogroup" aria-labelledby="auth-method-label">
+            <label class="check-option">
+              <input type="radio" name="auth_method" value="invite" <?= $authMethod !== 'password' ? 'checked' : '' ?>>
+              <span>
+                <span class="check-option-title">Enviar invitación por correo</span>
+                <span class="check-option-desc">Recibe un enlace para definir su propia contraseña y su verificación en dos pasos. La cuenta queda pendiente hasta que la active.</span>
+              </span>
+            </label>
+            <label class="check-option">
+              <input type="radio" name="auth_method" value="password" <?= $authMethod === 'password' ? 'checked' : '' ?>>
+              <span>
+                <span class="check-option-title">Definir la contraseña ahora</span>
+                <span class="check-option-desc">Para cuentas sin correo funcional o si el envío por SMTP no está disponible. Tendrás que comunicarle la contraseña.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <div class="field" id="password-field" <?= ! $isEdit && $authMethod !== 'password' ? 'hidden' : '' ?>>
           <label class="field-label" for="password"><?= $isEdit ? 'Nueva contraseña' : 'Contraseña' ?> <?= $isEdit ? '' : '<span class="required" aria-hidden="true">*</span>' ?></label>
-          <input type="password" id="password" name="password" class="input <?= $hasErr('password') ? 'is-error' : '' ?>" autocomplete="new-password" <?= $isEdit ? '' : 'required' ?>>
-          <?php if ($isEdit): ?>
+          <input type="password" id="password" name="password" class="input <?= $hasErr('password') ? 'is-error' : '' ?>" autocomplete="new-password">
+          <?php if ($isEdit && $isPending): ?>
+            <p class="field-help">Esta cuenta tiene una invitación pendiente. Si escribes una contraseña aquí, la cuenta se activa de inmediato y el enlace enviado deja de funcionar.</p>
+          <?php elseif ($isEdit): ?>
             <p class="field-help">Deja en blanco para mantener la contraseña actual.</p>
           <?php endif; ?>
           <?php if ($hasErr('password')): ?><p class="field-error"><?= esc($errors['password']) ?></p><?php endif; ?>
@@ -46,10 +72,17 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
 
         <div class="field">
           <label class="field-label" for="status">Estado</label>
+          <?php $status = $old('status', 'active'); ?>
           <select id="status" name="status" class="select">
-            <option value="active"   <?= $old('status', 'active') === 'active'   ? 'selected' : '' ?>>Activo</option>
-            <option value="inactive" <?= $old('status', 'active') === 'inactive' ? 'selected' : '' ?>>Inactivo</option>
+            <?php if ($isPending): ?>
+              <option value="pending" selected>Invitación pendiente</option>
+            <?php endif; ?>
+            <option value="active"   <?= $status === 'active'   ? 'selected' : '' ?>>Activo</option>
+            <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>Inactivo</option>
           </select>
+          <?php if ($isPending): ?>
+            <p class="field-help">La cuenta se activa sola cuando la persona use su invitación. No puede pasar a "Activo" sin una contraseña.</p>
+          <?php endif; ?>
         </div>
 
         <div class="field">
@@ -92,10 +125,36 @@ $hasErr  = fn(string $key) => isset($errors[$key]);
   </div>
   <div class="card-footer">
     <a href="<?= route_to('admin.users.index') ?>" class="btn btn-secondary">Cancelar</a>
-    <button type="submit" form="user-form" class="btn btn-primary">
-      <?= $isEdit ? 'Guardar cambios' : 'Crear usuario' ?>
+    <button type="submit" form="user-form" class="btn btn-primary" id="submit-btn">
+      <?= $isEdit ? 'Guardar cambios' : 'Crear usuario y enviar invitación' ?>
     </button>
   </div>
 </div>
 
 <?= $this->endSection() ?>
+
+<?php if (! $isEdit): ?>
+<?= $this->section('scripts') ?>
+<script>
+  // The password field only exists for the manual path; hiding it keeps the
+  // invitation, which is the default, down to name, email and roles.
+  (function () {
+    var field  = document.getElementById('password-field');
+    var input  = document.getElementById('password');
+    var radios = document.querySelectorAll('input[name="auth_method"]');
+    var button = document.getElementById('submit-btn');
+
+    function sync() {
+      var manual = document.querySelector('input[name="auth_method"]:checked').value === 'password';
+      field.hidden   = ! manual;
+      input.required = manual;
+      if (! manual) { input.value = ''; }
+      button.textContent = manual ? 'Crear usuario' : 'Crear usuario y enviar invitación';
+    }
+
+    radios.forEach(function (radio) { radio.addEventListener('change', sync); });
+    sync();
+  })();
+</script>
+<?= $this->endSection() ?>
+<?php endif; ?>

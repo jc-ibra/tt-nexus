@@ -29,7 +29,7 @@ class UsersApiController extends BaseApiController
             return $this->notFound('Usuario no encontrado.');
         }
 
-        unset($user['password']);
+        unset($user['password'], $user['mfa_secret']);
 
         return $this->success($user);
     }
@@ -46,7 +46,46 @@ class UsersApiController extends BaseApiController
         $user = $result->data;
         unset($user['password']);
 
+        // Same contract as the web form: `auth_method` defaults to `invite`,
+        // which creates a pending account and emails the activation link.
+        if (! empty($user['by_invitation'])) {
+            $sent = service('invitationService')->send((int) $user['id']);
+
+            $user['invitation_sent']  = $sent->success;
+            $user['invitation_error'] = $sent->success ? null : $sent->message;
+        }
+
         return $this->successCreated($user);
+    }
+
+    public function invite($id = null): \CodeIgniter\HTTP\ResponseInterface
+    {
+        $result = service('invitationService')->send((int) $id);
+
+        return $result->success
+            ? $this->success(['message' => $result->message])
+            : $this->error($result->message, 422);
+    }
+
+    public function revokeInvitation($id = null): \CodeIgniter\HTTP\ResponseInterface
+    {
+        $result = service('invitationService')->revoke((int) $id);
+
+        return $result->success
+            ? $this->success(['message' => $result->message])
+            : $this->error($result->message, 404);
+    }
+
+    public function resetMfa($id = null): \CodeIgniter\HTTP\ResponseInterface
+    {
+        if (service('userService')->findById((int) $id) === null) {
+            return $this->notFound('Usuario no encontrado.');
+        }
+
+        service('authService')->resetMfa((int) $id);
+        log_message('info', '[Auth] MFA reset for user_id=' . (int) $id . ' via API');
+
+        return $this->success(['message' => 'Verificación en dos pasos reiniciada.']);
     }
 
     public function update($id = null): \CodeIgniter\HTTP\ResponseInterface

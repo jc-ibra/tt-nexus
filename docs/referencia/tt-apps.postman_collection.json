@@ -123,6 +123,84 @@
               "body": ""
             }
           ]
+        },
+        {
+          "name": "Check Invitation Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/invitations/{{invitation_token}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "invitations",
+                "{{invitation_token}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"email\": \"jane@ibrastudio.com\",\n    \"name\": \"Jane Doe\",\n    \"expires_at\": \"2026-09-02 10:00:00\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"El enlace de invitación es inválido, ya fue usado o expiró.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Accept Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/invitations/{{invitation_token}}/accept",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "invitations",
+                "{{invitation_token}}",
+                "accept"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"password\": \"password123\",\n  \"password_confirm\": \"password123\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 2, \"name\": \"Jane Doe\", \"email\": \"jane@ibrastudio.com\", \"status\": \"active\" }\n}"
+            },
+            {
+              "name": "422 Validation Error",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"errors\": { \"password\": \"La contraseña debe tener al menos 8 caracteres.\" }\n}"
+            }
+          ]
         }
       ]
     },
@@ -229,7 +307,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@ibrastudio.com\",\n  \"password\": \"password123\",\n  \"role_ids\": [1]\n}"
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@ibrastudio.com\",\n  \"role_ids\": [1],\n  \"auth_method\": \"invite\"\n}"
             }
           },
           "response": [
@@ -237,7 +315,7 @@
               "name": "201 Created",
               "status": "Created",
               "code": 201,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 2, \"name\": \"Jane Doe\", \"email\": \"jane@ibrastudio.com\", \"status\": \"active\" }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 2, \"name\": \"Jane Doe\", \"email\": \"jane@ibrastudio.com\", \"status\": \"pending\", \"by_invitation\": true, \"invitation_sent\": true }\n}"
             },
             {
               "name": "422 Validation Error",
@@ -316,6 +394,113 @@
               "status": "No Content",
               "code": 204,
               "body": ""
+            }
+          ]
+        },
+        {
+          "name": "Send / Resend Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/2/invite",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "2",
+                "invite"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"message\": \"Invitación enviada a jane@ibrastudio.com. El enlace vence en 72 horas.\" }\n}"
+            },
+            {
+              "name": "422 Unprocessable Entity",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Este usuario ya activó su cuenta. Para darle acceso de nuevo usa \\\"Restablecer contraseña\\\".\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Revoke Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/2/invite/revoke",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "2",
+                "invite",
+                "revoke"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"message\": \"Invitación cancelada. El enlace enviado dejó de funcionar.\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reset MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/2/mfa/reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "2",
+                "mfa",
+                "reset"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"message\": \"Verificación en dos pasos reiniciada.\" }\n}"
             }
           ]
         }

@@ -10,7 +10,7 @@ class UserModel extends Model
 {
     protected $table         = 'core_users';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['name', 'email', 'password', 'status', 'mfa_secret', 'mfa_enabled', 'glpi_user_id'];
+    protected $allowedFields = ['name', 'email', 'password', 'status', 'mfa_secret', 'mfa_enabled', 'glpi_user_id', 'last_login_at', 'last_login_ip'];
     protected $useTimestamps  = true;
     protected $returnType    = 'array';
 
@@ -23,6 +23,22 @@ class UserModel extends Model
         'name'  => 'required|max_length[120]',
         'email' => 'required|valid_email|max_length[191]|is_unique[core_users.email,id,{id}]',
     ];
+
+    /**
+     * Stamps the successful sign-in. Written straight through the builder on
+     * purpose: it skips the model's validation (only two columns travel here)
+     * and leaves `updated_at` alone, so "última actualización" keeps meaning
+     * "last time someone edited the account", not "last time it was used".
+     */
+    public function touchLastLogin(int $id, string $ip): void
+    {
+        $this->db->table($this->table)
+            ->where('id', $id)
+            ->update([
+                'last_login_at' => date('Y-m-d H:i:s'),
+                'last_login_ip' => substr($ip, 0, 45),
+            ]);
+    }
 
     public function findByEmail(string $email): ?array
     {

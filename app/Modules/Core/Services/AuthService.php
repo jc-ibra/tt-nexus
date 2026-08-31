@@ -37,12 +37,30 @@ class AuthService
             return ServiceResult::fail('Correo o contraseña incorrectos.');
         }
 
+        if ($user['status'] === 'pending') {
+            return ServiceResult::fail(
+                'Tu cuenta todavía no está activada. Abre el enlace del correo de invitación o pide al administrador que te lo reenvíe.'
+            );
+        }
+
         if ($user['status'] !== 'active') {
             return ServiceResult::fail('Tu cuenta está desactivada. Contacta al administrador.');
         }
 
         $throttler->remove($key);
 
+        $this->startSession($user);
+
+        return ServiceResult::ok($user);
+    }
+
+    /**
+     * Opens the authenticated session for a user. Shared by the password
+     * login and by the invitation flow, which signs the person in right after
+     * they set their password so AuthFilter takes them to the MFA setup.
+     */
+    public function startSession(array $user): void
+    {
         session()->regenerate(true);
         session()->set([
             'user_id'     => $user['id'],
@@ -50,8 +68,18 @@ class AuthService
             'user_email'  => $user['email'],
             'mfa_enabled' => (bool) ($user['mfa_enabled'] ?? false),
         ]);
+    }
 
-        return ServiceResult::ok($user);
+    /**
+     * Stamps the last successful access. Called once authentication is truly
+     * complete (after the MFA step), not merely when the password matched, so
+     * the column answers "when did this person actually get in".
+     */
+    public function recordLogin(int $userId, ?string $ip = null): void
+    {
+        $ip ??= (string) service('request')->getIPAddress();
+
+        $this->userModel->touchLastLogin($userId, $ip);
     }
 
     public function sendResetLink(string $email): ServiceResult
@@ -72,18 +100,29 @@ class AuthService
             log_message('info', "Reset URL: {$resetUrl}");
         }
 
-        $emailSvc = service('email');
-        $emailSvc->setTo($email)
-            ->setSubject('Restablecer contraseña — Nexus')
-            ->setMessage(
-                "<p>Hola {$user['name']},</p>"
-                . "<p>Haz clic en el enlace para restablecer tu contraseña (válido 1 hora):</p>"
-                . "<p><a href=\"{$resetUrl}\">{$resetUrl}</a></p>"
-                . "<p>Si no solicitaste este cambio, ignora este correo.</p>"
-            )
-            ->setMailType('html');
+        // Sent through MailerService so it uses the SMTP saved in Ajustes, the
+        // same transport as the rest of the platform. Using service('email')
+        // here would silently fall back to the .env credentials.
+        $smtp      = service('appSettings')->getSmtp();
+        $config    = new \Config\Email();
+        $fromEmail = $smtp['smtp_from_email'] !== '' ? $smtp['smtp_from_email'] : $config->fromEmail;
+        $fromName  = $smtp['smtp_from_name'] !== '' ? $smtp['smtp_from_name'] : $config->fromName;
 
-        $emailSvc->send(false); // false = don't throw on failure in production
+        $sent = (new \App\Modules\Communications\Services\MailerService())->sendSingle(
+            $email,
+            (string) $user['name'],
+            (string) $fromEmail,
+            (string) $fromName,
+            'Restablecer contraseña en Nexus',
+            "<p>Hola {$user['name']},</p>"
+            . '<p>Haz clic en el enlace para restablecer tu contraseña (válido 1 hora):</p>'
+            . "<p><a href=\"{$resetUrl}\">{$resetUrl}</a></p>"
+            . '<p>Si no solicitaste este cambio, ignora este correo.</p>'
+        );
+
+        if (! $sent['success']) {
+            log_message('error', '[Auth] Could not send reset link to ' . $email . ': ' . $sent['error']);
+        }
 
         return ServiceResult::ok(null, 'Si el correo existe, recibirás un enlace en breve.');
     }
@@ -137,6 +176,24 @@ class AuthService
     public function completeMfa(): void
     {
         session()->set('mfa_verified', true);
+
+        if ($userId = (int) session()->get('user_id')) {
+            $this->recordLogin($userId);
+        }
+    }
+
+    /**
+     * Clears the authenticator binding so the user is walked through the QR
+     * setup again on the next sign in. For people who lost or replaced the
+     * phone holding their codes.
+     */
+    public function resetMfa(int $userId): void
+    {
+        $this->userModel->update($userId, [
+            'id'          => $userId,
+            'mfa_secret'  => null,
+            'mfa_enabled' => 0,
+        ]);
     }
 
     private function computeTotp(string $secret, int $counter): string

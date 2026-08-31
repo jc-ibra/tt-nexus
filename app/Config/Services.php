@@ -14,12 +14,14 @@ use App\Modules\Communications\Services\MailerService;
 use App\Modules\Communications\Services\RecipientService;
 use App\Modules\Core\Models\PasswordResetModel;
 use App\Modules\Core\Models\RoleModel;
+use App\Modules\Core\Models\UserInvitationModel;
 use App\Modules\Core\Models\UserModel;
 use App\Modules\Core\Models\UserRoleModel;
 use App\Modules\Core\Models\AppSettingsModel;
 use App\Modules\Core\Services\AppSettingsService;
 use App\Modules\Core\Services\AccessService;
 use App\Modules\Core\Services\AuthService;
+use App\Modules\Core\Services\InvitationService;
 use App\Modules\Core\Services\RoleService;
 use App\Modules\Core\Services\UserService;
 use App\Modules\Employees\Models\EmployeeAreaModel;
@@ -162,6 +164,15 @@ class Services extends BaseService
         }
 
         return new AuthService(new UserModel(), new PasswordResetModel());
+    }
+
+    public static function invitationService(bool $getShared = true): InvitationService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('invitationService');
+        }
+
+        return new InvitationService(new UserModel(), new UserInvitationModel());
     }
 
     public static function userService(bool $getShared = true): UserService

@@ -4,6 +4,9 @@
 <?php
 $isSelf   = (int) $user['id'] === (int) session()->get('user_id');
 $fmt      = fn(?string $value) => $value ? date('d/m/Y H:i', strtotime($value)) : '-';
+$invite   = $user['invitation'] ?? null;
+$inviteExpired = ! empty($invite['is_expired']);
+$isPending     = $user['status'] === 'pending';
 ?>
 
 <div class="page-header">
@@ -29,18 +32,38 @@ $fmt      = fn(?string $value) => $value ? date('d/m/Y H:i', strtotime($value)) 
         <dd><?= esc($user['email']) ?></dd>
         <dt class="text-muted text-sm">Estado</dt>
         <dd>
-          <?php if ($user['status'] === 'active'): ?>
+          <?php if ($user['status'] === 'pending'): ?>
+            <span class="badge <?= $inviteExpired ? 'badge-warning' : 'badge-info' ?>">
+              <?= $inviteExpired ? 'Invitación vencida' : 'Invitación pendiente' ?>
+            </span>
+          <?php elseif ($user['status'] === 'active'): ?>
             <span class="badge badge-success">Activo</span>
           <?php else: ?>
             <span class="badge badge-neutral">Inactivo</span>
           <?php endif; ?>
         </dd>
         <dt class="text-muted text-sm">Verificación en dos pasos</dt>
-        <dd>
+        <dd style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
           <?php if ((int) ($user['mfa_enabled'] ?? 0) === 1): ?>
             <span class="badge badge-success">Activada</span>
+            <form action="<?= route_to('admin.users.mfa.reset', $user['id']) ?>" method="post"
+                  onsubmit="return confirm('¿Reiniciar la verificación en dos pasos de <?= esc($user['name']) ?>? Tendrá que escanear un código QR nuevo la próxima vez que entre.')">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-tertiary btn-sm">Reiniciar</button>
+            </form>
           <?php else: ?>
             <span class="badge badge-neutral">Sin activar</span>
+          <?php endif; ?>
+        </dd>
+        <dt class="text-muted text-sm">Último acceso</dt>
+        <dd class="text-sm">
+          <?php if (! empty($user['last_login_at'])): ?>
+            <?= esc($fmt($user['last_login_at'])) ?>
+            <?php if (! empty($user['last_login_ip'])): ?>
+              <span class="text-muted">desde <?= esc($user['last_login_ip']) ?></span>
+            <?php endif; ?>
+          <?php else: ?>
+            <span class="text-muted">Nunca ha iniciado sesión</span>
           <?php endif; ?>
         </dd>
         <dt class="text-muted text-sm">ID en GLPI</dt>
@@ -76,6 +99,55 @@ $fmt      = fn(?string $value) => $value ? date('d/m/Y H:i', strtotime($value)) 
       </p>
     </div>
   </div>
+
+  <?php if ($isPending || $invite !== null): ?>
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header"><h2 class="card-title">Invitación</h2></div>
+      <div class="card-body">
+        <?php if ($invite === null): ?>
+          <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
+            Esta cuenta está pendiente y no tiene una invitación vigente. Envía una nueva para que la persona defina su contraseña.
+          </p>
+        <?php else: ?>
+          <dl style="display:grid; grid-template-columns:160px 1fr; gap:var(--space-2) var(--space-4); margin:0 0 var(--space-4);">
+            <dt class="text-muted text-sm">Enviada a</dt>
+            <dd class="text-sm"><?= esc($invite['email']) ?></dd>
+            <dt class="text-muted text-sm">Último envío</dt>
+            <dd class="text-sm"><?= esc($fmt($invite['updated_at'] ?? $invite['created_at'])) ?></dd>
+            <dt class="text-muted text-sm">Vence</dt>
+            <dd class="text-sm">
+              <?= esc($fmt($invite['expires_at'])) ?>
+              <?php if ($inviteExpired): ?>
+                <span class="badge badge-warning">Vencida</span>
+              <?php endif; ?>
+            </dd>
+            <dt class="text-muted text-sm">Envíos</dt>
+            <dd class="text-sm"><?= (int) $invite['sent_count'] ?></dd>
+          </dl>
+        <?php endif; ?>
+
+        <div style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
+          <form action="<?= route_to('admin.users.invite', $user['id']) ?>" method="post">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <?= $invite === null ? 'Enviar invitación' : 'Reenviar invitación' ?>
+            </button>
+          </form>
+          <?php if ($invite !== null): ?>
+            <form action="<?= route_to('admin.users.invite.revoke', $user['id']) ?>" method="post"
+                  onsubmit="return confirm('¿Cancelar la invitación? El enlace enviado dejará de funcionar.')">
+              <?= csrf_field() ?>
+              <button type="submit" class="btn btn-secondary btn-sm">Cancelar invitación</button>
+            </form>
+          <?php endif; ?>
+        </div>
+
+        <p class="text-muted text-sm" style="margin:var(--space-3) 0 0;">
+          Reenviar genera un enlace nuevo y anula el anterior. El enlace es de un solo uso.
+        </p>
+      </div>
+    </div>
+  <?php endif; ?>
 
   <?php if (! $isSelf): ?>
     <div class="card" style="grid-column: 1 / -1;">
