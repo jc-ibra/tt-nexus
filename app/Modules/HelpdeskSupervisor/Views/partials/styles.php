@@ -87,4 +87,14 @@
 .hs-panel fieldset legend {
   margin-bottom:var(--space-2); padding:0 var(--space-1);
 }
+
+.hs-table-scroll { overflow-x:auto; }
+.hs-table-wide { table-layout:auto; width:100%; }
+.hs-table-wide th, .hs-table-wide td { vertical-align:top; }
+.hs-cell-wrap {
+  white-space:pre-wrap;
+  word-break:break-word;
+  min-width:12rem;
+  max-width:28rem;
+}
 </style>

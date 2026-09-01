@@ -74,6 +74,35 @@ class DeviationModel extends Model
             ->findAll();
     }
 
+    public function countForRule(int $auditRunId, string $ruleKey): int
+    {
+        return $this->where('audit_run_id', $auditRunId)
+            ->where('rule_key', $ruleKey)
+            ->countAllResults();
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function forRulePaginated(int $auditRunId, string $ruleKey, int $page, int $perPage): array
+    {
+        $offset = max(0, ($page - 1) * $perPage);
+
+        return $this->where('audit_run_id', $auditRunId)
+            ->where('rule_key', $ruleKey)
+            ->orderBy('agent_name', 'ASC')
+            ->orderBy('glpi_ticket_id', 'ASC')
+            ->findAll($perPage, $offset);
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function forRuleExport(int $auditRunId, string $ruleKey, int $limit = 50000): array
+    {
+        return $this->where('audit_run_id', $auditRunId)
+            ->where('rule_key', $ruleKey)
+            ->orderBy('agent_name', 'ASC')
+            ->orderBy('glpi_ticket_id', 'ASC')
+            ->findAll($limit);
+    }
+
     /**
      * Sets is_confirmed for one agent's deviations in a run: the ids in
      * $confirmedIds become confirmed, the rest of that agent+run become

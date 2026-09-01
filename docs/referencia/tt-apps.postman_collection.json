@@ -5011,7 +5011,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/runs/{{run_id}}/rules/title_format",
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/runs/{{run_id}}/rules/title_format?page=1&per_page=50",
               "host": [
                 "{{base_url}}"
               ],
@@ -5023,6 +5023,41 @@
                 "{{run_id}}",
                 "rules",
                 "title_format"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Exportar desviaciones de una regla",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/runs/{{run_id}}/rules/title_format/export?format=csv",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "runs",
+                "{{run_id}}",
+                "rules",
+                "title_format",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "csv",
+                  "description": "csv | xlsx"
+                }
               ]
             }
           }

@@ -10,6 +10,9 @@ use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
 use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
+use App\Modules\HelpdeskSupervisor\Services\DeviationExportService;
+use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
 
 /**
  * Supervisor dashboard: period selector, global metrics, agent ranking and the
@@ -17,6 +20,9 @@ use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
  */
 class Dashboard extends BaseController
 {
+    private const RULE_PER_PAGE    = 50;
+    private const RULE_EXPORT_MAX  = 50000;
+
     private AuditRunModel $runs;
     private DeviationModel $deviations;
     private AgentRunStatsModel $agentStats;
@@ -125,10 +131,21 @@ class Dashboard extends BaseController
     public function rule(string $ruleKey): string
     {
         [$start, $end] = $this->period();
-        $run = $this->runs->latestCompletedForPeriod($start, $end);
+        $run           = $this->runs->latestCompletedForPeriod($start, $end);
+        $meta          = $this->ruleMeta($ruleKey);
+        $page          = max(1, (int) $this->request->getGet('page'));
+        $perPage       = max(1, min(200, (int) ($this->request->getGet('per_page') ?: self::RULE_PER_PAGE)));
+        $total         = 0;
+        $lastPage      = 1;
+        $deviations    = [];
 
-        $deviations = $run ? $this->deviations->forRule((int) $run['id'], $ruleKey) : [];
-        $meta       = (new RuleRegistry())->catalog()[$ruleKey] ?? ['name' => $ruleKey, 'manual' => '', 'kpi' => null, 'severity' => 'warning'];
+        if ($run !== null) {
+            $runId    = (int) $run['id'];
+            $total    = $this->deviations->countForRule($runId, $ruleKey);
+            $lastPage = max(1, (int) ceil($total / $perPage));
+            $page     = min($page, $lastPage);
+            $deviations = $this->deviations->forRulePaginated($runId, $ruleKey, $page, $perPage);
+        }
 
         return view('App\Modules\HelpdeskSupervisor\Views\rule_detail', [
             'pageTitle'   => $meta['name'],
@@ -138,8 +155,65 @@ class Dashboard extends BaseController
             'periodStart' => $start,
             'periodEnd'   => $end,
             'deviations'  => $deviations,
+            'total'       => $total,
+            'page'        => $page,
+            'perPage'     => $perPage,
+            'lastPage'    => $lastPage,
             'glpiBaseUrl' => $this->glpiBaseUrl(),
         ]);
+    }
+
+    public function ruleExport(string $ruleKey): ResponseInterface|RedirectResponse
+    {
+        [$start, $end] = $this->period();
+        $run           = $this->runs->latestCompletedForPeriod($start, $end);
+        $meta          = $this->ruleMeta($ruleKey);
+        $format        = strtolower((string) $this->request->getGet('format'));
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+
+        $back = route_to('helpdesk.rule', $ruleKey)
+            . '?period_start=' . rawurlencode($start)
+            . '&period_end=' . rawurlencode($end);
+
+        if ($run === null) {
+            return redirect()->to($back)->with('error', 'No hay auditoría para el período.');
+        }
+
+        $runId = (int) $run['id'];
+        $total = $this->deviations->countForRule($runId, $ruleKey);
+        if ($total > self::RULE_EXPORT_MAX) {
+            return redirect()->to($back)->with(
+                'error',
+                'Hay más de ' . number_format(self::RULE_EXPORT_MAX) . ' incumplimientos. Acota el período antes de exportar.',
+            );
+        }
+
+        $rows     = $this->deviations->forRuleExport($runId, $ruleKey, self::RULE_EXPORT_MAX);
+        $portal   = $this->glpiBaseUrl();
+        $exporter = new DeviationExportService();
+        $slug     = preg_replace('/[^A-Za-z0-9]+/', '_', $meta['name']) ?: $ruleKey;
+        $filename = 'desviaciones_' . trim($slug, '_') . '_' . date('Y-m-d_His');
+
+        if ($format === 'xlsx') {
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"')
+                ->setBody($exporter->toXlsx($rows, $portal));
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($rows, $portal));
+    }
+
+    /** @return array{name:string,manual:string,kpi:?string,severity:string} */
+    private function ruleMeta(string $ruleKey): array
+    {
+        return (new RuleRegistry())->catalog()[$ruleKey]
+            ?? ['name' => $ruleKey, 'manual' => '', 'kpi' => null, 'severity' => 'warning'];
     }
 
     /** Selected period from GET, defaulting to the current calendar month. */

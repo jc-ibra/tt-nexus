@@ -192,7 +192,74 @@ class HelpdeskSupervisorApiController extends BaseApiController
 
     public function ruleDeviations($runId = null, $ruleKey = null): ResponseInterface
     {
-        return $this->success((new DeviationModel())->forRule((int) $runId, (string) $ruleKey));
+        $model   = new DeviationModel();
+        $runId   = (int) $runId;
+        $ruleKey = (string) $ruleKey;
+        $page    = max(1, (int) $this->request->getGet('page'));
+        $perPage = max(1, min(200, (int) ($this->request->getGet('per_page') ?: 50)));
+        $total   = $model->countForRule($runId, $ruleKey);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page    = min($page, $lastPage);
+
+        return $this->success([
+            'deviations'  => $model->forRulePaginated($runId, $ruleKey, $page, $perPage),
+            'total'       => $total,
+            'page'        => $page,
+            'per_page'    => $perPage,
+            'total_pages' => $lastPage,
+        ]);
+    }
+
+    public function ruleDeviationsExport($runId = null, $ruleKey = null): ResponseInterface
+    {
+        $model    = new DeviationModel();
+        $runId    = (int) $runId;
+        $ruleKey  = (string) $ruleKey;
+        $format   = strtolower((string) $this->request->getGet('format'));
+        $maxRows  = 50000;
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+
+        $total = $model->countForRule($runId, $ruleKey);
+        if ($total > $maxRows) {
+            return $this->error(
+                'Hay más de ' . number_format($maxRows) . ' incumplimientos. Acota el filtro antes de exportar.',
+                422,
+            );
+        }
+
+        $rows     = $model->forRuleExport($runId, $ruleKey, $maxRows);
+        $portal   = $this->glpiPortalUrl();
+        $exporter = new \App\Modules\HelpdeskSupervisor\Services\DeviationExportService();
+        $filename = 'desviaciones_' . $ruleKey . '_' . date('Y-m-d_His');
+
+        if ($format === 'xlsx') {
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"')
+                ->setBody($exporter->toXlsx($rows, $portal));
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($rows, $portal));
+    }
+
+    private function glpiPortalUrl(): string
+    {
+        try {
+            $s = service('provisioningSettings')->getAll();
+            $url = trim((string) ($s['glpi_url'] ?? $s['glpi_base_url'] ?? ''));
+            if ($url !== '') {
+                return rtrim($url, '/');
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        return 'https://helpdesk.trantortechnologies.mx';
     }
 
     // ------------------------------------------------------------------

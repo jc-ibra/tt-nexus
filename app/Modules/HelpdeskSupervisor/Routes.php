@@ -17,7 +17,8 @@ $routes->group('helpdesk-supervisor', [
     $routes->get('/',                 'Dashboard::index',   ['as' => 'helpdesk.index']);
     $routes->get('agents/(:num)',     'Dashboard::agent/$1', ['as' => 'helpdesk.agent']);   // $1 = glpi_user_id
     $routes->post('agents/(:num)/confirm', 'Dashboard::confirmAgent/$1', ['as' => 'helpdesk.agent.confirm']);
-    $routes->get('rules/([a-z_]+)',   'Dashboard::rule/$1', ['as' => 'helpdesk.rule']);
+    $routes->get('rules/([a-z_]+)/export', 'Dashboard::ruleExport/$1', ['as' => 'helpdesk.rule.export']);
+    $routes->get('rules/([a-z_]+)',        'Dashboard::rule/$1',       ['as' => 'helpdesk.rule']);
 
     // Live GLPI overview (aggregates only)
     $routes->get('overview',          'Overview::index',   ['as' => 'helpdesk.overview']);
@@ -76,6 +77,7 @@ $routes->group('api/v1/helpdesk-supervisor', [
     // Deviations by agent / rule for a run
     $routes->get('runs/(:num)/agents',            'HelpdeskSupervisorApiController::agents/$1');
     $routes->get('runs/(:num)/agents/(:num)',     'HelpdeskSupervisorApiController::agentDeviations/$1/$2');
+    $routes->get('runs/(:num)/rules/([a-z_]+)/export', 'HelpdeskSupervisorApiController::ruleDeviationsExport/$1/$2');
     $routes->get('runs/(:num)/rules/([a-z_]+)',   'HelpdeskSupervisorApiController::ruleDeviations/$1/$2');
 
     // Escalations
