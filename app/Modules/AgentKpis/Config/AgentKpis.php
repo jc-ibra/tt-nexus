@@ -33,4 +33,32 @@ class AgentKpis
 
     /** Default score when no evidence is captured (per the document: "Cumple"). */
     public const DEFAULT_SCORE = 3;
+
+    /**
+     * Quantitative KPI columns for the monthly dashboard (label + tooltip).
+     *
+     * @var array<int,array{short:string,tooltip:string}>
+     */
+    public const QUANTITATIVE_KPI_COLUMNS = [
+        1 => [
+            'short'   => 'KPI 1',
+            'tooltip' => 'Seguimiento activo: % de tickets auditados sin falta de seguimiento del agente antes del cierre. Cumple ≥90%, parcial 75–89%, no cumple <75%.',
+        ],
+        2 => [
+            'short'   => 'KPI 2',
+            'tooltip' => 'Clasificación correcta: % de tickets sin reclasificación posterior de categoría o tipo. Cumple ≥92%, parcial 80–91%, no cumple <80%.',
+        ],
+        3 => [
+            'short'   => 'KPI 3',
+            'tooltip' => 'Completitud de campos: % de tickets con la pestaña correcta e IDS completos según categoría. Cumple ≥95%, parcial 85–94%, no cumple <85%.',
+        ],
+        4 => [
+            'short'   => 'KPI 4',
+            'tooltip' => 'Tickets abandonados: % de tickets abiertos sin actividad del agente dentro del umbral (menos es mejor). Cumple ≤5%, parcial 6–10%, no cumple >10%.',
+        ],
+        5 => [
+            'short'   => 'KPI 5',
+            'tooltip' => 'Escalaciones válidas registradas por el supervisor en el mes. Cumple 0, parcial 1–2, no cumple ≥3 (bloquea la evaluación).',
+        ],
+    ];
 }

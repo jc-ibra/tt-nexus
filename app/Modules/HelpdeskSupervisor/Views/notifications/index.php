@@ -26,14 +26,14 @@ $badge = static fn(string $s) => match ($s) {
   <div class="card-header"><h2 class="card-title">Notificaciones</h2></div>
   <div class="card-body" style="padding:0;">
     <table class="table" style="width:100%;">
-      <thead><tr><th>Agente</th><th>Período</th><th>Desv.</th><th>Estado</th><th>Enviada</th><th>Tokens</th><th></th></tr></thead>
+      <thead><tr><th>Agente</th><th>Período</th><th>Desv.</th><th>Estado</th><th>Enviada</th><th>Tokens</th><th style="width:12.5rem; text-align:right;">Acciones</th></tr></thead>
       <tbody>
         <?php if ($notifications === []): ?>
           <tr><td colspan="7" class="text-muted text-sm" style="text-align:center; padding:var(--space-4);">Aún no hay notificaciones. Prepáralas desde el dashboard o el detalle de un agente.</td></tr>
         <?php else: foreach ($notifications as $n):
           $reviewHref = route_to('helpdesk.notifications.review', (int) $n['id']);
         ?>
-          <tr class="hs-drill">
+          <tr>
             <td><a href="<?= esc($reviewHref) ?>"><?= esc($n['agent_name'] !== '' ? $n['agent_name'] : ('GLPI #' . $n['glpi_user_id'])) ?></a></td>
             <td class="text-sm">
               <a href="<?= esc($reviewHref) ?>">
@@ -44,12 +44,14 @@ $badge = static fn(string $s) => match ($s) {
             <td><?= $badge((string) $n['status']) ?></td>
             <td class="text-sm text-muted"><?= $n['sent_at'] ? esc(date('d/m/Y H:i', strtotime((string) $n['sent_at']))) : '' ?></td>
             <td class="text-sm text-muted"><?= (int) $n['ai_tokens_input'] ?>/<?= (int) $n['ai_tokens_output'] ?></td>
-            <td style="white-space:nowrap;">
-              <a href="<?= esc($reviewHref) ?>" class="btn btn-tertiary btn-sm">Revisar</a>
-              <form method="post" action="<?= route_to('helpdesk.notifications.delete', (int) $n['id']) ?>" style="display:inline;" onsubmit="return confirm('¿Descartar esta notificación?');">
-                <?= csrf_field() ?>
-                <button type="submit" class="btn btn-tertiary btn-sm btn-critical">Descartar</button>
-              </form>
+            <td style="text-align:right;">
+              <div class="table-actions hs-row-actions">
+                <a href="<?= esc($reviewHref) ?>" class="btn btn-secondary btn-sm">Revisar</a>
+                <form method="post" action="<?= route_to('helpdesk.notifications.delete', (int) $n['id']) ?>" class="hs-row-actions-form" onsubmit="return confirm('¿Descartar esta notificación?');">
+                  <?= csrf_field() ?>
+                  <button type="submit" class="btn btn-critical btn-sm">Descartar</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; endif; ?>

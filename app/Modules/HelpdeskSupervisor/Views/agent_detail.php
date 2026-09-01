@@ -7,23 +7,50 @@ $sev = static fn(string $s) => match ($s) {
     'info'     => '<span class="badge">Info</span>',
     default    => '<span class="badge badge-warning">Warning</span>',
 };
-$glpiBaseUrl = $glpiBaseUrl ?? '';
-$page        = max(1, (int) ($page ?? 1));
-$perPage     = max(1, (int) ($perPage ?? 50));
-$lastPage    = max(1, (int) ($lastPage ?? 1));
-$total       = (int) ($total ?? 0);
-$ruleTotals  = $ruleTotals ?? [];
-$agentStat   = $agentStat ?? null;
+$glpiBaseUrl  = $glpiBaseUrl ?? '';
+$page         = max(1, (int) ($page ?? 1));
+$perPage      = max(1, (int) ($perPage ?? 50));
+$lastPage     = max(1, (int) ($lastPage ?? 1));
+$total        = (int) ($total ?? 0);
+$totalAll     = (int) ($totalAll ?? $total);
+$ruleTotals   = $ruleTotals ?? [];
+$agentStat    = $agentStat ?? null;
+$ruleFilter   = isset($ruleFilter) && $ruleFilter !== '' ? (string) $ruleFilter : null;
 
 $baseQ = [
     'period_start' => $periodStart,
     'period_end'   => $periodEnd,
     'per_page'     => $perPage,
 ];
-$pageUrl = static function (int $p) use ($glpiUserId, $baseQ): string {
-    return route_to('helpdesk.agent', (int) $glpiUserId) . '?' . http_build_query(array_merge($baseQ, ['page' => $p]));
+if ($ruleFilter !== null) {
+    $baseQ['rule'] = $ruleFilter;
+}
+$filterUrl = static function (?string $ruleKey) use ($glpiUserId, $periodStart, $periodEnd, $perPage): string {
+    $q = [
+        'period_start' => $periodStart,
+        'period_end'   => $periodEnd,
+        'per_page'     => $perPage,
+    ];
+    if ($ruleKey !== null && $ruleKey !== '') {
+        $q['rule'] = $ruleKey;
+    }
+
+    return route_to('helpdesk.agent', (int) $glpiUserId) . '?' . http_build_query($q);
 };
-$exportUrl = static function (string $format) use ($glpiUserId, $baseQ): string {
+$pageUrl = static function (int $p) use ($glpiUserId, $periodStart, $periodEnd, $perPage, $ruleFilter): string {
+    $q = [
+        'period_start' => $periodStart,
+        'period_end'   => $periodEnd,
+        'per_page'     => $perPage,
+        'page'         => $p,
+    ];
+    if ($ruleFilter !== null) {
+        $q['rule'] = $ruleFilter;
+    }
+
+    return route_to('helpdesk.agent', (int) $glpiUserId) . '?' . http_build_query($q);
+};
+$exportUrl = static function (string $format) use ($baseQ, $glpiUserId): string {
     return route_to('helpdesk.agent.export', (int) $glpiUserId) . '?' . http_build_query(array_merge($baseQ, ['format' => $format]));
 };
 $periodQ = 'period_start=' . rawurlencode($periodStart) . '&period_end=' . rawurlencode($periodEnd);
@@ -38,6 +65,7 @@ $ticketsWithDev = (int) ($devSummary['tickets_with_deviations'] ?? 0);
 $criticals = (int) ($devSummary['criticals'] ?? 0);
 $warnings = (int) ($devSummary['warnings'] ?? 0);
 $pctWithDev = $totalTickets > 0 ? round($ticketsWithDev / $totalTickets * 100, 1) : 0.0;
+$ruleFilterName = $ruleFilter !== null ? (string) ($ruleTotals[$ruleFilter]['rule_name'] ?? $ruleFilter) : '';
 ?>
 
 <?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
@@ -48,12 +76,12 @@ $pctWithDev = $totalTickets > 0 ? round($ticketsWithDev / $totalTickets * 100, 1
     <p class="page-subtitle text-muted">Período <?= esc(date('d/m/Y', strtotime($periodStart))) ?> – <?= esc(date('d/m/Y', strtotime($periodEnd))) ?></p>
   </div>
   <div class="page-actions" style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
-    <?php if ($run !== null && $total > 0): ?>
+    <?php if ($run !== null && $totalAll > 0): ?>
       <a href="<?= esc($exportUrl('csv')) ?>" class="btn btn-secondary">Descargar CSV</a>
       <a href="<?= esc($exportUrl('xlsx')) ?>" class="btn btn-secondary">Descargar Excel</a>
     <?php endif; ?>
     <a href="<?= route_to('helpdesk.index') ?>?<?= esc($periodQ) ?>" class="btn btn-secondary">Dashboard</a>
-    <?php if ($run !== null && $total > 0): ?>
+    <?php if ($run !== null && $totalAll > 0): ?>
       <form method="post" action="<?= route_to('helpdesk.notifications.prepare', (int) $glpiUserId) ?>" style="display:inline;">
         <?= csrf_field() ?>
         <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
@@ -69,79 +97,121 @@ $pctWithDev = $totalTickets > 0 ? round($ticketsWithDev / $totalTickets * 100, 1
   <div class="banner banner-info"><div class="banner-content">No hay auditoría para este período.</div></div>
 <?php else: ?>
 
-  <?php if ($total > 0): ?>
+  <?php if ($totalAll > 0): ?>
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card-header">
       <h2 class="card-title">Resumen de desviaciones</h2>
+      <span class="text-sm text-muted">Clic en una regla para filtrar la lista de abajo.</span>
     </div>
     <div class="card-body">
-      <div style="display:flex; flex-wrap:wrap; gap:var(--space-4); margin-bottom:var(--space-4);">
-        <div>
-          <div class="text-sm text-muted">Tickets auditados</div>
-          <div style="font-size:1.25rem; font-weight:600;"><?= number_format($totalTickets) ?></div>
+      <div class="hs-agent-summary-top">
+        <div class="hs-agent-kpi-grid">
+          <div class="card hs-agent-kpi-card">
+            <div class="hs-agent-kpi-card-body">
+              <p class="hs-agent-kpi-label">Tickets auditados</p>
+              <p class="hs-agent-kpi-value"><?= number_format($totalTickets) ?></p>
+            </div>
+          </div>
+          <div class="card hs-agent-kpi-card">
+            <div class="hs-agent-kpi-card-body">
+              <p class="hs-agent-kpi-label">Con desviación</p>
+              <p class="hs-agent-kpi-value"><?= number_format($ticketsWithDev) ?><span class="hs-agent-kpi-meta"> (<?= esc((string) $pctWithDev) ?>%)</span></p>
+            </div>
+          </div>
+          <div class="card hs-agent-kpi-card">
+            <div class="hs-agent-kpi-card-body">
+              <p class="hs-agent-kpi-label">Desviaciones</p>
+              <p class="hs-agent-kpi-value"><?= number_format($totalAll) ?></p>
+            </div>
+          </div>
+          <div class="card hs-agent-kpi-card">
+            <div class="hs-agent-kpi-card-body">
+              <p class="hs-agent-kpi-label">Críticas</p>
+              <p class="hs-agent-kpi-value hs-agent-kpi-value--critical"><?= number_format($criticals) ?></p>
+            </div>
+          </div>
+          <div class="card hs-agent-kpi-card">
+            <div class="hs-agent-kpi-card-body">
+              <p class="hs-agent-kpi-label">Warnings</p>
+              <p class="hs-agent-kpi-value"><?= number_format($warnings) ?></p>
+            </div>
+          </div>
         </div>
-        <div>
-          <div class="text-sm text-muted">Con desviación</div>
-          <div style="font-size:1.25rem; font-weight:600;"><?= number_format($ticketsWithDev) ?> <span class="text-muted text-sm">(<?= esc((string) $pctWithDev) ?>%)</span></div>
-        </div>
-        <div>
-          <div class="text-sm text-muted">Desviaciones</div>
-          <div style="font-size:1.25rem; font-weight:600;"><?= number_format($total) ?></div>
-        </div>
-        <div>
-          <div class="text-sm text-muted">Críticas</div>
-          <div style="font-size:1.25rem; font-weight:600;"><?= $criticals > 0 ? '<span class="badge badge-critical">' . number_format($criticals) . '</span>' : '0' ?></div>
-        </div>
-        <div>
-          <div class="text-sm text-muted">Warnings</div>
-          <div style="font-size:1.25rem; font-weight:600;"><?= number_format($warnings) ?></div>
+
+        <div class="hs-rule-panel">
+          <table class="table hs-rule-table">
+            <thead>
+              <tr><th>Regla</th><th style="text-align:right;">Total</th><th style="text-align:right;">%</th></tr>
+            </thead>
+            <tbody>
+            <?php if ($ruleFilter !== null): ?>
+              <tr class="hs-rule-row">
+                <td colspan="3">
+                  <a href="<?= esc($filterUrl(null)) ?>">↩ Ver todas las reglas</a>
+                </td>
+              </tr>
+            <?php endif; ?>
+            <?php foreach ($ruleTotals as $key => $r):
+              $cnt = (int) ($r['count'] ?? 0);
+              $share = $totalAll > 0 ? round($cnt / $totalAll * 100, 1) : 0;
+              $isActive = $ruleFilter === $key;
+              $href = $filterUrl($isActive ? null : $key);
+            ?>
+              <tr class="hs-rule-row hs-drill<?= $isActive ? ' is-active' : '' ?>">
+                <td>
+                  <a href="<?= esc($href) ?>">
+                    <div><?= esc($r['rule_name'] ?? $key) ?></div>
+                    <div class="hs-bar"><span style="width:<?= $pctBar($cnt, $maxRuleCnt) ?>%;"></span></div>
+                  </a>
+                </td>
+                <td style="text-align:right; white-space:nowrap;">
+                  <a href="<?= esc($href) ?>"><?= $cnt ?></a>
+                </td>
+                <td style="text-align:right; white-space:nowrap;">
+                  <a href="<?= esc($href) ?>"><?= esc((string) $share) ?>%</a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
         </div>
       </div>
-
-      <table class="table" style="width:100%;">
-        <thead>
-          <tr><th>Regla</th><th style="text-align:right;">Total</th><th style="text-align:right;">%</th></tr>
-        </thead>
-        <tbody>
-        <?php foreach ($ruleTotals as $key => $r):
-          $cnt = (int) ($r['count'] ?? 0);
-          $share = $total > 0 ? round($cnt / $total * 100, 1) : 0;
-          $href = route_to('helpdesk.rule', $key) . '?' . $periodQ;
-        ?>
-          <tr class="hs-drill">
-            <td>
-              <a href="<?= esc($href) ?>">
-                <div><?= esc($r['rule_name'] ?? $key) ?></div>
-                <div class="hs-bar"><span style="width:<?= $pctBar($cnt, $maxRuleCnt) ?>%;"></span></div>
-              </a>
-            </td>
-            <td style="text-align:right; white-space:nowrap;">
-              <a href="<?= esc($href) ?>"><?= $cnt ?></a>
-            </td>
-            <td style="text-align:right; white-space:nowrap;">
-              <a href="<?= esc($href) ?>"><?= esc((string) $share) ?>%</a>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
     </div>
   </div>
-  <?php endif; ?>
 
   <form method="post" action="<?= route_to('helpdesk.agent.confirm', (int) $glpiUserId) ?>">
     <?= csrf_field() ?>
     <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
     <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
     <input type="hidden" name="page" value="<?= $page ?>">
+    <?php if ($ruleFilter !== null): ?>
+      <input type="hidden" name="rule" value="<?= esc($ruleFilter) ?>">
+    <?php endif; ?>
     <div class="card" style="margin-bottom:var(--space-4);">
       <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:var(--space-2);">
-        <h2 class="card-title">Desviaciones (<?= number_format($total) ?>)</h2>
-        <span class="text-muted text-sm">Marca "Procede" para que el agente las vea en Service Desk. Texto completo en Esperado y Encontrado.</span>
+        <div>
+          <h2 class="card-title" style="margin:0;">
+            Desviaciones
+            <?php if ($ruleFilter !== null): ?>
+              · <?= esc($ruleFilterName) ?> (<?= number_format($total) ?>)
+            <?php else: ?>
+              (<?= number_format($totalAll) ?>)
+            <?php endif; ?>
+          </h2>
+          <?php if ($ruleFilter !== null): ?>
+            <span class="hs-filter-chip" style="margin-top:var(--space-2);">
+              Filtro: <?= esc($ruleFilterName) ?>
+              <a href="<?= esc($filterUrl(null)) ?>">Quitar</a>
+            </span>
+          <?php endif; ?>
+        </div>
+        <span class="text-muted text-sm">Marca "Procede" para que el agente las vea en Service Desk.</span>
       </div>
       <div class="card-body hs-table-scroll" style="padding:0;">
         <?php if ($deviations === []): ?>
-          <p class="text-muted text-sm" style="padding:var(--space-4);">Sin desviaciones para este agente.</p>
+          <p class="text-muted text-sm" style="padding:var(--space-4);">
+            <?= $ruleFilter !== null ? 'Sin desviaciones de esta regla para este agente.' : 'Sin desviaciones para este agente.' ?>
+          </p>
         <?php else: ?>
         <table class="table hs-table-wide">
           <thead><tr>
@@ -150,12 +220,14 @@ $pctWithDev = $totalTickets > 0 ? round($ticketsWithDev / $totalTickets * 100, 1
               <div class="text-sm">Procede</div>
             </th>
             <th style="width:90px;">Ticket</th>
-            <th style="width:160px;">Regla</th>
-            <th style="width:140px;">Campo</th>
+            <?php if ($ruleFilter === null): ?>
+              <th style="width:150px;">Regla</th>
+            <?php endif; ?>
+            <th style="width:130px;">Campo</th>
             <th>Esperado</th>
             <th>Encontrado</th>
             <th style="width:90px;">Severidad</th>
-            <th style="width:120px;">Ref. manual</th>
+            <th style="width:110px;">Ref. manual</th>
           </tr></thead>
           <tbody>
             <?php foreach ($deviations as $d): ?>
@@ -170,7 +242,9 @@ $pctWithDev = $totalTickets > 0 ? round($ticketsWithDev / $totalTickets * 100, 1
                   </a>
                   <div class="text-muted text-sm hs-cell-wrap"><?= esc((string) $d['glpi_ticket_title']) ?></div>
                 </td>
-                <td class="text-sm"><?= esc($d['rule_name']) ?></td>
+                <?php if ($ruleFilter === null): ?>
+                  <td class="text-sm"><?= esc($d['rule_name']) ?></td>
+                <?php endif; ?>
                 <td class="text-sm"><?= esc($d['field_affected'] ?? '') ?></td>
                 <td class="text-sm hs-cell-wrap"><?= esc((string) ($d['expected_value'] ?? '')) ?></td>
                 <td class="text-sm hs-cell-wrap"><?= esc((string) ($d['actual_value'] ?? '')) ?></td>
@@ -235,6 +309,13 @@ $pctWithDev = $totalTickets > 0 ? round($ticketsWithDev / $totalTickets * 100, 1
       <?php endif; ?>
     </div>
   </form>
+  <?php else: ?>
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin:0;">Sin desviaciones para este agente.</p>
+      </div>
+    </div>
+  <?php endif; ?>
 
   <div class="card">
     <div class="card-header"><h2 class="card-title">Escalaciones del mes (<?= count($escalations) ?>)</h2></div>

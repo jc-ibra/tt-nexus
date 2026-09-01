@@ -65,31 +65,39 @@ class DeviationModel extends Model
             ->findAll();
     }
 
-    public function countForAgent(int $auditRunId, int $glpiUserId): int
+    public function countForAgent(int $auditRunId, int $glpiUserId, ?string $ruleKey = null): int
     {
-        return $this->where('audit_run_id', $auditRunId)
-            ->where('glpi_user_id', $glpiUserId)
-            ->countAllResults();
+        $q = $this->where('audit_run_id', $auditRunId)->where('glpi_user_id', $glpiUserId);
+        if ($ruleKey !== null && $ruleKey !== '') {
+            $q->where('rule_key', $ruleKey);
+        }
+
+        return $q->countAllResults();
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function forAgentPaginated(int $auditRunId, int $glpiUserId, int $page, int $perPage): array
+    public function forAgentPaginated(int $auditRunId, int $glpiUserId, int $page, int $perPage, ?string $ruleKey = null): array
     {
         $offset = max(0, ($page - 1) * $perPage);
+        $q      = $this->where('audit_run_id', $auditRunId)->where('glpi_user_id', $glpiUserId);
+        if ($ruleKey !== null && $ruleKey !== '') {
+            $q->where('rule_key', $ruleKey);
+        }
 
-        return $this->where('audit_run_id', $auditRunId)
-            ->where('glpi_user_id', $glpiUserId)
-            ->orderBy('glpi_ticket_id', 'ASC')
+        return $q->orderBy('glpi_ticket_id', 'ASC')
             ->orderBy('rule_key', 'ASC')
             ->findAll($perPage, $offset);
     }
 
     /** @return array<int,array<string,mixed>> */
-    public function forAgentExport(int $auditRunId, int $glpiUserId, int $limit = 50000): array
+    public function forAgentExport(int $auditRunId, int $glpiUserId, int $limit = 50000, ?string $ruleKey = null): array
     {
-        return $this->where('audit_run_id', $auditRunId)
-            ->where('glpi_user_id', $glpiUserId)
-            ->orderBy('glpi_ticket_id', 'ASC')
+        $q = $this->where('audit_run_id', $auditRunId)->where('glpi_user_id', $glpiUserId);
+        if ($ruleKey !== null && $ruleKey !== '') {
+            $q->where('rule_key', $ruleKey);
+        }
+
+        return $q->orderBy('glpi_ticket_id', 'ASC')
             ->orderBy('rule_key', 'ASC')
             ->findAll($limit);
     }

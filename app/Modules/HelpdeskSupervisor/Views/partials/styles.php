@@ -113,4 +113,77 @@
 @media (max-width:720px) {
   .hs-period-divider { display:none; }
 }
+
+.hs-agent-summary-top {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:var(--space-4);
+  align-items:start;
+}
+@media (max-width:960px) {
+  .hs-agent-summary-top { grid-template-columns:1fr; }
+}
+.hs-agent-kpi-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:var(--space-2);
+  align-content:start;
+}
+.hs-agent-kpi-card {
+  border:1px solid var(--color-neutral-200);
+  border-radius:var(--radius-2);
+  background:var(--surface-secondary, var(--color-neutral-50));
+  box-shadow:none;
+}
+.hs-agent-kpi-card-body { padding:var(--space-2) var(--space-3); }
+.hs-agent-kpi-label { margin:0 0 var(--space-1); color:var(--text-secondary); font-size:var(--text-xs); }
+.hs-agent-kpi-value { margin:0; font-size:1.25rem; font-weight:var(--weight-semibold); line-height:1.2; letter-spacing:-0.01em; }
+.hs-agent-kpi-meta { font-size:0.8em; font-weight:var(--weight-medium); color:var(--text-secondary); }
+.hs-agent-kpi-value--critical { color:var(--color-critical-strong, #b42318); }
+.hs-rule-panel {
+  min-width:0;
+  max-width:100%;
+  justify-self:stretch;
+}
+@media (min-width:961px) {
+  .hs-rule-panel { width:100%; max-width:100%; }
+}
+.hs-rule-table { width:100%; font-size:var(--text-sm); table-layout:fixed; }
+.hs-rule-table th:nth-child(1),
+.hs-rule-table td:nth-child(1) { width:auto; }
+.hs-rule-table th:nth-child(2),
+.hs-rule-table td:nth-child(2),
+.hs-rule-table th:nth-child(3),
+.hs-rule-table td:nth-child(3) { width:3.5rem; }
+.hs-rule-table th { font-size:var(--text-xs); color:var(--text-secondary); font-weight:var(--weight-medium); }
+.hs-rule-row.is-active { background:var(--color-primary-50, #eef6fd); }
+.hs-rule-row.is-active td { font-weight:var(--weight-semibold); }
+.hs-rule-row a { color:inherit; text-decoration:none; display:block; }
+.hs-rule-row:hover { background:var(--color-neutral-50); }
+.hs-filter-chip {
+  display:inline-flex; align-items:center; gap:var(--space-2);
+  padding:var(--space-1) var(--space-2);
+  background:var(--color-primary-50, #eef6fd);
+  border-radius:var(--radius-2);
+  font-size:var(--text-sm);
+}
+.hs-filter-chip a { color:var(--color-primary); text-decoration:none; font-weight:var(--weight-medium); }
+
+.hs-row-actions {
+  display:flex;
+  flex-wrap:nowrap;
+  gap:var(--space-2);
+  align-items:center;
+  justify-content:flex-end;
+}
+.hs-row-actions-form {
+  display:inline-flex;
+  margin:0;
+  flex:0 0 auto;
+}
+/* hs-drill makes row links block; action buttons must stay inline. */
+.hs-drill .hs-row-actions a.btn,
+.hs-drill .hs-row-actions .btn {
+  display:inline-flex;
+}
 </style>

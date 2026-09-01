@@ -98,7 +98,9 @@ class Dashboard extends BaseController
                 'escalations' => [],
                 'ruleTotals'  => [],
                 'agentStat'   => null,
+                'totalAll'    => 0,
                 'total'       => 0,
+                'ruleFilter'  => null,
                 'page'        => 1,
                 'perPage'     => $perPage,
                 'lastPage'    => 1,
@@ -106,11 +108,28 @@ class Dashboard extends BaseController
         }
 
         $runId = (int) $run['id'];
-        $total = $this->deviations->countForAgent($runId, $glpiUserId);
+        foreach ($this->deviations->ruleSummaryForAgent($runId, $glpiUserId) as $r) {
+            $key = (string) $r['rule_key'];
+            $ruleTotals[$key]['rule_name'] = (string) $r['rule_name'];
+            $ruleTotals[$key]['severity']  = (string) $r['severity'];
+            $ruleTotals[$key]['count']     = ($ruleTotals[$key]['count'] ?? 0) + (int) $r['count'];
+        }
+        uasort($ruleTotals, static fn(array $a, array $b): int => ($b['count'] ?? 0) <=> ($a['count'] ?? 0));
+
+        $ruleFilter = $this->agentRuleFilter();
+        if ($ruleFilter !== null && ! isset($ruleTotals[$ruleFilter])) {
+            $ruleFilter = null;
+        }
+
+        $totalAll = $this->deviations->countForAgent($runId, $glpiUserId);
+        $total    = $ruleFilter !== null
+            ? $this->deviations->countForAgent($runId, $glpiUserId, $ruleFilter)
+            : $totalAll;
+
         if ($total > 0) {
             $lastPage   = max(1, (int) ceil($total / $perPage));
             $page       = min($page, $lastPage);
-            $deviations = $this->deviations->forAgentPaginated($runId, $glpiUserId, $page, $perPage);
+            $deviations = $this->deviations->forAgentPaginated($runId, $glpiUserId, $page, $perPage, $ruleFilter);
             $agentName  = (string) ($deviations[0]['agent_name'] ?? '');
         }
 
@@ -127,13 +146,6 @@ class Dashboard extends BaseController
                 break;
             }
         }
-        foreach ($this->deviations->ruleSummaryForAgent($runId, $glpiUserId) as $r) {
-            $key = (string) $r['rule_key'];
-            $ruleTotals[$key]['rule_name'] = (string) $r['rule_name'];
-            $ruleTotals[$key]['severity']  = (string) $r['severity'];
-            $ruleTotals[$key]['count']     = ($ruleTotals[$key]['count'] ?? 0) + (int) $r['count'];
-        }
-        arsort($ruleTotals);
 
         $escalations = (new EscalationModel())->forAgentMonth(
             $glpiUserId,
@@ -153,7 +165,9 @@ class Dashboard extends BaseController
             'ruleTotals'  => $ruleTotals,
             'agentStat'   => $agentStat,
             'devSummary'  => $devSummary,
+            'totalAll'    => $totalAll,
             'total'       => $total,
+            'ruleFilter'  => $ruleFilter,
             'page'        => $page,
             'perPage'     => $perPage,
             'lastPage'    => $lastPage,
@@ -167,11 +181,19 @@ class Dashboard extends BaseController
         $start = (string) $this->request->getPost('period_start');
         $end   = (string) $this->request->getPost('period_end');
         $page  = max(1, (int) $this->request->getPost('page'));
+        $rule  = trim((string) $this->request->getPost('rule'));
         $run   = $this->runs->latestCompletedForPeriod($start, $end);
-        $back  = route_to('helpdesk.agent', $glpiUserId)
-            . '?period_start=' . rawurlencode($start)
-            . '&period_end=' . rawurlencode($end)
-            . ($page > 1 ? '&page=' . $page : '');
+        $backQ = [
+            'period_start' => $start,
+            'period_end'   => $end,
+        ];
+        if ($page > 1) {
+            $backQ['page'] = (string) $page;
+        }
+        if ($rule !== '' && preg_match('/^[a-z_]+$/', $rule)) {
+            $backQ['rule'] = $rule;
+        }
+        $back = route_to('helpdesk.agent', $glpiUserId) . '?' . http_build_query($backQ);
 
         if ($run === null) {
             return redirect()->to($back)->with('error', 'No hay auditoría para el período.');
@@ -281,16 +303,23 @@ class Dashboard extends BaseController
             $format = 'csv';
         }
 
-        $back = route_to('helpdesk.agent', $glpiUserId)
-            . '?period_start=' . rawurlencode($start)
-            . '&period_end=' . rawurlencode($end);
+        $ruleFilter = $this->agentRuleFilter();
+        $backQ      = [
+            'period_start' => $start,
+            'period_end'   => $end,
+        ];
+        if ($ruleFilter !== null) {
+            $backQ['rule'] = $ruleFilter;
+        }
+        $back = route_to('helpdesk.agent', $glpiUserId) . '?' . http_build_query($backQ);
 
         if ($run === null) {
             return redirect()->to($back)->with('error', 'No hay auditoría para el período.');
         }
 
-        $runId = (int) $run['id'];
-        $total = $this->deviations->countForAgent($runId, $glpiUserId);
+        $ruleFilter = $this->agentRuleFilter();
+        $runId      = (int) $run['id'];
+        $total      = $this->deviations->countForAgent($runId, $glpiUserId, $ruleFilter);
         if ($total > self::RULE_EXPORT_MAX) {
             return redirect()->to($back)->with(
                 'error',
@@ -298,10 +327,13 @@ class Dashboard extends BaseController
             );
         }
 
-        $rows     = $this->deviations->forAgentExport($runId, $glpiUserId, self::RULE_EXPORT_MAX);
+        $rows     = $this->deviations->forAgentExport($runId, $glpiUserId, self::RULE_EXPORT_MAX, $ruleFilter);
         $portal   = $this->glpiBaseUrl();
         $exporter = new DeviationExportService();
         $slug     = preg_replace('/[^A-Za-z0-9]+/', '_', (string) ($rows[0]['agent_name'] ?? 'agente_' . $glpiUserId)) ?: ('agente_' . $glpiUserId);
+        if ($ruleFilter !== null) {
+            $slug .= '_' . $ruleFilter;
+        }
         $filename = 'desviaciones_' . trim($slug, '_') . '_' . date('Y-m-d_His');
 
         if ($format === 'xlsx') {
@@ -328,6 +360,17 @@ class Dashboard extends BaseController
     private function period(): array
     {
         return PeriodFilter::resolveFromRequest($this->request);
+    }
+
+    /** Optional rule_key filter for agent deviation drill-down. */
+    private function agentRuleFilter(): ?string
+    {
+        $rule = trim((string) $this->request->getGet('rule'));
+        if ($rule === '' || ! preg_match('/^[a-z_]+$/', $rule)) {
+            return null;
+        }
+
+        return $rule;
     }
 
     /** GLPI base URL for building ticket links (from Provisioning settings, else the manual host). */

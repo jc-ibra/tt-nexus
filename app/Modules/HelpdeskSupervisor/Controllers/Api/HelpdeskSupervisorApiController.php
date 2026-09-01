@@ -192,16 +192,19 @@ class HelpdeskSupervisorApiController extends BaseApiController
         $glpiUserId = (int) $glpiUserId;
         $page       = max(1, (int) $this->request->getGet('page'));
         $perPage    = max(1, min(200, (int) ($this->request->getGet('per_page') ?: 50)));
-        $total      = $model->countForAgent($runId, $glpiUserId);
+        $ruleKey    = trim((string) $this->request->getGet('rule'));
+        $ruleKey    = ($ruleKey !== '' && preg_match('/^[a-z_]+$/', $ruleKey)) ? $ruleKey : null;
+        $total      = $model->countForAgent($runId, $glpiUserId, $ruleKey);
         $lastPage   = max(1, (int) ceil($total / $perPage));
         $page       = min($page, $lastPage);
 
         return $this->success([
-            'deviations'  => $model->forAgentPaginated($runId, $glpiUserId, $page, $perPage),
+            'deviations'  => $model->forAgentPaginated($runId, $glpiUserId, $page, $perPage, $ruleKey),
             'total'       => $total,
             'page'        => $page,
             'per_page'    => $perPage,
             'total_pages' => $lastPage,
+            'rule'        => $ruleKey,
         ]);
     }
 
@@ -216,7 +219,9 @@ class HelpdeskSupervisorApiController extends BaseApiController
             $format = 'csv';
         }
 
-        $total = $model->countForAgent($runId, $glpiUserId);
+        $ruleKey = trim((string) $this->request->getGet('rule'));
+        $ruleKey = ($ruleKey !== '' && preg_match('/^[a-z_]+$/', $ruleKey)) ? $ruleKey : null;
+        $total   = $model->countForAgent($runId, $glpiUserId, $ruleKey);
         if ($total > $maxRows) {
             return $this->error(
                 'Hay más de ' . number_format($maxRows) . ' desviaciones. Acota el filtro antes de exportar.',
@@ -224,7 +229,7 @@ class HelpdeskSupervisorApiController extends BaseApiController
             );
         }
 
-        $rows     = $model->forAgentExport($runId, $glpiUserId, $maxRows);
+        $rows     = $model->forAgentExport($runId, $glpiUserId, $maxRows, $ruleKey);
         $portal   = $this->glpiPortalUrl();
         $exporter = new \App\Modules\HelpdeskSupervisor\Services\DeviationExportService();
         $filename = 'desviaciones_agente_' . $glpiUserId . '_' . date('Y-m-d_His');
