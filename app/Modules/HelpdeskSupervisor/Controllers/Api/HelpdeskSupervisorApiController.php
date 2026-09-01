@@ -18,6 +18,127 @@ use CodeIgniter\HTTP\ResponseInterface;
 class HelpdeskSupervisorApiController extends BaseApiController
 {
     // ------------------------------------------------------------------
+    // Live overview
+    // ------------------------------------------------------------------
+
+    public function overview(): ResponseInterface
+    {
+        $force = $this->request->getGet('refresh') === '1' || $this->request->getGet('refresh') === 'true';
+        $mode  = $this->request->getGet('mode') === 'period' ? 'period' : 'backlog';
+        $start = (string) $this->request->getGet('period_start');
+        $end   = (string) $this->request->getGet('period_end');
+        if ($mode === 'period') {
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)) {
+                $start = date('Y-m-01');
+            }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
+                $end = date('Y-m-t');
+            }
+        }
+
+        $result = service('helpdeskGlpiOverview')->build(
+            $force,
+            $mode,
+            $mode === 'period' ? $start : null,
+            $mode === 'period' ? $end : null,
+        );
+
+        return $result->success
+            ? $this->success($result->data)
+            : $this->error($result->message, 503);
+    }
+
+    public function overviewTickets(): ResponseInterface
+    {
+        $dimension = (string) $this->request->getGet('dimension');
+        $filterId  = (int) $this->request->getGet('id');
+        $mode      = $this->request->getGet('mode') === 'period' ? 'period' : 'backlog';
+        $start     = (string) $this->request->getGet('period_start');
+        $end       = (string) $this->request->getGet('period_end');
+        $page      = max(1, (int) $this->request->getGet('page'));
+        $perPage   = max(1, min(200, (int) ($this->request->getGet('per_page') ?: 50)));
+        if ($mode === 'period') {
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)) {
+                $start = date('Y-m-01');
+            }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
+                $end = date('Y-m-t');
+            }
+        }
+
+        $overview = service('helpdeskGlpiOverview');
+        $result   = $overview->listTickets(
+            $dimension,
+            $filterId,
+            $mode,
+            $mode === 'period' ? $start : null,
+            $mode === 'period' ? $end : null,
+            $page,
+            $perPage,
+        );
+
+        if (! $result->success) {
+            return $this->error($result->message, 503);
+        }
+
+        $data = is_array($result->data) ? $result->data : [];
+        $data['glpi_portal_url'] = $overview->glpiPortalUrl();
+
+        return $this->success($data);
+    }
+
+    public function overviewTicketsExport(): ResponseInterface
+    {
+        $dimension = (string) $this->request->getGet('dimension');
+        $filterId  = (int) $this->request->getGet('id');
+        $mode      = $this->request->getGet('mode') === 'period' ? 'period' : 'backlog';
+        $start     = (string) $this->request->getGet('period_start');
+        $end       = (string) $this->request->getGet('period_end');
+        $format    = strtolower((string) $this->request->getGet('format'));
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+        if ($mode === 'period') {
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)) {
+                $start = date('Y-m-01');
+            }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
+                $end = date('Y-m-t');
+            }
+        }
+
+        $overview = service('helpdeskGlpiOverview');
+        $result   = $overview->listTicketsForExport(
+            $dimension,
+            $filterId,
+            $mode,
+            $mode === 'period' ? $start : null,
+            $mode === 'period' ? $end : null,
+        );
+
+        if (! $result->success) {
+            return $this->error($result->message, 422);
+        }
+
+        $tickets  = is_array($result->data) ? ($result->data['tickets'] ?? []) : [];
+        $portal   = $overview->glpiPortalUrl();
+        $exporter = new \App\Modules\HelpdeskSupervisor\Services\OverviewTicketExportService();
+        $filename = 'tickets_' . date('Y-m-d_His');
+
+        if ($format === 'xlsx') {
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"')
+                ->setBody($exporter->toXlsx($tickets, $portal));
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($tickets, $portal));
+    }
+
+    // ------------------------------------------------------------------
     // Audit
     // ------------------------------------------------------------------
 

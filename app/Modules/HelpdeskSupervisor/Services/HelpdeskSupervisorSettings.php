@@ -94,6 +94,125 @@ class HelpdeskSupervisorSettings
     }
 
     // ------------------------------------------------------------------
+    // Live GLPI overview (Resumen)
+    // ------------------------------------------------------------------
+
+    /** `all` = every entity; `specific` = filter by overview_entities_id. */
+    public function overviewEntitiesMode(): string
+    {
+        $m = strtolower(trim($this->model->get('overview_entities_mode', 'all')));
+        return $m === 'specific' ? 'specific' : 'all';
+    }
+
+    public function overviewEntitiesId(): int
+    {
+        return max(0, (int) $this->model->get('overview_entities_id', '0'));
+    }
+
+    public function overviewEntitiesRecursive(): bool
+    {
+        return $this->model->get('overview_entities_recursive', '1') === '1';
+    }
+
+    /** @return int[] GLPI status ids counted as open backlog. */
+    public function overviewOpenStatuses(): array
+    {
+        $ids = $this->parseIdList($this->model->get('overview_open_statuses', '1,2,3,4'));
+        return $ids !== [] ? $ids : [1, 2, 3, 4];
+    }
+
+    /** @return int[] ticket types (1=Incidencia, 2=Requerimiento); empty = no type filter. */
+    public function overviewTicketTypes(): array
+    {
+        return $this->parseIdList($this->model->get('overview_ticket_types', '1,2'));
+    }
+
+    /**
+     * Optional root ITIL category ids that scope the overview. Empty = all.
+     * When set, only tickets whose category is that root or a descendant count.
+     *
+     * @return int[]
+     */
+    public function overviewCategoryRoots(): array
+    {
+        return $this->parseIdList($this->model->get('overview_category_roots', ''));
+    }
+
+    public function overviewTopNCategories(): int
+    {
+        return max(1, min(50, (int) $this->model->get('overview_top_n_categories', '10')));
+    }
+
+    public function overviewTopNSources(): int
+    {
+        return max(1, min(50, (int) $this->model->get('overview_top_n_sources', '10')));
+    }
+
+    public function overviewTopNRequesters(): int
+    {
+        return max(1, min(100, (int) $this->model->get('overview_top_n_requesters', '15')));
+    }
+
+    public function overviewTopNAssignees(): int
+    {
+        return max(1, min(100, (int) $this->model->get('overview_top_n_assignees', '15')));
+    }
+
+    public function overviewCriticalDays(): int
+    {
+        return max(1, (int) $this->model->get('overview_critical_days', '30'));
+    }
+
+    /** Cache TTL in seconds for the live overview (0 = no cache). */
+    public function overviewCacheTtl(): int
+    {
+        return max(0, min(3600, (int) $this->model->get('overview_cache_ttl', '120')));
+    }
+
+    /**
+     * Persists the Resumen GLPI settings section. Invalidates overview cache so
+     * the next page load reflects the new filters immediately.
+     */
+    public function saveOverview(array $input): ServiceResult
+    {
+        $mode = strtolower(trim((string) ($input['overview_entities_mode'] ?? 'all')));
+        if ($mode !== 'specific') {
+            $mode = 'all';
+        }
+
+        $statuses = $this->parseIdListFromInput($input['overview_open_statuses'] ?? null);
+        if ($statuses === []) {
+            return ServiceResult::fail('Selecciona al menos un estatus abierto para el backlog.');
+        }
+
+        $types = $this->parseIdListFromInput($input['overview_ticket_types'] ?? null);
+        // Empty types = allow both; if checkboxes posted empty we treat as both.
+        if ($types === []) {
+            $types = [1, 2];
+        }
+
+        $data = [
+            'overview_entities_mode'      => $mode,
+            'overview_entities_id'        => (string) max(0, (int) ($input['overview_entities_id'] ?? 0)),
+            'overview_entities_recursive' => ! empty($input['overview_entities_recursive']) ? '1' : '0',
+            'overview_open_statuses'      => implode(',', $statuses),
+            'overview_ticket_types'       => implode(',', $types),
+            'overview_category_roots'     => implode(',', $this->parseIdListFromInput($input['overview_category_roots'] ?? '')),
+            'overview_top_n_categories'   => (string) max(1, min(50, (int) ($input['overview_top_n_categories'] ?? 10))),
+            'overview_top_n_sources'      => (string) max(1, min(50, (int) ($input['overview_top_n_sources'] ?? 10))),
+            'overview_top_n_requesters'   => (string) max(1, min(100, (int) ($input['overview_top_n_requesters'] ?? 15))),
+            'overview_top_n_assignees'    => (string) max(1, min(100, (int) ($input['overview_top_n_assignees'] ?? 15))),
+            'overview_critical_days'      => (string) max(1, (int) ($input['overview_critical_days'] ?? 30)),
+            'overview_cache_ttl'          => (string) max(0, min(3600, (int) ($input['overview_cache_ttl'] ?? 120))),
+        ];
+
+        $this->model->setMany($data);
+        cache()->delete('helpdesk_supervisor_glpi_overview');
+
+        return ServiceResult::ok(null, 'Configuración del resumen GLPI guardada.');
+    }
+
+    // ------------------------------------------------------------------
     // Persistence
     // ------------------------------------------------------------------
 
@@ -125,6 +244,44 @@ class HelpdeskSupervisorSettings
         $this->model->setMany($data);
 
         return ServiceResult::ok(null, 'Configuración guardada.');
+    }
+
+    /** @return int[] */
+    private function parseIdList(string $raw): array
+    {
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', $raw) ?: [] as $part) {
+            $part = trim($part);
+            if ($part === '' || ! ctype_digit($part)) {
+                continue;
+            }
+            $id = (int) $part;
+            if ($id >= 0) {
+                $out[$id] = $id;
+            }
+        }
+        return array_values($out);
+    }
+
+    /**
+     * Accepts a posted array (checkboxes) or a comma string.
+     *
+     * @param mixed $raw
+     * @return int[]
+     */
+    private function parseIdListFromInput(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            $out = [];
+            foreach ($raw as $v) {
+                if (is_numeric($v) && (int) $v >= 0) {
+                    $id = (int) $v;
+                    $out[$id] = $id;
+                }
+            }
+            return array_values($out);
+        }
+        return $this->parseIdList((string) $raw);
     }
 
     // ------------------------------------------------------------------

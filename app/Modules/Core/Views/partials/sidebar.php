@@ -189,6 +189,11 @@ $moduleSubnav = [
                     || str_starts_with($currentPath, '/helpdesk-supervisor/rules')),
         ],
         [
+            'label'  => 'Resumen GLPI',
+            'url'    => base_url('helpdesk-supervisor/overview'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/overview'),
+        ],
+        [
             'label'  => 'Auditorías',
             'url'    => base_url('helpdesk-supervisor/audit/runs'),
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/audit'),

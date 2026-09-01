@@ -5166,6 +5166,150 @@
           }
         },
         {
+          "name": "Resumen GLPI (overview)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/overview?mode=backlog&refresh=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "overview"
+              ],
+              "query": [
+                {
+                  "key": "mode",
+                  "value": "backlog",
+                  "description": "backlog | period"
+                },
+                {
+                  "key": "period_start",
+                  "value": "2026-08-01",
+                  "description": "Solo mode=period (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "period_end",
+                  "value": "2026-08-31",
+                  "disabled": true
+                },
+                {
+                  "key": "refresh",
+                  "value": "0",
+                  "description": "1 para forzar consulta fresca (salta caché)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resumen GLPI — tickets (drill-down)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/overview/tickets?dimension=category&id=1&mode=backlog",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "overview",
+                "tickets"
+              ],
+              "query": [
+                {
+                  "key": "dimension",
+                  "value": "category",
+                  "description": "category | source | requester | assignee | status | type | backlog | still_open | critical | period"
+                },
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "itilcategories_id, requesttypes_id o users_id GLPI (solicitante/asignado)"
+                },
+                {
+                  "key": "mode",
+                  "value": "backlog",
+                  "description": "backlog | period"
+                },
+                {
+                  "key": "period_start",
+                  "value": "2026-08-01",
+                  "disabled": true
+                },
+                {
+                  "key": "period_end",
+                  "value": "2026-08-31",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resumen GLPI — exportar tickets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/overview/tickets/export?dimension=requester&id=26&mode=backlog&format=csv",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "overview",
+                "tickets",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "dimension",
+                  "value": "requester"
+                },
+                {
+                  "key": "id",
+                  "value": "26"
+                },
+                {
+                  "key": "mode",
+                  "value": "backlog"
+                },
+                {
+                  "key": "format",
+                  "value": "csv",
+                  "description": "csv | xlsx"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Preparar notificación (borrador IA)",
           "request": {
             "method": "POST",

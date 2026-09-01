@@ -73,6 +73,7 @@ use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
 use App\Modules\HelpdeskSupervisor\Models\AgentRunStatsModel;
 use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorSettings;
 use App\Modules\HelpdeskSupervisor\Services\GlpiAuditQueryService;
+use App\Modules\HelpdeskSupervisor\Services\GlpiOverviewService;
 use App\Modules\HelpdeskSupervisor\Services\AuditRunnerService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationDraftService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationExcelService;
@@ -864,6 +865,14 @@ class Services extends BaseService
             return static::getSharedInstance('helpdeskAuditQuery');
         }
         return new GlpiAuditQueryService(self::glpiDbConnection(), self::glpiSchemaIntrospector());
+    }
+
+    public static function helpdeskGlpiOverview(bool $getShared = true): GlpiOverviewService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskGlpiOverview');
+        }
+        return new GlpiOverviewService(self::glpiDbConnection(), self::helpdeskSupervisorSettings());
     }
 
     public static function helpdeskAuditRunner(bool $getShared = true): AuditRunnerService

@@ -19,6 +19,12 @@ $routes->group('helpdesk-supervisor', [
     $routes->post('agents/(:num)/confirm', 'Dashboard::confirmAgent/$1', ['as' => 'helpdesk.agent.confirm']);
     $routes->get('rules/([a-z_]+)',   'Dashboard::rule/$1', ['as' => 'helpdesk.rule']);
 
+    // Live GLPI overview (aggregates only)
+    $routes->get('overview',          'Overview::index',   ['as' => 'helpdesk.overview']);
+    $routes->get('overview/tickets',         'Overview::tickets',       ['as' => 'helpdesk.overview.tickets']);
+    $routes->get('overview/tickets/export', 'Overview::ticketsExport', ['as' => 'helpdesk.overview.tickets.export']);
+    $routes->post('overview/refresh', 'Overview::refresh', ['as' => 'helpdesk.overview.refresh']);
+
     // Audit runs
     $routes->post('audit/run',        'Audit::run',        ['as' => 'helpdesk.audit.run']);
     $routes->get('audit/runs',        'Audit::runs',       ['as' => 'helpdesk.audit.runs']);
@@ -46,6 +52,7 @@ $routes->group('helpdesk-supervisor', [
     $routes->post('settings',                'Settings::save',  ['as' => 'helpdesk.settings.save']);
     $routes->post('settings/test-connection', 'Settings::testConnection', ['as' => 'helpdesk.settings.test']);
     $routes->post('settings/notifications',  'Settings::saveNotifications', ['as' => 'helpdesk.settings.notifications']);
+    $routes->post('settings/overview',       'Settings::saveOverview', ['as' => 'helpdesk.settings.overview']);
 });
 
 // -----------------------------------------------------------------------
@@ -55,6 +62,11 @@ $routes->group('api/v1/helpdesk-supervisor', [
     'namespace' => 'App\Modules\HelpdeskSupervisor\Controllers\Api',
     'filter'    => ['api_auth', 'module_access:helpdesk_supervisor'],
 ], function (RouteCollection $routes): void {
+
+    // Live overview
+    $routes->get('overview',         'HelpdeskSupervisorApiController::overview');
+    $routes->get('overview/tickets',         'HelpdeskSupervisorApiController::overviewTickets');
+    $routes->get('overview/tickets/export', 'HelpdeskSupervisorApiController::overviewTicketsExport');
 
     // Audit
     $routes->post('audit/run',        'HelpdeskSupervisorApiController::runAudit');
