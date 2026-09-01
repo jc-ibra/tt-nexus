@@ -238,7 +238,7 @@ class GlpiOverviewService
 
     /**
      * @return array{
-     *   tickets:list<array{id:int,title:string,status:int,status_label:string,date:string}>,
+     *   tickets:list<array{id:int,title:string,status:int,status_label:string,date:string,category_id:int,category_label:string}>,
      *   total:int,
      *   page:int,
      *   per_page:int,
@@ -264,15 +264,23 @@ class GlpiOverviewService
             ->get()
             ->getResultArray();
 
+        $catIds   = array_map(static fn(array $r) => (int) $r['itilcategories_id'], $rows);
+        $catNames = $this->categoryNames($this->db(), $catIds);
+
         $tickets = [];
         foreach ($rows as $r) {
             $status = (int) $r['status'];
+            $catId  = (int) $r['itilcategories_id'];
             $tickets[] = [
-                'id'           => (int) $r['id'],
-                'title'        => (string) $r['name'],
-                'status'       => $status,
-                'status_label' => self::STATUS_LABELS[$status] ?? ('Estatus ' . $status),
-                'date'         => (string) $r['date'],
+                'id'             => (int) $r['id'],
+                'title'          => (string) $r['name'],
+                'status'         => $status,
+                'status_label'   => self::STATUS_LABELS[$status] ?? ('Estatus ' . $status),
+                'date'           => (string) $r['date'],
+                'category_id'    => $catId,
+                'category_label' => $catId === 0
+                    ? '(Sin categoría)'
+                    : ($catNames[$catId] ?? ('Categoría #' . $catId)),
             ];
         }
 
@@ -304,19 +312,19 @@ class GlpiOverviewService
 
         if ($dimension === 'requester') {
             $builder = $db->table('glpi_tickets t')
-                ->select('t.id, t.name, t.status, t.date', false)
+                ->select('t.id, t.name, t.status, t.date, t.itilcategories_id', false)
                 ->join('glpi_tickets_users tu', 'tu.tickets_id = t.id AND tu.type = ' . self::LINK_REQUESTER, 'inner')
                 ->where('t.is_deleted', 0)
                 ->where('tu.users_id', $filterId);
         } elseif ($dimension === 'assignee') {
             $builder = $db->table('glpi_tickets t')
-                ->select('t.id, t.name, t.status, t.date', false)
+                ->select('t.id, t.name, t.status, t.date, t.itilcategories_id', false)
                 ->join('glpi_tickets_users tu', 'tu.tickets_id = t.id AND tu.type = ' . self::LINK_ASSIGNED, 'inner')
                 ->where('t.is_deleted', 0)
                 ->where('tu.users_id', $filterId);
         } else {
             $builder = $db->table('glpi_tickets t')
-                ->select('t.id, t.name, t.status, t.date', false)
+                ->select('t.id, t.name, t.status, t.date, t.itilcategories_id', false)
                 ->where('t.is_deleted', 0);
 
             switch ($dimension) {

@@ -13,10 +13,10 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class OverviewTicketExportService
 {
-    private const HEADERS = ['Ticket', 'Título', 'Estatus', 'Apertura', 'URL GLPI'];
+    private const HEADERS = ['Ticket', 'Título', 'Categoría', 'Estatus', 'Apertura', 'URL GLPI'];
 
     /**
-     * @param list<array{id:int,title:string,status_label:string,date:string}> $tickets
+     * @param list<array{id:int,title:string,status_label:string,date:string,category_label:string}> $tickets
      */
     public function toCsv(array $tickets, string $glpiPortalUrl): string
     {
@@ -33,7 +33,7 @@ class OverviewTicketExportService
     }
 
     /**
-     * @param list<array{id:int,title:string,status_label:string,date:string}> $tickets
+     * @param list<array{id:int,title:string,status_label:string,date:string,category_label:string}> $tickets
      */
     public function toXlsx(array $tickets, string $glpiPortalUrl): string
     {
@@ -42,7 +42,7 @@ class OverviewTicketExportService
         $sheet = $book->getActiveSheet();
         $sheet->setTitle('Tickets');
         $sheet->fromArray(self::HEADERS, null, 'A1');
-        $sheet->getStyle('A1:E1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
         $sheet->freezePane('A2');
 
         $line = 2;
@@ -53,7 +53,7 @@ class OverviewTicketExportService
             $line++;
         }
 
-        foreach (range('A', 'E') as $col) {
+        foreach (range('A', 'F') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -67,7 +67,7 @@ class OverviewTicketExportService
     }
 
     /**
-     * @param array{id:int,title:string,status_label:string,date:string} $t
+     * @param array{id:int,title:string,status_label:string,date:string,category_label:string} $t
      * @return list<string|int>
      */
     private function row(array $t, string $glpiPortalUrl): array
@@ -82,6 +82,7 @@ class OverviewTicketExportService
         return [
             $id,
             (string) ($t['title'] ?? ''),
+            (string) ($t['category_label'] ?? ''),
             (string) ($t['status_label'] ?? ''),
             $date,
             rtrim($glpiPortalUrl, '/') . '/front/ticket.form.php?id=' . $id,

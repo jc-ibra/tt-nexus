@@ -38,6 +38,32 @@ $rootCategories = $rootCategories ?? [];
 .hs-tab:focus-visible { outline:2px solid var(--color-primary); outline-offset:-2px; border-radius:var(--radius-sm); }
 .hs-panel { display:none; }
 .hs-panel.is-active { display:block; }
+/* Form spacing: global .field-label only has 4px margin — too tight in dense settings tabs. */
+.hs-panel .card-body {
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-4);
+}
+.hs-panel .field {
+  gap:var(--space-2);
+}
+.hs-panel .field-label {
+  margin-bottom:0;
+}
+.hs-panel fieldset {
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-3);
+}
+.hs-panel fieldset legend {
+  margin-bottom:var(--space-2);
+  padding:0 var(--space-1);
+}
+.hs-panel .hs-field-row {
+  display:flex;
+  gap:var(--space-3);
+  flex-wrap:wrap;
+}
 </style>
 
 <div class="hs-tabs" role="tablist" aria-label="Secciones de configuración">
@@ -65,9 +91,9 @@ $rootCategories = $rootCategories ?? [];
         <p class="field-help">Recomendado. El resumen y la auditoría leen la misma BDD que Provisioning.</p>
       </div>
 
-      <fieldset style="border:1px solid var(--color-border); border-radius:var(--radius-2); padding:var(--space-3); margin-top:var(--space-2);">
+      <fieldset class="hs-fieldset" style="border:1px solid var(--color-border); border-radius:var(--radius-2); padding:var(--space-3);">
         <legend class="text-muted text-sm">Conexión propia (solo si no reutilizas Provisioning)</legend>
-        <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+        <div class="hs-field-row">
           <div class="field" style="flex:2; min-width:180px;">
             <label class="field-label" for="glpi_db_host">Host</label>
             <input type="text" id="glpi_db_host" name="glpi_db_host" class="input" value="<?= $g('glpi_db_host') ?>">
@@ -77,7 +103,7 @@ $rootCategories = $rootCategories ?? [];
             <input type="number" id="glpi_db_port" name="glpi_db_port" class="input" value="<?= $g('glpi_db_port', '3306') ?>">
           </div>
         </div>
-        <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+        <div class="hs-field-row">
           <div class="field" style="flex:1; min-width:160px;">
             <label class="field-label" for="glpi_db_name">Base de datos</label>
             <input type="text" id="glpi_db_name" name="glpi_db_name" class="input" value="<?= $g('glpi_db_name') ?>">
@@ -93,7 +119,7 @@ $rootCategories = $rootCategories ?? [];
         </div>
       </fieldset>
 
-      <div style="margin-top:var(--space-3);">
+      <div>
         <button type="button" id="btn-test-conn" class="btn btn-secondary">Probar conexión</button>
         <span id="test-result" class="text-sm" style="margin-left:var(--space-2);"></span>
       </div>
@@ -119,7 +145,7 @@ $rootCategories = $rootCategories ?? [];
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card-header"><h2 class="card-title">Parámetros de auditoría</h2></div>
     <div class="card-body">
-      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+      <div class="hs-field-row">
         <div class="field" style="flex:1; min-width:200px;">
           <label class="field-label" for="business_days_abandonment">Días hábiles para abandono (KPI 4)</label>
           <input type="number" min="1" id="business_days_abandonment" name="business_days_abandonment" class="input" value="<?= $g('business_days_abandonment', '5') ?>">
@@ -135,7 +161,7 @@ $rootCategories = $rootCategories ?? [];
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card-header"><h2 class="card-title">Mapeo de tabs a contenedores del plugin</h2></div>
     <div class="card-body">
-      <p class="field-help" style="margin-bottom:var(--space-3);">
+      <p class="field-help">
         Indica qué contenedor del plugin Additional Fields corresponde a cada tab del manual.
       </p>
       <?php if ($containers === []): ?>
@@ -172,7 +198,7 @@ $rootCategories = $rootCategories ?? [];
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card-header"><h2 class="card-title">Filtros del resumen operativo</h2></div>
     <div class="card-body">
-      <p class="field-help" style="margin-bottom:var(--space-3);">
+      <p class="field-help">
         Controla qué cuenta el espejo de GLPI (entidad, estatus, categorías, tops). La conexión es la misma de arriba; aquí solo se acota el alcance.
         <a href="<?= route_to('helpdesk.overview') ?>">Ver resumen →</a>
       </p>
@@ -189,7 +215,7 @@ $rootCategories = $rootCategories ?? [];
         </label>
       </div>
 
-      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:flex-end;">
+      <div class="hs-field-row" style="align-items:flex-end;">
         <div class="field" style="flex:2; min-width:220px;">
           <label class="field-label" for="overview_entities_id">Entidad (entities_id)</label>
           <?php if ($entities !== []): ?>
@@ -213,9 +239,9 @@ $rootCategories = $rootCategories ?? [];
         </div>
       </div>
 
-      <div class="field" style="margin-top:var(--space-3);">
+      <div class="field">
         <label class="field-label">Estatus que cuentan como backlog abierto</label>
-        <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+        <div class="hs-field-row">
           <?php foreach ($statusLabels as $sid => $slabel): ?>
             <label class="field-check">
               <input type="checkbox" name="overview_open_statuses[]" value="<?= (int) $sid ?>"
@@ -228,7 +254,7 @@ $rootCategories = $rootCategories ?? [];
 
       <div class="field">
         <label class="field-label">Tipos de ticket</label>
-        <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+        <div class="hs-field-row">
           <?php foreach ($typeLabels as $tid => $tlabel): ?>
             <label class="field-check">
               <input type="checkbox" name="overview_ticket_types[]" value="<?= (int) $tid ?>"
@@ -257,7 +283,7 @@ $rootCategories = $rootCategories ?? [];
         <?php endif; ?>
       </div>
 
-      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+      <div class="hs-field-row">
         <div class="field" style="flex:1; min-width:140px;">
           <label class="field-label" for="overview_top_n_categories">Top categorías</label>
           <input type="number" min="1" max="50" id="overview_top_n_categories" name="overview_top_n_categories" class="input" value="<?= $g('overview_top_n_categories', '10') ?>">
@@ -307,7 +333,7 @@ $rootCategories = $rootCategories ?? [];
         <input type="password" id="ai_api_key" name="ai_api_key" class="input" autocomplete="new-password" placeholder="Dejar vacío para conservar / usar la de Service Desk">
       </div>
 
-      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+      <div class="hs-field-row">
         <div class="field" style="flex:1; min-width:220px;">
           <label class="field-label" for="ai_model">Modelo</label>
           <select id="ai_model" name="ai_model" class="select">
@@ -322,7 +348,7 @@ $rootCategories = $rootCategories ?? [];
         </div>
       </div>
 
-      <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+      <div class="hs-field-row">
         <div class="field" style="flex:1; min-width:220px;">
           <label class="field-label" for="notification_sender_name">Nombre del remitente</label>
           <input type="text" id="notification_sender_name" name="notification_sender_name" class="input" value="<?= $g('notification_sender_name') ?>" placeholder="Ej: Gerencia de Service Desk">

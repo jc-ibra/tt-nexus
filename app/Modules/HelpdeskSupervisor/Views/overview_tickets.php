@@ -85,6 +85,7 @@ $to   = min($page * $perPage, $total);
             <tr>
               <th style="width:100px;">Ticket</th>
               <th>Título</th>
+              <th style="width:200px;">Categoría</th>
               <th style="width:120px;">Estatus</th>
               <th style="width:110px;">Apertura</th>
             </tr>
@@ -104,6 +105,7 @@ $to   = min($page * $perPage, $total);
                   <?= esc($t['title'] ?? '') ?>
                 </a>
               </td>
+              <td class="text-sm text-muted"><?= esc($t['category_label'] ?? '—') ?></td>
               <td class="text-sm"><?= esc($t['status_label'] ?? '') ?></td>
               <td class="text-sm text-muted"><?= esc($fmtDate((string) ($t['date'] ?? ''))) ?></td>
             </tr>
