@@ -30,9 +30,6 @@ class GlpiOverviewService
         2 => 'Requerimiento',
     ];
 
-    /** GLPI tickets_users.type for the requester (solicitante). */
-    private const LINK_REQUESTER = 1;
-
     /** GLPI tickets_users.type for the assigned technician (asignado). */
     private const LINK_ASSIGNED = 2;
 
@@ -305,15 +302,15 @@ class GlpiOverviewService
         $db           = $this->db();
         $openStatuses = $this->settings->overviewOpenStatuses();
         $types        = $this->settings->overviewTicketTypes();
-        $entityIds    = $this->resolveEntityIds($db);
-        $categoryIds  = $this->resolveCategoryScopeIds($db);
+        $entityIds    = GlpiTicketScope::resolveEntityIds($db, $this->settings);
+        $categoryIds  = GlpiTicketScope::resolveCategoryScopeIds($db, $this->settings);
         $statusFilter = $mode === 'backlog' ? $openStatuses : null;
         $typeFilter   = $types;
 
         if ($dimension === 'requester') {
             $builder = $db->table('glpi_tickets t')
                 ->select('t.id, t.name, t.status, t.date, t.itilcategories_id', false)
-                ->join('glpi_tickets_users tu', 'tu.tickets_id = t.id AND tu.type = ' . self::LINK_REQUESTER, 'inner')
+                ->join('glpi_tickets_users tu', 'tu.tickets_id = t.id AND tu.type = ' . GlpiTicketScope::LINK_REQUESTER, 'inner')
                 ->where('t.is_deleted', 0)
                 ->where('tu.users_id', $filterId);
         } elseif ($dimension === 'assignee') {
@@ -364,7 +361,7 @@ class GlpiOverviewService
             }
         }
 
-        $this->applyScope($builder, $statusFilter, $typeFilter, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+        GlpiTicketScope::apply($builder, $statusFilter, $typeFilter, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
 
         return $builder;
     }
@@ -462,8 +459,8 @@ class GlpiOverviewService
         $topCat       = $this->settings->overviewTopNCategories();
         $topReq       = $this->settings->overviewTopNRequesters();
         $topAssign    = $this->settings->overviewTopNAssignees();
-        $entityIds    = $this->resolveEntityIds($db);
-        $categoryIds  = $this->resolveCategoryScopeIds($db);
+        $entityIds    = GlpiTicketScope::resolveEntityIds($db, $this->settings);
+        $categoryIds  = GlpiTicketScope::resolveCategoryScopeIds($db, $this->settings);
 
         // Backlog: only open statuses. Period: any status (tickets opened in range).
         $statusFilter = $mode === 'backlog' ? $openStatuses : null;
@@ -584,7 +581,7 @@ class GlpiOverviewService
             ->where('is_deleted', 0)
             ->groupBy($column);
 
-        $this->applyScope($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd);
+        GlpiTicketScope::apply($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd);
 
         $rows = $builder->get()->getResultArray();
         $out  = [];
@@ -619,7 +616,7 @@ class GlpiOverviewService
             ->where('date <', $cutoff)
             ->where("date NOT LIKE '0000-00-00%'", null, false);
 
-        $this->applyScope($builder, null, $types, $entityIds, $categoryIds, $periodStart, $periodEnd);
+        GlpiTicketScope::apply($builder, null, $types, $entityIds, $categoryIds, $periodStart, $periodEnd);
         // status already applied above for open-only critical
 
         return (int) $builder->countAllResults();
@@ -649,7 +646,7 @@ class GlpiOverviewService
             ->orderBy('c', 'DESC')
             ->limit($limit);
 
-        $this->applyScope($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+        GlpiTicketScope::apply($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
 
         $rows  = $builder->get()->getResultArray();
         $ids   = array_map(static fn($r) => (int) $r['id'], $rows);
@@ -689,7 +686,7 @@ class GlpiOverviewService
             ->groupBy('t.requesttypes_id')
             ->orderBy('c', 'DESC');
 
-        $this->applyScope($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+        GlpiTicketScope::apply($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
 
         $rows  = $builder->get()->getResultArray();
         $ids   = array_map(static fn($r) => (int) $r['id'], $rows);
@@ -732,13 +729,13 @@ class GlpiOverviewService
 
         $builder = $db->table('glpi_tickets t')
             ->select('tu.users_id AS id, COUNT(*) AS c', false)
-            ->join('glpi_tickets_users tu', 'tu.tickets_id = t.id AND tu.type = ' . self::LINK_REQUESTER, 'inner')
+            ->join('glpi_tickets_users tu', 'tu.tickets_id = t.id AND tu.type = ' . GlpiTicketScope::LINK_REQUESTER, 'inner')
             ->where('t.is_deleted', 0)
             ->groupBy('tu.users_id')
             ->orderBy('c', 'DESC')
             ->limit($limit);
 
-        $this->applyScope($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+        GlpiTicketScope::apply($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
 
         $rows  = $builder->get()->getResultArray();
         $ids   = array_map(static fn($r) => (int) $r['id'], $rows);
@@ -787,7 +784,7 @@ class GlpiOverviewService
             ->orderBy('c', 'DESC')
             ->limit($limit);
 
-        $this->applyScope($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+        GlpiTicketScope::apply($builder, $statusFilter, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
 
         $rows  = $builder->get()->getResultArray();
         $ids   = array_map(static fn($r) => (int) $r['id'], $rows);
@@ -801,141 +798,6 @@ class GlpiOverviewService
                 'label' => $id === 0 ? '(Sin asignado)' : ($names[$id] ?? ('Usuario #' . $id)),
                 'count' => (int) $r['c'],
             ];
-        }
-        return $out;
-    }
-
-    /**
-     * @param int[]|null $statusFilter
-     * @param int[]      $types
-     * @param int[]|null $entityIds
-     * @param int[]|null $categoryIds
-     */
-    private function applyScope(
-        BaseBuilder $builder,
-        ?array $statusFilter,
-        array $types,
-        ?array $entityIds,
-        ?array $categoryIds,
-        ?string $periodStart,
-        ?string $periodEnd,
-        string $alias = '',
-    ): void {
-        $p = $alias !== '' ? $alias . '.' : '';
-
-        if ($statusFilter !== null) {
-            if ($statusFilter === []) {
-                $builder->where($p . 'id', 0)->where($p . 'id !=', 0);
-            } else {
-                $builder->whereIn($p . 'status', $statusFilter);
-            }
-        }
-
-        if ($types !== []) {
-            $builder->whereIn($p . 'type', $types);
-        }
-        if ($entityIds !== null) {
-            if ($entityIds === []) {
-                $builder->where($p . 'id', 0)->where($p . 'id !=', 0);
-            } else {
-                $builder->whereIn($p . 'entities_id', $entityIds);
-            }
-        }
-        if ($categoryIds !== null) {
-            if ($categoryIds === []) {
-                $builder->where($p . 'id', 0)->where($p . 'id !=', 0);
-            } else {
-                $builder->whereIn($p . 'itilcategories_id', $categoryIds);
-            }
-        }
-        if ($periodStart !== null && $periodEnd !== null) {
-            $builder->where($p . 'date >=', $periodStart . ' 00:00:00');
-            $builder->where($p . 'date <=', $periodEnd . ' 23:59:59');
-        }
-    }
-
-    /** @return int[]|null */
-    private function resolveEntityIds(BaseConnection $db): ?array
-    {
-        if ($this->settings->overviewEntitiesMode() !== 'specific') {
-            return null;
-        }
-        $root = $this->settings->overviewEntitiesId();
-        if (! $this->settings->overviewEntitiesRecursive()) {
-            return [$root];
-        }
-        return $this->entitySubtreeIds($db, $root);
-    }
-
-    /** @return int[]|null */
-    private function resolveCategoryScopeIds(BaseConnection $db): ?array
-    {
-        $roots = $this->settings->overviewCategoryRoots();
-        if ($roots === []) {
-            return null;
-        }
-        return $this->categorySubtreeIds($db, $roots);
-    }
-
-    /** @return int[] */
-    private function entitySubtreeIds(BaseConnection $db, int $rootId): array
-    {
-        if (! $db->tableExists('glpi_entities')) {
-            return [$rootId];
-        }
-        $rows = $db->table('glpi_entities')->select('id, entities_id')->get()->getResultArray();
-        $children = [];
-        foreach ($rows as $r) {
-            $children[(int) $r['entities_id']][] = (int) $r['id'];
-        }
-        $out = [];
-        $queue = [$rootId];
-        $seen = [];
-        while ($queue !== []) {
-            $id = array_shift($queue);
-            if (isset($seen[$id])) {
-                continue;
-            }
-            $seen[$id] = true;
-            $out[] = $id;
-            foreach ($children[$id] ?? [] as $child) {
-                $queue[] = $child;
-            }
-        }
-        return $out !== [] ? $out : [$rootId];
-    }
-
-    /**
-     * @param int[] $rootIds
-     * @return int[]
-     */
-    private function categorySubtreeIds(BaseConnection $db, array $rootIds): array
-    {
-        if (! $db->tableExists('glpi_itilcategories')) {
-            return $rootIds;
-        }
-        $cols = $db->getFieldNames('glpi_itilcategories');
-        if (! in_array('itilcategories_id', $cols, true)) {
-            return $rootIds;
-        }
-        $rows = $db->table('glpi_itilcategories')->select('id, itilcategories_id')->get()->getResultArray();
-        $children = [];
-        foreach ($rows as $r) {
-            $children[(int) $r['itilcategories_id']][] = (int) $r['id'];
-        }
-        $out = [];
-        $queue = $rootIds;
-        $seen = [];
-        while ($queue !== []) {
-            $id = array_shift($queue);
-            if (isset($seen[$id])) {
-                continue;
-            }
-            $seen[$id] = true;
-            $out[] = $id;
-            foreach ($children[$id] ?? [] as $child) {
-                $queue[] = $child;
-            }
         }
         return $out;
     }

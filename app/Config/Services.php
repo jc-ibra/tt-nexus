@@ -864,7 +864,11 @@ class Services extends BaseService
         if ($getShared) {
             return static::getSharedInstance('helpdeskAuditQuery');
         }
-        return new GlpiAuditQueryService(self::glpiDbConnection(), self::glpiSchemaIntrospector());
+        return new GlpiAuditQueryService(
+            self::glpiDbConnection(),
+            self::glpiSchemaIntrospector(),
+            self::helpdeskSupervisorSettings(),
+        );
     }
 
     public static function helpdeskGlpiOverview(bool $getShared = true): GlpiOverviewService

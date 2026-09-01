@@ -36,6 +36,7 @@ class GlpiAuditQueryService
     public function __construct(
         private GlpiDbConnection $glpi,
         private GlpiSchemaIntrospector $introspector,
+        private HelpdeskSupervisorSettings $settings,
     ) {}
 
     public function isConfigured(): bool
@@ -53,23 +54,69 @@ class GlpiAuditQueryService
     // ------------------------------------------------------------------
 
     /**
-     * Base ticket rows opened by an agent within a period. The agent is the
-     * ticket requester (users_id_recipient), per the manual (Solicitante = agente
-     * MAC que registra). Filtered by the captured opening date (date).
+     * Tickets opened in a period where the agent is the requester (solicitante).
+     * Uses glpi_tickets_users type=1 and the same Resumen GLPI scope (types,
+     * entity, category) so audit/KPI denominators match overview Solicitantes.
      *
      * @return array<int,array<string,mixed>> keyed by ticket id
      */
     public function ticketsForPeriod(int $agentGlpiUserId, string $periodStart, string $periodEnd): array
     {
-        $rows = $this->db()->table('glpi_tickets')
-            ->select('id, name, date, date_creation, date_mod, status, type, itilcategories_id, externalid, users_id_recipient')
-            ->where('users_id_recipient', $agentGlpiUserId)
-            ->where('is_deleted', 0)
-            ->where('date >=', $periodStart . ' 00:00:00')
-            ->where('date <=', $periodEnd . ' 23:59:59')
-            ->orderBy('id', 'ASC')
-            ->get()->getResultArray();
+        $db = $this->db();
+        if (! $db->tableExists('glpi_tickets_users')) {
+            return $this->ticketsForPeriodByRecipient($agentGlpiUserId, $periodStart, $periodEnd);
+        }
 
+        $types       = $this->settings->overviewTicketTypes();
+        $entityIds   = GlpiTicketScope::resolveEntityIds($db, $this->settings);
+        $categoryIds = GlpiTicketScope::resolveCategoryScopeIds($db, $this->settings);
+
+        $builder = $db->table('glpi_tickets t')
+            ->select('t.id, t.name, t.date, t.date_creation, t.date_mod, t.status, t.type, t.itilcategories_id, t.externalid', false)
+            ->join(
+                'glpi_tickets_users tu',
+                'tu.tickets_id = t.id AND tu.type = ' . GlpiTicketScope::LINK_REQUESTER,
+                'inner',
+            )
+            ->where('tu.users_id', $agentGlpiUserId)
+            ->where('t.is_deleted', 0)
+            ->groupBy('t.id, t.name, t.date, t.date_creation, t.date_mod, t.status, t.type, t.itilcategories_id, t.externalid')
+            ->orderBy('t.id', 'ASC');
+
+        GlpiTicketScope::apply($builder, null, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+
+        return $this->mapTicketRows($builder->get()->getResultArray());
+    }
+
+    /**
+     * Fallback when glpi_tickets_users is unavailable (legacy GLPI).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function ticketsForPeriodByRecipient(int $agentGlpiUserId, string $periodStart, string $periodEnd): array
+    {
+        $db          = $this->db();
+        $types       = $this->settings->overviewTicketTypes();
+        $entityIds   = GlpiTicketScope::resolveEntityIds($db, $this->settings);
+        $categoryIds = GlpiTicketScope::resolveCategoryScopeIds($db, $this->settings);
+
+        $builder = $db->table('glpi_tickets t')
+            ->select('t.id, t.name, t.date, t.date_creation, t.date_mod, t.status, t.type, t.itilcategories_id, t.externalid', false)
+            ->where('t.users_id_recipient', $agentGlpiUserId)
+            ->where('t.is_deleted', 0)
+            ->orderBy('t.id', 'ASC');
+
+        GlpiTicketScope::apply($builder, null, $types, $entityIds, $categoryIds, $periodStart, $periodEnd, 't');
+
+        return $this->mapTicketRows($builder->get()->getResultArray());
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private function mapTicketRows(array $rows): array
+    {
         $out = [];
         foreach ($rows as $r) {
             $out[(int) $r['id']] = [
@@ -84,6 +131,7 @@ class GlpiAuditQueryService
                 'external_id'       => (string) ($r['externalid'] ?? ''),
             ];
         }
+
         return $out;
     }
 
