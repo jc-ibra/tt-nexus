@@ -37,6 +37,7 @@ class ServiceDeskCategoryMapModel
                 'backlog_regional' => (int) ($row['backlog_regional'] ?? 0) === 1,
                 'backlog_idc'      => (int) ($row['backlog_idc'] ?? 0) === 1,
                 'backlog_cliente'  => (int) ($row['backlog_cliente'] ?? 0) === 1,
+                'audit_ids_tab'    => (int) ($row['audit_ids_tab'] ?? 0) === 1,
                 'category_name'    => (string) ($row['category_name'] ?? ''),
             ];
         }
@@ -102,6 +103,22 @@ class ServiceDeskCategoryMapModel
         return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
     }
 
+    /**
+     * GLPI category ids where HelpdeskSupervisor requires the IDS tab (subtree).
+     * Empty = use built-in classifier defaults.
+     *
+     * @return int[]
+     */
+    public function idsTabScopeIds(): array
+    {
+        $rows = $this->db->table('servicedesk_category_map')
+            ->select('glpi_category_id')
+            ->where('audit_ids_tab', 1)
+            ->get()->getResultArray();
+
+        return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
+    }
+
     public function hasSupported(): bool
     {
         return $this->db->table('servicedesk_category_map')->where('is_supported', 1)->countAllResults() > 0;
@@ -155,10 +172,11 @@ class ServiceDeskCategoryMapModel
             $isRegional  = ! empty($data['backlog_regional']) ? 1 : 0;
             $isIdc       = ! empty($data['backlog_idc']) ? 1 : 0;
             $isCliente   = ! empty($data['backlog_cliente']) ? 1 : 0;
+            $isIdsTab    = ! empty($data['audit_ids_tab']) ? 1 : 0;
             $name        = (string) ($data['category_name'] ?? '');
 
             // Drop rows that carry no information (not supported, no cliente, no flags).
-            if ($isSupported === 0 && $cliente === '' && $isRegional === 0 && $isIdc === 0 && $isCliente === 0) {
+            if ($isSupported === 0 && $cliente === '' && $isRegional === 0 && $isIdc === 0 && $isCliente === 0 && $isIdsTab === 0) {
                 $this->db->table('servicedesk_category_map')->where('glpi_category_id', $categoryId)->delete();
                 continue;
             }
@@ -176,6 +194,7 @@ class ServiceDeskCategoryMapModel
                         'backlog_regional' => $isRegional,
                         'backlog_idc'      => $isIdc,
                         'backlog_cliente'  => $isCliente,
+                        'audit_ids_tab'    => $isIdsTab,
                         'updated_at'       => $now,
                     ]);
             } else {
@@ -187,6 +206,7 @@ class ServiceDeskCategoryMapModel
                     'backlog_regional' => $isRegional,
                     'backlog_idc'      => $isIdc,
                     'backlog_cliente'  => $isCliente,
+                    'audit_ids_tab'    => $isIdsTab,
                     'created_at'       => $now,
                     'updated_at'       => $now,
                 ]);

@@ -267,6 +267,7 @@ class ServiceDeskAdmin extends BaseController
         $regional   = (array) ($this->request->getPost('backlog_regional') ?? []);
         $idcScope   = (array) ($this->request->getPost('backlog_idc') ?? []);
         $cliScope   = (array) ($this->request->getPost('backlog_cliente') ?? []);
+        $idsTabScope = (array) ($this->request->getPost('audit_ids_tab') ?? []);
 
         $rows = [];
         foreach ($categories as $c) {
@@ -278,6 +279,7 @@ class ServiceDeskAdmin extends BaseController
                 'backlog_regional' => isset($regional[$id]),
                 'backlog_idc'      => isset($idcScope[$id]),
                 'backlog_cliente'  => isset($cliScope[$id]),
+                'audit_ids_tab'    => isset($idsTabScope[$id]),
             ];
         }
 

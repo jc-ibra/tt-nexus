@@ -128,6 +128,7 @@ $complianceColor = $complianceVal >= 90
                 <th>Agente</th>
                 <th style="text-align:right;">Tickets</th>
                 <th style="text-align:right;">Con desv.</th>
+                <th style="text-align:right;">%</th>
                 <th style="text-align:right;">Desv.</th>
                 <th style="text-align:right;">Crít.</th>
               </tr>
@@ -136,6 +137,8 @@ $complianceColor = $complianceVal >= 90
             <?php foreach ($agents as $a):
               $dev = (int) ($a['deviations'] ?? 0);
               $withDev = (int) ($a['tickets_with_deviations'] ?? 0);
+              $totalAgent = (int) ($a['total_tickets'] ?? 0);
+              $pctWithDev = $totalAgent > 0 ? round($withDev / $totalAgent * 100, 1) : 0.0;
               $href = route_to('helpdesk.agent', (int) $a['glpi_user_id']) . '?' . $periodQ;
               $name = ($a['agent_name'] ?? '') !== '' ? (string) $a['agent_name'] : ('GLPI #' . (int) $a['glpi_user_id']);
             ?>
@@ -151,6 +154,9 @@ $complianceColor = $complianceVal >= 90
                 </td>
                 <td style="text-align:right; white-space:nowrap;">
                   <a href="<?= esc($href) ?>"><?= $withDev ?></a>
+                </td>
+                <td style="text-align:right; white-space:nowrap;">
+                  <a href="<?= esc($href) ?>"><?= esc((string) $pctWithDev) ?>%</a>
                 </td>
                 <td style="text-align:right; white-space:nowrap;">
                   <a href="<?= esc($href) ?>"><?= $dev ?></a>

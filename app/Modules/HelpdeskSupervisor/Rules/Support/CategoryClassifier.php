@@ -85,7 +85,7 @@ class CategoryClassifier
             if ($leafU === 'CONTROL DE ENVÍOS' || $leafU === 'CONTROL DE ENVIOS') {
                 return array_merge($base, [
                     'branch' => 'ad', 'tab' => 'control_envios',
-                    'requiresIds' => true, 'assignment' => 'auto',
+                    'requiresIds' => false, 'assignment' => 'auto',
                 ]);
             }
             if ($leafU === 'SERVICIOS INTERNOS') {

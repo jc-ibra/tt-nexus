@@ -4,7 +4,7 @@
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Categorías · Service Desk</h1>
-    <p class="page-subtitle">Marca qué categorías de GLPI son válidas en el template, define el CLIENTE para el título (CLIENTE - SUCURSAL - TITULO), elige la categoría del widget de autoservicio y marca cuáles categorías cuentan en las tablas "Por Regional", "Por Cliente" y en el KPI "Sin IDC" del reporte de backlog (columnas independientes; incluyen subcategorías; si no marcas ninguna, cuentan todas). "Por Cliente" agrupa por el valor de CLIENTE (para el título).</p>
+    <p class="page-subtitle">Marca qué categorías de GLPI son válidas en el template, define el CLIENTE para el título (CLIENTE - SUCURSAL - TITULO), elige la categoría del widget de autoservicio y marca cuáles categorías cuentan en las tablas "Por Regional", "Por Cliente" y en el KPI "Sin IDC" del reporte de backlog (columnas independientes; incluyen subcategorías; si no marcas ninguna, cuentan todas). "Por Cliente" agrupa por el valor de CLIENTE (para el título). La columna "Auditoría · Tab IDS" define dónde Supervisor exige la tab IDS en la auditoría (incluye subcategorías; si no marcas ninguna, se usan las reglas automáticas del manual).</p>
   </div>
   <div class="page-actions">
     <a href="<?= route_to('servicedesk.settings') ?>" class="btn btn-secondary">Configuración</a>
@@ -44,6 +44,7 @@
               <th style="width:100px; text-align:center;">Backlog · Regional</th>
               <th style="width:85px; text-align:center;">Backlog · IDC</th>
               <th style="width:95px; text-align:center;">Backlog · Clientes</th>
+              <th style="width:95px; text-align:center;">Auditoría · Tab IDS</th>
               <th>Categoría</th>
               <th style="width:26%;">CLIENTE (para el título)</th>
             </tr>
@@ -56,6 +57,7 @@
               $regional = $current['backlog_regional'] ?? false;
               $idcScope = $current['backlog_idc'] ?? false;
               $cliScope = $current['backlog_cliente'] ?? false;
+              $idsScope = $current['audit_ids_tab'] ?? false;
               $cliente  = $current['cliente'] ?? '';
             ?>
               <tr data-name="<?= esc(mb_strtolower($c['name']), 'attr') ?>">
@@ -81,6 +83,11 @@
                 <td style="text-align:center;">
                   <input type="checkbox" name="backlog_cliente[<?= $id ?>]" value="1" <?= $cliScope ? 'checked' : '' ?>
                          title="Cuenta en la tabla Por Cliente del reporte (agrupa por el CLIENTE del título; incluye subcategorías)"
+                         style="width:16px; height:16px; accent-color: var(--action-primary); cursor:pointer;">
+                </td>
+                <td style="text-align:center;">
+                  <input type="checkbox" name="audit_ids_tab[<?= $id ?>]" value="1" <?= $idsScope ? 'checked' : '' ?>
+                         title="Supervisor de Mesa exige tab IDS en auditoría (incluye subcategorías)"
                          style="width:16px; height:16px; accent-color: var(--action-primary); cursor:pointer;">
                 </td>
                 <td class="text-sm"><?= esc($c['name']) ?></td>

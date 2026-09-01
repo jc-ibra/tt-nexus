@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\HelpdeskSupervisor\Rules;
 
+use App\Modules\HelpdeskSupervisor\Rules\Support\CategoryClassifier;
+use App\Modules\HelpdeskSupervisor\Services\IdsTabScopeService;
+
 /**
  * IDS tab (Manual Parte 3.7.5; complements KPI 3). The IDS tab (Nombre + Número
- * de empleado) must be filled in every category EXCEPT Control de Activos. Both
- * are mandatory dropdowns and do not accept the missing-data conventions.
+ * de empleado) must be filled in categories that require it. Scope comes from
+ * Service Desk → Categorías (audit_ids_tab) when configured; otherwise the
+ * built-in classifier (Control de Activos / Control de Envíos excluded).
  */
 class IdsTabRule extends AbstractRule
 {
@@ -16,6 +20,14 @@ class IdsTabRule extends AbstractRule
         ['IDS Nombre', 'IDS - Nombre', 'Nombre IDS', 'IDS'],
         ['IDS Número de empleado', 'IDS Numero de empleado', 'Número de empleado', 'Numero de empleado'],
     ];
+
+    public function __construct(
+        ?CategoryClassifier $classifier = null,
+        private ?IdsTabScopeService $idsScope = null,
+    ) {
+        parent::__construct($classifier);
+        $this->idsScope ??= service('helpdeskIdsTabScope');
+    }
 
     public function key(): string { return 'ids_tab'; }
     public function name(): string { return 'Tab IDS incompleta'; }
@@ -26,8 +38,8 @@ class IdsTabRule extends AbstractRule
     public function evaluate(array $ticket, AuditContext $ctx): array
     {
         $c = $this->classifier->classify((string) $ticket['category_name']);
-        if ($c['outOfScope'] || ! $c['requiresIds']) {
-            return []; // Control de Activos and out-of-scope categories skip IDS
+        if (! $this->idsScope->requiresIdsTab((int) ($ticket['itilcategories_id'] ?? 0), $c)) {
+            return [];
         }
 
         $containerId = $ctx->tabContainerId('ids');
