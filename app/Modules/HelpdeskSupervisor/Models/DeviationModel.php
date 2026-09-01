@@ -61,6 +61,52 @@ class DeviationModel extends Model
         return $this->where('audit_run_id', $auditRunId)
             ->where('glpi_user_id', $glpiUserId)
             ->orderBy('glpi_ticket_id', 'ASC')
+            ->orderBy('rule_key', 'ASC')
+            ->findAll();
+    }
+
+    public function countForAgent(int $auditRunId, int $glpiUserId): int
+    {
+        return $this->where('audit_run_id', $auditRunId)
+            ->where('glpi_user_id', $glpiUserId)
+            ->countAllResults();
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function forAgentPaginated(int $auditRunId, int $glpiUserId, int $page, int $perPage): array
+    {
+        $offset = max(0, ($page - 1) * $perPage);
+
+        return $this->where('audit_run_id', $auditRunId)
+            ->where('glpi_user_id', $glpiUserId)
+            ->orderBy('glpi_ticket_id', 'ASC')
+            ->orderBy('rule_key', 'ASC')
+            ->findAll($perPage, $offset);
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function forAgentExport(int $auditRunId, int $glpiUserId, int $limit = 50000): array
+    {
+        return $this->where('audit_run_id', $auditRunId)
+            ->where('glpi_user_id', $glpiUserId)
+            ->orderBy('glpi_ticket_id', 'ASC')
+            ->orderBy('rule_key', 'ASC')
+            ->findAll($limit);
+    }
+
+    /**
+     * Rule breakdown for one agent in a run.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function ruleSummaryForAgent(int $auditRunId, int $glpiUserId): array
+    {
+        return $this->select('rule_key, rule_name, severity')
+            ->selectCount('id', 'count')
+            ->where('audit_run_id', $auditRunId)
+            ->where('glpi_user_id', $glpiUserId)
+            ->groupBy('rule_key, rule_name, severity')
+            ->orderBy('count', 'DESC')
             ->findAll();
     }
 
@@ -101,6 +147,39 @@ class DeviationModel extends Model
             ->orderBy('agent_name', 'ASC')
             ->orderBy('glpi_ticket_id', 'ASC')
             ->findAll($limit);
+    }
+
+    /**
+     * Updates is_confirmed only for deviation ids on the current page (safe with pagination).
+     */
+    public function setConfirmedForAgentRunPage(
+        int $auditRunId,
+        int $glpiUserId,
+        array $pageIds,
+        array $confirmedIds,
+        ?int $byUserId,
+    ): int {
+        $now         = date('Y-m-d H:i:s');
+        $pageIds     = array_values(array_unique(array_map('intval', $pageIds)));
+        $confirmed   = array_flip(array_values(array_unique(array_map('intval', $confirmedIds))));
+
+        foreach ($pageIds as $id) {
+            if ($id <= 0) {
+                continue;
+            }
+            $data = isset($confirmed[$id])
+                ? ['is_confirmed' => 1, 'confirmed_at' => $now, 'confirmed_by_user_id' => $byUserId]
+                : ['is_confirmed' => 0, 'confirmed_at' => null, 'confirmed_by_user_id' => null];
+
+            $this->where('id', $id)
+                ->where('audit_run_id', $auditRunId)
+                ->where('glpi_user_id', $glpiUserId)
+                ->set($data)
+                ->update();
+        }
+
+        return $this->where('audit_run_id', $auditRunId)->where('glpi_user_id', $glpiUserId)
+            ->where('is_confirmed', 1)->countAllResults();
     }
 
     /**

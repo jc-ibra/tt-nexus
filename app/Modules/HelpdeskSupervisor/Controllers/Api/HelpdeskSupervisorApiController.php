@@ -187,7 +187,59 @@ class HelpdeskSupervisorApiController extends BaseApiController
 
     public function agentDeviations($runId = null, $glpiUserId = null): ResponseInterface
     {
-        return $this->success((new DeviationModel())->forAgent((int) $runId, (int) $glpiUserId));
+        $model      = new DeviationModel();
+        $runId      = (int) $runId;
+        $glpiUserId = (int) $glpiUserId;
+        $page       = max(1, (int) $this->request->getGet('page'));
+        $perPage    = max(1, min(200, (int) ($this->request->getGet('per_page') ?: 50)));
+        $total      = $model->countForAgent($runId, $glpiUserId);
+        $lastPage   = max(1, (int) ceil($total / $perPage));
+        $page       = min($page, $lastPage);
+
+        return $this->success([
+            'deviations'  => $model->forAgentPaginated($runId, $glpiUserId, $page, $perPage),
+            'total'       => $total,
+            'page'        => $page,
+            'per_page'    => $perPage,
+            'total_pages' => $lastPage,
+        ]);
+    }
+
+    public function agentDeviationsExport($runId = null, $glpiUserId = null): ResponseInterface
+    {
+        $model      = new DeviationModel();
+        $runId      = (int) $runId;
+        $glpiUserId = (int) $glpiUserId;
+        $format     = strtolower((string) $this->request->getGet('format'));
+        $maxRows    = 50000;
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+
+        $total = $model->countForAgent($runId, $glpiUserId);
+        if ($total > $maxRows) {
+            return $this->error(
+                'Hay más de ' . number_format($maxRows) . ' desviaciones. Acota el filtro antes de exportar.',
+                422,
+            );
+        }
+
+        $rows     = $model->forAgentExport($runId, $glpiUserId, $maxRows);
+        $portal   = $this->glpiPortalUrl();
+        $exporter = new \App\Modules\HelpdeskSupervisor\Services\DeviationExportService();
+        $filename = 'desviaciones_agente_' . $glpiUserId . '_' . date('Y-m-d_His');
+
+        if ($format === 'xlsx') {
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"')
+                ->setBody($exporter->toXlsx($rows, $portal, true));
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($rows, $portal, true));
     }
 
     public function ruleDeviations($runId = null, $ruleKey = null): ResponseInterface

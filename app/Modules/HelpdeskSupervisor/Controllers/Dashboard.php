@@ -23,6 +23,7 @@ class Dashboard extends BaseController
 {
     private const RULE_PER_PAGE    = 50;
     private const RULE_EXPORT_MAX  = 50000;
+    private const AGENT_PER_PAGE   = 50;
 
     private AuditRunModel $runs;
     private DeviationModel $deviations;
@@ -75,6 +76,16 @@ class Dashboard extends BaseController
     {
         [$start, $end] = $this->period();
         $run = $this->runs->latestCompletedForPeriod($start, $end);
+        $page          = max(1, (int) $this->request->getGet('page'));
+        $perPage       = max(1, min(200, (int) ($this->request->getGet('per_page') ?: self::AGENT_PER_PAGE)));
+        $total         = 0;
+        $lastPage      = 1;
+        $deviations    = [];
+        $agentName     = '';
+        $ruleTotals    = [];
+        $agentStat     = null;
+        $escalations   = [];
+
         if ($run === null) {
             return view('App\Modules\HelpdeskSupervisor\Views\agent_detail', [
                 'pageTitle'   => 'Detalle de agente',
@@ -85,11 +96,44 @@ class Dashboard extends BaseController
                 'deviations'  => [],
                 'agentName'   => '',
                 'escalations' => [],
+                'ruleTotals'  => [],
+                'agentStat'   => null,
+                'total'       => 0,
+                'page'        => 1,
+                'perPage'     => $perPage,
+                'lastPage'    => 1,
             ]);
         }
 
-        $deviations = $this->deviations->forAgent((int) $run['id'], $glpiUserId);
-        $agentName  = $deviations[0]['agent_name'] ?? '';
+        $runId = (int) $run['id'];
+        $total = $this->deviations->countForAgent($runId, $glpiUserId);
+        if ($total > 0) {
+            $lastPage   = max(1, (int) ceil($total / $perPage));
+            $page       = min($page, $lastPage);
+            $deviations = $this->deviations->forAgentPaginated($runId, $glpiUserId, $page, $perPage);
+            $agentName  = (string) ($deviations[0]['agent_name'] ?? '');
+        }
+
+        if ($agentName === '') {
+            $stat = $this->agentStats->forRunAgent($runId, $glpiUserId);
+            $agentName = (string) ($stat['agent_name'] ?? '');
+        }
+
+        $agentStat = $this->agentStats->forRunAgent($runId, $glpiUserId);
+        $devSummary = [];
+        foreach ($this->deviations->agentSummary($runId) as $row) {
+            if ((int) $row['glpi_user_id'] === $glpiUserId) {
+                $devSummary = $row;
+                break;
+            }
+        }
+        foreach ($this->deviations->ruleSummaryForAgent($runId, $glpiUserId) as $r) {
+            $key = (string) $r['rule_key'];
+            $ruleTotals[$key]['rule_name'] = (string) $r['rule_name'];
+            $ruleTotals[$key]['severity']  = (string) $r['severity'];
+            $ruleTotals[$key]['count']     = ($ruleTotals[$key]['count'] ?? 0) + (int) $r['count'];
+        }
+        arsort($ruleTotals);
 
         $escalations = (new EscalationModel())->forAgentMonth(
             $glpiUserId,
@@ -106,6 +150,13 @@ class Dashboard extends BaseController
             'deviations'  => $deviations,
             'agentName'   => $agentName,
             'escalations' => $escalations,
+            'ruleTotals'  => $ruleTotals,
+            'agentStat'   => $agentStat,
+            'devSummary'  => $devSummary,
+            'total'       => $total,
+            'page'        => $page,
+            'perPage'     => $perPage,
+            'lastPage'    => $lastPage,
             'glpiBaseUrl' => $this->glpiBaseUrl(),
         ]);
     }
@@ -115,16 +166,27 @@ class Dashboard extends BaseController
     {
         $start = (string) $this->request->getPost('period_start');
         $end   = (string) $this->request->getPost('period_end');
+        $page  = max(1, (int) $this->request->getPost('page'));
         $run   = $this->runs->latestCompletedForPeriod($start, $end);
-        $back  = route_to('helpdesk.agent', $glpiUserId) . '?period_start=' . $start . '&period_end=' . $end;
+        $back  = route_to('helpdesk.agent', $glpiUserId)
+            . '?period_start=' . rawurlencode($start)
+            . '&period_end=' . rawurlencode($end)
+            . ($page > 1 ? '&page=' . $page : '');
 
         if ($run === null) {
             return redirect()->to($back)->with('error', 'No hay auditoría para el período.');
         }
 
-        $ids = (array) ($this->request->getPost('confirmed') ?? []);
-        $uid = session()->get('user_id');
-        $n   = $this->deviations->setConfirmedForAgentRun((int) $run['id'], $glpiUserId, $ids, $uid !== null ? (int) $uid : null);
+        $ids     = (array) ($this->request->getPost('confirmed') ?? []);
+        $pageIds = (array) ($this->request->getPost('page_ids') ?? []);
+        $uid     = session()->get('user_id');
+        $n       = $this->deviations->setConfirmedForAgentRunPage(
+            (int) $run['id'],
+            $glpiUserId,
+            $pageIds,
+            $ids,
+            $uid !== null ? (int) $uid : null,
+        );
 
         return redirect()->to($back)->with('success', "Se marcaron {$n} desviación(es) como procedentes (visibles para el agente).");
     }
@@ -208,6 +270,51 @@ class Dashboard extends BaseController
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
             ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($rows, $portal));
+    }
+
+    public function agentExport(int $glpiUserId): ResponseInterface|RedirectResponse
+    {
+        [$start, $end] = $this->period();
+        $run           = $this->runs->latestCompletedForPeriod($start, $end);
+        $format        = strtolower((string) $this->request->getGet('format'));
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'csv';
+        }
+
+        $back = route_to('helpdesk.agent', $glpiUserId)
+            . '?period_start=' . rawurlencode($start)
+            . '&period_end=' . rawurlencode($end);
+
+        if ($run === null) {
+            return redirect()->to($back)->with('error', 'No hay auditoría para el período.');
+        }
+
+        $runId = (int) $run['id'];
+        $total = $this->deviations->countForAgent($runId, $glpiUserId);
+        if ($total > self::RULE_EXPORT_MAX) {
+            return redirect()->to($back)->with(
+                'error',
+                'Hay más de ' . number_format(self::RULE_EXPORT_MAX) . ' desviaciones. Acota el período antes de exportar.',
+            );
+        }
+
+        $rows     = $this->deviations->forAgentExport($runId, $glpiUserId, self::RULE_EXPORT_MAX);
+        $portal   = $this->glpiBaseUrl();
+        $exporter = new DeviationExportService();
+        $slug     = preg_replace('/[^A-Za-z0-9]+/', '_', (string) ($rows[0]['agent_name'] ?? 'agente_' . $glpiUserId)) ?: ('agente_' . $glpiUserId);
+        $filename = 'desviaciones_' . trim($slug, '_') . '_' . date('Y-m-d_His');
+
+        if ($format === 'xlsx') {
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"')
+                ->setBody($exporter->toXlsx($rows, $portal, true));
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($rows, $portal, true));
     }
 
     /** @return array{name:string,manual:string,kpi:?string,severity:string} */

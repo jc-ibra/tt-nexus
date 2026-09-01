@@ -13,20 +13,26 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class DeviationExportService
 {
-    private const HEADERS = [
+    private const HEADERS_RULE = [
         'Agente', 'Ticket', 'Título ticket', 'Campo', 'Esperado', 'Encontrado',
         'Detalle', 'Severidad', 'Ref. manual', 'URL GLPI',
+    ];
+
+    private const HEADERS_AGENT = [
+        'Ticket', 'Título ticket', 'Regla', 'Campo', 'Esperado', 'Encontrado',
+        'Detalle', 'Severidad', 'Ref. manual', 'Procede', 'URL GLPI',
     ];
 
     /**
      * @param array<int,array<string,mixed>> $deviations
      */
-    public function toCsv(array $deviations, string $glpiPortalUrl): string
+    public function toCsv(array $deviations, string $glpiPortalUrl, bool $forAgent = false): string
     {
+        $headers = $forAgent ? self::HEADERS_AGENT : self::HEADERS_RULE;
         $handle = fopen('php://temp', 'r+');
-        fputcsv($handle, self::HEADERS);
+        fputcsv($handle, $headers);
         foreach ($deviations as $d) {
-            fputcsv($handle, $this->row($d, $glpiPortalUrl));
+            fputcsv($handle, $forAgent ? $this->rowForAgent($d, $glpiPortalUrl) : $this->row($d, $glpiPortalUrl));
         }
         rewind($handle);
         $csv = stream_get_contents($handle);
@@ -38,26 +44,32 @@ class DeviationExportService
     /**
      * @param array<int,array<string,mixed>> $deviations
      */
-    public function toXlsx(array $deviations, string $glpiPortalUrl): string
+    public function toXlsx(array $deviations, string $glpiPortalUrl, bool $forAgent = false): string
     {
+        $headers = $forAgent ? self::HEADERS_AGENT : self::HEADERS_RULE;
+        $lastCol = $forAgent ? 'K' : 'J';
         $book = new Spreadsheet();
         $book->getDefaultStyle()->getFont()->setName('Calibri')->setSize(11);
         $sheet = $book->getActiveSheet();
         $sheet->setTitle('Desviaciones');
-        $sheet->fromArray(self::HEADERS, null, 'A1');
-        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:' . $lastCol . '1')->getFont()->setBold(true);
         $sheet->freezePane('A2');
 
         $line = 2;
         foreach ($deviations as $d) {
-            $values = $this->row($d, $glpiPortalUrl);
+            $values = $forAgent ? $this->rowForAgent($d, $glpiPortalUrl) : $this->row($d, $glpiPortalUrl);
             $sheet->setCellValueExplicit('A' . $line, (string) $values[0], DataType::TYPE_STRING);
-            $sheet->setCellValueExplicit('B' . $line, (string) $values[1], DataType::TYPE_STRING);
-            $sheet->fromArray(array_slice($values, 2), null, 'C' . $line);
+            if ($forAgent) {
+                $sheet->fromArray(array_slice($values, 1), null, 'B' . $line);
+            } else {
+                $sheet->setCellValueExplicit('B' . $line, (string) $values[1], DataType::TYPE_STRING);
+                $sheet->fromArray(array_slice($values, 2), null, 'C' . $line);
+            }
             $line++;
         }
 
-        foreach (range('A', 'J') as $col) {
+        foreach (range('A', $lastCol) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -92,6 +104,29 @@ class DeviationExportService
             (string) ($d['detail'] ?? ''),
             (string) ($d['severity'] ?? ''),
             (string) ($d['manual_reference'] ?? ''),
+            rtrim($glpiPortalUrl, '/') . '/front/ticket.form.php?id=' . $ticketId,
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $d
+     * @return list<string|int>
+     */
+    private function rowForAgent(array $d, string $glpiPortalUrl): array
+    {
+        $ticketId = (int) ($d['glpi_ticket_id'] ?? 0);
+
+        return [
+            $ticketId,
+            (string) ($d['glpi_ticket_title'] ?? ''),
+            (string) ($d['rule_name'] ?? ''),
+            (string) ($d['field_affected'] ?? ''),
+            (string) ($d['expected_value'] ?? ''),
+            (string) ($d['actual_value'] ?? ''),
+            (string) ($d['detail'] ?? ''),
+            (string) ($d['severity'] ?? ''),
+            (string) ($d['manual_reference'] ?? ''),
+            (int) ($d['is_confirmed'] ?? 0) === 1 ? 'Sí' : 'No',
             rtrim($glpiPortalUrl, '/') . '/front/ticket.form.php?id=' . $ticketId,
         ];
     }
