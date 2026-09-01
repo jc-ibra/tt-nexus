@@ -6,6 +6,7 @@ namespace App\Modules\HelpdeskSupervisor\Controllers;
 
 use App\Controllers\BaseController;
 use App\Modules\HelpdeskSupervisor\Services\OverviewTicketExportService;
+use App\Modules\HelpdeskSupervisor\Services\PeriodFilter;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -200,14 +201,6 @@ class Overview extends BaseController
     /** @return array{0:string,1:string} */
     private function period(): array
     {
-        $start = (string) $this->request->getGet('period_start');
-        $end   = (string) $this->request->getGet('period_end');
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)) {
-            $start = date('Y-m-01');
-        }
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
-            $end = date('Y-m-t');
-        }
-        return [$start, $end];
+        return PeriodFilter::resolveFromRequest($this->request);
     }
 }

@@ -75,21 +75,17 @@ $ticketDrill = static function (string $dimension, int $id, string $label) use (
 </nav>
 
 <?php if ($isPeriod): ?>
-  <form method="get" action="<?= route_to('helpdesk.overview') ?>" class="card" style="margin-bottom:var(--space-4);">
-    <div class="card-body hs-toolbar">
-      <input type="hidden" name="mode" value="period">
-      <div class="field" style="margin:0;">
-        <label class="field-label" for="period_start">Desde</label>
-        <input type="date" id="period_start" name="period_start" class="input" value="<?= esc($periodStart) ?>">
-      </div>
-      <div class="field" style="margin:0;">
-        <label class="field-label" for="period_end">Hasta</label>
-        <input type="date" id="period_end" name="period_end" class="input" value="<?= esc($periodEnd) ?>">
-      </div>
-      <button type="submit" class="btn btn-primary">Ver período</button>
-      <span class="text-sm text-muted" style="align-self:center;">Tickets abiertos en el rango (por fecha de apertura en GLPI).</span>
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card-body">
+      <?= view('App\Modules\HelpdeskSupervisor\Views\partials\period_filter', [
+          'formAction'  => route_to('helpdesk.overview'),
+          'periodStart' => $periodStart,
+          'periodEnd'   => $periodEnd,
+          'extraHidden' => ['mode' => 'period'],
+      ]) ?>
+      <p class="text-sm text-muted" style="margin:var(--space-3) 0 0;">Tickets abiertos en el rango (por fecha de apertura en GLPI).</p>
     </div>
-  </form>
+  </div>
 <?php endif; ?>
 
 <?php if (! ($ok ?? false)): ?>

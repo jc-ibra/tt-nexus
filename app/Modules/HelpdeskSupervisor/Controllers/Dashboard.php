@@ -11,6 +11,7 @@ use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
 use App\Modules\HelpdeskSupervisor\Rules\RuleRegistry;
 use App\Modules\HelpdeskSupervisor\Services\DeviationExportService;
+use App\Modules\HelpdeskSupervisor\Services\PeriodFilter;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -216,18 +217,10 @@ class Dashboard extends BaseController
             ?? ['name' => $ruleKey, 'manual' => '', 'kpi' => null, 'severity' => 'warning'];
     }
 
-    /** Selected period from GET, defaulting to the current calendar month. */
+    /** Selected period from GET: month/year shortcut or custom dates; default = current month. */
     private function period(): array
     {
-        $start = (string) $this->request->getGet('period_start');
-        $end   = (string) $this->request->getGet('period_end');
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)) {
-            $start = date('Y-m-01');
-        }
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
-            $end = date('Y-m-t');
-        }
-        return [$start, $end];
+        return PeriodFilter::resolveFromRequest($this->request);
     }
 
     /** GLPI base URL for building ticket links (from Provisioning settings, else the manual host). */

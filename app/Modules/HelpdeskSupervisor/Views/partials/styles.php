@@ -97,4 +97,20 @@
   min-width:12rem;
   max-width:28rem;
 }
+
+.hs-period-filter {
+  display:flex;
+  gap:var(--space-3);
+  flex-wrap:wrap;
+  align-items:flex-end;
+}
+.hs-period-divider {
+  align-self:stretch;
+  width:1px;
+  background:var(--color-neutral-200);
+  margin:var(--space-1) 0;
+}
+@media (max-width:720px) {
+  .hs-period-divider { display:none; }
+}
 </style>

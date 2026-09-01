@@ -40,19 +40,15 @@ $complianceColor = $complianceVal >= 90
 </div>
 
 <div class="card" style="margin-bottom:var(--space-4);">
-  <div class="card-body hs-toolbar">
-    <form method="get" action="<?= route_to('helpdesk.index') ?>" class="hs-field-row" style="margin:0;">
-      <div class="field">
-        <label class="field-label" for="period_start">Desde</label>
-        <input type="date" id="period_start" name="period_start" class="input" value="<?= esc($periodStart) ?>">
-      </div>
-      <div class="field">
-        <label class="field-label" for="period_end">Hasta</label>
-        <input type="date" id="period_end" name="period_end" class="input" value="<?= esc($periodEnd) ?>">
-      </div>
-      <button type="submit" class="btn btn-secondary">Ver período</button>
-    </form>
+  <div class="card-body hs-toolbar" style="flex-direction:column; align-items:stretch; gap:var(--space-3);">
+    <?= view('App\Modules\HelpdeskSupervisor\Views\partials\period_filter', [
+        'formAction'   => route_to('helpdesk.index'),
+        'periodStart'  => $periodStart,
+        'periodEnd'    => $periodEnd,
+        'extraHidden'  => [],
+    ]) ?>
 
+    <div style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:center;">
     <form method="post" action="<?= route_to('helpdesk.audit.run') ?>" style="margin:0;">
       <?= csrf_field() ?>
       <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
@@ -69,6 +65,7 @@ $complianceColor = $complianceVal >= 90
       </form>
       <a href="<?= route_to('helpdesk.notifications.index') ?>" class="btn btn-secondary">Ver notificaciones</a>
     <?php endif; ?>
+    </div>
   </div>
 </div>
 
