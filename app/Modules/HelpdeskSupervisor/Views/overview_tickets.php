@@ -46,6 +46,8 @@ $from = $total > 0 ? (($page - 1) * $perPage + 1) : 0;
 $to   = min($page * $perPage, $total);
 ?>
 
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
+
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Tickets</h1>

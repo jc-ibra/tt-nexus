@@ -1,6 +1,8 @@
 <?= $this->extend('App\Modules\Core\Views\layouts\main') ?>
 <?= $this->section('content') ?>
 
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
+
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Auditoría #<?= (int) $run['id'] ?></h1>
@@ -10,7 +12,8 @@
     </p>
   </div>
   <div class="page-actions">
-    <a href="<?= route_to('helpdesk.audit.runs') ?>" class="btn btn-secondary">Volver</a>
+    <a href="<?= route_to('helpdesk.audit.runs') ?>" class="btn btn-secondary">Historial</a>
+    <a href="<?= route_to('helpdesk.index') ?>" class="btn btn-tertiary">Dashboard</a>
   </div>
 </div>
 

@@ -6,6 +6,8 @@ $body   = (string) ($n['final_body'] ?? $n['ai_draft_body'] ?? '');
 $isSent = (string) $n['status'] === 'sent';
 ?>
 
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
+
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Revisar notificación</h1>

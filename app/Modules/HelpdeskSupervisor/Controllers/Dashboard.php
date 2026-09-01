@@ -48,7 +48,7 @@ class Dashboard extends BaseController
         $compliance      = $totalTickets > 0 ? round((($totalTickets - $ticketsWithDev) / $totalTickets) * 100, 1) : 0.0;
 
         return view('App\Modules\HelpdeskSupervisor\Views\dashboard', [
-            'pageTitle'       => 'Supervisor de Mesa',
+            'pageTitle'       => 'Dashboard',
             'periodStart'     => $start,
             'periodEnd'       => $end,
             'run'             => $run,

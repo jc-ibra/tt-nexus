@@ -76,7 +76,24 @@ $icons = [
   'employees'       => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   'provisioning'    => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
   'servicedesk'     => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 16a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h3z"/><path d="M3 16a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1H3z"/><path d="M12 18v1a3 3 0 0 1-3 3"/></svg>',
+  'helpdesk_supervisor' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  'agent_kpis'          => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 22l5-3 5 3-1.5-9.5"/></svg>',
 ];
+
+$accessibleModuleKeys = array_column($modules, 'key');
+$mergeAgentKpisHome = in_array('helpdesk_supervisor', $accessibleModuleKeys, true)
+    && in_array('agent_kpis', $accessibleModuleKeys, true);
+
+$homeModules = [];
+foreach ($modules as $m) {
+    if ($mergeAgentKpisHome && ($m['key'] ?? '') === 'agent_kpis') {
+        continue;
+    }
+    if ($mergeAgentKpisHome && ($m['key'] ?? '') === 'helpdesk_supervisor') {
+        $m['description'] = 'Auditoría MAC, resumen GLPI, desviaciones por agente y evaluación mensual N1.';
+    }
+    $homeModules[] = $m;
+}
 ?>
 
 <div class="dash-hero">
@@ -94,13 +111,13 @@ $icons = [
   </div>
 </div>
 
-<?php if (empty($modules)): ?>
+<?php if (empty($homeModules)): ?>
   <div class="card"><div class="card-body">
     <p class="text-muted" style="margin:0;">Aún no tienes módulos asignados. Contacta a un administrador para que te dé acceso.</p>
   </div></div>
 <?php else: ?>
   <div class="dash-grid">
-    <?php foreach ($modules as $m): ?>
+    <?php foreach ($homeModules as $m): ?>
       <a href="<?= base_url(ltrim($m['route_base'], '/')) ?>" class="dash-tile">
         <span class="tile-icon"><?= $icons[$m['key']] ?? $fallbackIcon ?></span>
         <h3><?= esc($m['name']) ?></h3>

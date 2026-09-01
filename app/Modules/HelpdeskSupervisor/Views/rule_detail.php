@@ -1,18 +1,22 @@
 <?= $this->extend('App\Modules\Core\Views\layouts\main') ?>
 <?= $this->section('content') ?>
 
-<?php $glpiBaseUrl = $glpiBaseUrl ?? ''; ?>
+<?php $glpiBaseUrl = $glpiBaseUrl ?? '';
+$periodQ = 'period_start=' . rawurlencode($periodStart) . '&period_end=' . rawurlencode($periodEnd);
+?>
+
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
 
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title"><?= esc($meta['name']) ?></h1>
     <p class="page-subtitle text-muted">
       <?= esc($meta['manual']) ?><?= $meta['kpi'] ? ' · ' . esc($meta['kpi']) : '' ?> ·
-      Período <?= esc(date('d/m/Y', strtotime($periodStart))) ?> a <?= esc(date('d/m/Y', strtotime($periodEnd))) ?>
+      Período <?= esc(date('d/m/Y', strtotime($periodStart))) ?> – <?= esc(date('d/m/Y', strtotime($periodEnd))) ?>
     </p>
   </div>
-  <div class="page-actions">
-    <a href="<?= route_to('helpdesk.index') ?>?period_start=<?= esc($periodStart) ?>&period_end=<?= esc($periodEnd) ?>" class="btn btn-secondary">Volver al tablero</a>
+  <div class="page-actions" style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
+    <a href="<?= route_to('helpdesk.index') ?>?<?= esc($periodQ) ?>" class="btn btn-secondary">Dashboard</a>
   </div>
 </div>
 

@@ -28,43 +28,7 @@ $rootCategories = $rootCategories ?? [];
   </div>
 </div>
 
-<style>
-.hs-tabs { display:flex; gap:var(--space-1); border-bottom:1px solid var(--color-neutral-200); margin-bottom:var(--space-4); flex-wrap:wrap; }
-.hs-tab { appearance:none; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px;
-  padding:var(--space-3) var(--space-4); cursor:pointer; font-size:var(--text-sm); font-weight:var(--weight-medium);
-  color:var(--text-secondary); }
-.hs-tab:hover { color:var(--text-primary); }
-.hs-tab.is-active { color:var(--color-primary); font-weight:var(--weight-semibold); border-bottom-color:var(--color-primary); }
-.hs-tab:focus-visible { outline:2px solid var(--color-primary); outline-offset:-2px; border-radius:var(--radius-sm); }
-.hs-panel { display:none; }
-.hs-panel.is-active { display:block; }
-/* Form spacing: global .field-label only has 4px margin — too tight in dense settings tabs. */
-.hs-panel .card-body {
-  display:flex;
-  flex-direction:column;
-  gap:var(--space-4);
-}
-.hs-panel .field {
-  gap:var(--space-2);
-}
-.hs-panel .field-label {
-  margin-bottom:0;
-}
-.hs-panel fieldset {
-  display:flex;
-  flex-direction:column;
-  gap:var(--space-3);
-}
-.hs-panel fieldset legend {
-  margin-bottom:var(--space-2);
-  padding:0 var(--space-1);
-}
-.hs-panel .hs-field-row {
-  display:flex;
-  gap:var(--space-3);
-  flex-wrap:wrap;
-}
-</style>
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
 
 <div class="hs-tabs" role="tablist" aria-label="Secciones de configuración">
   <button type="button" class="hs-tab is-active" role="tab" data-panel="hs-panel-connection" data-hash="connection" aria-selected="true">Conexión</button>

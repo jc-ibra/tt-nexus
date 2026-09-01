@@ -8,15 +8,18 @@ $sev = static fn(string $s) => match ($s) {
     default    => '<span class="badge badge-warning">Warning</span>',
 };
 $glpiBaseUrl = $glpiBaseUrl ?? '';
+$periodQ = 'period_start=' . rawurlencode($periodStart) . '&period_end=' . rawurlencode($periodEnd);
 ?>
+
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
 
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title"><?= esc($agentName !== '' ? $agentName : ('Agente GLPI #' . $glpiUserId)) ?></h1>
-    <p class="page-subtitle text-muted">Período <?= esc(date('d/m/Y', strtotime($periodStart))) ?> a <?= esc(date('d/m/Y', strtotime($periodEnd))) ?></p>
+    <p class="page-subtitle text-muted">Período <?= esc(date('d/m/Y', strtotime($periodStart))) ?> – <?= esc(date('d/m/Y', strtotime($periodEnd))) ?></p>
   </div>
-  <div class="page-actions">
-    <a href="<?= route_to('helpdesk.index') ?>?period_start=<?= esc($periodStart) ?>&period_end=<?= esc($periodEnd) ?>" class="btn btn-secondary">Volver al tablero</a>
+  <div class="page-actions" style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
+    <a href="<?= route_to('helpdesk.index') ?>?<?= esc($periodQ) ?>" class="btn btn-secondary">Dashboard</a>
     <?php if ($run !== null && $deviations !== []): ?>
       <form method="post" action="<?= route_to('helpdesk.notifications.prepare', (int) $glpiUserId) ?>" style="display:inline;">
         <?= csrf_field() ?>

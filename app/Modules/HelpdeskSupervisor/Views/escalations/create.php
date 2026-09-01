@@ -10,6 +10,8 @@ $action = $isEdit
     : route_to('helpdesk.escalations.store');
 ?>
 
+<?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
+
 <div class="page-header">
   <div class="page-header-content"><h1 class="page-title"><?= esc($pageTitle) ?></h1></div>
   <div class="page-actions">

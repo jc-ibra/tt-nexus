@@ -182,7 +182,7 @@ $moduleSubnav = [
     ],
     'helpdesk_supervisor' => [
         [
-            'label'  => 'Tablero',
+            'label'  => 'Dashboard',
             'url'    => base_url('helpdesk-supervisor'),
             'active' => $currentPath === '/helpdesk-supervisor'
                 || (str_starts_with($currentPath, '/helpdesk-supervisor/agents')
@@ -279,6 +279,21 @@ if ($currentUserGlpiId > 0) {
         'url'    => base_url('servicedesk/mis-evaluaciones'),
         'active' => str_starts_with($currentPath, '/servicedesk/mis-evaluaciones'),
     ];
+}
+
+// AgentKpis consumes HelpdeskSupervisor audit data — one nav group when both are granted.
+$accessibleModuleKeys = array_column($modules, 'key');
+$mergeAgentKpisNav = in_array('helpdesk_supervisor', $accessibleModuleKeys, true)
+    && in_array('agent_kpis', $accessibleModuleKeys, true);
+
+if ($mergeAgentKpisNav) {
+    $hsNav = $moduleSubnav['helpdesk_supervisor'];
+    $settingsItem = array_pop($hsNav);
+    $moduleSubnav['helpdesk_supervisor'] = array_merge(
+        $hsNav,
+        $moduleSubnav['agent_kpis'],
+        [$settingsItem],
+    );
 }
 ?>
 
@@ -381,7 +396,10 @@ if ($currentUserGlpiId > 0) {
     <p class="nav-section-label" style="margin-top: var(--space-4);">Módulos</p>
 
     <?php foreach ($modules as $module):
-        $key       = $module['key'];
+        $key = $module['key'];
+        if ($mergeAgentKpisNav && $key === 'agent_kpis') {
+            continue;
+        }
         $routeBase = '/' . ltrim($module['route_base'], '/');
         $subnav    = $moduleSubnav[$key] ?? [];
         // Open when the URL is under the module's own base, or when any of its
