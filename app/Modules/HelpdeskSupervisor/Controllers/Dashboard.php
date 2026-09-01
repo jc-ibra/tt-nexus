@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\HelpdeskSupervisor\Controllers;
 
 use App\Controllers\BaseController;
+use App\Modules\HelpdeskSupervisor\Models\AgentRunStatsModel;
 use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
@@ -18,11 +19,13 @@ class Dashboard extends BaseController
 {
     private AuditRunModel $runs;
     private DeviationModel $deviations;
+    private AgentRunStatsModel $agentStats;
 
     public function __construct()
     {
         $this->runs       = new AuditRunModel();
         $this->deviations = new DeviationModel();
+        $this->agentStats = new AgentRunStatsModel();
     }
 
     public function index(): string
@@ -30,7 +33,7 @@ class Dashboard extends BaseController
         [$start, $end] = $this->period();
         $run = $this->runs->latestCompletedForPeriod($start, $end);
 
-        $agents = $run ? $this->deviations->agentSummary((int) $run['id']) : [];
+        $agents = $run ? $this->agentsForRun((int) $run['id']) : [];
         $rules  = $run ? $this->deviations->ruleSummary((int) $run['id']) : [];
 
         // Collapse the per-severity rule rows into one row per rule.
@@ -166,5 +169,47 @@ class Dashboard extends BaseController
             // fall through to default
         }
         return 'https://helpdesk.trantortechnologies.mx';
+    }
+
+    /**
+     * Agent ranking for a run: denominators from agent_run_stats (same as Agent
+     * KPIs), deviation counts merged from the deviations table.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function agentsForRun(int $auditRunId): array
+    {
+        $devByGlpi = [];
+        foreach ($this->deviations->agentSummary($auditRunId) as $row) {
+            $devByGlpi[(int) $row['glpi_user_id']] = $row;
+        }
+
+        $agents = [];
+        foreach ($this->agentStats->forRun($auditRunId) as $stat) {
+            $glpiId = (int) $stat['glpi_user_id'];
+            $dev    = $devByGlpi[$glpiId] ?? [];
+            $agents[] = [
+                'glpi_user_id'            => $glpiId,
+                'nexus_user_id'           => $stat['nexus_user_id'] ?? null,
+                'agent_name'              => (string) ($stat['agent_name'] ?? $dev['agent_name'] ?? ''),
+                'total_tickets'           => (int) ($stat['total_tickets'] ?? 0),
+                'tickets_with_deviations' => (int) ($dev['tickets_with_deviations'] ?? 0),
+                'deviations'              => (int) ($dev['deviations'] ?? 0),
+                'criticals'               => (int) ($dev['criticals'] ?? 0),
+                'warnings'                => (int) ($dev['warnings'] ?? 0),
+                'infos'                   => (int) ($dev['infos'] ?? 0),
+            ];
+        }
+
+        usort($agents, static function (array $a, array $b): int {
+            $byDev = ($b['deviations'] <=> $a['deviations']);
+            if ($byDev !== 0) {
+                return $byDev;
+            }
+
+            return ($b['total_tickets'] <=> $a['total_tickets']);
+        });
+
+        return $agents;
     }
 }

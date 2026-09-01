@@ -21,4 +21,13 @@ class AgentRunStatsModel extends Model
     {
         return $this->where('audit_run_id', $auditRunId)->where('glpi_user_id', $glpiUserId)->first();
     }
+
+    /** @return array<int,array<string,mixed>> */
+    public function forRun(int $auditRunId): array
+    {
+        return $this->where('audit_run_id', $auditRunId)
+            ->orderBy('total_tickets', 'DESC')
+            ->orderBy('agent_name', 'ASC')
+            ->findAll();
+    }
 }

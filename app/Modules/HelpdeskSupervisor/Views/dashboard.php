@@ -123,13 +123,14 @@ $complianceColor = $complianceVal >= 90
       </div>
       <div class="card-body" style="padding:0;">
         <?php if ($agents === []): ?>
-          <p class="text-muted text-sm" style="padding:var(--space-4);">Sin desviaciones. Buen trabajo del equipo.</p>
+          <p class="text-muted text-sm" style="padding:var(--space-4);">Sin agentes con tickets en este período.</p>
         <?php else: ?>
           <table class="table" style="width:100%;">
             <thead>
               <tr>
                 <th>Agente</th>
                 <th style="text-align:right;">Tickets</th>
+                <th style="text-align:right;">Con desv.</th>
                 <th style="text-align:right;">Desv.</th>
                 <th style="text-align:right;">Crít.</th>
               </tr>
@@ -137,6 +138,7 @@ $complianceColor = $complianceVal >= 90
             <tbody>
             <?php foreach ($agents as $a):
               $dev = (int) ($a['deviations'] ?? 0);
+              $withDev = (int) ($a['tickets_with_deviations'] ?? 0);
               $href = route_to('helpdesk.agent', (int) $a['glpi_user_id']) . '?' . $periodQ;
               $name = ($a['agent_name'] ?? '') !== '' ? (string) $a['agent_name'] : ('GLPI #' . (int) $a['glpi_user_id']);
             ?>
@@ -148,7 +150,10 @@ $complianceColor = $complianceVal >= 90
                   </a>
                 </td>
                 <td style="text-align:right; white-space:nowrap;">
-                  <a href="<?= esc($href) ?>"><?= (int) ($a['tickets_with_deviations'] ?? 0) ?></a>
+                  <a href="<?= esc($href) ?>"><?= (int) ($a['total_tickets'] ?? 0) ?></a>
+                </td>
+                <td style="text-align:right; white-space:nowrap;">
+                  <a href="<?= esc($href) ?>"><?= $withDev ?></a>
                 </td>
                 <td style="text-align:right; white-space:nowrap;">
                   <a href="<?= esc($href) ?>"><?= $dev ?></a>
