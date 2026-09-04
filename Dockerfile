@@ -23,8 +23,8 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Apache: enable mod_rewrite
-RUN a2enmod rewrite
+# Apache: enable mod_rewrite y mod_headers (X-Robots-Tag del .htaccess)
+RUN a2enmod rewrite headers
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
   <title><?= esc($pageTitle ?? 'Acceso') ?> - Nexus</title>
   <link rel="icon" type="image/png" href="<?= base_url('img/tt-icon.png') ?>">
   <link rel="stylesheet" href="<?= asset_url('css/app.css') ?>">

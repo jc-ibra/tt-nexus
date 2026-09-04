@@ -6,6 +6,7 @@ use App\Modules\Core\Filters\AuthFilter;
 use App\Modules\Core\Filters\ApiAuthFilter;
 use App\Modules\Core\Filters\ModuleAccessAnyFilter;
 use App\Modules\Core\Filters\ModuleAccessFilter;
+use App\Modules\Core\Filters\NoIndexFilter;
 use App\Modules\Core\Filters\SuperAdminFilter;
 use App\Modules\ServiceDesk\Filters\LandingAccessFilter;
 use App\Modules\ServiceDesk\Filters\WidgetAccessFilter;
@@ -50,6 +51,7 @@ class Filters extends BaseFilters
         'widget_access'     => WidgetAccessFilter::class,
         'landing_access'    => LandingAccessFilter::class,
         'techbot_webhook'   => TelegramWebhookFilter::class,
+        'noindex'           => NoIndexFilter::class,
     ];
 
     /**
@@ -71,6 +73,7 @@ class Filters extends BaseFilters
             'pagecache',  // Web Page Caching
         ],
         'after' => [
+            'noindex',     // Plataforma interna: nunca indexar en buscadores
             'pagecache',   // Web Page Caching
             'performance', // Performance Metrics
             // 'toolbar' disabled — causes 2 extra PHP requests per page via /?debugbar

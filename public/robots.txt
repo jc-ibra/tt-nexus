@@ -1,2 +1,3 @@
+# Plataforma interna. No debe indexarse en buscadores.
 User-agent: *
-Disallow: 
+Disallow: /
