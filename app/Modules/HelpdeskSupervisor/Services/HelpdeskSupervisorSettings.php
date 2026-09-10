@@ -94,6 +94,91 @@ class HelpdeskSupervisorSettings
     }
 
     // ------------------------------------------------------------------
+    // GLPI webhook (live deviations)
+    // ------------------------------------------------------------------
+
+    public function webhookEnabled(): bool
+    {
+        return $this->model->get('webhook_enabled', '0') === '1';
+    }
+
+    public function webhookListenCreate(): bool
+    {
+        return $this->model->get('webhook_listen_create', '0') === '1';
+    }
+
+    public function webhookListenUpdate(): bool
+    {
+        return $this->model->get('webhook_listen_update', '1') === '1';
+    }
+
+    public function webhookDebounceSeconds(): int
+    {
+        return max(0, min(600, (int) $this->model->get('webhook_debounce_seconds', '45')));
+    }
+
+    /** Decrypted webhook shared secret ('' when unset). */
+    public function webhookSecret(): string
+    {
+        return $this->cipher()->decrypt($this->model->get('webhook_secret', ''));
+    }
+
+    public function hasWebhookSecret(): bool
+    {
+        return trim($this->model->get('webhook_secret', '')) !== '';
+    }
+
+    /**
+     * Public URL for GLPI webhook config (includes ?secret= when a secret exists).
+     */
+    public function webhookUrl(): string
+    {
+        $base = rtrim(base_url('api/v1/helpdesk-supervisor/webhook'), '/');
+        $secret = $this->webhookSecret();
+        if ($secret === '') {
+            return $base;
+        }
+
+        return $base . '?secret=' . rawurlencode($secret);
+    }
+
+    public function saveWebhook(array $input): ServiceResult
+    {
+        $data = [
+            'webhook_enabled'          => ! empty($input['webhook_enabled']) ? '1' : '0',
+            'webhook_listen_create'    => ! empty($input['webhook_listen_create']) ? '1' : '0',
+            'webhook_listen_update'    => ! empty($input['webhook_listen_update']) ? '1' : '0',
+            'webhook_debounce_seconds' => (string) max(0, min(600, (int) ($input['webhook_debounce_seconds'] ?? 45))),
+        ];
+
+        if (! $this->cipher()->isAvailable()
+            && (! empty($input['webhook_regenerate_secret']) || trim((string) ($input['webhook_secret'] ?? '')) !== '')) {
+            return ServiceResult::fail('No se puede cifrar el secreto: falta encryption.key en el entorno.');
+        }
+
+        if (! empty($input['webhook_regenerate_secret'])) {
+            $data['webhook_secret'] = $this->cipher()->encrypt(bin2hex(random_bytes(24)));
+        } else {
+            $newSecret = trim((string) ($input['webhook_secret'] ?? ''));
+            if ($newSecret !== '') {
+                $data['webhook_secret'] = $this->cipher()->encrypt($newSecret);
+            }
+        }
+
+        $willHaveSecret = isset($data['webhook_secret']) || $this->hasWebhookSecret();
+        if (($data['webhook_enabled'] ?? '0') === '1' && ! $willHaveSecret) {
+            if (! $this->cipher()->isAvailable()) {
+                return ServiceResult::fail('Define un secreto (o encryption.key) antes de activar el webhook.');
+            }
+            $data['webhook_secret'] = $this->cipher()->encrypt(bin2hex(random_bytes(24)));
+        }
+
+        $this->model->setMany($data);
+
+        return ServiceResult::ok(null, 'Configuración del webhook guardada.');
+    }
+
+    // ------------------------------------------------------------------
     // Live GLPI overview (Resumen)
     // ------------------------------------------------------------------
 

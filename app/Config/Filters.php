@@ -11,6 +11,7 @@ use App\Modules\Core\Filters\SuperAdminFilter;
 use App\Modules\ServiceDesk\Filters\LandingAccessFilter;
 use App\Modules\ServiceDesk\Filters\WidgetAccessFilter;
 use App\Modules\TechBot\Filters\TelegramWebhookFilter;
+use App\Modules\HelpdeskSupervisor\Filters\GlpiWebhookFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
 use CodeIgniter\Filters\CSRF;
@@ -51,6 +52,7 @@ class Filters extends BaseFilters
         'widget_access'     => WidgetAccessFilter::class,
         'landing_access'    => LandingAccessFilter::class,
         'techbot_webhook'   => TelegramWebhookFilter::class,
+        'helpdesk_glpi_webhook' => GlpiWebhookFilter::class,
         'noindex'           => NoIndexFilter::class,
     ];
 

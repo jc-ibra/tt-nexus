@@ -27,6 +27,10 @@ $routes->group('helpdesk-supervisor', [
     $routes->get('overview/tickets/export', 'Overview::ticketsExport', ['as' => 'helpdesk.overview.tickets.export']);
     $routes->post('overview/refresh', 'Overview::refresh', ['as' => 'helpdesk.overview.refresh']);
 
+    // Live deviations (GLPI webhook feed)
+    $routes->get('live',              'LiveDeviations::index',   ['as' => 'helpdesk.live']);
+    $routes->post('live/(:num)/resolve', 'LiveDeviations::resolve/$1', ['as' => 'helpdesk.live.resolve']);
+
     // Audit runs
     $routes->post('audit/run',        'Audit::run',        ['as' => 'helpdesk.audit.run']);
     $routes->get('audit/runs',        'Audit::runs',       ['as' => 'helpdesk.audit.runs']);
@@ -55,6 +59,17 @@ $routes->group('helpdesk-supervisor', [
     $routes->post('settings/test-connection', 'Settings::testConnection', ['as' => 'helpdesk.settings.test']);
     $routes->post('settings/notifications',  'Settings::saveNotifications', ['as' => 'helpdesk.settings.notifications']);
     $routes->post('settings/overview',       'Settings::saveOverview', ['as' => 'helpdesk.settings.overview']);
+    $routes->post('settings/webhook',        'Settings::saveWebhook', ['as' => 'helpdesk.settings.webhook']);
+});
+
+// -----------------------------------------------------------------------
+// GLPI webhook — PUBLIC (no auth/module access). Authenticated by shared secret.
+// -----------------------------------------------------------------------
+$routes->group('api/v1/helpdesk-supervisor', [
+    'namespace' => 'App\Modules\HelpdeskSupervisor\Controllers\Api',
+    'filter'    => 'helpdesk_glpi_webhook',
+], function (RouteCollection $routes): void {
+    $routes->post('webhook', 'GlpiWebhookController::handle');
 });
 
 // -----------------------------------------------------------------------
@@ -69,6 +84,7 @@ $routes->group('api/v1/helpdesk-supervisor', [
     $routes->get('overview',         'HelpdeskSupervisorApiController::overview');
     $routes->get('overview/tickets',         'HelpdeskSupervisorApiController::overviewTickets');
     $routes->get('overview/tickets/export', 'HelpdeskSupervisorApiController::overviewTicketsExport');
+    $routes->get('live',             'HelpdeskSupervisorApiController::liveDeviations');
 
     // Audit
     $routes->post('audit/run',        'HelpdeskSupervisorApiController::runAudit');

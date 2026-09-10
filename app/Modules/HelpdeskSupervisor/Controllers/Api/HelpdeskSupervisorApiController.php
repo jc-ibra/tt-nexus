@@ -9,6 +9,7 @@ use App\Modules\HelpdeskSupervisor\Models\AuditRunModel;
 use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
 use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
+use App\Modules\HelpdeskSupervisor\Models\LiveDeviationModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -136,6 +137,29 @@ class HelpdeskSupervisorApiController extends BaseApiController
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
             ->setBody("\xEF\xBB\xBF" . $exporter->toCsv($tickets, $portal));
+    }
+
+    public function liveDeviations(): ResponseInterface
+    {
+        $model    = new LiveDeviationModel();
+        $page     = max(1, (int) $this->request->getGet('page'));
+        $perPage  = max(1, min(200, (int) ($this->request->getGet('per_page') ?: 50)));
+        $ruleKey  = trim((string) $this->request->getGet('rule'));
+        $ruleKey  = ($ruleKey !== '' && preg_match('/^[a-z_]+$/', $ruleKey)) ? $ruleKey : null;
+        $total    = $model->countOpen($ruleKey);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page     = min($page, $lastPage);
+        $offset   = ($page - 1) * $perPage;
+
+        return $this->success([
+            'deviations'  => $model->openList($perPage, $offset, $ruleKey),
+            'rules'       => $model->openRuleSummary(),
+            'total'       => $total,
+            'page'        => $page,
+            'per_page'    => $perPage,
+            'total_pages' => $lastPage,
+            'rule'        => $ruleKey,
+        ]);
     }
 
     // ------------------------------------------------------------------

@@ -75,6 +75,9 @@ use App\Modules\HelpdeskSupervisor\Services\HelpdeskSupervisorSettings;
 use App\Modules\HelpdeskSupervisor\Services\GlpiAuditQueryService;
 use App\Modules\HelpdeskSupervisor\Services\GlpiOverviewService;
 use App\Modules\HelpdeskSupervisor\Services\IdsTabScopeService;
+use App\Modules\HelpdeskSupervisor\Services\LiveTicketAuditService;
+use App\Modules\HelpdeskSupervisor\Models\LiveDeviationModel;
+use App\Modules\HelpdeskSupervisor\Models\LiveTicketStateModel;
 use App\Modules\HelpdeskSupervisor\Services\AuditRunnerService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationDraftService;
 use App\Modules\HelpdeskSupervisor\Services\NotificationExcelService;
@@ -906,6 +909,22 @@ class Services extends BaseService
             new AuditRunModel(),
             new DeviationModel(),
             new AgentRunStatsModel(),
+        );
+    }
+
+    public static function helpdeskLiveTicketAudit(bool $getShared = true): LiveTicketAuditService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('helpdeskLiveTicketAudit');
+        }
+
+        return new LiveTicketAuditService(
+            self::helpdeskSupervisorSettings(),
+            self::helpdeskAuditQuery(),
+            self::helpdeskAuditRunner(),
+            new RuleRegistry(),
+            new LiveDeviationModel(),
+            new LiveTicketStateModel(),
         );
     }
 

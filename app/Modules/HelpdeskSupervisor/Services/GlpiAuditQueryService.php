@@ -89,6 +89,62 @@ class GlpiAuditQueryService
     }
 
     /**
+     * Single ticket by id (live webhook re-audit). Respects soft-delete only.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function ticketById(int $ticketId): ?array
+    {
+        if ($ticketId <= 0) {
+            return null;
+        }
+        $row = $this->db()->table('glpi_tickets t')
+            ->select('t.id, t.name, t.date, t.date_creation, t.date_mod, t.status, t.type, t.itilcategories_id, t.externalid', false)
+            ->where('t.id', $ticketId)
+            ->where('t.is_deleted', 0)
+            ->get()->getRowArray();
+
+        if ($row === null) {
+            return null;
+        }
+        $mapped = $this->mapTicketRows([$row]);
+
+        return $mapped[$ticketId] ?? null;
+    }
+
+    /**
+     * Ticket user links: type 1 = requester, type 2 = assignee.
+     *
+     * @return array{assignees:int[],requesters:int[]}
+     */
+    public function ticketUserIds(int $ticketId): array
+    {
+        $out = ['assignees' => [], 'requesters' => []];
+        if ($ticketId <= 0 || ! $this->db()->tableExists('glpi_tickets_users')) {
+            return $out;
+        }
+        $rows = $this->db()->table('glpi_tickets_users')
+            ->select('users_id, type')
+            ->where('tickets_id', $ticketId)
+            ->whereIn('type', [GlpiTicketScope::LINK_REQUESTER, self::LINK_ASSIGNED])
+            ->get()->getResultArray();
+
+        foreach ($rows as $r) {
+            $uid = (int) $r['users_id'];
+            if ($uid <= 0) {
+                continue;
+            }
+            if ((int) $r['type'] === self::LINK_ASSIGNED) {
+                $out['assignees'][] = $uid;
+            } else {
+                $out['requesters'][] = $uid;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Fallback when glpi_tickets_users is unavailable (legacy GLPI).
      *
      * @return array<int,array<string,mixed>>

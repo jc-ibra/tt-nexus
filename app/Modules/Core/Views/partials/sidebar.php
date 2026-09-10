@@ -194,6 +194,11 @@ $moduleSubnav = [
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/overview'),
         ],
         [
+            'label'  => 'En vivo',
+            'url'    => base_url('helpdesk-supervisor/live'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/live'),
+        ],
+        [
             'label'  => 'Auditorías',
             'url'    => base_url('helpdesk-supervisor/audit/runs'),
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/audit'),

@@ -190,7 +190,8 @@ class AuditRunnerService
     // Context assembly
     // ------------------------------------------------------------------
 
-    private function buildContext(): AuditContext
+    /** Shared context for batch and live ticket evaluation. */
+    public function buildContext(): AuditContext
     {
         $containers = $this->introspector->containers();
 

@@ -38,6 +38,8 @@ class Settings extends BaseController
             'openStatuses'    => $settings->overviewOpenStatuses(),
             'ticketTypes'     => $settings->overviewTicketTypes(),
             'categoryRoots'   => $settings->overviewCategoryRoots(),
+            'webhookUrl'      => $settings->webhookUrl(),
+            'hasWebhookSecret'=> $settings->hasWebhookSecret(),
         ]);
     }
 
@@ -60,7 +62,7 @@ class Settings extends BaseController
         }
 
         $hash = trim((string) ($input['_settings_tab'] ?? 'connection'));
-        if (! in_array($hash, ['connection', 'audit', 'overview', 'notifications'], true)) {
+        if (! in_array($hash, ['connection', 'audit', 'overview', 'notifications', 'webhook'], true)) {
             $hash = 'connection';
         }
 
@@ -83,6 +85,13 @@ class Settings extends BaseController
     {
         $result = service('helpdeskSupervisorSettings')->saveNotifications($this->request->getPost());
         return redirect()->to(route_to('helpdesk.settings') . '#notifications')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    public function saveWebhook(): RedirectResponse
+    {
+        $result = service('helpdeskSupervisorSettings')->saveWebhook($this->request->getPost());
+        return redirect()->to(route_to('helpdesk.settings') . '#webhook')
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 

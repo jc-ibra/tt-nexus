@@ -24,16 +24,22 @@ $rootCategories = $rootCategories ?? [];
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Configuración · Supervisor de Mesa</h1>
-    <p class="page-subtitle text-muted">Conexión GLPI, auditoría, resumen operativo y notificaciones.</p>
+    <p class="page-subtitle text-muted">Conexión GLPI, auditoría, resumen operativo, webhook en vivo y notificaciones.</p>
   </div>
 </div>
 
 <?= view('App\Modules\HelpdeskSupervisor\Views\partials/styles') ?>
 
+<?php
+$webhookUrl       = $webhookUrl ?? '';
+$hasWebhookSecret = (bool) ($hasWebhookSecret ?? false);
+?>
+
 <div class="hs-tabs" role="tablist" aria-label="Secciones de configuración">
   <button type="button" class="hs-tab is-active" role="tab" data-panel="hs-panel-connection" data-hash="connection" aria-selected="true">Conexión</button>
   <button type="button" class="hs-tab" role="tab" data-panel="hs-panel-audit" data-hash="audit" aria-selected="false" tabindex="-1">Auditoría</button>
   <button type="button" class="hs-tab" role="tab" data-panel="hs-panel-overview" data-hash="overview" aria-selected="false" tabindex="-1">Resumen GLPI</button>
+  <button type="button" class="hs-tab" role="tab" data-panel="hs-panel-webhook" data-hash="webhook" aria-selected="false" tabindex="-1">Webhook / Tiempo real</button>
   <button type="button" class="hs-tab" role="tab" data-panel="hs-panel-notifications" data-hash="notifications" aria-selected="false" tabindex="-1">Notificaciones</button>
 </div>
 
@@ -273,6 +279,73 @@ $rootCategories = $rootCategories ?? [];
     </div>
     <div class="card-footer">
       <button type="submit" class="btn btn-primary">Guardar resumen</button>
+    </div>
+  </div>
+</form>
+</div>
+
+<!-- ===== Webhook / Tiempo real ===== -->
+<div class="hs-panel" id="hs-panel-webhook" role="tabpanel" hidden>
+<form method="post" action="<?= route_to('helpdesk.settings.webhook') ?>">
+  <?= csrf_field() ?>
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card-header"><h2 class="card-title">Webhook GLPI · desviaciones en vivo</h2></div>
+    <div class="card-body">
+      <p class="text-sm text-muted" style="margin-bottom:var(--space-3);">
+        GLPI avisa cuando un ticket se actualiza; Nexus reevalúa reglas de captura (título, pestañas, campos, etc.)
+        y alimenta <a href="<?= route_to('helpdesk.live') ?>">En vivo</a>.
+        No afecta auditorías mensuales ni el ranking de agentes.
+      </p>
+
+      <div class="field">
+        <label class="field-check">
+          <input type="checkbox" name="webhook_enabled" value="1" <?= ($all['webhook_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>Activar recepción de webhooks</span>
+        </label>
+      </div>
+
+      <div class="hs-field-row">
+        <div class="field" style="flex:1; min-width:200px;">
+          <label class="field-check">
+            <input type="checkbox" name="webhook_listen_update" value="1" <?= ($all['webhook_listen_update'] ?? '1') === '1' ? 'checked' : '' ?>>
+            <span>Escuchar actualización de ticket (recomendado)</span>
+          </label>
+        </div>
+        <div class="field" style="flex:1; min-width:200px;">
+          <label class="field-check">
+            <input type="checkbox" name="webhook_listen_create" value="1" <?= ($all['webhook_listen_create'] ?? '0') === '1' ? 'checked' : '' ?>>
+            <span>Escuchar creación de ticket (opcional, más ruido)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field" style="max-width:240px;">
+        <label class="field-label" for="webhook_debounce_seconds">Debounce (segundos)</label>
+        <input type="number" min="0" max="600" id="webhook_debounce_seconds" name="webhook_debounce_seconds" class="input" value="<?= $g('webhook_debounce_seconds', '45') ?>">
+        <p class="field-help">Ignora re-evaluación del mismo ticket si llegó otro evento hace menos de N segundos.</p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="webhook_url_display">URL para GLPI</label>
+        <input type="text" id="webhook_url_display" class="input" readonly value="<?= esc($webhookUrl) ?>" onclick="this.select()">
+        <p class="field-help">
+          En GLPI 11: Configuración → Notificaciones → Webhooks → crear webhook de
+          <strong>Ticket · update</strong>, método POST, Active = Yes. Pega esta URL
+          (incluye <code>?secret=</code>). Alternativa: header <code>X-Helpdesk-Webhook-Secret</code>.
+        </p>
+      </div>
+
+      <div class="field" style="max-width:420px;">
+        <label class="field-label" for="webhook_secret">Secreto compartido</label>
+        <input type="password" id="webhook_secret" name="webhook_secret" class="input" autocomplete="new-password" placeholder="<?= $hasWebhookSecret ? 'Dejar vacío para conservar el actual' : 'Se generará al activar si lo dejas vacío' ?>">
+        <label class="field-check" style="margin-top:var(--space-2);">
+          <input type="checkbox" name="webhook_regenerate_secret" value="1">
+          <span>Regenerar secreto al guardar<?= $hasWebhookSecret ? ' (la URL de arriba cambiará)' : '' ?></span>
+        </label>
+      </div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary">Guardar webhook</button>
     </div>
   </div>
 </form>
