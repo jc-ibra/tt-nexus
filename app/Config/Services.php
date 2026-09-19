@@ -58,10 +58,13 @@ use App\Modules\ServiceDesk\Models\ServiceDeskAssignmentModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskBacklogAreaModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskBacklogRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskFollowupRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use App\Modules\ServiceDesk\Services\AssignmentMatrixImporter;
+use App\Modules\ServiceDesk\Services\AutoFollowupService;
 use App\Modules\ServiceDesk\Services\BacklogReportService;
+use App\Modules\ServiceDesk\Services\FollowupTemplateRenderer;
 use App\Modules\ServiceDesk\Services\GlpiSchemaIntrospector;
 use App\Modules\ServiceDesk\Services\GlpiValueResolver;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
@@ -544,6 +547,30 @@ class Services extends BaseService
             new ServiceDeskBacklogRunModel(),
             self::mailerService(),
             new ServiceDeskCategoryMapModel(),
+        );
+    }
+
+    /**
+     * Periodic follow-up (email + GLPI note) on open tickets in opted-in
+     * categories. Optionally opens/reuses a MailDispatch conversation so the
+     * technician's reply is tracked (cross-module reuse via service, per
+     * CLAUDE.md — never touches MailDispatch's tables directly).
+     */
+    public static function serviceDeskAutoFollowup(bool $getShared = true): AutoFollowupService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('serviceDeskAutoFollowup');
+        }
+        return new AutoFollowupService(
+            self::glpiDbConnection(),
+            self::connectorFactory(),
+            new ServiceDeskCategoryMapModel(),
+            self::serviceDeskSettings(),
+            new ServiceDeskConfig(),
+            new ServiceDeskFollowupRunModel(),
+            self::mailerService(),
+            new FollowupTemplateRenderer(),
+            self::mailDispatchConversations(),
         );
     }
 

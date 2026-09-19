@@ -75,6 +75,9 @@ $routes->group('admin/servicedesk', [
     // Category -> CLIENTE mapping + supported categories for the template.
     $routes->get('categories',     'ServiceDeskAdmin::categories',     ['as' => 'servicedesk.categories']);
     $routes->post('categories',    'ServiceDeskAdmin::saveCategories', ['as' => 'servicedesk.categories.save']);
+    // Auto-seguimiento: config + manual "run now".
+    $routes->post('autofollowup',      'ServiceDeskAdmin::saveAutoFollowup',   ['as' => 'servicedesk.autofollowup.save']);
+    $routes->post('autofollowup/run',  'ServiceDeskAdmin::runAutoFollowupNow', ['as' => 'servicedesk.autofollowup.run']);
     // Daily backlog report: config, root category -> area mapping, and test send.
     $routes->post('backlog',       'ServiceDeskAdmin::saveBacklog',      ['as' => 'servicedesk.backlog.save']);
     $routes->post('backlog/areas', 'ServiceDeskAdmin::saveBacklogAreas', ['as' => 'servicedesk.backlog.areas.save']);
@@ -142,6 +145,10 @@ $routes->group('api/v1/servicedesk', [
     // Daily backlog report (mirror of the web action): preview data + trigger send.
     $routes->get('backlog/preview', 'ServiceDeskApiController::backlogPreview');
     $routes->post('backlog/send',   'ServiceDeskApiController::backlogSend');
+
+    // Auto-seguimiento (mirror of the web actions): dry-run preview + trigger a pass.
+    $routes->get('autofollowup/preview', 'ServiceDeskApiController::autofollowupPreview');
+    $routes->post('autofollowup/run',    'ServiceDeskApiController::autofollowupRun');
 
     // Agent self-view (mirror of the web actions). Always scoped to the token's
     // own user: there is no way to ask for another agent's data.

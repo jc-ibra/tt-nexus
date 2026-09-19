@@ -92,6 +92,10 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
           aria-selected="false" aria-controls="sd-panel-widget" tabindex="-1" data-panel="sd-panel-widget" data-hash="widget">
     Widget
   </button>
+  <button type="button" class="sd-tab" id="sd-tab-autofollowup" role="tab"
+          aria-selected="false" aria-controls="sd-panel-autofollowup" tabindex="-1" data-panel="sd-panel-autofollowup" data-hash="autofollowup">
+    Auto-seguimiento
+  </button>
   <button type="button" class="sd-tab" id="sd-tab-backlog" role="tab"
           aria-selected="false" aria-controls="sd-panel-backlog" tabindex="-1" data-panel="sd-panel-backlog" data-hash="backlog">
     Reporte de Backlog
@@ -262,6 +266,137 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
     </div>
   </form>
 </div><!-- /sd-panel-update -->
+
+<!-- Tab: Auto-seguimiento -->
+<div id="sd-panel-autofollowup" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-autofollowup" style="display:none;">
+  <form id="sd-autofollowup" action="<?= route_to('servicedesk.autofollowup.save') ?>" method="post" style="max-width: 760px;">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Auto-seguimiento de tickets abiertos</h2>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-4);">
+          Cada cierto tiempo (vía cron), revisa los folios GLPI abiertos de las categorías marcadas en
+          <a href="<?= route_to('servicedesk.categories') ?>">Categorías → Auto-seguimiento</a> y, si ya
+          pasó el intervalo configurado, envía un correo de seguimiento al técnico asignado (con copia al
+          solicitante) y documenta el ticket con una nota GLPI.
+          Categorías habilitadas actualmente: <strong><?= (int) ($autofollowupCategoryCount ?? 0) ?></strong>.
+        </p>
+
+        <label class="field-check" style="margin-bottom: var(--space-3);">
+          <input type="checkbox" name="autofollowup_enabled" value="1" <?= ($s['autofollowup_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>Habilitar el auto-seguimiento</span>
+        </label>
+
+        <label class="field-check" style="margin-bottom: var(--space-4); align-items: flex-start;">
+          <input type="checkbox" name="autofollowup_create_conversation" value="1" style="margin-top: 3px;" <?= ($s['autofollowup_create_conversation'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>
+            Abrir (o reusar) una conversación en Dispatch por cada seguimiento
+            <span class="text-muted text-sm">
+              · así la respuesta del técnico se atiende desde la bandeja de Dispatch en vez de perderse en un correo personal.
+            </span>
+          </span>
+        </label>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4);">
+          <div class="field" style="margin:0;">
+            <label class="field-label" for="autofollowup_interval_hours">Horas mínimas entre dos seguimientos al mismo folio</label>
+            <input type="number" id="autofollowup_interval_hours" name="autofollowup_interval_hours" class="input" min="1"
+                   value="<?= (int) ($s['autofollowup_interval_hours'] ?? 48) ?>">
+          </div>
+          <div class="field" style="margin:0;">
+            <label class="field-label" for="autofollowup_pending_threshold_days">Días en "En espera" antes de dar seguimiento también</label>
+            <input type="number" id="autofollowup_pending_threshold_days" name="autofollowup_pending_threshold_days" class="input" min="1"
+                   value="<?= (int) ($s['autofollowup_pending_threshold_days'] ?? 5) ?>">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4);">
+          <div class="field" style="margin:0;">
+            <label class="field-label" for="autofollowup_from_name">Nombre del remitente</label>
+            <input type="text" id="autofollowup_from_name" name="autofollowup_from_name" class="input" maxlength="190"
+                   value="<?= esc($s['autofollowup_from_name'] ?? 'Mesa de Ayuda') ?>">
+          </div>
+          <div class="field" style="margin:0;">
+            <label class="field-label" for="autofollowup_from_email">Correo del remitente</label>
+            <input type="email" id="autofollowup_from_email" name="autofollowup_from_email" class="input"
+                   value="<?= esc($s['autofollowup_from_email'] ?? '') ?>" placeholder="mesa.ayuda@empresa.com">
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom: var(--space-4);">
+          <label class="field-label" for="autofollowup_email_subject">Asunto del correo de seguimiento</label>
+          <input type="text" id="autofollowup_email_subject" name="autofollowup_email_subject" class="input" maxlength="255"
+                 value="<?= esc($s['autofollowup_email_subject'] ?? 'Seguimiento ticket #{{folio}} · {{asunto}}') ?>">
+        </div>
+
+        <div class="field" style="margin-bottom: var(--space-4);">
+          <label class="field-label" for="autofollowup_email_body">Cuerpo del correo de seguimiento (HTML)</label>
+          <textarea id="autofollowup_email_body" name="autofollowup_email_body" class="input" rows="6"><?= esc($s['autofollowup_email_body'] ?? '') ?></textarea>
+        </div>
+
+        <div class="field" style="margin-bottom: var(--space-4);">
+          <label class="field-label" for="autofollowup_glpi_note">Nota que se agrega al ticket en GLPI</label>
+          <textarea id="autofollowup_glpi_note" name="autofollowup_glpi_note" class="input" rows="3"><?= esc($s['autofollowup_glpi_note'] ?? '') ?></textarea>
+        </div>
+
+        <label class="field-check" style="margin-bottom: var(--space-4);">
+          <input type="checkbox" name="autofollowup_note_is_private" value="1" <?= ($s['autofollowup_note_is_private'] ?? '1') === '1' ? 'checked' : '' ?>>
+          <span>La nota es privada (no visible para el solicitante en el portal de GLPI)</span>
+        </label>
+
+        <p class="text-muted text-sm" style="margin-bottom:0;">
+          Variables disponibles en asunto, cuerpo y nota:
+          <?php foreach (($autofollowupVariables ?? []) as $var => $desc): ?>
+            <code title="<?= esc($desc, 'attr') ?>"><?= esc($var) ?></code>
+          <?php endforeach; ?>
+        </p>
+      </div>
+    </div>
+  </form>
+
+  <div class="card" style="margin-bottom: var(--space-4); max-width: 760px;">
+    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+      <h2 class="card-title">Ejecutar ahora e historial</h2>
+      <form action="<?= route_to('servicedesk.autofollowup.run') ?>" method="post" style="margin:0;">
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-secondary">Ejecutar ahora</button>
+      </form>
+    </div>
+    <div class="card-body">
+      <?php if (empty($autofollowupRuns)): ?>
+        <p class="text-muted text-sm" style="margin:0;">Aún no se ha corrido el auto-seguimiento.</p>
+      <?php else: ?>
+        <table class="table" style="width:100%;">
+          <thead><tr><th>Fecha</th><th>Folio</th><th>Estado</th><th>Asignado</th><th>Origen</th></tr></thead>
+          <tbody>
+            <?php foreach ($autofollowupRuns as $run): ?>
+              <tr>
+                <td class="text-sm"><?= esc((string) ($run['created_at'] ?? '')) ?></td>
+                <td class="text-sm">#<?= (int) ($run['ticket_id'] ?? 0) ?></td>
+                <td>
+                  <?php $st = (string) ($run['status'] ?? ''); ?>
+                  <?php if ($st === 'sent'): ?>
+                    <span class="badge badge-success">Enviado</span>
+                  <?php elseif ($st === 'skipped'): ?>
+                    <span class="badge badge-warning" title="<?= esc((string) ($run['error'] ?? ''), 'attr') ?>">Sin asignado</span>
+                  <?php else: ?>
+                    <span class="badge badge-critical" title="<?= esc((string) ($run['error'] ?? ''), 'attr') ?>">Falló</span>
+                  <?php endif; ?>
+                </td>
+                <td class="text-sm"><?= esc((string) ($run['assignee_email'] ?? '')) ?></td>
+                <td class="text-sm"><?= esc((string) ($run['trigger'] ?? '')) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    </div>
+  </div>
+</div><!-- /sd-panel-autofollowup -->
 
 <!-- Tab: Creador con IA -->
 <div id="sd-panel-ai" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-ai" style="display:none;">

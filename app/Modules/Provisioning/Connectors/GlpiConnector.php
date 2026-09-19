@@ -561,6 +561,51 @@ class GlpiConnector implements SystemConnector
     }
 
     /**
+     * Adds an ITILFollowup to a ticket — a note/comment that does NOT change the
+     * ticket's status (unlike addSolution(), which GLPI moves to "solved").
+     * Used for auto-seguimiento: documents that a follow-up email went out
+     * without touching the ticket's workflow state.
+     */
+    public function addFollowup(int $ticketId, string $content, ?int $authorUserId = null, bool $isPrivate = false, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $input = [
+            'itemtype'   => 'Ticket',
+            'items_id'   => $ticketId,
+            'content'    => $content,
+            'is_private' => $isPrivate ? 1 : 0,
+        ];
+        if ($authorUserId !== null && $authorUserId > 0) {
+            $input['users_id'] = $authorUserId;
+        }
+
+        $resp = $this->request('POST', 'ITILFollowup', ['input' => $input], $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_FOLLOWUP_FAILED', $this->buildDebug($resp));
+        }
+
+        $followupId = $this->extractId($resp['data']);
+        return ConnectorResult::ok(
+            "Seguimiento registrado en el ticket {$ticketId}.",
+            $followupId !== null ? (string) $followupId : null,
+            $resp['data'],
+        );
+    }
+
+    /**
      * Removes ONE actor row from a ticket (glpi_tickets_users), by the id of the
      * relation itself, not of the user.
      *

@@ -38,6 +38,7 @@ class ServiceDeskCategoryMapModel
                 'backlog_idc'      => (int) ($row['backlog_idc'] ?? 0) === 1,
                 'backlog_cliente'  => (int) ($row['backlog_cliente'] ?? 0) === 1,
                 'audit_ids_tab'    => (int) ($row['audit_ids_tab'] ?? 0) === 1,
+                'autofollowup_enabled' => (int) ($row['autofollowup_enabled'] ?? 0) === 1,
                 'category_name'    => (string) ($row['category_name'] ?? ''),
             ];
         }
@@ -119,6 +120,22 @@ class ServiceDeskCategoryMapModel
         return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
     }
 
+    /**
+     * GLPI category ids eligible for the auto-seguimiento worker (subtree match).
+     * Unlike the backlog flags, an empty set means NO categories qualify — this
+     * feature must be opted into explicitly, category by category.
+     *
+     * @return int[]
+     */
+    public function autofollowupIds(): array
+    {
+        $rows = $this->db->table('servicedesk_category_map')
+            ->select('glpi_category_id')
+            ->where('autofollowup_enabled', 1)
+            ->get()->getResultArray();
+        return array_map(static fn($r) => (int) $r['glpi_category_id'], $rows);
+    }
+
     public function hasSupported(): bool
     {
         return $this->db->table('servicedesk_category_map')->where('is_supported', 1)->countAllResults() > 0;
@@ -173,10 +190,11 @@ class ServiceDeskCategoryMapModel
             $isIdc       = ! empty($data['backlog_idc']) ? 1 : 0;
             $isCliente   = ! empty($data['backlog_cliente']) ? 1 : 0;
             $isIdsTab    = ! empty($data['audit_ids_tab']) ? 1 : 0;
+            $isAutoFollowup = ! empty($data['autofollowup_enabled']) ? 1 : 0;
             $name        = (string) ($data['category_name'] ?? '');
 
             // Drop rows that carry no information (not supported, no cliente, no flags).
-            if ($isSupported === 0 && $cliente === '' && $isRegional === 0 && $isIdc === 0 && $isCliente === 0 && $isIdsTab === 0) {
+            if ($isSupported === 0 && $cliente === '' && $isRegional === 0 && $isIdc === 0 && $isCliente === 0 && $isIdsTab === 0 && $isAutoFollowup === 0) {
                 $this->db->table('servicedesk_category_map')->where('glpi_category_id', $categoryId)->delete();
                 continue;
             }
@@ -195,6 +213,7 @@ class ServiceDeskCategoryMapModel
                         'backlog_idc'      => $isIdc,
                         'backlog_cliente'  => $isCliente,
                         'audit_ids_tab'    => $isIdsTab,
+                        'autofollowup_enabled' => $isAutoFollowup,
                         'updated_at'       => $now,
                     ]);
             } else {
@@ -207,6 +226,7 @@ class ServiceDeskCategoryMapModel
                     'backlog_idc'      => $isIdc,
                     'backlog_cliente'  => $isCliente,
                     'audit_ids_tab'    => $isIdsTab,
+                    'autofollowup_enabled' => $isAutoFollowup,
                     'created_at'       => $now,
                     'updated_at'       => $now,
                 ]);

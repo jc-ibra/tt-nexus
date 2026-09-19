@@ -3421,6 +3421,60 @@
             "description": "Genera y envía el reporte de backlog ahora. Con test_email envía una prueba solo a esa dirección; sin él, envía a la audiencia configurada (Para + CC) como envío manual."
           },
           "response": []
+        },
+        {
+          "name": "Auto-seguimiento — preview (dry-run)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/autofollowup/preview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "autofollowup",
+                "preview"
+              ]
+            },
+            "description": "Simula una corrida de auto-seguimiento (sin enviar correos ni escribir en GLPI) y devuelve cuántos tickets calificarían. Requiere que haya al menos una categoría habilitada en Categorías → Auto-seguimiento."
+          },
+          "response": []
+        },
+        {
+          "name": "Auto-seguimiento — run now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/autofollowup/run",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "autofollowup",
+                "run"
+              ]
+            },
+            "description": "Corre una pasada real de auto-seguimiento ahora (trigger=manual): envía el correo de seguimiento al asignado (CC al solicitante), agrega la nota configurada en GLPI y, si está habilitado, abre/reusa la conversación en Dispatch. Respeta el cooldown por folio configurado."
+          },
+          "response": []
         }
       ]
     },

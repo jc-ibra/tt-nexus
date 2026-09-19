@@ -11,7 +11,9 @@ use App\Modules\ServiceDesk\Models\ServiceDeskAssignmentModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskBacklogAreaModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskBacklogRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
+use App\Modules\ServiceDesk\Models\ServiceDeskFollowupRunModel;
 use App\Modules\ServiceDesk\Services\AssignmentMatrixImporter;
+use App\Modules\ServiceDesk\Services\FollowupTemplateRenderer;
 use App\Modules\ServiceDesk\Services\ServiceDeskSettings;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -69,6 +71,10 @@ class ServiceDeskAdmin extends BaseController
             'backlogRoots'   => $backlogRoots,
             'backlogAreaMap' => (new ServiceDeskBacklogAreaModel())->all(),
             'backlogRuns'    => (new ServiceDeskBacklogRunModel())->recent(8),
+            // Auto-seguimiento tab.
+            'autofollowupCategoryCount' => count((new ServiceDeskCategoryMapModel())->autofollowupIds()),
+            'autofollowupRuns'          => (new ServiceDeskFollowupRunModel())->recent(15),
+            'autofollowupVariables'     => FollowupTemplateRenderer::VARIABLES,
             // Assignments tab: the stored matrix plus the roster to map to users.
             'assignAgents'    => $assignments->agents(),
             'assignCategories' => $assignments->categoryCount(),
@@ -231,6 +237,27 @@ class ServiceDeskAdmin extends BaseController
     }
 
     /**
+     * Auto-seguimiento config: master switch, cooldown, MailDispatch toggle,
+     * sender identity and the email/GLPI-note templates.
+     */
+    public function saveAutoFollowup(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveAutoFollowup($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#autofollowup')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /**
+     * Manual "run now" for the auto-seguimiento worker, from the settings screen.
+     */
+    public function runAutoFollowupNow(): ResponseInterface
+    {
+        $result = service('serviceDeskAutoFollowup')->run('manual');
+        return redirect()->to(route_to('servicedesk.settings') . '#autofollowup')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
+    /**
      * Saves the public self-service landing configuration (enable, title/intro,
      * key regeneration, rate limit). The landing lives at /soporte.
      */
@@ -268,6 +295,7 @@ class ServiceDeskAdmin extends BaseController
         $idcScope   = (array) ($this->request->getPost('backlog_idc') ?? []);
         $cliScope   = (array) ($this->request->getPost('backlog_cliente') ?? []);
         $idsTabScope = (array) ($this->request->getPost('audit_ids_tab') ?? []);
+        $autoFollowup = (array) ($this->request->getPost('autofollowup_enabled') ?? []);
 
         $rows = [];
         foreach ($categories as $c) {
@@ -280,6 +308,7 @@ class ServiceDeskAdmin extends BaseController
                 'backlog_idc'      => isset($idcScope[$id]),
                 'backlog_cliente'  => isset($cliScope[$id]),
                 'audit_ids_tab'    => isset($idsTabScope[$id]),
+                'autofollowup_enabled' => isset($autoFollowup[$id]),
             ];
         }
 

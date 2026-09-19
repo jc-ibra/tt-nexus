@@ -865,6 +865,108 @@ TXT;
         return ServiceResult::ok(null, 'Configuración del reporte de backlog guardada.');
     }
 
+    // ------------------------------------------------------------------
+    // Auto-seguimiento (periodic follow-up email + GLPI note on open tickets)
+    // ------------------------------------------------------------------
+
+    public function autofollowupEnabled(): bool
+    {
+        return $this->model->get('autofollowup_enabled', '0') === '1';
+    }
+
+    /** Cooldown: minimum hours between two follow-ups on the SAME ticket. */
+    public function autofollowupIntervalHours(): int
+    {
+        return max(1, (int) $this->model->get('autofollowup_interval_hours', '48'));
+    }
+
+    /** Days a ticket must sit in "En espera" before it also gets a follow-up. */
+    public function autofollowupPendingThresholdDays(): int
+    {
+        return max(1, (int) $this->model->get('autofollowup_pending_threshold_days', '5'));
+    }
+
+    public function autofollowupCreateConversation(): bool
+    {
+        return $this->model->get('autofollowup_create_conversation', '0') === '1';
+    }
+
+    public function autofollowupFromName(): string
+    {
+        $v = trim($this->model->get('autofollowup_from_name', ''));
+        return $v !== '' ? $v : 'Mesa de Ayuda';
+    }
+
+    /** Sender address; falls back to the SMTP From address when unset. */
+    public function autofollowupFromEmail(): string
+    {
+        $v = trim($this->model->get('autofollowup_from_email', ''));
+        if ($v !== '') {
+            return $v;
+        }
+        try {
+            return (string) service('appSettings')->getSmtp()['smtp_from_email'] ?: (string) config('Email')->fromEmail;
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    public function autofollowupEmailSubject(): string
+    {
+        $v = trim($this->model->get('autofollowup_email_subject', ''));
+        return $v !== '' ? $v : 'Seguimiento ticket #{{folio}} · {{asunto}}';
+    }
+
+    public function autofollowupEmailBody(): string
+    {
+        return (string) $this->model->get('autofollowup_email_body', '');
+    }
+
+    public function autofollowupGlpiNote(): string
+    {
+        $v = trim($this->model->get('autofollowup_glpi_note', ''));
+        return $v !== '' ? $v : 'Nexus envió un correo de seguimiento solicitando estatus a {{asignado}}.';
+    }
+
+    public function autofollowupNoteIsPrivate(): bool
+    {
+        return $this->model->get('autofollowup_note_is_private', '1') === '1';
+    }
+
+    /** Whether the worker can actually run: enabled and has a sender + body. */
+    public function autofollowupReady(): bool
+    {
+        return $this->autofollowupEnabled()
+            && $this->autofollowupFromEmail() !== ''
+            && trim($this->autofollowupEmailBody()) !== '';
+    }
+
+    /**
+     * Persists the auto-seguimiento configuration form.
+     */
+    public function saveAutoFollowup(array $input): ServiceResult
+    {
+        $fromEmail = trim((string) ($input['autofollowup_from_email'] ?? ''));
+        if ($fromEmail !== '' && ! filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+            return ServiceResult::fail('El correo del remitente no es válido.');
+        }
+
+        $this->model->setMany([
+            'autofollowup_enabled'             => ! empty($input['autofollowup_enabled']) ? '1' : '0',
+            'autofollowup_interval_hours'       => (string) max(1, (int) ($input['autofollowup_interval_hours'] ?? 48)),
+            'autofollowup_pending_threshold_days' => (string) max(1, (int) ($input['autofollowup_pending_threshold_days'] ?? 5)),
+            'autofollowup_create_conversation' => ! empty($input['autofollowup_create_conversation']) ? '1' : '0',
+            'autofollowup_from_name'           => trim((string) ($input['autofollowup_from_name'] ?? '')),
+            'autofollowup_from_email'          => $fromEmail,
+            'autofollowup_email_subject'       => trim((string) ($input['autofollowup_email_subject'] ?? '')),
+            'autofollowup_email_body'          => (string) ($input['autofollowup_email_body'] ?? ''),
+            'autofollowup_glpi_note'           => trim((string) ($input['autofollowup_glpi_note'] ?? '')),
+            'autofollowup_note_is_private'     => ! empty($input['autofollowup_note_is_private']) ? '1' : '0',
+        ]);
+
+        return ServiceResult::ok(null, 'Configuración de auto-seguimiento guardada.');
+    }
+
     /** Splits a free-text address list (commas/newlines/semicolons) into unique valid emails. */
     private function parseEmails(string $raw): array
     {

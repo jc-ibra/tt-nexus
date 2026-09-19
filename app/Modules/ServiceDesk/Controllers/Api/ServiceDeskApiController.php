@@ -327,6 +327,34 @@ class ServiceDeskApiController extends BaseApiController
     }
 
     /**
+     * GET /api/v1/servicedesk/autofollowup/preview
+     * Reports how many tickets would be worked without sending anything.
+     */
+    public function autofollowupPreview(): ResponseInterface
+    {
+        $service = service('serviceDeskAutoFollowup');
+        if (! $service->isConfigured()) {
+            return $this->error('GLPI no está configurado.', 400);
+        }
+        $result = $service->run('manual', true);
+        return $result->success
+            ? $this->success((array) $result->data)
+            : $this->error($result->message, 422);
+    }
+
+    /**
+     * POST /api/v1/servicedesk/autofollowup/run
+     * Runs one auto-seguimiento pass now (trigger = manual).
+     */
+    public function autofollowupRun(): ResponseInterface
+    {
+        $result = service('serviceDeskAutoFollowup')->run('manual');
+        return $result->success
+            ? $this->success(['message' => $result->message] + (array) $result->data)
+            : $this->error($result->message, 500);
+    }
+
+    /**
      * @return int[]
      */
     private function containerIds(): array

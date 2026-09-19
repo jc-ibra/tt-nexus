@@ -629,6 +629,79 @@ class ConversationService
         return ServiceResult::ok(null, 'Conversación reabierta.');
     }
 
+    // =======================================================================
+    // Cross-module: ServiceDesk auto-seguimiento
+    // =======================================================================
+
+    /**
+     * Opens (or reuses, keyed by GLPI folio) an OUTBOUND conversation carrying a
+     * follow-up email that ServiceDesk already sent via its own mailer. This is
+     * NOT part of the Graph/IMAP sync — it lets the technician's reply land in
+     * the normal Dispatch queue instead of a personal inbox, without requiring
+     * ServiceDesk to know anything about MailDispatch's storage.
+     *
+     * A reused conversation is reopened into "esperando_agente" (waiting on one
+     * more reply) so a previously closed thread does not silently swallow the
+     * new follow-up.
+     */
+    public function upsertGlpiFollowup(
+        string $glpiFolio,
+        string $mailboxAddress,
+        string $toName,
+        string $toEmail,
+        string $subject,
+        string $bodyHtml,
+        ?string $ccEmail = null
+    ): int {
+        $conv = $this->conversations->where('glpi_folio', $glpiFolio)->orderBy('id', 'DESC')->first();
+        $now  = date('Y-m-d H:i:s');
+
+        if ($conv === null) {
+            $convId = (int) $this->conversations->insert([
+                'conversation_id'  => 'sdfollowup:' . $glpiFolio . ':' . bin2hex(random_bytes(6)),
+                'mailbox_address'  => $mailboxAddress,
+                'subject'          => $subject,
+                'requester_name'   => $toName,
+                'requester_email'  => $toEmail,
+                'outbound_only'    => 1,
+                'status'           => 'esperando_agente',
+                'glpi_folio'       => $glpiFolio,
+                'message_count'    => 0,
+                'received_at'      => $now,
+                'last_activity_at' => $now,
+            ], true);
+        } else {
+            $convId = (int) $conv['id'];
+            $this->conversations->update($convId, [
+                'status'           => 'esperando_agente',
+                'last_activity_at' => $now,
+                'closed_at'        => null,
+            ]);
+        }
+
+        $this->messages->insert([
+            'conversation_id' => $convId,
+            'graph_id'        => 'nexus:' . bin2hex(random_bytes(10)),
+            'direction'       => 'out',
+            'from_name'       => 'Mesa de Ayuda',
+            'from_email'      => $mailboxAddress,
+            'to_recipients'   => $toEmail,
+            'cc_recipients'   => $ccEmail,
+            'subject'         => $subject,
+            'body_preview'    => mb_substr(trim(strip_tags($bodyHtml)), 0, 255),
+            'body'            => $bodyHtml,
+            'body_is_html'    => 1,
+            'has_attachments' => 0,
+            'received_at'     => $now,
+        ]);
+        $this->conversations->set('message_count', 'message_count + 1', false)
+            ->where('id', $convId)->update();
+
+        $this->events->log($convId, 'note', null, null, null, 'Auto-seguimiento de ServiceDesk enviado por correo (folio ' . $glpiFolio . ').');
+
+        return $convId;
+    }
+
     /** Adds an internal note (Nexus-only, not sent to the requester). */
     public function addNote(int $id, string $note, int $userId): ServiceResult
     {
