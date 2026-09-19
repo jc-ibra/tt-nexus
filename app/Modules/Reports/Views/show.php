@@ -67,8 +67,16 @@ if ($glpi['available'] ?? false) {
     $charts['estado_geo']     = ['type' => 'hbar', 'mono' => true] + $tuples($glpi['est_top']);
     $charts['estado_geo_bottom'] = ['type' => 'hbar', 'mono' => true] + $tuples($glpi['est_bottom']);
     // Todas las categorías registradas en el período, no un top-N: la altura
-    // del canvas se calcula abajo según cuántas haya.
-    $charts['categorias']     = ['type' => 'hbar', 'mono' => true] + $tuples($glpi['cat_top']);
+    // del canvas se calcula abajo según cuántas haya. Cada grupo con 2+ hojas
+    // trae, justo debajo de su barra, el desglose por hoja (tier 'child'),
+    // indentado y en un tono más claro, para poder dimensionar el grupo sin
+    // perder el agregado.
+    $charts['categorias'] = [
+        'type'   => 'hbar',
+        'labels' => array_map(static fn($r) => $r['tier'] === 'child' ? '    ' . $r['label'] : $r['label'], $glpi['cat_top']),
+        'values' => array_map(static fn($r) => $r['value'], $glpi['cat_top']),
+        'tiers'  => array_map(static fn($r) => $r['tier'], $glpi['cat_top']),
+    ];
     $charts['ids_top']        = ['type' => 'hbar', 'mono' => true] + $tuples($glpi['ids_top']);
     $charts['ids_bottom']     = ['type' => 'hbar', 'mono' => true] + $tuples($glpi['ids_bottom']);
 }
@@ -196,9 +204,16 @@ if ($agents['available'] ?? false) {
     <div class="card"><div class="card-header"><h3 class="card-title">Ranking IDS · Menor carga</h3></div><div class="card-body"><div class="rpt-chart-wrap"><canvas id="chart-ids_bottom"></canvas></div></div></div>
   </div>
 
-  <?php $catCount = count($glpi['cat_top']); $catHeight = max(280, $catCount * 26); ?>
+  <?php
+  $catRows   = count($glpi['cat_top']);
+  $catGroups = count(array_filter($glpi['cat_top'], static fn($r) => $r['tier'] !== 'child'));
+  $catHeight = max(280, $catRows * 24);
+  ?>
   <div class="card" style="margin-top: var(--space-4);">
-    <div class="card-header"><h3 class="card-title">Categoría</h3><p class="card-subtitle">Todas las categorías registradas en el período (<?= $catCount ?>)</p></div>
+    <div class="card-header">
+      <h3 class="card-title">Categoría</h3>
+      <p class="card-subtitle">Agrupadas por rama del árbol: <?= $catGroups ?> grupos de <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período; el detalle por hoja aparece debajo de cada grupo</p>
+    </div>
     <div class="card-body"><div class="rpt-chart-wrap" style="height: <?= $catHeight ?>px;"><canvas id="chart-categorias"></canvas></div></div>
   </div>
 

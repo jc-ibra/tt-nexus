@@ -188,22 +188,49 @@ class PptxDeckBuilder
     }
 
     /**
-     * Categorías: la fuente ya trae TODAS las registradas en el período (ver
-     * GlpiTicketsProvider), pero un slide de 960x540 solo puede mostrar
-     * legiblemente una quincena de barras. Se recorta a las de mayor volumen
-     * para esta vista y se deja constancia del total real en el subtítulo —
-     * el listado completo vive en el XLSX y en el dashboard web.
+     * Categorías: la fuente ya trae TODOS los grupos del período, agrupados
+     * por rama real del árbol GLPI (ver
+     * GlpiTicketsProvider::categoryRankingWithChildren) — un grupo con 2+
+     * hojas (p. ej. "Afirme": Edificios, Multivendor) trae su propia barra
+     * de total (tier 'group') seguida de una barra por hoja (tier 'child',
+     * indentada y en un tono más claro) para poder dimensionar el grupo sin
+     * perder el agregado. Un slide de 960x540 solo puede mostrar
+     * legiblemente una veintena de barras, así que se recorta por
+     * presupuesto de filas sin cortar un grupo a la mitad.
      */
     private function slideCategorias(Slide $slide, array $g): void
     {
         $k = $this->kit;
         $k->bg($slide);
-        $total = count($g['cat_top']);
-        $shown = array_slice($g['cat_top'], 0, 15);
-        $k->slideHeader($slide, 'Mesa de ayuda', 'Tickets por categoría', 'Top ' . count($shown) . " de {$total} categorías registradas en el período");
+
+        $all        = $g['cat_top'];
+        $rowLimit   = 20;
+        $shown      = [];
+        $rows       = 0;
+        foreach ($all as $r) {
+            if ($r['tier'] !== 'child' && $rows >= $rowLimit) {
+                break;
+            }
+            $shown[] = $r;
+            $rows++;
+        }
+        $groupsShown = count(array_filter($shown, static fn($r) => $r['tier'] !== 'child'));
+        $groupsTotal = count(array_filter($all, static fn($r) => $r['tier'] !== 'child'));
+        $k->slideHeader($slide, 'Mesa de ayuda', 'Tickets por categoría', "Agrupadas por rama del árbol: {$groupsShown} de {$groupsTotal} grupos, {$g['cat_leaf_total']} categorías registradas en el período");
+
+        $values      = [];
+        $colorsByIdx = [];
+        foreach ($shown as $r) {
+            $label = $r['tier'] === 'child' ? '     ' . $r['label'] : $r['label'];
+            $values[$label] = $r['value'];
+            // Grupo en el tono primario; hoja en el paso mudo de la misma
+            // rampa ordinal (STAGE_RAMP[1]) — recede detrás del total, sin
+            // introducir un tercer color con significado propio.
+            $colorsByIdx[] = $r['tier'] === 'child' ? SlideKit::STAGE_RAMP[1] : SlideKit::C_PRIMARY;
+        }
 
         $k->cardHeader($slide, self::MARGIN_X, self::CONTENT_Y, self::CONTENT_W, self::CONTENT_H, 'Categoría GLPI');
-        $k->horizontalBarChart($slide, self::MARGIN_X + 10, self::CONTENT_Y + 46, self::CONTENT_W - 20, self::CONTENT_H - 56, $k->tuplesToMap($shown));
+        $k->horizontalBarChart($slide, self::MARGIN_X + 10, self::CONTENT_Y + 46, self::CONTENT_W - 20, self::CONTENT_H - 56, $values, SlideKit::C_PRIMARY, $colorsByIdx);
     }
 
     private function slideRankingIds(Slide $slide, array $g): void

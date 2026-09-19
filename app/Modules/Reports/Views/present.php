@@ -227,12 +227,29 @@ $summary = trim($commentary['summary']['body'] ?? '');
   <?php endif; ?>
 
   <?php if (($glpi['cat_top'] ?? []) !== []): ?>
-  <?php $catShown = array_slice($glpi['cat_top'], 0, 15); ?>
+  <?php
+  // Se corta por presupuesto de filas (grupo + sus hojas cuentan), nunca a
+  // mitad de un grupo: se completa el grupo en curso aunque eso pase el
+  // límite por unas filas, para no cortar el desglose de la última rama.
+  $catAll        = $glpi['cat_top'];
+  $catRowLimit   = 20;
+  $catShown      = [];
+  $catRows       = 0;
+  foreach ($catAll as $r) {
+      if ($r['tier'] !== 'child' && $catRows >= $catRowLimit) {
+          break;
+      }
+      $catShown[] = $r;
+      $catRows++;
+  }
+  $catGroupsShown = count(array_filter($catShown, static fn($r) => $r['tier'] !== 'child'));
+  $catGroupsTotal = count(array_filter($catAll, static fn($r) => $r['tier'] !== 'child'));
+  ?>
   <section class="op-slide" data-section="Mesa de ayuda">
     <h2 class="op-title">Tickets por categoría</h2>
-    <p class="op-subtitle">Top <?= count($catShown) ?> de <?= count($glpi['cat_top']) ?> categorías registradas en el período</p>
+    <p class="op-subtitle">Agrupadas por rama del árbol: <?= $catGroupsShown ?> de <?= $catGroupsTotal ?> grupos, <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período; el detalle por hoja aparece debajo de cada grupo</p>
     <hr class="op-rule">
-    <div class="op-chart op-chart-tall" style="height: 380px;"><canvas id="op-categorias"></canvas></div>
+    <div class="op-chart op-chart-tall" style="height: 420px;"><canvas id="op-categorias"></canvas></div>
   </section>
   <?php endif; ?>
 
@@ -408,7 +425,7 @@ $summary = trim($commentary['summary']['body'] ?? '');
       'regional' => $glpi['available'] ?? false ? $glpi['reg_top'] : [],
       'estado_geo' => $glpi['available'] ?? false ? array_slice($glpi['est_top'], 0, 10) : [],
       'estado_geo_bottom' => $glpi['available'] ?? false ? array_slice($glpi['est_bottom'], 0, 10) : [],
-      'categorias' => $glpi['available'] ?? false ? array_slice($glpi['cat_top'], 0, 15) : [],
+      'categorias' => $catShown ?? [],
       'ids' => $glpi['available'] ?? false ? array_slice($glpi['ids_top'], 0, 10) : [],
       'ids_bottom' => $glpi['available'] ?? false ? array_slice($glpi['ids_bottom'], 0, 10) : [],
       'trend' => $trend['available'] ?? false ? $trend['series'] : [],
@@ -497,7 +514,10 @@ $summary = trim($commentary['summary']['body'] ?? '');
     renderHbar('op-regional', PAYLOAD.regional.map(function (r) { return r[0]; }), PAYLOAD.regional.map(function (r) { return r[1]; }));
     renderHbar('op-estado-geo', PAYLOAD.estado_geo.map(function (r) { return r[0]; }), PAYLOAD.estado_geo.map(function (r) { return r[1]; }));
     renderHbar('op-estado-geo-bottom', PAYLOAD.estado_geo_bottom.map(function (r) { return r[0]; }), PAYLOAD.estado_geo_bottom.map(function (r) { return r[1]; }), STATUS.warning);
-    renderHbar('op-categorias', PAYLOAD.categorias.map(function (r) { return r[0]; }), PAYLOAD.categorias.map(function (r) { return r[1]; }));
+    renderHbar('op-categorias',
+      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '    ' + r.label : r.label; }),
+      PAYLOAD.categorias.map(function (r) { return r.value; }),
+      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '#4A5C7A' : CATEGORICAL[0]; }));
     renderHbar('op-ids', PAYLOAD.ids.map(function (r) { return r[0]; }), PAYLOAD.ids.map(function (r) { return r[1]; }));
     renderHbar('op-ids-bottom', PAYLOAD.ids_bottom.map(function (r) { return r[0]; }), PAYLOAD.ids_bottom.map(function (r) { return r[1]; }), STATUS.warning);
     renderTrend();

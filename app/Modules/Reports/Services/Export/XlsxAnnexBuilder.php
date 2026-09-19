@@ -68,8 +68,15 @@ class XlsxAnnexBuilder
 
         $sheet->fromArray(['Regional', 'Tickets'], null, 'D1');
         $sheet->fromArray($g['reg_top'], null, 'D2');
+        // cat_top trae grupo + hojas (ver GlpiTicketsProvider::categoryRankingWithChildren);
+        // se aplana a [etiqueta, tickets] igual que los demás rankings, con la
+        // hoja indentada para distinguirla del total del grupo.
         $sheet->fromArray(['Categoría', 'Tickets'], null, 'G1');
-        $sheet->fromArray($g['cat_top'], null, 'G2');
+        $catRows = array_map(
+            static fn($r) => [$r['tier'] === 'child' ? '    ' . $r['label'] : $r['label'], $r['value']],
+            $g['cat_top'],
+        );
+        $sheet->fromArray($catRows, null, 'G2');
         $sheet->fromArray(['Técnico (IDS)', 'Tickets'], null, 'J1');
         $sheet->fromArray($g['ids_top'], null, 'J2');
     }

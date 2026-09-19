@@ -65,16 +65,22 @@
     }, extra || {});
   }
 
-  /** Ranking de una sola métrica. spec.colors (por barra) tiene prioridad sobre spec.mono. */
+  /**
+   * Ranking de una sola métrica. Prioridad de color: spec.colors (por barra,
+   * severidad/banda) > spec.tiers (grupo/hoja de una jerarquía: mismo tono,
+   * un paso más claro para la hoja) > spec.mono (un solo tono) > categórico.
+   */
   function renderHbar(ctx, spec) {
-    var colors = spec.colors || (spec.mono ? spec.labels.map(function () { return SEQUENTIAL_BLUE[4]; }) : CATEGORICAL);
+    var colors = spec.colors
+      || (spec.tiers ? spec.tiers.map(function (t) { return t === 'child' ? SEQUENTIAL_BLUE[1] : SEQUENTIAL_BLUE[4]; })
+      : (spec.mono ? spec.labels.map(function () { return SEQUENTIAL_BLUE[4]; }) : CATEGORICAL));
     return new Chart(ctx, {
       type: 'bar',
       data: {
         labels: spec.labels,
         datasets: [{
           data: spec.values,
-          backgroundColor: spec.colors || SEQUENTIAL_BLUE[4],
+          backgroundColor: colors,
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: 22,

@@ -92,6 +92,7 @@ class GlpiTicketsProvider implements ReportSectionProvider
         }
 
         $categoryNames        = $this->categoryNamesFor($db, $rows);
+        $categoryGroups       = $this->categoryGroupLabelsFor($db, $rows);
         [$fieldData, $resolved] = $this->fieldDataFor($db, array_column($rows, 'id'));
         $slaHours              = $this->settings->slaHours();
 
@@ -114,6 +115,7 @@ class GlpiTicketsProvider implements ReportSectionProvider
             $tickets[] = [
                 'estado'           => self::STATUS_LABELS[$statusCode] ?? "Estado {$statusCode}",
                 'categoria'        => $categoryNames[(int) $r['itilcategories_id']] ?? null,
+                'categoria_group'  => $categoryGroups[(int) $r['itilcategories_id']] ?? null,
                 'horas_resolucion' => $horas,
                 'closed'           => $closed,
                 ...($fieldData[$id] ?? array_fill_keys(self::LOGICAL_FIELDS, null)),
@@ -137,6 +139,78 @@ class GlpiTicketsProvider implements ReportSectionProvider
         $out = [];
         foreach ($ids as $id) {
             $out[(int) $id] = $this->values->categoryName((int) $id);
+        }
+        return $out;
+    }
+
+    /**
+     * Groups a leaf category with its immediate parent ONLY when that parent
+     * is a "pure leaf container" — every one of its children (in the whole
+     * GLPI tree, not just this period's tickets) is itself childless, like
+     * "Afirme" (children: Edificios, Multivendor, neither with descendants).
+     * A mixed department bucket like "OP > CE" (client branches such as
+     * Afirme/Sellcom BBVA WITH descendants, sitting alongside standalone
+     * categories like Cattri/VoxPop as siblings) does not qualify, so those
+     * standalone categories keep their own bar instead of collapsing into
+     * the department and losing visibility.
+     *
+     * @return array<int,string> itilcategories_id => group label, present
+     *     ONLY for ids that were actually promoted to a parent — an id
+     *     absent from this map is not grouped (caller falls back to its own
+     *     category name), which is also how callers detect promotion.
+     */
+    private function categoryGroupLabelsFor(BaseConnection $db, array $rows): array
+    {
+        $ids = array_values(array_unique(array_filter(array_column($rows, 'itilcategories_id'))));
+        if ($ids === [] || ! $db->tableExists('glpi_itilcategories')) {
+            return [];
+        }
+
+        // The whole tree, not scoped to this period: whether a category is a
+        // "pure leaf container" is a structural fact about GLPI's category
+        // tree, independent of which leaves happen to have tickets this month.
+        $cols   = $db->getFieldNames('glpi_itilcategories');
+        $hasCn  = in_array('completename', $cols, true);
+        $select = 'id, name, itilcategories_id' . ($hasCn ? ', completename' : '');
+        $all    = $db->table('glpi_itilcategories')->select($select)->get()->getResultArray();
+
+        $index      = []; // id => ['label' => completename|name, 'parent' => int]
+        $childrenOf = []; // parentId => [childId, ...]
+        foreach ($all as $row) {
+            $id     = (int) $row['id'];
+            $parent = (int) ($row['itilcategories_id'] ?? 0);
+            $index[$id] = ['label' => trim((string) ($row['completename'] ?? $row['name'])), 'parent' => $parent];
+            if ($parent > 0) {
+                $childrenOf[$parent][] = $id;
+            }
+        }
+
+        $hasChildren = [];
+        foreach ($index as $id => $_) {
+            $hasChildren[$id] = ! empty($childrenOf[$id]);
+        }
+
+        $isPureLeafContainer = [];
+        foreach ($childrenOf as $parent => $children) {
+            $isPureLeafContainer[$parent] = true;
+            foreach ($children as $child) {
+                if ($hasChildren[$child]) {
+                    $isPureLeafContainer[$parent] = false;
+                    break;
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            if (! isset($index[$id])) {
+                continue;
+            }
+            $parent = $index[$id]['parent'];
+            if ($parent > 0 && ($isPureLeafContainer[$parent] ?? false) && isset($index[$parent])) {
+                $out[$id] = $index[$parent]['label'];
+            }
         }
         return $out;
     }
@@ -269,10 +343,18 @@ class GlpiTicketsProvider implements ReportSectionProvider
         usort($estAsc, static fn($a, $b) => $a[1] <=> $b[1] ?: strcmp($a[0], $b[0]));
         $estBottom = array_slice($estAsc, 0, 10);
 
-        // Categorías: every category registered in the period, not a top-N —
-        // an executive report needs the full picture of where volume landed,
-        // not just the loudest handful.
-        $catTop = $this->ranking($tickets, 'categoria', null);
+        // Categorías: 'categoria_group' ya trae, por ticket, la rama correcta
+        // según la estructura real del árbol GLPI (ver
+        // categoryGroupLabelsFor()) — una rama-cliente real como "Afirme" se
+        // colapsa en una barra, pero una categoría suelta bajo un
+        // departamento mixto como "OP > CE" (Cattri, VoxPop, ...) conserva su
+        // propia barra en vez de perderse dentro del departamento. Un grupo
+        // con 2+ hojas además trae su propio desglose (ver
+        // categoryRankingWithChildren()): la barra del grupo da la magnitud,
+        // y justo debajo se ve de qué hojas se compone, para dimensionar sin
+        // perder la vista agregada.
+        $catTop       = $this->categoryRankingWithChildren($tickets);
+        $catLeafTotal = count(array_unique(array_filter(array_column($tickets, 'categoria'))));
 
         // IDS top/bottom: canonicalized via the shared KPIsOperativos
         // technician catalog (same homologation the legacy CSV pipeline used
@@ -345,6 +427,7 @@ class GlpiTicketsProvider implements ReportSectionProvider
             'ids_top'        => $idsTop,
             'ids_bottom'     => $idsBottom,
             'cat_top'        => $catTop,
+            'cat_leaf_total' => $catLeafTotal,
             'estados_ticket' => $estadosTicket,
             'env_total'      => $envTotal,
             'env_cerr'       => $envCerr,
@@ -372,6 +455,63 @@ class GlpiTicketsProvider implements ReportSectionProvider
         }
         usort($out, static fn($a, $b) => $b[1] <=> $a[1] ?: strcmp($a[0], $b[0]));
         return $limit !== null ? array_slice($out, 0, $limit) : $out;
+    }
+
+    /**
+     * Category ranking with the group/child breakdown a grouped branch needs
+     * to stay "dimensionable": a group's bar gives the magnitude, and right
+     * under it its own leaves (Afirme -> Edificios, Multivendor) — sorted by
+     * count, short-labeled to the leaf's own name — so grouping never hides
+     * how that total is actually made up. A group with only ONE leaf isn't
+     * broken out (its total already equals that leaf's, nothing to add) and
+     * a leaf that was never promoted (see categoryGroupLabelsFor) ships as a
+     * plain 'single' row, unchanged from before grouping existed.
+     *
+     * @param array<int,array<string,mixed>> $tickets
+     * @return list<array{label:string,value:int,tier:'group'|'child'|'single'}>
+     */
+    private function categoryRankingWithChildren(array $tickets): array
+    {
+        $groups = []; // groupKey => ['total' => int, 'children' => [leafLabel => count]]
+        foreach ($tickets as $t) {
+            $leaf = $t['categoria'] ?? null;
+            if ($leaf === null) {
+                continue;
+            }
+            $promotedGroup = $t['categoria_group'] ?? null;
+            $key = $promotedGroup ?? $leaf;
+
+            $groups[$key]['total'] = ($groups[$key]['total'] ?? 0) + 1;
+            if ($promotedGroup !== null) {
+                $groups[$key]['children'][$leaf] = ($groups[$key]['children'][$leaf] ?? 0) + 1;
+            }
+        }
+
+        uksort($groups, static fn($a, $b) => strcmp((string) $a, (string) $b)); // stable tiebreak before the total sort
+        uasort($groups, static fn($a, $b) => $b['total'] <=> $a['total']);
+
+        $out = [];
+        foreach ($groups as $label => $data) {
+            $children = $data['children'] ?? [];
+            if (count($children) < 2) {
+                $out[] = ['label' => (string) $label, 'value' => $data['total'], 'tier' => 'single'];
+                continue;
+            }
+
+            $out[] = ['label' => (string) $label, 'value' => $data['total'], 'tier' => 'group'];
+
+            arsort($children);
+            foreach ($children as $leafLabel => $count) {
+                // Last two segments, not just the leaf's own name: two
+                // different clients can both have an "Edificios" leaf, and a
+                // bare "Edificios" label would collide across groups (both
+                // visually and in any map keyed by label, e.g. PPTX charts).
+                $segments  = explode(' > ', $leafLabel);
+                $shortName = count($segments) >= 2 ? implode(' > ', array_slice($segments, -2)) : $leafLabel;
+                $out[] = ['label' => $shortName, 'value' => $count, 'tier' => 'child'];
+            }
+        }
+        return $out;
     }
 
     /**
@@ -426,7 +566,7 @@ class GlpiTicketsProvider implements ReportSectionProvider
             'sla_pct' => 0.0, 'prom_h' => 0.0,
             'sin_reg' => 0, 'sin_ids' => 0, 'reg_universe' => 0,
             'reg_top' => [], 'est_top' => [], 'est_bottom' => [], 'ids_top' => [], 'ids_bottom' => [],
-            'cat_top' => [], 'estados_ticket' => [],
+            'cat_top' => [], 'cat_leaf_total' => 0, 'estados_ticket' => [],
             'env_total' => 0, 'env_cerr' => 0, 'env_pend' => 0, 'env_pct' => 0.0,
             'coord_tickets' => new \stdClass(),
             'coord_info'    => new \stdClass(),
