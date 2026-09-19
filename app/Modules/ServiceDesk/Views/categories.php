@@ -4,11 +4,84 @@
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Categorías · Service Desk</h1>
-    <p class="page-subtitle">Marca qué categorías de GLPI son válidas en el template, define el CLIENTE para el título (CLIENTE - SUCURSAL - TITULO), elige la categoría del widget de autoservicio y marca cuáles categorías cuentan en las tablas "Por Regional", "Por Cliente" y en el KPI "Sin IDC" del reporte de backlog (columnas independientes; incluyen subcategorías; si no marcas ninguna, cuentan todas). "Por Cliente" agrupa por el valor de CLIENTE (para el título). La columna "Auditoría · Tab IDS" define dónde Supervisor exige la tab IDS en la auditoría (incluye subcategorías; si no marcas ninguna, se usan las reglas automáticas del manual). La columna "Auto-seguimiento" habilita el envío periódico de seguimiento (correo + nota GLPI) a tickets abiertos de esa categoría (incluye subcategorías; sin ninguna marcada, la función no actúa aunque esté activada en Configuración).</p>
+    <p class="page-subtitle">Configura qué categorías de GLPI son válidas y cómo participan en el widget, el reporte de backlog, la auditoría y el auto-seguimiento.</p>
   </div>
   <div class="page-actions">
     <a href="<?= route_to('servicedesk.settings') ?>" class="btn btn-secondary">Configuración</a>
     <button type="submit" form="cat-form" class="btn btn-primary">Guardar mapeo</button>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--space-4);">
+  <button type="button" id="cat-legend-toggle" class="card-header card-header-toggle" aria-expanded="false" aria-controls="cat-legend-body">
+    <div>
+      <h2 class="card-title" style="font-size: var(--text-base);">Guía de columnas</h2>
+      <p class="card-subtitle">Qué hace cada casilla de la tabla de abajo</p>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+  <div class="card-section" id="cat-legend-body" style="padding-top: var(--space-4); display:none;">
+    <div class="legend-grid">
+      <div class="legend-item">
+        <span class="legend-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </span>
+        <div>
+          <p class="legend-title">Soportada</p>
+          <p class="legend-text">Marca qué categorías de GLPI son válidas en el template.</p>
+        </div>
+      </div>
+
+      <div class="legend-item">
+        <span class="legend-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </span>
+        <div>
+          <p class="legend-title">Widget</p>
+          <p class="legend-text">Categoría que usa el widget de autoservicio para crear tickets.</p>
+        </div>
+      </div>
+
+      <div class="legend-item">
+        <span class="legend-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+        </span>
+        <div>
+          <p class="legend-title">Backlog · Regional / IDC / Clientes</p>
+          <p class="legend-text">Tres columnas independientes: qué categorías cuentan en <span class="badge badge-neutral">Por Regional</span>, en el KPI <span class="badge badge-neutral">Sin IDC</span> y en <span class="badge badge-neutral">Por Cliente</span> (agrupa por el CLIENTE del título) del reporte de backlog. Cada una incluye subcategorías; sin ninguna marcada en una columna, esa columna cuenta todas.</p>
+        </div>
+      </div>
+
+      <div class="legend-item">
+        <span class="legend-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </span>
+        <div>
+          <p class="legend-title">Auditoría · Tab IDS</p>
+          <p class="legend-text">Categorías donde Supervisor exige la tab IDS en la auditoría (incluye subcategorías). Sin ninguna marcada, se usan las reglas automáticas del manual.</p>
+        </div>
+      </div>
+
+      <div class="legend-item">
+        <span class="legend-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3.5-7.12"/><polyline points="21 3 21 9 15 9"/></svg>
+        </span>
+        <div>
+          <p class="legend-title">Auto-seguimiento</p>
+          <p class="legend-text">Envía seguimiento periódico (correo + nota GLPI) a tickets abiertos de esa categoría (incluye subcategorías). Sin ninguna marcada, la función no actúa aunque esté activada en Configuración.</p>
+        </div>
+      </div>
+
+      <div class="legend-item">
+        <span class="legend-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <div>
+          <p class="legend-title">CLIENTE (para el título)</p>
+          <p class="legend-text">Valor de CLIENTE usado en el título del ticket (CLIENTE - SUCURSAL - TITULO).</p>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -125,6 +198,17 @@
     rows.forEach(r => {
       r.style.display = !q || (r.dataset.name || '').includes(q) ? '' : 'none';
     });
+  });
+})();
+
+(function () {
+  const toggle = document.getElementById('cat-legend-toggle');
+  const body   = document.getElementById('cat-legend-body');
+  if (!toggle || !body) return;
+  toggle.addEventListener('click', function () {
+    const open = this.getAttribute('aria-expanded') === 'true';
+    this.setAttribute('aria-expanded', String(!open));
+    body.style.display = open ? 'none' : '';
   });
 })();
 </script>

@@ -913,6 +913,28 @@ img, svg { display: block; max-width: 100%; }
   margin-top: 2px;
 }
 
+.card-header-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.card-header-toggle:hover .card-title { color: var(--color-blue-600); }
+
+.card-header-toggle .chevron {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.card-header-toggle[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
 .card-body { padding: var(--space-4); }
 
 .card-section {
@@ -929,6 +951,50 @@ img, svg { display: block; max-width: 100%; }
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+/* --------------------------------------------------------------------------
+   9b. Legend (icon + label + description grid, e.g. table column guides)
+   -------------------------------------------------------------------------- */
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5) var(--space-6);
+}
+
+.legend-item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.legend-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-blue-50);
+  color: var(--color-blue-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.legend-icon svg { width: 16px; height: 16px; }
+
+.legend-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.legend-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-relaxed, 1.5);
+}
+
+.legend-text .badge { margin: 0 1px; }
 
 /* --------------------------------------------------------------------------
    10. Badges
