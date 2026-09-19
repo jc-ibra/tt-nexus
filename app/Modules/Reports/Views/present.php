@@ -121,6 +121,19 @@
     .op-table td { color: var(--text); font-variant-numeric: tabular-nums; }
     .op-table td:not(:first-child), .op-table th:not(:first-child) { text-align: right; }
 
+    .op-index-list { max-width: 640px; }
+    .op-index-item {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+      padding: 16px 4px; border-bottom: 1px solid var(--border);
+      background: none; border-left: none; border-right: none; border-top: none;
+      width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+    }
+    .op-index-item:last-child { border-bottom: none; }
+    .op-index-item:hover .op-index-title { color: var(--accent); }
+    .op-index-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .op-index-title { font-size: 16px; color: var(--text); transition: color .15s ease; }
+    .op-index-pos { font-size: 14px; color: var(--text-faint); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
     .op-nav { position: fixed; bottom: 28px; right: 32px; display: flex; gap: 8px; z-index: 6; }
     .op-nav button {
       width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
@@ -182,6 +195,13 @@ if ($glpi['available'] ?? false) {
         <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['received']) ?></div><div class="op-score-label">Correos recibidos</div></div>
       <?php endif; ?>
     </div>
+  </section>
+
+  <section class="op-slide" data-section="Índice">
+    <h2 class="op-title">Índice</h2>
+    <p class="op-subtitle">Contenido de este informe</p>
+    <hr class="op-rule">
+    <div class="op-index-list" id="op-index-list"></div>
   </section>
 
   <?php if ($summary !== ''): ?>
@@ -551,6 +571,36 @@ if ($glpi['available'] ?? false) {
     document.getElementById('op-bar-label').textContent = slides[idx].getAttribute('data-section') || '';
     document.getElementById('op-bar-pos').textContent = (idx + 1) + ' / ' + slides.length;
   }
+
+  // Índice armado del DOM real, no de una lista aparte que se pueda
+  // desincronizar: cada entrada es la sección tal como quedó armada arriba,
+  // clic para saltar directo. La portada y el propio índice no se listan.
+  var indexList = document.getElementById('op-index-list');
+  if (indexList) {
+    slides.forEach(function (s, i) {
+      if (i < 2) { return; }
+      var titleEl = s.querySelector('.op-title, .op-cover-title');
+      var title = titleEl ? titleEl.textContent : (s.getAttribute('data-section') || '');
+
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'op-index-item';
+
+      var titleSpan = document.createElement('span');
+      titleSpan.className = 'op-index-title';
+      titleSpan.textContent = title;
+
+      var posSpan = document.createElement('span');
+      posSpan.className = 'op-index-pos';
+      posSpan.textContent = (i + 1) + ' / ' + slides.length;
+
+      item.appendChild(titleSpan);
+      item.appendChild(posSpan);
+      item.addEventListener('click', function () { show(i); });
+      indexList.appendChild(item);
+    });
+  }
+
   document.getElementById('op-prev').addEventListener('click', function () { show(idx - 1); });
   document.getElementById('op-next').addEventListener('click', function () { show(idx + 1); });
   document.addEventListener('keydown', function (e) {

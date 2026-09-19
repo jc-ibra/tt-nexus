@@ -54,35 +54,54 @@ class PptxDeckBuilder
 
         $this->slidePortada($pres->getActiveSlide(), $periodLabel, $payload);
 
+        // Un solo plan (título + cuántos slides + qué dibujar) para que el
+        // índice y el deck real nunca se desincronicen: se arma UNA vez y se
+        // recorre dos veces (números de página, luego el contenido).
+        $sections = [];
+
         if (($glpi['available'] ?? false) && ($glpi['total'] ?? 0) > 0) {
-            $this->slideResumenGlpi($pres->createSlide(), $glpi);
-            $this->slideEstadosTerritorial($pres->createSlide(), $glpi);
+            $sections[] = ['title' => 'Resumen ejecutivo', 'pages' => 1, 'render' => fn () => $this->slideResumenGlpi($pres->createSlide(), $glpi)];
+            $sections[] = ['title' => 'Estados y territorio', 'pages' => 1, 'render' => fn () => $this->slideEstadosTerritorial($pres->createSlide(), $glpi)];
             if ($glpi['est_top'] !== []) {
-                $this->slideEstadoGeografico($pres->createSlide(), $glpi);
+                $sections[] = ['title' => 'Estado geográfico', 'pages' => 1, 'render' => fn () => $this->slideEstadoGeografico($pres->createSlide(), $glpi)];
             }
             if ($glpi['cat_top'] !== []) {
-                $this->slideCategorias($pres, $glpi);
+                $catPages = count($this->paginateCategoryRows($glpi['cat_top'], 18));
+                $sections[] = ['title' => 'Tickets por categoría', 'pages' => $catPages, 'render' => fn () => $this->slideCategorias($pres, $glpi)];
             }
             if ($glpi['ids_top'] !== [] || $glpi['ids_bottom'] !== []) {
-                $this->slideRankingIds($pres->createSlide(), $glpi);
+                $sections[] = ['title' => 'Ranking de técnicos (IDS)', 'pages' => 1, 'render' => fn () => $this->slideRankingIds($pres->createSlide(), $glpi)];
             }
             if (($glpi['env_total'] ?? 0) > 0) {
-                $this->slideEnvios($pres->createSlide(), $glpi);
+                $sections[] = ['title' => 'Control de envíos', 'pages' => 1, 'render' => fn () => $this->slideEnvios($pres->createSlide(), $glpi)];
             }
         }
         if ($payload['trend']['available'] ?? false) {
-            $this->slideTendencia($pres->createSlide(), $payload['trend']);
+            $sections[] = ['title' => 'Tendencia', 'pages' => 1, 'render' => fn () => $this->slideTendencia($pres->createSlide(), $payload['trend'])];
         }
         if ($payload['dispatch']['available'] ?? false) {
-            $this->slideDispatch($pres->createSlide(), $payload['dispatch']);
+            $sections[] = ['title' => 'Mesa de ayuda por correo', 'pages' => 1, 'render' => fn () => $this->slideDispatch($pres->createSlide(), $payload['dispatch'])];
         }
         if ($payload['quality']['available'] ?? false) {
-            $this->slideQuality($pres->createSlide(), $payload['quality']);
+            $sections[] = ['title' => 'Calidad documental', 'pages' => 1, 'render' => fn () => $this->slideQuality($pres->createSlide(), $payload['quality'])];
         }
         if ($payload['agents']['available'] ?? false) {
-            $this->slideAgents($pres->createSlide(), $payload['agents']);
+            $sections[] = ['title' => 'Desempeño de agentes', 'pages' => 1, 'render' => fn () => $this->slideAgents($pres->createSlide(), $payload['agents'])];
         }
-        $this->slideConclusiones($pres->createSlide(), $periodLabel);
+        $sections[] = ['title' => 'Conclusiones y próximos pasos', 'pages' => 1, 'render' => fn () => $this->slideConclusiones($pres->createSlide(), $periodLabel)];
+
+        // Slide 1 = portada, slide 2 = índice: el contenido empieza en la 3.
+        $indexEntries = [];
+        $slideNo      = 3;
+        foreach ($sections as $s) {
+            $indexEntries[] = [$s['title'], $slideNo];
+            $slideNo += $s['pages'];
+        }
+        $this->slideIndice($pres->createSlide(), $indexEntries);
+
+        foreach ($sections as $s) {
+            ($s['render'])();
+        }
 
         $outPath = $dir . '/informe_' . preg_replace('/[^a-z0-9]+/i', '_', $periodLabel) . '.pptx';
         IOFactory::createWriter($pres, 'PowerPoint2007')->save($outPath);
@@ -141,6 +160,28 @@ class PptxDeckBuilder
         $k->text($slide, 'Generado el ' . (new \DateTimeImmutable())->format('d/m/Y'), self::MARGIN_X, 508, self::CONTENT_W, 20, [
             'size' => 9, 'color' => SlideKit::C_TEXT_FAINT, 'align' => 'right',
         ]);
+    }
+
+    /**
+     * @param list<array{0:string,1:int}> $entries [título de sección, número de slide]
+     */
+    private function slideIndice(Slide $slide, array $entries): void
+    {
+        $k = $this->kit;
+        $k->bg($slide);
+        $k->slideHeader($slide, 'Informe ejecutivo', 'Índice', 'Contenido de este informe');
+
+        $n    = count($entries);
+        $rowH = $n > 0 ? (int) min(38, intdiv(self::CONTENT_H, $n)) : self::CONTENT_H;
+        $y    = self::CONTENT_Y;
+        foreach ($entries as $i => [$title, $slideNo]) {
+            $k->text($slide, $title, self::MARGIN_X, $y + 7, self::CONTENT_W - 60, 22, ['size' => 13, 'color' => SlideKit::C_TEXT]);
+            $k->text($slide, (string) $slideNo, self::MARGIN_X, $y + 7, self::CONTENT_W, 22, ['size' => 13, 'color' => SlideKit::C_TEXT_MUTED, 'align' => 'right']);
+            if ($i < $n - 1) {
+                $k->rect($slide, self::MARGIN_X, $y + $rowH - 1, self::CONTENT_W, 1, SlideKit::C_BORDER);
+            }
+            $y += $rowH;
+        }
     }
 
     private function slideResumenGlpi(Slide $slide, array $g): void
