@@ -69,10 +69,15 @@
    * Ranking de una sola métrica. Prioridad de color: spec.colors (por barra,
    * severidad/banda) > spec.tiers (grupo/hoja de una jerarquía: mismo tono,
    * un paso más claro para la hoja) > spec.mono (un solo tono) > categórico.
+   *
+   * Con spec.tiers, además de recolorear cada barra, el renglón del GRUPO se
+   * marca en negritas y el de la HOJA en un tamaño menor y tono apagado —
+   * la jerarquía se lee sin depender solo de la indentación del texto.
    */
   function renderHbar(ctx, spec) {
+    var tiers = spec.tiers || null;
     var colors = spec.colors
-      || (spec.tiers ? spec.tiers.map(function (t) { return t === 'child' ? SEQUENTIAL_BLUE[1] : SEQUENTIAL_BLUE[4]; })
+      || (tiers ? tiers.map(function (t) { return t === 'child' ? SEQUENTIAL_BLUE[1] : SEQUENTIAL_BLUE[4]; })
       : (spec.mono ? spec.labels.map(function () { return SEQUENTIAL_BLUE[4]; }) : CATEGORICAL));
     return new Chart(ctx, {
       type: 'bar',
@@ -90,7 +95,17 @@
         indexAxis: 'y',
         scales: {
           x: { beginAtZero: true, ticks: { color: TEXT_MUTED, font: { family: FONT }, precision: 0 }, grid: { color: GRID_COLOR, drawTicks: false } },
-          y: { ticks: { color: TEXT_PRIMARY, font: { family: FONT } }, grid: { display: false } },
+          y: {
+            ticks: {
+              color: tiers ? function (c) { return tiers[c.index] === 'child' ? TEXT_MUTED : TEXT_PRIMARY; } : TEXT_PRIMARY,
+              font: tiers ? function (c) {
+                return tiers[c.index] === 'child'
+                  ? { family: FONT, size: 11 }
+                  : { family: FONT, size: 12, weight: '600' };
+              } : { family: FONT },
+            },
+            grid: { display: false },
+          },
         },
       }),
     });

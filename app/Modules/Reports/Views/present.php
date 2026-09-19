@@ -228,28 +228,19 @@ $summary = trim($commentary['summary']['body'] ?? '');
 
   <?php if (($glpi['cat_top'] ?? []) !== []): ?>
   <?php
-  // Se corta por presupuesto de filas (grupo + sus hojas cuentan), nunca a
-  // mitad de un grupo: se completa el grupo en curso aunque eso pase el
-  // límite por unas filas, para no cortar el desglose de la última rama.
-  $catAll        = $glpi['cat_top'];
-  $catRowLimit   = 20;
-  $catShown      = [];
-  $catRows       = 0;
-  foreach ($catAll as $r) {
-      if ($r['tier'] !== 'child' && $catRows >= $catRowLimit) {
-          break;
-      }
-      $catShown[] = $r;
-      $catRows++;
-  }
-  $catGroupsShown = count(array_filter($catShown, static fn($r) => $r['tier'] !== 'child'));
-  $catGroupsTotal = count(array_filter($catAll, static fn($r) => $r['tier'] !== 'child'));
+  // Todas las filas, sin recorte: el slide hace scroll (.op-slide ya tiene
+  // overflow-y: auto) en vez de esconder categorías. La altura del canvas
+  // crece con el número real de filas para que ninguna barra quede
+  // apretada.
+  $catShown       = $glpi['cat_top'];
+  $catGroupsTotal = count(array_filter($catShown, static fn($r) => $r['tier'] !== 'child'));
+  $catHeight      = max(320, count($catShown) * 26);
   ?>
   <section class="op-slide" data-section="Mesa de ayuda">
     <h2 class="op-title">Tickets por categoría</h2>
-    <p class="op-subtitle">Agrupadas por rama del árbol: <?= $catGroupsShown ?> de <?= $catGroupsTotal ?> grupos, <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período; el detalle por hoja aparece debajo de cada grupo</p>
+    <p class="op-subtitle">Agrupadas por rama del árbol: <?= $catGroupsTotal ?> grupos, <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período. En negritas, el total del grupo; el detalle por hoja aparece debajo</p>
     <hr class="op-rule">
-    <div class="op-chart op-chart-tall" style="height: 420px;"><canvas id="op-categorias"></canvas></div>
+    <div class="op-chart" style="height: <?= $catHeight ?>px;"><canvas id="op-categorias"></canvas></div>
   </section>
   <?php endif; ?>
 
@@ -466,7 +457,12 @@ $summary = trim($commentary['summary']['body'] ?? '');
     });
   }
 
-  function renderHbar(id, labels, values, color) {
+  /**
+   * tiers (opcional): array paralelo 'group'|'child'|'single'; cuando viene,
+   * el renglón de grupo se marca en negritas y el de hoja en tamaño menor y
+   * tono apagado, para leer la jerarquía sin depender solo del texto.
+   */
+  function renderHbar(id, labels, values, color, tiers) {
     var el = document.getElementById(id);
     if (! el || ! labels.length) { return; }
     new Chart(el, {
@@ -476,7 +472,15 @@ $summary = trim($commentary['summary']['body'] ?? '');
         indexAxis: 'y',
         scales: {
           x: { beginAtZero: true, ticks: { color: TEXT_MUTED, font: { family: FONT } }, grid: { color: GRID, drawTicks: false } },
-          y: { ticks: { color: '#F2F4F7', font: { family: FONT } }, grid: { display: false } },
+          y: {
+            ticks: {
+              color: tiers ? function (c) { return tiers[c.index] === 'child' ? TEXT_MUTED : '#F2F4F7'; } : '#F2F4F7',
+              font: tiers ? function (c) {
+                return tiers[c.index] === 'child' ? { family: FONT, size: 11 } : { family: FONT, size: 13, weight: '600' };
+              } : { family: FONT },
+            },
+            grid: { display: false },
+          },
         },
       }),
     });
@@ -515,9 +519,10 @@ $summary = trim($commentary['summary']['body'] ?? '');
     renderHbar('op-estado-geo', PAYLOAD.estado_geo.map(function (r) { return r[0]; }), PAYLOAD.estado_geo.map(function (r) { return r[1]; }));
     renderHbar('op-estado-geo-bottom', PAYLOAD.estado_geo_bottom.map(function (r) { return r[0]; }), PAYLOAD.estado_geo_bottom.map(function (r) { return r[1]; }), STATUS.warning);
     renderHbar('op-categorias',
-      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '    ' + r.label : r.label; }),
+      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '   - ' + r.label : r.label; }),
       PAYLOAD.categorias.map(function (r) { return r.value; }),
-      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '#4A5C7A' : CATEGORICAL[0]; }));
+      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '#4A5C7A' : CATEGORICAL[0]; }),
+      PAYLOAD.categorias.map(function (r) { return r.tier; }));
     renderHbar('op-ids', PAYLOAD.ids.map(function (r) { return r[0]; }), PAYLOAD.ids.map(function (r) { return r[1]; }));
     renderHbar('op-ids-bottom', PAYLOAD.ids_bottom.map(function (r) { return r[0]; }), PAYLOAD.ids_bottom.map(function (r) { return r[1]; }), STATUS.warning);
     renderTrend();

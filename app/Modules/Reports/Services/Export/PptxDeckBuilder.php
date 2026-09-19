@@ -55,7 +55,7 @@ class PptxDeckBuilder
                 $this->slideEstadoGeografico($pres->createSlide(), $glpi);
             }
             if ($glpi['cat_top'] !== []) {
-                $this->slideCategorias($pres->createSlide(), $glpi);
+                $this->slideCategorias($pres, $glpi);
             }
             if ($glpi['ids_top'] !== [] || $glpi['ids_bottom'] !== []) {
                 $this->slideRankingIds($pres->createSlide(), $glpi);
@@ -195,33 +195,58 @@ class PptxDeckBuilder
      * de total (tier 'group') seguida de una barra por hoja (tier 'child',
      * indentada y en un tono más claro) para poder dimensionar el grupo sin
      * perder el agregado. Un slide de 960x540 solo puede mostrar
-     * legiblemente una veintena de barras, así que se recorta por
-     * presupuesto de filas sin cortar un grupo a la mitad.
+     * legiblemente una veintena de barras, así que en vez de recortar se
+     * PAGINA: tantos slides "Tickets por categoría" como hagan falta para
+     * cubrir todos los grupos, sin cortar el desglose de uno a la mitad.
      */
-    private function slideCategorias(Slide $slide, array $g): void
+    private function slideCategorias(PhpPresentation $pres, array $g): void
+    {
+        $pages       = $this->paginateCategoryRows($g['cat_top'], 18);
+        $totalPages  = count($pages);
+        $groupsTotal = count(array_filter($g['cat_top'], static fn($r) => $r['tier'] !== 'child'));
+
+        foreach ($pages as $i => $rows) {
+            $this->renderCategoriaSlide($pres->createSlide(), $rows, $i + 1, $totalPages, $groupsTotal, (int) $g['cat_leaf_total']);
+        }
+    }
+
+    /**
+     * Splits category rows into pages of at most $rowsPerPage rows each,
+     * only ever breaking BETWEEN a group's own row and the next group's
+     * (never mid-way through one group's children).
+     *
+     * @param list<array{label:string,value:int,tier:string}> $rows
+     * @return list<list<array{label:string,value:int,tier:string}>>
+     */
+    private function paginateCategoryRows(array $rows, int $rowsPerPage): array
+    {
+        $pages   = [];
+        $current = [];
+        foreach ($rows as $r) {
+            if ($r['tier'] !== 'child' && count($current) >= $rowsPerPage) {
+                $pages[]  = $current;
+                $current = [];
+            }
+            $current[] = $r;
+        }
+        if ($current !== []) {
+            $pages[] = $current;
+        }
+        return $pages;
+    }
+
+    private function renderCategoriaSlide(Slide $slide, array $rows, int $page, int $totalPages, int $groupsTotal, int $leafTotal): void
     {
         $k = $this->kit;
         $k->bg($slide);
 
-        $all        = $g['cat_top'];
-        $rowLimit   = 20;
-        $shown      = [];
-        $rows       = 0;
-        foreach ($all as $r) {
-            if ($r['tier'] !== 'child' && $rows >= $rowLimit) {
-                break;
-            }
-            $shown[] = $r;
-            $rows++;
-        }
-        $groupsShown = count(array_filter($shown, static fn($r) => $r['tier'] !== 'child'));
-        $groupsTotal = count(array_filter($all, static fn($r) => $r['tier'] !== 'child'));
-        $k->slideHeader($slide, 'Mesa de ayuda', 'Tickets por categoría', "Agrupadas por rama del árbol: {$groupsShown} de {$groupsTotal} grupos, {$g['cat_leaf_total']} categorías registradas en el período");
+        $pageNote = $totalPages > 1 ? " (página {$page} de {$totalPages})" : '';
+        $k->slideHeader($slide, 'Mesa de ayuda', 'Tickets por categoría', "Agrupadas por rama del árbol: {$groupsTotal} grupos, {$leafTotal} categorías registradas en el período{$pageNote}");
 
         $values      = [];
         $colorsByIdx = [];
-        foreach ($shown as $r) {
-            $label = $r['tier'] === 'child' ? '     ' . $r['label'] : $r['label'];
+        foreach ($rows as $r) {
+            $label = $r['tier'] === 'child' ? '     - ' . $r['label'] : $r['label'];
             $values[$label] = $r['value'];
             // Grupo en el tono primario; hoja en el paso mudo de la misma
             // rampa ordinal (STAGE_RAMP[1]) — recede detrás del total, sin

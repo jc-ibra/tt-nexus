@@ -37,6 +37,7 @@
   .rpt-meter-fill { height: 100%; border-radius: var(--radius-full); background: var(--color-success-default); }
   .rpt-meter-value { font-size: var(--text-sm); color: var(--text-primary); margin: var(--space-2) 0 0 0; }
   .rpt-meter-sub { color: var(--text-muted); font-weight: var(--weight-regular); }
+  .rpt-cat-hint { font-size: var(--text-xs); color: var(--text-muted); margin: var(--space-2) 0 0 0; }
 </style>
 <?= $this->endSection() ?>
 
@@ -73,7 +74,7 @@ if ($glpi['available'] ?? false) {
     // perder el agregado.
     $charts['categorias'] = [
         'type'   => 'hbar',
-        'labels' => array_map(static fn($r) => $r['tier'] === 'child' ? '    ' . $r['label'] : $r['label'], $glpi['cat_top']),
+        'labels' => array_map(static fn($r) => $r['tier'] === 'child' ? '   - ' . $r['label'] : $r['label'], $glpi['cat_top']),
         'values' => array_map(static fn($r) => $r['value'], $glpi['cat_top']),
         'tiers'  => array_map(static fn($r) => $r['tier'], $glpi['cat_top']),
     ];
@@ -212,9 +213,12 @@ if ($agents['available'] ?? false) {
   <div class="card" style="margin-top: var(--space-4);">
     <div class="card-header">
       <h3 class="card-title">Categoría</h3>
-      <p class="card-subtitle">Agrupadas por rama del árbol: <?= $catGroups ?> grupos de <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período; el detalle por hoja aparece debajo de cada grupo</p>
+      <p class="card-subtitle">Agrupadas por rama del árbol: <?= $catGroups ?> grupos de <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período</p>
     </div>
-    <div class="card-body"><div class="rpt-chart-wrap" style="height: <?= $catHeight ?>px;"><canvas id="chart-categorias"></canvas></div></div>
+    <div class="card-body">
+      <div class="rpt-chart-wrap" style="height: <?= $catHeight ?>px;"><canvas id="chart-categorias"></canvas></div>
+      <p class="rpt-cat-hint">En negritas, el total del grupo. Los renglones con &quot;-&quot; son sus categorías individuales, en un tono más claro.</p>
+    </div>
   </div>
 
   <?php if (($glpi['env_total'] ?? 0) > 0): ?>
