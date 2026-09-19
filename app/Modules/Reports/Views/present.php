@@ -157,6 +157,12 @@ $dispatch = $payload['dispatch'] ?? ['available' => false];
 $quality = $payload['quality'] ?? ['available' => false];
 $agents = $payload['agents'] ?? ['available' => false];
 $summary = trim($commentary['summary']['body'] ?? '');
+
+// Compatibilidad con snapshots congelados antes de que cat_top trajera
+// {label,value,tier} (ver GlpiTicketsProvider::normalizeCategoryRows).
+if ($glpi['available'] ?? false) {
+    $glpi['cat_top'] = \App\Modules\Reports\Services\Providers\GlpiTicketsProvider::normalizeCategoryRows($glpi['cat_top'] ?? []);
+}
 ?>
 
 <div class="op-deck" id="op-deck">

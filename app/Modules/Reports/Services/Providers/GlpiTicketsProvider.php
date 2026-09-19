@@ -76,6 +76,35 @@ class GlpiTicketsProvider implements ReportSectionProvider
         return $this->glpi->isConfigured();
     }
 
+    /**
+     * A `reports_snapshots.payload_json` is frozen once generated — a month
+     * from before `cat_top` started carrying {label,value,tier} rows (it was
+     * a flat [label, count] tuple) still has that old shape forever unless
+     * someone regenerates it. Every consumer of `cat_top` (dashboard,
+     * presentation, PPTX, XLSX) calls this first so an old frozen month
+     * keeps rendering instead of crashing on an undefined 'tier' key.
+     *
+     * @param array<int,mixed> $catTop raw rows from payload_json.glpi_tickets.cat_top
+     * @return list<array{label:string,value:int,tier:string}>
+     */
+    public static function normalizeCategoryRows(array $catTop): array
+    {
+        $out = [];
+        foreach ($catTop as $row) {
+            if (is_array($row) && array_key_exists('tier', $row)) {
+                $out[] = $row;
+                continue;
+            }
+            // Legacy shape: a plain [label, count] tuple, no grouping at all.
+            $out[] = [
+                'label' => (string) ($row[0] ?? $row['label'] ?? ''),
+                'value' => (int) ($row[1] ?? $row['value'] ?? 0),
+                'tier'  => 'single',
+            ];
+        }
+        return $out;
+    }
+
     public function collect(ReportPeriod $period): array
     {
         $db = $this->glpi->connection();

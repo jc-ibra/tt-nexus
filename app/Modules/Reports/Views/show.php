@@ -58,6 +58,12 @@ $dispatch = $payload['dispatch'] ?? ['available' => false];
 $quality  = $payload['quality'] ?? ['available' => false];
 $agents   = $payload['agents'] ?? ['available' => false];
 
+// Compatibilidad con snapshots congelados antes de que cat_top trajera
+// {label,value,tier} (ver GlpiTicketsProvider::normalizeCategoryRows).
+if ($glpi['available'] ?? false) {
+    $glpi['cat_top'] = \App\Modules\Reports\Services\Providers\GlpiTicketsProvider::normalizeCategoryRows($glpi['cat_top'] ?? []);
+}
+
 $charts = [];
 if ($glpi['available'] ?? false) {
     // Una sola barra apilada en orden de flujo (Nuevo -> ... -> Cerrado), no

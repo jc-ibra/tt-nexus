@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Reports\Services\Export;
 
 use App\Modules\Reports\Models\ReportSnapshotModel;
+use App\Modules\Reports\Services\Providers\GlpiTicketsProvider;
 use PhpOffice\PhpPresentation\DocumentLayout;
 use PhpOffice\PhpPresentation\IOFactory;
 use PhpOffice\PhpPresentation\PhpPresentation;
@@ -45,6 +46,11 @@ class PptxDeckBuilder
             ->setSubject($periodLabel);
 
         $glpi = $payload['glpi_tickets'] ?? [];
+        if ($glpi['available'] ?? false) {
+            // Compatibilidad con snapshots congelados antes de que cat_top
+            // trajera {label,value,tier} (ver GlpiTicketsProvider::normalizeCategoryRows).
+            $glpi['cat_top'] = GlpiTicketsProvider::normalizeCategoryRows($glpi['cat_top'] ?? []);
+        }
 
         $this->slidePortada($pres->getActiveSlide(), $periodLabel, $payload);
 
