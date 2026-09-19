@@ -368,16 +368,16 @@ if ($glpi['available'] ?? false) {
     <p class="op-subtitle">Evaluación mensual AgentKpis</p>
     <hr class="op-rule">
     <div class="op-score-row" style="margin-bottom: 32px;">
-      <div class="op-score"><div class="op-score-value"><?= number_format($agents['avg_final_score'], 1) ?></div><div class="op-score-label">Promedio general</div></div>
+      <div class="op-score"><div class="op-score-value"><?= number_format($agents['avg_final_score'], 1) ?>%</div><div class="op-score-label">Promedio general</div></div>
       <div class="op-score"><div class="op-score-value"><?= $agents['evaluated_count'] ?></div><div class="op-score-label">Evaluados</div></div>
       <div class="op-score"><div class="op-score-value"><?= $agents['blocked_count'] ?></div><div class="op-score-label">Bloqueados</div></div>
     </div>
-    <p class="op-panel-title">Score final por agente</p>
+    <p class="op-panel-title">Score final por agente (%)</p>
     <div class="op-chart"><canvas id="op-agents"></canvas></div>
     <div class="op-legend">
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--good);"></span>9.0 o más</span>
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--warning);"></span>7.0 a 8.9</span>
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--critical);"></span>Menos de 7.0</span>
+      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--good);"></span>90% o más</span>
+      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--warning);"></span>70% a 89%</span>
+      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--critical);"></span>Menos de 70%</span>
     </div>
   </section>
   <?php endif; ?>
@@ -556,7 +556,7 @@ if ($glpi['available'] ?? false) {
     renderHbar('op-quality', PAYLOAD.rules.map(function (r) { return r.rule_name; }), PAYLOAD.rules.map(function (r) { return r.count; }),
       PAYLOAD.rules.map(function (r) { return r.severity === 'critical' ? STATUS.critical : (r.severity === 'warning' ? STATUS.warning : STATUS.info); }));
     renderHbar('op-agents', PAYLOAD.agents.map(function (r) { return r.agent_name; }), PAYLOAD.agents.map(function (r) { return Math.round(r.final_score || 0); }),
-      PAYLOAD.agents.map(function (r) { var s = r.final_score || 0; return s >= 9 ? STATUS.good : (s >= 7 ? STATUS.warning : STATUS.critical); }));
+      PAYLOAD.agents.map(function (r) { var s = r.final_score || 0; return s >= 90 ? STATUS.good : (s >= 70 ? STATUS.warning : STATUS.critical); }));
   });
 })();
 

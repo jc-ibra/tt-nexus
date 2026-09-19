@@ -120,11 +120,13 @@ if ($quality['available'] ?? false) {
     ];
 }
 if ($agents['available'] ?? false) {
-    // El color codifica la banda de desempeño del score final, no solo el
+    // final_score es un porcentaje 0-100 (igual que en AgentKpis, donde
+    // siempre se muestra con "%"), no una calificación 0-10: las bandas van
+    // en esa escala. El color codifica la banda de desempeño, no solo el
     // orden: un agente en zona crítica debe saltar a la vista, no solo
     // aparecer último.
     $scoreColor = static fn(float $s) => match (true) {
-        $s >= 9.0 => $STATUS_GOOD, $s >= 7.0 => $STATUS_WARNING, default => $STATUS_CRITICAL,
+        $s >= 90.0 => $STATUS_GOOD, $s >= 70.0 => $STATUS_WARNING, default => $STATUS_CRITICAL,
     };
     $charts['agents_scores'] = [
         'type'   => 'hbar',
@@ -356,19 +358,19 @@ if ($agents['available'] ?? false) {
   <p class="rpt-section-subtitle">AgentKpis · evaluación mensual</p>
 
   <div class="rpt-kpi-grid">
-    <div class="rpt-kpi"><p class="rpt-kpi-label">Promedio general</p><p class="rpt-kpi-value"><?= number_format($agents['avg_final_score'], 1) ?></p></div>
+    <div class="rpt-kpi"><p class="rpt-kpi-label">Promedio general</p><p class="rpt-kpi-value"><?= number_format($agents['avg_final_score'], 1) ?>%</p></div>
     <div class="rpt-kpi accent-success"><p class="rpt-kpi-label">Evaluados</p><p class="rpt-kpi-value"><?= $agents['evaluated_count'] ?></p></div>
     <div class="rpt-kpi accent-critical"><p class="rpt-kpi-label">Bloqueados</p><p class="rpt-kpi-value"><?= $agents['blocked_count'] ?></p></div>
   </div>
 
   <div class="card">
-    <div class="card-header"><h3 class="card-title">Score final por agente</h3></div>
+    <div class="card-header"><h3 class="card-title">Score final por agente (%)</h3></div>
     <div class="card-body">
       <div class="rpt-chart-wrap"><canvas id="chart-agents_scores"></canvas></div>
       <div class="rpt-legend">
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #0ca30c;"></span>9.0 o más</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #fab219;"></span>7.0 a 8.9</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #d03b3b;"></span>Menos de 7.0</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #0ca30c;"></span>90% o más</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #fab219;"></span>70% a 89%</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #d03b3b;"></span>Menos de 70%</span>
       </div>
     </div>
   </div>

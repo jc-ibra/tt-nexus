@@ -442,13 +442,15 @@ class PptxDeckBuilder
         $k->slideHeader($slide, 'Desempeño', 'Desempeño de agentes', 'Evaluación mensual AgentKpis');
 
         $cards = [
-            ['v' => number_format((float) $a['avg_final_score'], 1), 'l' => 'Promedio general', 'c' => SlideKit::C_PRIMARY],
+            ['v' => number_format((float) $a['avg_final_score'], 1) . '%', 'l' => 'Promedio general', 'c' => SlideKit::C_PRIMARY],
             ['v' => (string) $a['evaluated_count'], 'l' => 'Evaluados', 'c' => SlideKit::C_SUCCESS],
             ['v' => (string) $a['blocked_count'], 'l' => 'Bloqueados', 'c' => SlideKit::C_CRITICAL],
         ];
         $this->kpiRow($slide, $cards, self::CONTENT_Y, 3);
 
-        // El color codifica la banda del score final (ver
+        // final_score es un porcentaje 0-100 (igual que en AgentKpis, donde
+        // siempre se muestra con "%"), no una calificación 0-10 — las bandas
+        // van en esa escala. El color codifica la banda del score final (ver
         // docs/modulos/reports/spec.md), no solo el orden del ranking.
         $scores = [];
         $bandColors = [];
@@ -456,14 +458,14 @@ class PptxDeckBuilder
             $score = (float) ($row['final_score'] ?? 0);
             $scores[$row['agent_name']] = (int) round($score);
             $bandColors[] = match (true) {
-                $score >= 9.0 => SlideKit::C_SUCCESS, $score >= 7.0 => SlideKit::C_WARNING, default => SlideKit::C_CRITICAL,
+                $score >= 90.0 => SlideKit::C_SUCCESS, $score >= 70.0 => SlideKit::C_WARNING, default => SlideKit::C_CRITICAL,
             };
         }
         $y = self::CONTENT_Y + 130;
-        $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, self::CONTENT_H - 130, 'Score final por agente');
+        $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, self::CONTENT_H - 130, 'Score final por agente (%)');
         $k->horizontalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, self::CONTENT_H - 130 - 70, $scores, SlideKit::C_PRIMARY, $bandColors);
         $this->legendChips($slide, self::MARGIN_X + 10, $y + (self::CONTENT_H - 130) - 20, [
-            ['9.0 o más', SlideKit::C_SUCCESS], ['7.0 a 8.9', SlideKit::C_WARNING], ['Menos de 7.0', SlideKit::C_CRITICAL],
+            ['90% o más', SlideKit::C_SUCCESS], ['70% a 89%', SlideKit::C_WARNING], ['Menos de 70%', SlideKit::C_CRITICAL],
         ]);
     }
 
