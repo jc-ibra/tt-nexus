@@ -76,6 +76,8 @@ PRESERVE_SETTINGS=(
     servicedesk_settings
     servicedesk_category_map
     servicedesk_backlog_areas
+    # Reports: mapeo de campos GLPI, umbrales, IA y destinatarios de correo
+    reports_settings
 )
 
 # ── Directorios de archivos generados que el reset LIMPIA (en ambos modos) ────────
@@ -90,6 +92,7 @@ PURGE_DIRS=(
     writable/servicedesk/logs
     writable/servicedesk/uploads
     writable/servicedesk/tmp
+    writable/reports
 )
 
 # ── Directorio raíz del proyecto ───────────────────────────────────────────────

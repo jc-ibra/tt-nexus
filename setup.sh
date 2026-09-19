@@ -213,6 +213,9 @@ run_seeder "App\Modules\Mailboxes\Database\Seeders\MailboxesModuleSeeder"       
 run_seeder "App\Modules\Provisioning\Database\Seeders\ProvisioningModuleSeeder"   "ProvisioningModuleSeeder"
 run_seeder "App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder"           "MsLicensesSeeder"
 
+# Reports
+run_seeder "App\Modules\Reports\Database\Seeders\ReportsModuleSeeder"             "ReportsModuleSeeder"
+
 # ServiceDesk
 run_seeder "App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder"     "ServiceDeskModuleSeeder"
 

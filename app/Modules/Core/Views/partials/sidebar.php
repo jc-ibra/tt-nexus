@@ -23,6 +23,7 @@ $moduleIcons = [
     'techbot'         => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M8 13h.01"/><path d="M16 13h.01"/><path d="M9 17h6"/></svg>',
     'helpdesk_supervisor' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
     'agent_kpis'          => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 22l5-3 5 3-1.5-9.5"/></svg>',
+    'reports'             => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 17V11"/><path d="M12 17V7"/><path d="M16 17v-4"/></svg>',
 ];
 
 $moduleSubnav = [
@@ -312,7 +313,8 @@ if ($mergeAgentKpisNav) {
       || str_starts_with($currentPath, '/admin/mailboxes')
       || str_starts_with($currentPath, '/admin/provisioning')
       || str_starts_with($currentPath, '/admin/servicedesk')
-      || str_starts_with($currentPath, '/admin/dispatch');
+      || str_starts_with($currentPath, '/admin/dispatch')
+      || str_starts_with($currentPath, '/admin/reports');
 ?>
 
 <nav aria-label="Navegación principal">
@@ -392,6 +394,10 @@ if ($mergeAgentKpisNav) {
       <a href="<?= route_to('dispatch.settings') ?>" role="listitem"
          class="nav-subitem <?= str_starts_with($currentPath, '/admin/dispatch') ? 'is-active' : '' ?>">
         Despacho de Correo
+      </a>
+      <a href="<?= route_to('reports.admin.settings') ?>" role="listitem"
+         class="nav-subitem <?= str_starts_with($currentPath, '/admin/reports') ? 'is-active' : '' ?>">
+        Informes
       </a>
     </div>
   </div>

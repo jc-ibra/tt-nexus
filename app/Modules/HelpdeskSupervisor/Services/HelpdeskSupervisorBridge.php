@@ -125,4 +125,46 @@ class HelpdeskSupervisorBridge
     {
         return $this->escalations->validCountForMonth($glpiUserId, $year, $month);
     }
+
+    // ------------------------------------------------------------------
+    // Period-wide summary (Reports module)
+    // ------------------------------------------------------------------
+
+    /**
+     * Aggregate quality snapshot for a natural month, for the Reports module's
+     * "Calidad Documental" section. Reads the latest completed audit run for
+     * that period plus valid escalations logged in it; returns
+     * ['available' => false] when no run has completed for the month yet, so
+     * the caller can render the section as "not generated" rather than empty.
+     *
+     * @return array{available:bool,run?:array,rules?:array,top_agents?:array,valid_escalations?:int}
+     */
+    public function periodQualitySummary(int $year, int $month): array
+    {
+        $run = $this->getLatestRun($year, $month);
+        if ($run === null) {
+            return ['available' => false];
+        }
+
+        $runId = (int) $run['id'];
+
+        return [
+            'available'         => true,
+            'run'                => [
+                'id'                     => $runId,
+                'period_start'           => (string) $run['period_start'],
+                'period_end'             => (string) $run['period_end'],
+                'total_tickets_audited'  => (int) $run['total_tickets_audited'],
+                'total_deviations_found' => (int) $run['total_deviations_found'],
+                'total_agents_audited'   => (int) $run['total_agents_audited'],
+            ],
+            'rules'              => $this->deviations->ruleSummary($runId),
+            'top_agents'         => array_slice($this->deviations->agentSummary($runId), 0, 5),
+            'valid_escalations'  => $this->escalations
+                ->where('period_year', $year)
+                ->where('period_month', $month)
+                ->where('is_valid', 1)
+                ->countAllResults(),
+        ];
+    }
 }

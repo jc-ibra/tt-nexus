@@ -60,6 +60,21 @@ autogeneradas pendientes y responde. `--batch=N` limita cuántas procesa (defaul
 docker compose exec app php spark maildispatch:process-autogen --debug
 ```
 
+## 7. Reports — informe ejecutivo mensual
+
+Genera (congela) el informe del mes que acaba de cerrar. Un lockfile evita corridas
+solapadas.
+
+```
+docker compose exec app php spark reports:generate-monthly
+```
+
+Para forzar un mes específico (regenera si ya existía):
+
+```
+docker compose exec app php spark reports:generate-monthly --period=2026-08 --force
+```
+
 # Producción
 
 ## 1. Comunicaciones — cola de correos
@@ -108,6 +123,14 @@ Frecuencia: cada 2 minutos (`*/2 * * * *`). Corre **después** del sync: crea lo
 
 ```
 /usr/local/bin/php /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/spark maildispatch:process-autogen >> /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/writable/logs/maildispatch-autogen.log 2>&1
+```
+
+## 7. Reports — informe ejecutivo mensual
+
+Frecuencia: el día 1 de cada mes a las 6:00 (`0 6 1 * *`). Genera el informe del mes que acaba de cerrar.
+
+```
+/usr/local/bin/php /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/spark reports:generate-monthly >> /home/t7x4o9pmpeuw/public_html/nexus.trantortechnologies.mx/writable/logs/reports-monthly.log 2>&1
 ```
 
 # Test
@@ -160,4 +183,12 @@ Frecuencia: cada 2 minutos (`*/2 * * * *`). Corre **después** del sync: crea lo
 
 ```
 /usr/local/bin/php /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/spark maildispatch:process-autogen >> /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/writable/logs/maildispatch-autogen.log 2>&1
+```
+
+## 7. Reports — informe ejecutivo mensual
+
+Frecuencia: el día 1 de cada mes a las 6:00 (`0 6 1 * *`).
+
+```
+/usr/local/bin/php /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/spark reports:generate-monthly >> /home/t7x4o9pmpeuw/public_html/test-nexus.trantortechnologies.mx/writable/logs/reports-monthly.log 2>&1
 ```

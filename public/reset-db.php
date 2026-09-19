@@ -108,6 +108,8 @@ $PRESERVE_SETTINGS = [
     // Service Desk — mapeo categoría raíz GLPI → área de negocio del reporte de backlog
     // (asignado a mano por el SuperAdmin; NO se puede re-derivar con un seeder).
     'servicedesk_backlog_areas',
+    // Reports — mapeo de campos GLPI, umbrales, IA y destinatarios de correo
+    'reports_settings',
 ];
 
 $mode    = (string) ($_GET['mode'] ?? '');
@@ -383,6 +385,7 @@ $PURGE_DIRS = [
     WRITEPATH . 'servicedesk/logs',
     WRITEPATH . 'servicedesk/uploads',
     WRITEPATH . 'servicedesk/tmp',
+    WRITEPATH . 'reports',
 ];
 $rmTree = static function (string $dir) use (&$rmTree): void {
     if (! is_dir($dir)) {

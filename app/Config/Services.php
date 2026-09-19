@@ -94,6 +94,25 @@ use App\Modules\AgentKpis\Models\KpiSnapshotModel;
 use App\Modules\AgentKpis\Services\KpiCalculationService;
 use App\Modules\AgentKpis\Services\QualitativeEvaluationService;
 use App\Modules\AgentKpis\Services\AgentKpisBridge;
+use App\Modules\KPIsOperativos\Models\GlpiCoordinatorModel;
+use App\Modules\KPIsOperativos\Models\GlpiIdcCanonicalModel;
+use App\Modules\KPIsOperativos\Services\GlpiIdcHomologator;
+use App\Modules\KPIsOperativos\Services\KpisOperativosBridge;
+use App\Modules\Reports\Models\ReportCommentaryModel;
+use App\Modules\Reports\Models\ReportSettingsModel;
+use App\Modules\Reports\Models\ReportSnapshotModel;
+use App\Modules\Reports\Models\ReportSnapshotVersionModel;
+use App\Modules\Reports\Services\ExecutiveNarrativeService;
+use App\Modules\Reports\Services\Providers\AgentPerformanceProvider;
+use App\Modules\Reports\Services\Providers\DispatchProvider;
+use App\Modules\Reports\Services\Providers\GlpiTicketsProvider;
+use App\Modules\Reports\Services\Providers\QualityProvider;
+use App\Modules\Reports\Services\Providers\TrendProvider;
+use App\Modules\Reports\Services\Export\PptxDeckBuilder;
+use App\Modules\Reports\Services\Export\SlideKit;
+use App\Modules\Reports\Services\Export\XlsxAnnexBuilder;
+use App\Modules\Reports\Services\ReportsSettingsService;
+use App\Modules\Reports\Services\SnapshotBuilder;
 use App\Modules\ServiceDesk\Services\TicketBulkImporter;
 use App\Modules\ServiceDesk\Services\TicketBulkUpdater;
 use App\Modules\ServiceDesk\Services\TicketCreatorService;
@@ -1019,5 +1038,97 @@ class Services extends BaseService
             new NotificationModel(),
             new AuditRunModel(),
         );
+    }
+
+    // ------------------------------------------------------------------
+    // KPIsOperativos (legacy, read-only from Reports)
+    // ------------------------------------------------------------------
+
+    /**
+     * Read-mostly bridge over the legacy KPIsOperativos catalogs (zone ->
+     * coordinator/manager, IDC homologation), consumed by the Reports module.
+     */
+    public static function kpisOperativosBridge(bool $getShared = true): KpisOperativosBridge
+    {
+        if ($getShared) {
+            return static::getSharedInstance('kpisOperativosBridge');
+        }
+        return new KpisOperativosBridge(new GlpiCoordinatorModel(), new GlpiIdcCanonicalModel(), new GlpiIdcHomologator());
+    }
+
+    // ------------------------------------------------------------------
+    // Reports
+    // ------------------------------------------------------------------
+
+    public static function reportsSettings(bool $getShared = true): ReportsSettingsService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reportsSettings');
+        }
+        return new ReportsSettingsService(new ReportSettingsModel());
+    }
+
+    public static function reportsGlpiTicketsProvider(bool $getShared = true): GlpiTicketsProvider
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reportsGlpiTicketsProvider');
+        }
+        return new GlpiTicketsProvider(
+            self::glpiDbConnection(),
+            self::glpiSchemaIntrospector(),
+            self::glpiValueResolver(),
+            self::kpisOperativosBridge(),
+            self::reportsSettings(),
+        );
+    }
+
+    public static function reportsNarrative(bool $getShared = true): ExecutiveNarrativeService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reportsNarrative');
+        }
+        return new ExecutiveNarrativeService(self::reportsSettings(), new ReportCommentaryModel());
+    }
+
+    /**
+     * Runs every registered provider and freezes the result into
+     * reports_snapshots. This is the single entry point both the monthly
+     * cron command and the "generate now" web action use.
+     */
+    public static function reportSnapshotBuilder(bool $getShared = true): SnapshotBuilder
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reportSnapshotBuilder');
+        }
+
+        $glpiTickets = self::reportsGlpiTicketsProvider();
+
+        return new SnapshotBuilder(
+            new ReportSnapshotModel(),
+            new ReportSnapshotVersionModel(),
+            [
+                $glpiTickets,
+                new TrendProvider($glpiTickets, self::glpiDbConnection(), self::reportsSettings()),
+                new DispatchProvider(self::mailDispatchMetrics()),
+                new QualityProvider(self::helpdeskBridge()),
+                new AgentPerformanceProvider(self::agentKpisBridge()),
+            ],
+        );
+    }
+
+    public static function reportsPptxBuilder(bool $getShared = true): PptxDeckBuilder
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reportsPptxBuilder');
+        }
+        return new PptxDeckBuilder(new SlideKit(), new ReportSnapshotModel());
+    }
+
+    public static function reportsXlsxBuilder(bool $getShared = true): XlsxAnnexBuilder
+    {
+        if ($getShared) {
+            return static::getSharedInstance('reportsXlsxBuilder');
+        }
+        return new XlsxAnnexBuilder(new ReportSnapshotModel());
     }
 }

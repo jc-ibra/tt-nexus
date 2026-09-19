@@ -14,18 +14,16 @@ function kpiStatusBadge(string $status): string {
 
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title">GLPI Tickets</h1>
-    <p class="page-subtitle">Reportes de KPIs generados a partir de exports de GLPI</p>
+    <h1 class="page-title">GLPI Tickets (histórico)</h1>
+    <p class="page-subtitle">Reportes generados por carga manual de Excel. Solo consulta: usa <a href="<?= route_to('reports.index') ?>">Informes</a> para el reporte mensual vigente.</p>
   </div>
   <div class="page-actions">
     <a href="<?= route_to('kpi.coordinators.index') ?>" class="btn btn-tertiary">Coordinadores</a>
-    <a href="<?= route_to('kpi.glpi.upload') ?>" class="btn btn-primary">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      Subir reporte
-    </a>
   </div>
+</div>
+
+<div class="banner banner-info" role="status" style="margin-bottom: var(--space-4);">
+  <div class="banner-body">Este módulo quedó como archivo histórico: ya no admite cargas nuevas. El informe mensual vigente se genera en <a href="<?= route_to('reports.index') ?>">Informes</a>.</div>
 </div>
 
 <?php if (empty($reports)): ?>
@@ -37,8 +35,7 @@ function kpiStatusBadge(string $status): string {
         </svg>
       </div>
       <h2 class="empty-state-title">Sin reportes</h2>
-      <p class="empty-state-message">Sube un export de GLPI (CSV o XLSX) para generar el primer reporte de KPIs.</p>
-      <a href="<?= route_to('kpi.glpi.upload') ?>" class="btn btn-primary">Subir primer reporte</a>
+      <p class="empty-state-message">No hay reportes históricos cargados.</p>
     </div>
   </div>
 <?php else: ?>

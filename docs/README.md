@@ -44,6 +44,7 @@ qué** algo se hizo así. Para el estado actual, el código manda.
 | HelpdeskSupervisor | [fase-1-supervisor.md](modulos/helpdesk-supervisor/fase-1-supervisor.md) : auditoría de GLPI contra el Manual MAC |
 | HelpdeskSupervisor | [fase-2-notificaciones-ia.md](modulos/helpdesk-supervisor/fase-2-notificaciones-ia.md) : notificaciones IA y envío de reportes |
 | AgentKpis | [fase-3-kpis-agentes.md](modulos/helpdesk-supervisor/fase-3-kpis-agentes.md) : evaluación mensual de agentes |
+| Reports | [spec.md](modulos/reports/spec.md) : informe ejecutivo mensual (GLPI, tendencia, correo, calidad, agentes) con snapshot congelado; reemplaza a KPIsOperativos como fuente vigente |
 
 ## guias/
 
@@ -57,6 +58,7 @@ actualiza el documento **y** la vista.
 | [maildispatch-metricas.md](guias/maildispatch-metricas.md) | Despacho de Correo > Equipo y Métricas (`app/Modules/MailDispatch/Views/help/metricas.php`) |
 | [manual-mesa-de-ayuda/](guias/manual-mesa-de-ayuda/) | Manual operativo de GLPI para agentes de la MAC. 5 capítulos y 7 anexos. Empieza por [00-indice.md](guias/manual-mesa-de-ayuda/00-indice.md) |
 | [aprovisionamiento_empleados/](guias/aprovisionamiento_empleados/) | Manual de operación de altas, bajas y cambio de contraseña (RRHH + Sistemas), con capturas en `img/`. Espejo in-app: Ayuda > Altas, bajas y contraseñas (`app/Modules/Provisioning/Views/help/aprovisionamiento.php`) |
+| [informes-direccion.md](guias/informes-direccion.md) | Informe ejecutivo mensual: congelado vs. en vivo, presentación/descargas, resumen con IA. Espejo in-app: Ayuda > Informe ejecutivo mensual (`app/Modules/Reports/Views/help/informes.php`) |
 
 ## operacion/
 

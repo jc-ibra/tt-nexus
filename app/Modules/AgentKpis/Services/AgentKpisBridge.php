@@ -97,4 +97,48 @@ class AgentKpisBridge
         $this->evaluations->update($evaluationId, ['agent_comments' => $comments]);
         return ServiceResult::ok(null, 'Tus comentarios quedaron registrados.');
     }
+
+    // ------------------------------------------------------------------
+    // Period-wide summary (Reports module)
+    // ------------------------------------------------------------------
+
+    /**
+     * Aggregate performance snapshot for a natural month, for the Reports
+     * module's "Desempeño de Agentes" section. Includes EVERY evaluation
+     * regardless of final_status (unlike publishedForAgent): this is the
+     * supervisor's own executive report, not the agent-facing view, so a
+     * draft or blocked month is exactly what direction needs to see.
+     *
+     * @return array{available:bool,agents?:array,avg_final_score?:float,evaluated_count?:int,blocked_count?:int}
+     */
+    public function periodEvaluationSummary(int $year, int $month): array
+    {
+        $rows = $this->evaluations->forMonth($year, $month);
+        if ($rows === []) {
+            return ['available' => false];
+        }
+
+        $scored = array_filter($rows, static fn(array $r) => $r['final_score'] !== null);
+        $avg    = $scored !== []
+            ? round(array_sum(array_map(static fn(array $r) => (float) $r['final_score'], $scored)) / count($scored), 2)
+            : 0.0;
+
+        return [
+            'available'       => true,
+            'agents'          => array_map(static fn(array $r) => [
+                'nexus_user_id'      => (int) $r['nexus_user_id'],
+                'agent_name'         => (string) $r['agent_name'],
+                'total_tickets'      => (int) $r['total_tickets'],
+                'kpis_met_count'     => (int) $r['kpis_met_count'],
+                'quantitative_score' => (float) $r['quantitative_score'],
+                'qualitative_score'  => $r['qualitative_score'] !== null ? (float) $r['qualitative_score'] : null,
+                'final_score'        => $r['final_score'] !== null ? (float) $r['final_score'] : null,
+                'final_status'       => (string) $r['final_status'],
+                'is_blocked'         => (bool) $r['is_blocked'],
+            ], $rows),
+            'avg_final_score' => $avg,
+            'evaluated_count' => count(array_filter($rows, static fn(array $r) => $r['final_status'] === 'evaluated')),
+            'blocked_count'   => count(array_filter($rows, static fn(array $r) => (bool) $r['is_blocked'])),
+        ];
+    }
 }

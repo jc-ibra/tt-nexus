@@ -5647,6 +5647,211 @@
           }
         }
       ]
+    },
+    {
+      "name": "Reports — Informe Ejecutivo",
+      "item": [
+        {
+          "name": "List Snapshots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"period_year\": 2026,\n      \"period_month\": 8,\n      \"status\": \"ready\",\n      \"total_tickets\": 5031\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Snapshot (with payload)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/2026/8",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "2026",
+                "8"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"period_year\": 2026,\n    \"period_month\": 8,\n    \"status\": \"ready\",\n    \"total_tickets\": 5031,\n    \"payload\": {\n      \"glpi_tickets\": {\n        \"available\": true,\n        \"total\": 5031,\n        \"cerrados\": 4662,\n        \"tasa_cierre\": 92.67,\n        \"sla_pct\": 57.97\n      },\n      \"trend\": {\n        \"available\": true\n      },\n      \"dispatch\": {\n        \"available\": true,\n        \"received\": 46,\n        \"closed\": 6\n      },\n      \"quality\": {\n        \"available\": true\n      },\n      \"agents\": {\n        \"available\": true\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Generate Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/2026/8/generate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "2026",
+                "8",
+                "generate"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"status\": \"ready\",\n    \"total_tickets\": 5031\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Regenerate Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/2026/8/regenerate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "2026",
+                "8",
+                "regenerate"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"status\": \"ready\",\n    \"total_tickets\": 5031\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Render PPTX",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/2026/8/pptx",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "2026",
+                "8",
+                "pptx"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"path\": \"writable/reports/1/informe_Agosto_2026.pptx\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Send by Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/reports/2026/8/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "2026",
+                "8",
+                "send"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"recipients\": [\n      \"direccion@ibrastudio.com\"\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

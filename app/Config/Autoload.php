@@ -50,6 +50,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\TechBot'          => APPPATH . 'Modules/TechBot',
         'App\Modules\HelpdeskSupervisor' => APPPATH . 'Modules/HelpdeskSupervisor',
         'App\Modules\AgentKpis'          => APPPATH . 'Modules/AgentKpis',
+        'App\Modules\Reports'            => APPPATH . 'Modules/Reports',
     ];
 
     /**

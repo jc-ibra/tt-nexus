@@ -130,6 +130,7 @@ _modules/*
 # servicedesk uploads
 /writable/servicedesk
 /writable/maildispatch
+/writable/reports
 
 # Documentación local de reset de BD (no debe viajar al repositorio)
 /docs/operacion/reset-db.md

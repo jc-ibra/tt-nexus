@@ -37,12 +37,12 @@ Resumen de un vistazo:
 
 | Sistema | Modo de conexión | Autenticación | Config / cifrado | Módulos que lo consumen |
 |---|---|---|---|---|
-| **GLPI** | BD directa (MySQL/MariaDB) + API REST + plugin Additional Fields (vía BD) | Usuario BD / App-Token + user_token (o Basic) | `provisioning_settings` + `provisioning_system_credentials` (cifrado con `encryption.key`) | Provisioning, ServiceDesk, KPIsOperativos |
+| **GLPI** | BD directa (MySQL/MariaDB) + API REST + plugin Additional Fields (vía BD) | Usuario BD / App-Token + user_token (o Basic) | `provisioning_settings` + `provisioning_system_credentials` (cifrado con `encryption.key`) | Provisioning, ServiceDesk, HelpdeskSupervisor, Reports, KPIsOperativos (histórico) |
 | **Mailcow** | API REST | Cabecera `X-API-Key` | `mailboxes_settings` (cifrado con `MAILBOXES_ENCRYPTION_KEY`) | Mailboxes, Provisioning (reúso) |
 | **Intranet** | API REST | Bearer token | `provisioning_systems` + `provisioning_system_credentials` (cifrado con `encryption.key`) | Provisioning |
 | **Microsoft 365 (Graph)** | API REST (Graph v1.0) | OAuth2 client credentials | `maildispatch_settings` (secreto cifrado con `encryption.key`) | MailDispatch |
 | **SMTP (correo saliente)** | Protocolo SMTP | Host/puerto/usuario/contraseña + TLS/SSL | `core_app_settings` (cifrado con `APP_SETTINGS_ENCRYPTION_KEY`), con respaldo a `.env` | Communications (reutilizado por Provisioning, Core, ServiceDesk) |
-| **Anthropic (Claude API)** | API REST (Messages) | API key en cabecera | `servicedesk_settings` (cifrado con `encryption.key`) | ServiceDesk (creador IA + widget) |
+| **Anthropic (Claude API)** | API REST (Messages) | API key en cabecera | `servicedesk_settings` / `helpdesk_supervisor_settings` / `reports_settings` (cada una cifrada con `encryption.key`, con reúso en cascada) | ServiceDesk (creador IA + widget), HelpdeskSupervisor (notificaciones), Reports (resumen ejecutivo) |
 
 Las secciones siguientes detallan cada uno.
 
@@ -78,8 +78,12 @@ El módulo ServiceDesk descubre en vivo los "contenedores" y campos adicionales 
 - **Escritura:** CRUD de catálogos dropdown (`glpi_plugin_fields_*dropdowns`, con mantenimiento del árbol: completename, nivel, cachés) y filas de contenedor por ticket.
 - **Servicios base:** `ServiceDesk/Services/GlpiSchemaIntrospector.php`, `TicketBulkImporter.php`, y `Provisioning/Services/GlpiCatalogService.php`.
 
-**d) Importación de archivos CSV/XLSX (offline, KPIsOperativos).**
-No es una conexión viva a GLPI: el módulo KPIsOperativos parsea **exportaciones** de GLPI (CSV/XLSX) y las carga en tablas locales (`kpi_glpi_*`) para calcular KPIs. Sin credenciales ni red.
+**d) Importación de archivos CSV/XLSX (offline, KPIsOperativos — histórico).**
+No es una conexión viva a GLPI: el módulo KPIsOperativos parseaba **exportaciones** de
+GLPI (CSV/XLSX) y las cargaba en tablas locales (`kpi_glpi_*`) para calcular KPIs. Sin
+credenciales ni red. **Dado de baja** (la carga ya no admite archivos nuevos): el
+informe vigente es el módulo Reports, que lee GLPI directo por (a) y (c). Ver
+`docs/modulos/reports/spec.md`.
 
 > **Regla de oro (catálogos IDS):** los nombres de catálogos solo se cambian desde Nexus, nunca directamente en GLPI, para no romper la sincronización.
 
@@ -148,7 +152,7 @@ Envío de correo (campañas de Communications, restablecimiento de contraseña, 
 
 ### 2.6. Anthropic (Claude API)
 
-Funciones de IA del módulo ServiceDesk: el creador de tickets asistido por operador y el widget/landing público de autoservicio.
+Funciones de IA del módulo ServiceDesk: el creador de tickets asistido por operador y el widget/landing público de autoservicio. HelpdeskSupervisor (redacción de notificaciones) y Reports (resumen ejecutivo del informe mensual, sobre el `payload_json` ya calculado, nunca sobre tickets crudos) mantienen su propia llave en `helpdesk_supervisor_settings`/`reports_settings` con un toggle para reusar en cascada la de otro módulo, en vez de duplicarla siempre.
 
 - **Modo:** API REST de Mensajes de Anthropic (SDK `anthropic-ai/sdk`).
 - **Autenticación:** API key en cabecera.

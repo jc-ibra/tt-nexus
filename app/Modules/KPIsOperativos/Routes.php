@@ -15,9 +15,10 @@ $routes->group('kpi', [
     $routes->get('/', 'KPIsOperativos::index', ['as' => 'kpi.index']);
 
     // ── Sub-área: GLPI Tickets ────────────────────────────────────────
+    // Archivo histórico: read-only desde el módulo Reports. La carga de
+    // Excel (upload/store) se dio de baja a propósito — ver
+    // docs/modulos/reports/spec.md.
     $routes->get('glpi',                    'GlpiTickets::index',     ['as' => 'kpi.glpi.index']);
-    $routes->get('glpi/upload',             'GlpiTickets::upload',    ['as' => 'kpi.glpi.upload']);
-    $routes->post('glpi/upload',            'GlpiTickets::store',     ['as' => 'kpi.glpi.upload.post']);
     $routes->get('glpi/(:num)',             'GlpiTickets::show/$1',   ['as' => 'kpi.glpi.show']);
     $routes->post('glpi/(:num)/delete',     'GlpiTickets::destroy/$1', ['as' => 'kpi.glpi.destroy']);
     $routes->get('glpi/(:num)/pptx',        'GlpiTickets::pptx/$1',   ['as' => 'kpi.glpi.pptx']);
