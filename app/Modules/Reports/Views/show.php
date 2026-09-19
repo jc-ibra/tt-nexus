@@ -58,10 +58,10 @@ $dispatch = $payload['dispatch'] ?? ['available' => false];
 $quality  = $payload['quality'] ?? ['available' => false];
 $agents   = $payload['agents'] ?? ['available' => false];
 
-// Compatibilidad con snapshots congelados antes de que cat_top trajera
-// {label,value,tier} (ver GlpiTicketsProvider::normalizeCategoryRows).
+// Compatibilidad con snapshots congelados antes de campos/formas que este
+// módulo agregó después (ver GlpiTicketsProvider::withDefaults).
 if ($glpi['available'] ?? false) {
-    $glpi['cat_top'] = \App\Modules\Reports\Services\Providers\GlpiTicketsProvider::normalizeCategoryRows($glpi['cat_top'] ?? []);
+    $glpi = \App\Modules\Reports\Services\Providers\GlpiTicketsProvider::withDefaults($glpi);
 }
 
 $charts = [];
@@ -219,7 +219,7 @@ if ($agents['available'] ?? false) {
   <div class="card" style="margin-top: var(--space-4);">
     <div class="card-header">
       <h3 class="card-title">Categoría</h3>
-      <p class="card-subtitle">Agrupadas por rama del árbol: <?= $catGroups ?> grupos de <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período</p>
+      <p class="card-subtitle">Agrupadas por rama del árbol: <?= $catGroups ?> grupos de <?= (int) ($glpi['cat_leaf_total'] ?? 0) ?> categorías registradas en el período</p>
     </div>
     <div class="card-body">
       <div class="rpt-chart-wrap" style="height: <?= $catHeight ?>px;"><canvas id="chart-categorias"></canvas></div>

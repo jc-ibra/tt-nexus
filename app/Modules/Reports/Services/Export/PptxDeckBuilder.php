@@ -47,9 +47,9 @@ class PptxDeckBuilder
 
         $glpi = $payload['glpi_tickets'] ?? [];
         if ($glpi['available'] ?? false) {
-            // Compatibilidad con snapshots congelados antes de que cat_top
-            // trajera {label,value,tier} (ver GlpiTicketsProvider::normalizeCategoryRows).
-            $glpi['cat_top'] = GlpiTicketsProvider::normalizeCategoryRows($glpi['cat_top'] ?? []);
+            // Compatibilidad con snapshots congelados antes de campos/formas
+            // que este módulo agregó después (ver GlpiTicketsProvider::withDefaults).
+            $glpi = GlpiTicketsProvider::withDefaults($glpi);
         }
 
         $this->slidePortada($pres->getActiveSlide(), $periodLabel, $payload);
@@ -212,7 +212,7 @@ class PptxDeckBuilder
         $groupsTotal = count(array_filter($g['cat_top'], static fn($r) => $r['tier'] !== 'child'));
 
         foreach ($pages as $i => $rows) {
-            $this->renderCategoriaSlide($pres->createSlide(), $rows, $i + 1, $totalPages, $groupsTotal, (int) $g['cat_leaf_total']);
+            $this->renderCategoriaSlide($pres->createSlide(), $rows, $i + 1, $totalPages, $groupsTotal, (int) ($g['cat_leaf_total'] ?? 0));
         }
     }
 

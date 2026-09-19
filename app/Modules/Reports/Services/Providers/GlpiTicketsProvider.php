@@ -78,16 +78,45 @@ class GlpiTicketsProvider implements ReportSectionProvider
 
     /**
      * A `reports_snapshots.payload_json` is frozen once generated — a month
-     * from before `cat_top` started carrying {label,value,tier} rows (it was
-     * a flat [label, count] tuple) still has that old shape forever unless
-     * someone regenerates it. Every consumer of `cat_top` (dashboard,
-     * presentation, PPTX, XLSX) calls this first so an old frozen month
-     * keeps rendering instead of crashing on an undefined 'tier' key.
+     * from before a given field/shape existed keeps missing it forever
+     * unless someone regenerates it. Every consumer of the `glpi_tickets`
+     * section (dashboard, presentation, PPTX, XLSX) runs the decoded array
+     * through this FIRST, so an old frozen month keeps rendering — with
+     * sane empty defaults for whatever it predates — instead of crashing on
+     * an undefined array key every time this class grows a new field.
+     *
+     * @param array<string,mixed> $glpi decoded payload_json['glpi_tickets'], already known 'available'
+     * @return array<string,mixed>
+     */
+    public static function withDefaults(array $glpi): array
+    {
+        $defaults = [
+            'fields_resolved'        => array_fill_keys(self::LOGICAL_FIELDS, false),
+            'client_data_available'  => false,
+            'ids_available'          => false,
+            'total' => 0, 'cerrados' => 0, 'en_curso' => 0, 'tasa_cierre' => 0.0,
+            'sla_pct' => 0.0, 'prom_h' => 0.0,
+            'sin_reg' => 0, 'sin_ids' => 0, 'reg_universe' => 0,
+            'reg_top' => [], 'est_top' => [], 'est_bottom' => [], 'ids_top' => [], 'ids_bottom' => [],
+            'cat_top' => [], 'cat_leaf_total' => 0, 'estados_ticket' => [],
+            'env_total' => 0, 'env_cerr' => 0, 'env_pend' => 0, 'env_pct' => 0.0,
+            'coord_tickets' => [], 'coord_info' => [],
+        ];
+
+        $merged = $glpi + $defaults;
+        $merged['cat_top'] = self::normalizeCategoryRows($merged['cat_top']);
+        return $merged;
+    }
+
+    /**
+     * A month frozen before `cat_top` started carrying {label,value,tier}
+     * rows had a flat [label, count] tuple instead — normalized here so
+     * withDefaults() above never hands a consumer a mixed-shape list.
      *
      * @param array<int,mixed> $catTop raw rows from payload_json.glpi_tickets.cat_top
      * @return list<array{label:string,value:int,tier:string}>
      */
-    public static function normalizeCategoryRows(array $catTop): array
+    private static function normalizeCategoryRows(array $catTop): array
     {
         $out = [];
         foreach ($catTop as $row) {

@@ -158,10 +158,10 @@ $quality = $payload['quality'] ?? ['available' => false];
 $agents = $payload['agents'] ?? ['available' => false];
 $summary = trim($commentary['summary']['body'] ?? '');
 
-// Compatibilidad con snapshots congelados antes de que cat_top trajera
-// {label,value,tier} (ver GlpiTicketsProvider::normalizeCategoryRows).
+// Compatibilidad con snapshots congelados antes de campos/formas que este
+// módulo agregó después (ver GlpiTicketsProvider::withDefaults).
 if ($glpi['available'] ?? false) {
-    $glpi['cat_top'] = \App\Modules\Reports\Services\Providers\GlpiTicketsProvider::normalizeCategoryRows($glpi['cat_top'] ?? []);
+    $glpi = \App\Modules\Reports\Services\Providers\GlpiTicketsProvider::withDefaults($glpi);
 }
 ?>
 
@@ -244,7 +244,7 @@ if ($glpi['available'] ?? false) {
   ?>
   <section class="op-slide" data-section="Mesa de ayuda">
     <h2 class="op-title">Tickets por categoría</h2>
-    <p class="op-subtitle">Agrupadas por rama del árbol: <?= $catGroupsTotal ?> grupos, <?= (int) $glpi['cat_leaf_total'] ?> categorías registradas en el período. En negritas, el total del grupo; el detalle por hoja aparece debajo</p>
+    <p class="op-subtitle">Agrupadas por rama del árbol: <?= $catGroupsTotal ?> grupos, <?= (int) ($glpi['cat_leaf_total'] ?? 0) ?> categorías registradas en el período. En negritas, el total del grupo; el detalle por hoja aparece debajo</p>
     <hr class="op-rule">
     <div class="op-chart" style="height: <?= $catHeight ?>px;"><canvas id="op-categorias"></canvas></div>
   </section>
