@@ -314,7 +314,7 @@ if ($glpi['available'] ?? false) {
     <div class="op-score-row" style="margin-bottom: 32px;">
       <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['received']) ?></div><div class="op-score-label">Recibidos</div></div>
       <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['closed']) ?></div><div class="op-score-label">Cerrados</div></div>
-      <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['backlog_unassigned']) ?></div><div class="op-score-label">Sin asignar</div></div>
+      <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['backlog_unassigned']) ?></div><div class="op-score-label">Sin asignar hoy (no del período)</div></div>
       <div class="op-score"><div class="op-score-value"><?= $dispatch['avg_first_response_min'] !== null ? number_format($dispatch['avg_first_response_min'], 0) . ' min' : '-' ?></div><div class="op-score-label">Primera respuesta</div></div>
     </div>
     <p class="op-panel-title">Disposiciones de conversaciones cerradas</p>

@@ -294,11 +294,18 @@ class ConversationModel extends Model
             ->first();
     }
 
-    /** Count of currently unassigned, non-closed conversations (badge/metrics). */
+    /**
+     * Count of currently unassigned, non-closed conversations (badge/metrics).
+     * Excludes 'autoarchivo'/'autogenerado' same as every other backlog query
+     * in this model (see counts(), forQueue()) — those are auto-triaged, not
+     * work waiting on a human, so they don't belong in "sin asignar".
+     */
     public function countUnassigned(): int
     {
         return $this->where('agent_id', null)
             ->where('status !=', 'cerrada')
+            ->where('status !=', 'autoarchivo')
+            ->where('status !=', 'autogenerado')
             ->where('outbound_only', 0)
             ->countAllResults();
     }

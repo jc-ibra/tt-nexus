@@ -347,7 +347,7 @@ class PptxDeckBuilder
         $cards = [
             ['v' => number_format($d['received']), 'l' => 'Recibidos', 'c' => SlideKit::C_PRIMARY],
             ['v' => number_format($d['closed']), 'l' => 'Cerrados', 'c' => SlideKit::C_SUCCESS],
-            ['v' => number_format($d['backlog_unassigned']), 'l' => 'Sin asignar', 'c' => SlideKit::C_CRITICAL],
+            ['v' => number_format($d['backlog_unassigned']), 'l' => 'Sin asignar hoy', 'sub' => 'No es del período', 'c' => SlideKit::C_CRITICAL],
             ['v' => ($d['avg_first_response_min'] !== null ? number_format($d['avg_first_response_min'], 0) . ' min' : '-'), 'l' => 'Primera respuesta', 'c' => SlideKit::C_PRIMARY],
         ];
         $this->kpiRow($slide, $cards, self::CONTENT_Y);

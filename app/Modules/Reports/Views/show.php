@@ -295,7 +295,7 @@ if ($agents['available'] ?? false) {
   <div class="rpt-kpi-grid">
     <div class="rpt-kpi"><p class="rpt-kpi-label">Recibidos</p><p class="rpt-kpi-value"><?= number_format($dispatch['received']) ?></p></div>
     <div class="rpt-kpi accent-success"><p class="rpt-kpi-label">Cerrados</p><p class="rpt-kpi-value"><?= number_format($dispatch['closed']) ?></p></div>
-    <div class="rpt-kpi accent-critical"><p class="rpt-kpi-label">Sin asignar</p><p class="rpt-kpi-value"><?= number_format($dispatch['backlog_unassigned']) ?></p></div>
+    <div class="rpt-kpi accent-critical"><p class="rpt-kpi-label">Sin asignar hoy</p><p class="rpt-kpi-value"><?= number_format($dispatch['backlog_unassigned']) ?></p><p class="rpt-kpi-sub">Backlog actual de todo MailDispatch, no de <?= esc($period->label) ?></p></div>
     <div class="rpt-kpi"><p class="rpt-kpi-label">1a. respuesta</p><p class="rpt-kpi-value"><?= $dispatch['avg_first_response_min'] !== null ? number_format($dispatch['avg_first_response_min'], 0) . ' min' : '-' ?></p></div>
   </div>
 

@@ -87,7 +87,13 @@ se consumen del módulo legacy vía `KPIsOperativos\Services\KpisOperativosBridg
   antigüedad del backlog abierto **hoy** (no del mes del informe: es información
   operativa "al momento", igual que el drill-down).
 - **Mesa de Ayuda por Correo** (`DispatchProvider`): expone tal cual el payload de
-  `MailDispatchMetrics::dashboard()` para el rango del mes.
+  `MailDispatchMetrics::dashboard()` para el rango del mes. Una excepción:
+  `backlog_unassigned` (`ConversationModel::countUnassigned()`) no acepta rango
+  de fechas — es el backlog sin asignar de **todo** MailDispatch en el momento
+  en que se generó/regeneró el snapshot, no del mes del informe. Se etiqueta
+  "Sin asignar hoy" en las tres superficies para no dar a entender que es un
+  número de agosto (o del mes que sea) cuando en realidad cambia cada vez que
+  se regenera.
 - **Calidad Documental** (`QualityProvider`): corrida de auditoría de
   HelpdeskSupervisor del mes, cumplimiento por regla, top de agentes con más
   desviaciones, escalaciones válidas del período.
