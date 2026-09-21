@@ -133,7 +133,7 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-me-stats .is-critical, .gm-me-stats .is-critical b { color: var(--status-critical-text); }
   .rail-collapsed .gm-rail a.gm-me { padding:var(--space-2) 0; }
   .rail-collapsed .gm-me-top { justify-content:center; }
-  .rail-collapsed .gm-me-top span, .rail-collapsed .gm-me-stats { display:none; }
+  .rail-collapsed .gm-me-label, .rail-collapsed .gm-me-stats { display:none; }
   .gm-rail-link { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-2) var(--space-3);
     color:var(--text-secondary); text-decoration:none; font-size:var(--text-sm); font-weight:var(--weight-medium); border-radius:var(--radius-full); }
   .gm-rail-link:hover { background:var(--bg-surface-alt); color:var(--text-primary); }
@@ -147,7 +147,7 @@ $initials = static function (?string $name, ?string $email): string {
 
   /* Estado colapsado: rail angosto, solo íconos (labels/contadores ocultos). */
   .gm-app.rail-collapsed { grid-template-columns:54px minmax(340px, 470px) 1fr; }
-  .rail-collapsed .gm-rail a span, .rail-collapsed .gm-rail-link span,
+  .rail-collapsed .gm-rail a:not(.gm-me) span, .rail-collapsed .gm-rail-link span,
   .rail-collapsed .gm-rail-count { display:none; }
   .rail-collapsed .gm-rail a, .rail-collapsed .gm-rail-link { justify-content:center; padding-left:0; padding-right:0; }
   .rail-collapsed .gm-rail-toggle { justify-content:center; }
@@ -355,7 +355,7 @@ $initials = static function (?string $name, ?string $email): string {
     <a class="gm-me" href="<?= base_url('dispatch/my-metrics') ?>" title="Mis métricas">
       <span class="gm-me-top">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-        <span>Mis métricas</span>
+        <span class="gm-me-label">Mis métricas</span>
       </span>
       <span class="gm-me-stats">
         <span><b><?= (int) $me['closedToday'] ?></b> cerradas hoy</span>
