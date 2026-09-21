@@ -4,52 +4,93 @@
 <script src="<?= asset_url('js/vendor/chart.umd.min.js') ?>" defer></script>
 <script src="<?= asset_url('js/chart-theme.js') ?>" defer></script>
 <style>
-  .emp-dash { display: flex; flex-direction: column; gap: var(--space-5); }
+  .emp-dash { display: flex; flex-direction: column; gap: var(--space-8); }
 
-  .emp-dash-section-title {
+  .emp-dash-group-title {
     font-size: var(--text-lg);
     font-weight: var(--weight-semibold);
     color: var(--text-primary);
     margin: 0 0 var(--space-1) 0;
   }
-  .emp-dash-section-subtitle {
+  .emp-dash-group-subtitle {
     font-size: var(--text-sm);
     color: var(--text-muted);
-    margin: 0 0 var(--space-3) 0;
+    margin: 0 0 var(--space-4) 0;
   }
+  .emp-dash-group-body { display: flex; flex-direction: column; gap: var(--space-4); }
 
-  .emp-dash-kpi {
-    background: var(--bg-surface);
-    border: var(--border-width-default) solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    border-top: 3px solid var(--action-primary);
-    padding: var(--space-4);
+  /* Hero: una sola tarjeta reemplaza los 8 KPI idénticos que había antes.
+     El número de plantilla activa es el único acento de la página; el resto
+     de las cifras vive en una franja compacta, no en tarjetas repetidas. */
+  .emp-dash-hero {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-6);
+    padding: var(--space-6);
   }
-  .emp-dash-kpi.accent-success  { border-top-color: var(--status-success-border); }
-  .emp-dash-kpi.accent-warning  { border-top-color: var(--status-warning-border); }
-  .emp-dash-kpi.accent-critical { border-top-color: var(--status-critical-border); }
-  .emp-dash-kpi.accent-neutral  { border-top-color: var(--border-strong); }
-
-  .emp-dash-kpi-label {
-    font-size: var(--text-xs);
+  .emp-dash-hero-main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .emp-dash-hero-label {
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     color: var(--text-muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin: 0 0 var(--space-2) 0;
-  }
-  .emp-dash-kpi-value {
-    font-size: var(--text-3xl);
-    font-weight: var(--weight-bold);
-    color: var(--text-primary);
-    line-height: 1.1;
     margin: 0;
   }
-  .emp-dash-kpi-sub {
-    font-size: var(--text-xs);
+  .emp-dash-hero-value {
+    font-size: 2.75rem;
+    font-weight: var(--weight-bold);
+    color: var(--text-primary);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    margin: var(--space-1) 0 0;
+  }
+  .emp-dash-hero-delta {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    margin: var(--space-2) 0 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .emp-dash-hero-delta.positive { color: var(--status-success-text); }
+  .emp-dash-hero-delta.negative { color: var(--status-critical-text); }
+  .emp-dash-hero-delta.neutral  { color: var(--text-muted); }
+
+  .emp-dash-hero-divider {
+    width: var(--border-width-default);
+    background: var(--border-subtle);
+    flex-shrink: 0;
+  }
+
+  .emp-dash-hero-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-5) var(--space-6);
+    flex: 1;
+    align-content: center;
+  }
+  .emp-dash-hero-metric-value {
+    display: block;
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  .emp-dash-hero-metric-label {
+    display: block;
+    font-size: var(--text-sm);
     color: var(--text-muted);
-    margin: var(--space-2) 0 0 0;
+    margin-top: var(--space-1);
+  }
+
+  @media (max-width: 900px) {
+    .emp-dash-hero { flex-direction: column; }
+    .emp-dash-hero-divider { width: 100%; height: var(--border-width-default); }
+    .emp-dash-hero-metrics { grid-template-columns: repeat(2, 1fr); }
   }
 
   .chart-wrap { position: relative; width: 100%; height: 320px; }
@@ -111,6 +152,7 @@
 
   @media (max-width: 768px) {
     .chart-wrap { height: 280px; }
+    .emp-dash-hero-value { font-size: 2.25rem; }
   }
 </style>
 <?= $this->endSection() ?>
@@ -169,7 +211,7 @@ $charts = [
     'department' => $chartSpec('hbar', $departmentChart, 'department_id'),
     'position'   => $chartSpec('hbar', $positionChart, 'position_id'),
     'state'      => $chartSpec('hbar', $stateChart, null, ['mono' => true]),
-    'location'   => $chartSpec('doughnut', $locationChart),
+    'location'   => $chartSpec('hbar', $locationChart),
     'tenure'     => [
         'type'   => 'doughnut',
         'labels' => array_map(static fn(array $b): string => $b['label'], $tenureRows),
@@ -225,6 +267,20 @@ $missingLabels = [
     'no_manager'    => 'Sin jefe directo',
 ];
 $missingTotal = array_sum($missing);
+
+// Variación neta de 12 meses: acompaña al número hero para que la plantilla
+// activa se lea con su tendencia, no como una cifra aislada.
+$netChange = $summary['hires_12m'] - $summary['exits_12m'];
+if ($netChange > 0) {
+    $netClass = 'positive';
+    $netText  = '+' . number_format($netChange) . ' en 12 meses (' . number_format($summary['hires_12m']) . ' altas, ' . number_format($summary['exits_12m']) . ' bajas)';
+} elseif ($netChange < 0) {
+    $netClass = 'negative';
+    $netText  = number_format($netChange) . ' en 12 meses (' . number_format($summary['hires_12m']) . ' altas, ' . number_format($summary['exits_12m']) . ' bajas)';
+} else {
+    $netClass = 'neutral';
+    $netText  = 'Sin cambio neto en 12 meses (' . number_format($summary['hires_12m']) . ' altas, ' . number_format($summary['exits_12m']) . ' bajas)';
+}
 ?>
 
 <div class="page-header">
@@ -255,109 +311,91 @@ $missingTotal = array_sum($missing);
 
 <div class="emp-dash">
 
-  <!-- Resumen -->
+  <!-- Hero: plantilla activa + tendencia, y el resto de las cifras generales
+       en una franja compacta. -->
   <section>
-    <h2 class="emp-dash-section-title">Resumen</h2>
-    <p class="emp-dash-section-subtitle">Cifras generales del directorio</p>
-
-    <div class="grid-4">
-      <div class="emp-dash-kpi accent-success">
-        <p class="emp-dash-kpi-label">Plantilla activa</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['active']) ?></p>
-        <p class="emp-dash-kpi-sub"><?= number_format($summary['total']) ?> registros en total</p>
+    <div class="card emp-dash-hero">
+      <div class="emp-dash-hero-main">
+        <p class="emp-dash-hero-label">Plantilla activa</p>
+        <p class="emp-dash-hero-value"><?= number_format($summary['active']) ?></p>
+        <p class="emp-dash-hero-delta <?= $netClass ?>"><?= esc($netText) ?></p>
       </div>
 
-      <div class="emp-dash-kpi accent-neutral">
-        <p class="emp-dash-kpi-label">Inactivos</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['inactive']) ?></p>
-        <p class="emp-dash-kpi-sub">
-          <?= $summary['total'] > 0 ? number_format($summary['inactive'] / $summary['total'] * 100, 1) : '0.0' ?>% del directorio
-        </p>
-      </div>
+      <div class="emp-dash-hero-divider"></div>
 
-      <div class="emp-dash-kpi">
-        <p class="emp-dash-kpi-label">Altas 12 meses</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['hires_12m']) ?></p>
-        <p class="emp-dash-kpi-sub">Ingresos del último año</p>
-      </div>
-
-      <div class="emp-dash-kpi accent-warning">
-        <p class="emp-dash-kpi-label">Bajas 12 meses</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['exits_12m']) ?></p>
-        <p class="emp-dash-kpi-sub">Salidas del último año</p>
-      </div>
-    </div>
-
-    <div class="grid-4" style="margin-top: var(--space-4);">
-      <div class="emp-dash-kpi">
-        <p class="emp-dash-kpi-label">Antigüedad promedio</p>
-        <p class="emp-dash-kpi-value"><?= number_format($tenureYears, 1) ?></p>
-        <p class="emp-dash-kpi-sub">años en la plantilla activa</p>
-      </div>
-
-      <div class="emp-dash-kpi">
-        <p class="emp-dash-kpi-label">Áreas con personal</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['areas']) ?></p>
-        <p class="emp-dash-kpi-sub"><?= number_format($summary['departments']) ?> departamentos activos</p>
-      </div>
-
-      <div class="emp-dash-kpi">
-        <p class="emp-dash-kpi-label">Puestos distintos</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['positions']) ?></p>
-        <p class="emp-dash-kpi-sub">catálogo en uso</p>
-      </div>
-
-      <div class="emp-dash-kpi">
-        <p class="emp-dash-kpi-label">Cobertura geográfica</p>
-        <p class="emp-dash-kpi-value"><?= number_format($summary['states']) ?></p>
-        <p class="emp-dash-kpi-sub">estados · <?= number_format($summary['locations']) ?> ubicaciones</p>
+      <div class="emp-dash-hero-metrics">
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($summary['inactive']) ?></span>
+          <span class="emp-dash-hero-metric-label">Inactivos, de <?= number_format($summary['total']) ?> en total</span>
+        </div>
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($tenureYears, 1) ?></span>
+          <span class="emp-dash-hero-metric-label">Años de antigüedad promedio</span>
+        </div>
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($summary['areas']) ?></span>
+          <span class="emp-dash-hero-metric-label">Áreas activas</span>
+        </div>
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($summary['departments']) ?></span>
+          <span class="emp-dash-hero-metric-label">Departamentos activos</span>
+        </div>
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($summary['positions']) ?></span>
+          <span class="emp-dash-hero-metric-label">Puestos distintos en uso</span>
+        </div>
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($summary['states']) ?></span>
+          <span class="emp-dash-hero-metric-label">Estados de origen</span>
+        </div>
+        <div class="emp-dash-hero-metric">
+          <span class="emp-dash-hero-metric-value"><?= number_format($summary['locations']) ?></span>
+          <span class="emp-dash-hero-metric-label">Ubicaciones registradas</span>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Áreas -->
+  <!-- Estructura organizacional: la forma actual de la plantilla. -->
   <section>
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Empleados por área</h2>
-        <span class="text-muted text-sm">Distribución de la plantilla activa</span>
-      </div>
-      <div class="card-body">
-        <div class="grid-2" style="gap: var(--space-5); align-items: center;">
-          <div class="chart-wrap"><canvas id="chart-area"></canvas></div>
-          <div class="emp-dash-list">
-            <?php foreach ($areaChart as $i => $row): ?>
-              <?= $listRow($row, $i, $summary['active'], $directoryUrl('area_id', $row['id'])) ?>
-            <?php endforeach; ?>
+    <h2 class="emp-dash-group-title">Estructura organizacional</h2>
+    <p class="emp-dash-group-subtitle">Cómo se agrupa la plantilla activa por área, departamento, puesto y línea de mando</p>
+
+    <div class="emp-dash-group-body">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Empleados por área</h3>
+          <span class="text-muted text-sm">Distribución de la plantilla activa</span>
+        </div>
+        <div class="card-body">
+          <div class="grid-2" style="gap: var(--space-5); align-items: center;">
+            <div class="chart-wrap"><canvas id="chart-area"></canvas></div>
+            <div class="emp-dash-list">
+              <?php foreach ($areaChart as $i => $row): ?>
+                <?= $listRow($row, $i, $summary['active'], $directoryUrl('area_id', $row['id'])) ?>
+              <?php endforeach; ?>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- Departamentos -->
-  <section>
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Empleados por departamento</h2>
-        <span class="text-muted text-sm">
-          <?= count($snapshot['by_department']) > count($departmentChart) ? 'Los ' . (count($departmentChart) - 1) . ' departamentos más grandes' : 'Todos los departamentos' ?>
-        </span>
-      </div>
-      <div class="card-body">
-        <div class="chart-wrap" style="height: <?= $barHeight($departmentChart) ?>px;">
-          <canvas id="chart-department"></canvas>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Puestos y antigüedad -->
-  <section>
-    <div class="grid-2">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Puestos más frecuentes</h2>
+          <h3 class="card-title">Empleados por departamento</h3>
+          <span class="text-muted text-sm">
+            <?= count($snapshot['by_department']) > count($departmentChart) ? 'Los ' . (count($departmentChart) - 1) . ' departamentos más grandes' : 'Todos los departamentos' ?>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" style="height: <?= $barHeight($departmentChart) ?>px;">
+            <canvas id="chart-department"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Puestos más frecuentes</h3>
           <span class="text-muted text-sm">Por número de empleados</span>
         </div>
         <div class="card-body">
@@ -367,26 +405,53 @@ $missingTotal = array_sum($missing);
         </div>
       </div>
 
+      <?php if ($spanRows !== []): ?>
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tramo de control</h3>
+            <span class="text-muted text-sm">Jefes con más reportes directos activos</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height: <?= $barHeight($spanRows) ?>px;">
+              <canvas id="chart-span"></canvas>
+            </div>
+          </div>
+        </div>
+      <?php endif; ?>
+    </div>
+  </section>
+
+  <!-- Movimiento y procedencia: cómo cambia la plantilla y de dónde viene. -->
+  <section>
+    <h2 class="emp-dash-group-title">Movimiento y procedencia</h2>
+    <p class="emp-dash-group-subtitle">Entradas, salidas, antigüedad y origen geográfico de la plantilla</p>
+
+    <div class="emp-dash-group-body">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Antigüedad</h2>
+          <h3 class="card-title">Altas y bajas por mes</h3>
+          <span class="text-muted text-sm">Últimos 12 meses</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" style="height: 300px;"><canvas id="chart-movements"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Antigüedad</h3>
           <span class="text-muted text-sm">Plantilla activa por rango</span>
         </div>
         <div class="card-body">
-          <div class="chart-wrap" style="height: <?= $barHeight($positionChart) ?>px;">
+          <div class="chart-wrap" style="height: <?= $barHeight($tenureRows) ?>px;">
             <canvas id="chart-tenure"></canvas>
           </div>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- Origen geográfico -->
-  <section>
-    <div class="grid-2">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Estados de origen</h2>
+          <h3 class="card-title">Estados de origen</h3>
           <span class="text-muted text-sm">Procedencia de la plantilla</span>
         </div>
         <div class="card-body">
@@ -398,50 +463,17 @@ $missingTotal = array_sum($missing);
 
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Ubicaciones</h2>
+          <h3 class="card-title">Ubicaciones</h3>
           <span class="text-muted text-sm">Distribución por ubicación de origen</span>
         </div>
         <div class="card-body">
-          <div class="chart-wrap" style="height: 320px;"><canvas id="chart-location"></canvas></div>
-          <div class="emp-dash-list" style="margin-top: var(--space-3);">
-            <?php foreach ($locationChart as $i => $row): ?>
-              <?= $listRow($row, $i, $summary['active'], null) ?>
-            <?php endforeach; ?>
+          <div class="chart-wrap" style="height: <?= $barHeight($locationChart) ?>px;">
+            <canvas id="chart-location"></canvas>
           </div>
         </div>
       </div>
     </div>
   </section>
-
-  <!-- Movimientos -->
-  <section>
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Altas y bajas por mes</h2>
-        <span class="text-muted text-sm">Últimos 12 meses</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-wrap" style="height: 300px;"><canvas id="chart-movements"></canvas></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Tramo de control -->
-  <?php if ($spanRows !== []): ?>
-    <section>
-      <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">Tramo de control</h2>
-          <span class="text-muted text-sm">Jefes con más reportes directos activos</span>
-        </div>
-        <div class="card-body">
-          <div class="chart-wrap" style="height: <?= $barHeight($spanRows) ?>px;">
-            <canvas id="chart-span"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
-  <?php endif; ?>
 
   <!-- Calidad de datos -->
   <section>
