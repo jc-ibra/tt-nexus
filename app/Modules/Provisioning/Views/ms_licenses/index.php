@@ -55,7 +55,7 @@
                 <form method="post" action="<?= route_to('provisioning.ms-licenses.destroy', $l['id']) ?>" style="display:inline;"
                       onsubmit="return confirm('¿Eliminar la licencia «<?= esc($l['name']) ?>»?');">
                   <?= csrf_field() ?>
-                  <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Eliminar</button>
+                  <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);">Eliminar</button>
                 </form>
               </td>
             </tr>

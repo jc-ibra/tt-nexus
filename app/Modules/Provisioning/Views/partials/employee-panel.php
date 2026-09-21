@@ -108,9 +108,9 @@ if ($canReactivate && ! $isProvisioned) {
 .prov-tab-btn {
   flex: 1;
   padding: var(--space-3) var(--space-4);
-  background: var(--color-neutral-50);
+  background: var(--bg-page);
   border: none;
-  border-right: 1px solid var(--color-neutral-200);
+  border-right: 1px solid var(--border-subtle);
   cursor: pointer;
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
@@ -122,11 +122,11 @@ if ($canReactivate && ! $isProvisioned) {
   white-space: nowrap;
 }
 .prov-tab-btn:last-child { border-right: none; }
-.prov-tab-btn:hover { background: var(--color-neutral-100); color: var(--text-primary); }
+.prov-tab-btn:hover { background: var(--bg-surface-alt); color: var(--text-primary); }
 .prov-tab-btn.is-active { background: var(--bg-surface); color: var(--color-primary); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--color-primary); }
-.prov-tab-btn.prov-tab-danger { color: var(--color-critical-default); }
+.prov-tab-btn.prov-tab-danger { color: var(--status-critical-text); }
 .prov-tab-btn.prov-tab-danger:hover { background: #fff5f5; }
-.prov-tab-btn.prov-tab-danger.is-active { color: var(--color-critical-default); box-shadow: inset 0 -2px 0 var(--color-critical-default); }
+.prov-tab-btn.prov-tab-danger.is-active { color: var(--status-critical-text); box-shadow: inset 0 -2px 0 var(--status-critical-border); }
 .prov-pw-wrap { margin-bottom: var(--space-3); }
 .prov-gen-btn {
   background: none;
@@ -142,10 +142,10 @@ if ($canReactivate && ! $isProvisioned) {
   text-decoration: underline;
 }
 .prov-gen-btn:hover { opacity: 0.8; }
-.prov-copy-ok { font-size: var(--text-xs); color: var(--color-success-default); margin-left: var(--space-2); display: none; }
+.prov-copy-ok { font-size: var(--text-xs); color: var(--status-success-text); margin-left: var(--space-2); display: none; }
 
 /* ── Card sections ─────────────────────────────────────────────────────────── */
-.prov-section { border-top: 1px solid var(--color-neutral-200); }
+.prov-section { border-top: 1px solid var(--border-subtle); }
 .prov-section-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
@@ -166,7 +166,7 @@ if ($canReactivate && ! $isProvisioned) {
   display: block;
 }
 .prov-field-hint { font-size: var(--text-xs); color: var(--text-muted); margin: 0 0 var(--space-1); }
-.prov-req { color: var(--color-critical-default); }
+.prov-req { color: var(--status-critical-text); }
 .prov-input-shell { position: relative; }
 .prov-input-shell .input { padding-right: 2.5rem; }
 .prov-toggle-pw {
@@ -193,7 +193,7 @@ if ($canReactivate && ! $isProvisioned) {
 .glpi-link-results {
   max-height: 260px;
   overflow-y: auto;
-  border: 1px solid var(--color-neutral-200);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-2, 8px);
 }
 .glpi-link-option {
@@ -201,12 +201,12 @@ if ($canReactivate && ! $isProvisioned) {
   align-items: flex-start;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-neutral-100);
+  border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
   font-size: var(--text-sm);
 }
 .glpi-link-option:last-child { border-bottom: none; }
-.glpi-link-option:hover { background: var(--color-neutral-50); }
+.glpi-link-option:hover { background: var(--bg-page); }
 .glpi-link-option.is-taken { cursor: not-allowed; opacity: 0.6; }
 .glpi-link-option.is-taken:hover { background: transparent; }
 .glpi-link-option input { margin-top: 3px; flex-shrink: 0; }
@@ -223,9 +223,9 @@ if ($canReactivate && ! $isProvisioned) {
   </div>
 
   <?php if ($canProvision && $isDeprovisioned): ?>
-    <div style="display:flex; align-items:center; gap:var(--space-2); margin:var(--space-3) var(--space-4) 0; padding:var(--space-2) var(--space-3); background:#fff7e6; border:1px solid #ffe1a8; border-radius:var(--radius-2, 8px);">
+    <div style="display:flex; align-items:center; gap:var(--space-2); margin:var(--space-3) var(--space-4) 0; padding:var(--space-2) var(--space-3); background:var(--status-warning-surface); border:1px solid var(--status-warning-border); border-radius:var(--radius-2, 8px);">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b7791f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-      <span style="font-size:var(--text-sm); color:#8a5a00; line-height:1.45;">
+      <span style="font-size:var(--text-sm); color:var(--status-warning-text); line-height:1.45;">
         <strong>Empleado dado de baja.</strong> Sus cuentas siguen creadas pero desactivadas en los sistemas. Usa <strong>Reactivar</strong> para restablecer el acceso con una nueva contraseña.
       </span>
     </div>
@@ -293,7 +293,7 @@ if ($canReactivate && ! $isProvisioned) {
                           style="display:inline;"
                           onsubmit="return confirm('¿Eliminar esta cuenta de correo?');">
                       <?= csrf_field() ?>
-                      <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);">Eliminar</button>
+                      <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);">Eliminar</button>
                     </form>
                   </td>
                 <?php endif; ?>
@@ -548,7 +548,7 @@ if ($canReactivate && ! $isProvisioned) {
     </div>
 
     <!-- Action tab bar -->
-    <div style="border-top:1px solid var(--color-neutral-200); display:flex;">
+    <div style="border-top: 1px solid var(--border-subtle); display:flex;">
       <?php if ($showAlta): ?>
         <button type="button" class="prov-tab-btn <?= $defaultPanel === 'prov-panel-alta' ? 'is-active' : '' ?>" data-panel="prov-panel-alta" aria-expanded="<?= $defaultPanel === 'prov-panel-alta' ? 'true' : 'false' ?>">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -575,7 +575,7 @@ if ($canReactivate && ! $isProvisioned) {
 
     <!-- Panel: Reactivar (shown when the employee has disabled accounts) -->
     <?php if ($canReactivate): ?>
-    <div id="prov-panel-reactivar" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-reactivar' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-reactivar" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-reactivar' ? '' : 'none' ?>; padding:var(--space-4); border-top: 1px solid var(--border-subtle);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Reactiva al empleado en todos los sistemas donde ya tiene cuenta (GLPI, Intranet y Correo). No se crean cuentas nuevas: solo se vuelven a habilitar las existentes. Como regla de seguridad, cada reactivación asigna una contraseña nueva a todos sus accesos.
       </p>
@@ -606,7 +606,7 @@ if ($canReactivate && ! $isProvisioned) {
     <?php endif; ?>
 
     <!-- Panel: Alta en sistemas (only shown for a brand-new employee with no accounts) -->
-    <div id="prov-panel-alta" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-alta' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-alta" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-alta' ? '' : 'none' ?>; padding:var(--space-4); border-top: 1px solid var(--border-subtle);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Crea la cuenta en los sistemas seleccionados. Solo se listan los que aún no tienen cuenta. Si incluyes <?= esc($mailcowLabel) ?>, indica el correo del buzón: será la cuenta principal. GLPI e Intranet usan siempre el correo institucional principal, nunca el personal.
       </p>
@@ -655,7 +655,7 @@ if ($canReactivate && ! $isProvisioned) {
     </div>
 
     <!-- Panel: Cambiar contraseña -->
-    <div id="prov-panel-password" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-password' ? '' : 'none' ?>; padding:var(--space-4); border-top:1px solid var(--color-neutral-200);">
+    <div id="prov-panel-password" class="prov-panel" style="display:<?= $defaultPanel === 'prov-panel-password' ? '' : 'none' ?>; padding:var(--space-4); border-top: 1px solid var(--border-subtle);">
       <p class="text-muted text-sm" style="margin:0 0 var(--space-3);">
         Actualiza la contraseña en los sistemas seleccionados que tengan una cuenta existente. Los sistemas sin cuenta se omiten: no se crea ninguna cuenta desde aquí.
       </p>
@@ -685,7 +685,7 @@ if ($canReactivate && ! $isProvisioned) {
     </div>
 
     <!-- Panel: Dar de baja -->
-    <div id="prov-panel-baja" class="prov-panel" style="display:none; padding:var(--space-4); border-top:1px solid var(--color-neutral-200); background:var(--color-critical-surface, #fff5f5);">
+    <div id="prov-panel-baja" class="prov-panel" style="display:none; padding:var(--space-4); border-top: 1px solid var(--border-subtle); background: var(--status-critical-surface);">
       <p class="text-sm" style="margin:0 0 var(--space-1);">
         Desactiva las cuentas en todos los sistemas seleccionados y marca al empleado como inactivo en Nexus.
       </p>
@@ -1312,7 +1312,7 @@ if ($canReactivate && ! $isProvisioned) {
     <summary style="padding:var(--space-3) var(--space-4); cursor:pointer; font-weight:600;">
       Bitácora reciente de aprovisionamiento (<?= count($log) ?>)
     </summary>
-    <div class="card-body" style="padding:0; border-top:1px solid var(--color-neutral-200);">
+    <div class="card-body" style="padding:0; border-top: 1px solid var(--border-subtle);">
       <table class="table" style="width:100%;">
         <thead>
           <tr>

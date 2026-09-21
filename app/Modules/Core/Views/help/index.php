@@ -8,7 +8,7 @@
     border-radius: var(--radius-lg);
     padding: var(--space-8) var(--space-6);
     margin-bottom: var(--space-6);
-    background: linear-gradient(135deg, var(--color-blue-500) 0%, var(--color-blue-600) 100%);
+    background: linear-gradient(135deg, var(--action-primary) 0%, var(--action-primary-pressed) 100%);
     color: var(--text-inverse);
   }
   .help-hero::after {
@@ -44,7 +44,7 @@
     padding: var(--space-3) var(--space-3) var(--space-3) calc(var(--space-3) * 2 + 18px);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
-    background: #fff;
+    background: var(--bg-surface);
     color: var(--text-primary);
     font-size: var(--text-base);
     box-shadow: var(--shadow-sm);
@@ -62,7 +62,7 @@
     gap: var(--space-3);
     padding: var(--space-5);
     background: var(--bg-surface);
-    border: 1px solid var(--color-neutral-200);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-xs);
     text-decoration: none;
@@ -72,7 +72,7 @@
   .help-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
-    border-color: var(--color-blue-200, #B3D4F0);
+    border-color: var(--accent-border);
     text-decoration: none;
   }
   .help-card-icon {
@@ -80,8 +80,8 @@
     display: inline-flex;
     align-items: center; justify-content: center;
     border-radius: var(--radius-md);
-    background: var(--color-blue-50, #EAF3FB);
-    color: var(--color-blue-500);
+    background: var(--accent-surface);
+    color: var(--text-link);
   }
   .help-card-icon svg { width: 24px; height: 24px; }
   .help-card-title {
@@ -100,7 +100,7 @@
     align-items: center;
     gap: var(--space-2);
     font-size: var(--text-sm);
-    color: var(--color-blue-500);
+    color: var(--text-link);
     font-weight: var(--weight-medium);
   }
   .help-card-meta svg { width: 16px; height: 16px; }

@@ -5,7 +5,7 @@
   .dash-hero {
     padding: var(--space-2) 0 var(--space-6);
     margin-bottom: var(--space-6);
-    border-bottom: var(--border-width-default) solid var(--color-neutral-200);
+    border-bottom: var(--border-width-default) solid var(--border-subtle);
   }
   .dash-hero h1 {
     color: var(--text-primary); margin: 0 0 var(--space-1);
@@ -15,17 +15,17 @@
   .dash-hero .role-chip {
     display:inline-flex; align-items:center; gap: var(--space-2);
     margin-top: var(--space-4); padding: 4px 12px; border-radius: var(--radius-full);
-    background: var(--bg-surface-alt); border: var(--border-width-default) solid var(--color-neutral-200);
+    background: var(--bg-surface-alt); border: var(--border-width-default) solid var(--border-subtle);
     color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-medium);
   }
   .dash-hero .role-chip::before {
     content: ""; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--color-blue-500); flex-shrink: 0;
+    background: var(--action-primary); flex-shrink: 0;
   }
   .dash-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
   .dash-tile {
     display:flex; flex-direction:column; gap: var(--space-2);
-    background: var(--bg-surface); border: var(--border-width-default) solid var(--color-neutral-200);
+    background: var(--bg-surface); border: var(--border-width-default) solid var(--border-subtle);
     border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
     padding: var(--space-4); text-decoration:none; color: inherit;
     transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
@@ -45,7 +45,7 @@
   .dash-admin { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-3); }
   .dash-admin-tile {
     display:flex; align-items:center; gap: var(--space-3);
-    background: var(--bg-surface); border: var(--border-width-default) solid var(--color-neutral-200);
+    background: var(--bg-surface); border: var(--border-width-default) solid var(--border-subtle);
     border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
     padding: var(--space-3) var(--space-4); text-decoration:none; color: inherit;
     transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
@@ -54,7 +54,7 @@
   .dash-admin-tile, .dash-admin-tile:hover, .dash-admin-tile:focus, .dash-admin-tile * { text-decoration: none !important; }
   .dash-admin-tile .ai-icon {
     width:40px; height:40px; border-radius:10px; flex:none; display:flex; align-items:center; justify-content:center;
-    background: var(--color-neutral-100, #f1f5f9); color: var(--text-default, #334155);
+    background: var(--bg-surface-alt); color: var(--text-secondary);
   }
   .dash-admin-tile .ai-icon svg { width:20px; height:20px; }
   .dash-admin-tile .ai-title { font-weight:600; font-size:.98rem; display:block; }

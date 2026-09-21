@@ -95,7 +95,7 @@
                   <form method="post" action="<?= route_to('provisioning.glpi-catalogs.destroy', $slug, $v['id']) ?>" style="display:inline;"
                         onsubmit="return confirm('¿Eliminar el valor «<?= esc($v['name']) ?>»?');">
                     <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-tertiary btn-icon btn-sm" style="color:var(--color-critical-default);" aria-label="Eliminar «<?= esc($v['name']) ?>»" title="Eliminar">
+                    <button type="submit" class="btn btn-tertiary btn-icon btn-sm" style="color: var(--status-critical-text);" aria-label="Eliminar «<?= esc($v['name']) ?>»" title="Eliminar">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                     </button>
                   </form>

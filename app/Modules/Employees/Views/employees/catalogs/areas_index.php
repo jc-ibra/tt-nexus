@@ -54,7 +54,7 @@
                 <form action="<?= route_to('employees.areas.destroy', $a['id']) ?>" method="post"
                       onsubmit="return confirm('¿Eliminar el área «<?= esc($a['name']) ?>»?')">
                   <?= csrf_field() ?>
-                  <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--color-critical-default);" aria-label="Eliminar <?= esc($a['name']) ?>">
+                  <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);" aria-label="Eliminar <?= esc($a['name']) ?>">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
                     Eliminar
                   </button>

@@ -741,7 +741,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   </div>
 
   <?php if ($mailboxAddr === ''): ?>
-    <div class="card" style="max-width:820px; border:1px solid var(--border-critical, #d72c0d);">
+    <div class="card" style="max-width:820px; border: 1px solid var(--border-critical, var(--status-critical-border));">
       <div class="card-body">
         <p class="text-muted">Configura primero la dirección del buzón para habilitar estas acciones.</p>
       </div>
@@ -749,8 +749,8 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <?php else: ?>
 
     <!-- Borrar todo -->
-    <div class="card" style="max-width:820px; margin-bottom:var(--space-4); border:1px solid var(--border-critical, #d72c0d);">
-      <div class="card-header"><h2 class="card-title" style="color:var(--text-critical, #d72c0d);">Limpiar toda la bandeja</h2></div>
+    <div class="card" style="max-width:820px; margin-bottom:var(--space-4); border: 1px solid var(--border-critical, var(--status-critical-border));">
+      <div class="card-header"><h2 class="card-title" style="color: var(--text-critical, var(--status-critical-text));">Limpiar toda la bandeja</h2></div>
       <div class="card-body">
         <p style="margin-bottom:var(--space-3);">Elimina <strong>todas</strong> las conversaciones y sus datos, y <strong>reinicia el cursor de sincronización</strong>. La próxima corrida volverá a importar desde la fecha de corte configurada («Importar correos desde»).</p>
         <form method="post" action="<?= route_to('dispatch.purge') ?>" class="md-purge-form" data-mailbox="<?= esc($mailboxAddr, 'attr') ?>">
@@ -766,7 +766,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
     </div>
 
     <!-- Borrar anteriores a una fecha -->
-    <div class="card" style="max-width:820px; border:1px solid var(--border-critical, #d72c0d);">
+    <div class="card" style="max-width:820px; border: 1px solid var(--border-critical, var(--status-critical-border));">
       <div class="card-header"><h2 class="card-title">Podar conversaciones antiguas</h2></div>
       <div class="card-body">
         <p style="margin-bottom:var(--space-3);">Elimina solo las conversaciones <strong>sin actividad</strong> desde la fecha indicada. Conserva los hilos recientes y <strong>no</strong> reinicia el cursor de sincronización.</p>

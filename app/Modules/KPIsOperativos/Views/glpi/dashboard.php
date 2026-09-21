@@ -2,6 +2,7 @@
 
 <?= $this->section('head') ?>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" defer></script>
+  <script src="<?= asset_url('js/chart-theme.js') ?>" defer></script>
   <style>
     .kpi-dashboard { display: flex; flex-direction: column; gap: var(--space-5); }
     .kpi-section-title {
@@ -16,19 +17,19 @@
       margin: 0 0 var(--space-3) 0;
     }
     .kpi-card {
-      background: var(--color-neutral-0);
-      border: 1px solid var(--color-neutral-200);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-base, 8px);
       padding: var(--space-4);
       box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
-      border-top: 3px solid var(--color-blue-500);
+      border-top: 3px solid var(--action-primary);
       transition: box-shadow .15s ease;
     }
     .kpi-card:hover { box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08)); }
-    .kpi-card.accent-warning  { border-top-color: var(--color-warning-default); }
-    .kpi-card.accent-success  { border-top-color: var(--color-success-default); }
-    .kpi-card.accent-critical { border-top-color: var(--color-critical-default); }
-    .kpi-card.accent-info     { border-top-color: var(--color-blue-400); }
+    .kpi-card.accent-warning  { border-top-color: var(--status-warning-border); }
+    .kpi-card.accent-success  { border-top-color: var(--status-success-border); }
+    .kpi-card.accent-critical { border-top-color: var(--status-critical-border); }
+    .kpi-card.accent-info     { border-top-color: var(--action-primary-hover); }
     .kpi-card.accent-purple   { border-top-color: #7B61FF; }
     .kpi-card.accent-teal     { border-top-color: #00A39E; }
 
@@ -85,8 +86,8 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: var(--space-2) var(--space-3);
       border-radius: 6px;
-      background: var(--color-neutral-50);
-      border-left: 3px solid var(--color-blue-500);
+      background: var(--bg-page);
+      border-left: 3px solid var(--action-primary);
       margin-bottom: var(--space-2);
     }
     .state-row:last-child { margin-bottom: 0; }
@@ -96,14 +97,14 @@
 
     .coord-card {
       padding: var(--space-3);
-      background: var(--color-neutral-50);
+      background: var(--bg-page);
       border-radius: 6px;
-      border-left: 3px solid var(--color-blue-400);
+      border-left: 3px solid var(--action-primary-hover);
     }
     .coord-card .zone { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .coord-card .coord { font-weight: var(--weight-bold, 700); margin-top: 2px; }
     .coord-card .gte { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
-    .coord-card .num { font-size: var(--text-xl); font-weight: var(--weight-bold, 700); color: var(--color-blue-600); }
+    .coord-card .num { font-size: var(--text-xl); font-weight: var(--weight-bold, 700); color: var(--accent-text); }
   </style>
 <?= $this->endSection() ?>
 
@@ -218,7 +219,7 @@ function ticketsLink(string $base, string $filterKey, string $value): string {
             ?>
               <a href="<?= esc(ticketsLink($ticketsBase, 'estado', $estado)) ?>"
                  class="state-row clickable-card"
-                 style="border-left-color: var(--state-color-<?= $i ?>, var(--color-blue-500));">
+                 style="border-left-color: var(--state-color-<?= $i ?>, var(--action-primary));">
                 <div>
                   <div class="label"><?= esc($estado) ?></div>
                   <div class="pct"><?= number_format($pct, 2) ?>% del total</div>

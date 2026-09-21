@@ -2,6 +2,7 @@
 
 <?= $this->section('head') ?>
 <script src="<?= asset_url('js/vendor/chart.umd.min.js') ?>" defer></script>
+<script src="<?= asset_url('js/chart-theme.js') ?>" defer></script>
 <style>
   .emp-dash { display: flex; flex-direction: column; gap: var(--space-5); }
 
@@ -18,17 +19,17 @@
   }
 
   .emp-dash-kpi {
-    background: var(--color-neutral-0);
-    border: var(--border-width-default) solid var(--color-neutral-200);
+    background: var(--bg-surface);
+    border: var(--border-width-default) solid var(--border-subtle);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    border-top: 3px solid var(--color-blue-500);
+    border-top: 3px solid var(--action-primary);
     padding: var(--space-4);
   }
-  .emp-dash-kpi.accent-success  { border-top-color: var(--color-success-default); }
-  .emp-dash-kpi.accent-warning  { border-top-color: var(--color-warning-default); }
-  .emp-dash-kpi.accent-critical { border-top-color: var(--color-critical-default); }
-  .emp-dash-kpi.accent-neutral  { border-top-color: var(--color-neutral-400); }
+  .emp-dash-kpi.accent-success  { border-top-color: var(--status-success-border); }
+  .emp-dash-kpi.accent-warning  { border-top-color: var(--status-warning-border); }
+  .emp-dash-kpi.accent-critical { border-top-color: var(--status-critical-border); }
+  .emp-dash-kpi.accent-neutral  { border-top-color: var(--border-strong); }
 
   .emp-dash-kpi-label {
     font-size: var(--text-xs);
@@ -66,7 +67,7 @@
     color: inherit;
   }
   a.emp-dash-list-row:hover { background: var(--bg-surface-alt); }
-  a.emp-dash-list-row:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 1px; }
+  a.emp-dash-list-row:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 1px; }
   .emp-dash-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
   .emp-dash-list-name {
     flex: 1;

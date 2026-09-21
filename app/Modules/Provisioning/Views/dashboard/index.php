@@ -25,11 +25,11 @@
   </div></div>
   <div class="card"><div class="card-body">
     <p class="text-muted text-sm">Reintentos en cola</p>
-    <p style="font-size:2rem; font-weight:600; margin:var(--space-1) 0 0; color: <?= (int) $stats['retries'] > 0 ? 'var(--color-warning-default)' : 'inherit' ?>;"><?= (int) $stats['retries'] ?></p>
+    <p style="font-size:2rem; font-weight:600; margin:var(--space-1) 0 0; color: <?= (int) $stats['retries'] > 0 ? 'var(--status-warning-text)' : 'inherit' ?>;"><?= (int) $stats['retries'] ?></p>
   </div></div>
   <div class="card"><div class="card-body">
     <p class="text-muted text-sm">Últimos errores</p>
-    <p style="font-size:2rem; font-weight:600; margin:var(--space-1) 0 0; color: <?= count($stats['last_errors']) > 0 ? 'var(--color-critical-default)' : 'inherit' ?>;"><?= count($stats['last_errors']) ?></p>
+    <p style="font-size:2rem; font-weight:600; margin:var(--space-1) 0 0; color: <?= count($stats['last_errors']) > 0 ? 'var(--status-critical-text)' : 'inherit' ?>;"><?= count($stats['last_errors']) ?></p>
   </div></div>
 </div>
 

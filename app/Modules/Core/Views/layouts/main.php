@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title><?= esc($pageTitle ?? 'Dashboard') ?> - Nexus</title>
   <link rel="icon" type="image/png" href="<?= base_url('img/tt-icon.png') ?>">
+  <?= $this->include('App\Modules\Core\Views\partials\theme_boot') ?>
   <link rel="stylesheet" href="<?= asset_url('css/app.css') ?>">
   <?= $this->include('App\Modules\Core\Views\partials\pwa') ?>
   <?= $this->renderSection('head') ?>

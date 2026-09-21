@@ -10,6 +10,9 @@
  * (color por el trabajo que hace, no por preferencia): magnitud = un solo
  * tono; identidad = categórico en orden fijo; estado = paleta de estado fija;
  * progreso de un pipeline = rampa ordinal de un solo tono, claro -> oscuro.
+ * Los colores se leen de NxChartTheme (public/js/chart-theme.js), que a su
+ * vez lee los tokens --chart-* de app.css — así la paleta responde al tema
+ * claro/oscuro sin duplicar valores aquí.
  *
  * Tipos soportados:
  *   hbar     - ranking de una sola métrica (un tono; o colores explícitos
@@ -21,48 +24,36 @@
 (function () {
   'use strict';
 
-  // Categórico (orden fijo, no se recicla): usar siempre desde el slot 1.
-  var CATEGORICAL = ['#2a78d6', '#eb6834', '#1baf7a'];
-
-  // Estado (fijo, nunca se reusa para una serie cualquiera).
-  var STATUS = { good: '#0ca30c', warning: '#fab219', serious: '#ec835a', critical: '#d03b3b' };
-
-  // Rampa secuencial azul (100->700), clara -> oscura, para magnitud/ordinal.
-  var SEQUENTIAL_BLUE = ['#86b6ef', '#6da7ec', '#5598e7', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b'];
-
-  var TEXT_PRIMARY = '#1A1C1E';
-  var TEXT_MUTED = '#6D7175';
-  var GRID_COLOR = '#E9EAEB';
-  var FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
-
-  /** N tonos uniformemente repartidos en una rampa, del más claro al más oscuro. */
-  function stepsFrom(ramp, n) {
-    if (n <= 1) { return [ramp[ramp.length - 1]]; }
-    var out = [];
-    for (var i = 0; i < n; i++) {
-      var idx = Math.round((i * (ramp.length - 1)) / (n - 1));
-      out.push(ramp[idx]);
-    }
-    return out;
-  }
+  var charts = [];
+  var specsByCanvas = null;
 
   function fmt(n) {
     return Number(n).toLocaleString('es-MX');
   }
 
-  function commonOptions(extra) {
+  function commonOptions(t, extra) {
     return Object.assign({
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
-          titleFont: { family: FONT }, bodyFont: { family: FONT },
-          backgroundColor: '#1A1C1E', padding: 10, cornerRadius: 6,
+          titleFont: { family: t.FONT }, bodyFont: { family: t.FONT },
+          backgroundColor: t.TOOLTIP_BG, titleColor: t.TOOLTIP_TEXT, bodyColor: t.TOOLTIP_TEXT,
+          padding: 10, cornerRadius: 6,
           callbacks: { label: function (ctx) { return ' ' + fmt(ctx.parsed.x != null ? ctx.parsed.x : ctx.parsed.y); } },
         },
       },
     }, extra || {});
+  }
+
+  // spec.colors puede traer llaves semánticas ('critical'/'warning'/'good'/
+  // 'info') en vez de hex — el servidor no conoce el tema activo, así que
+  // manda la severidad y aquí se resuelve contra la paleta de estado viva.
+  var STATUS_KEYS = { critical: 1, warning: 1, good: 1, info: 1 };
+  function resolveColor(c, t) {
+    if (STATUS_KEYS[c]) { return c === 'info' ? t.CATEGORICAL[0] : t.STATUS[c]; }
+    return c;
   }
 
   /**
@@ -74,11 +65,12 @@
    * marca en negritas y el de la HOJA en un tamaño menor y tono apagado —
    * la jerarquía se lee sin depender solo de la indentación del texto.
    */
-  function renderHbar(ctx, spec) {
+  function renderHbar(ctx, spec, t) {
     var tiers = spec.tiers || null;
     var colors = spec.colors
-      || (tiers ? tiers.map(function (t) { return t === 'child' ? SEQUENTIAL_BLUE[1] : SEQUENTIAL_BLUE[4]; })
-      : (spec.mono ? spec.labels.map(function () { return SEQUENTIAL_BLUE[4]; }) : CATEGORICAL));
+      ? spec.colors.map(function (c) { return resolveColor(c, t); })
+      : (tiers ? tiers.map(function (x) { return x === 'child' ? t.SEQUENTIAL[1] : t.SEQUENTIAL[4]; })
+      : (spec.mono ? spec.labels.map(function () { return t.SEQUENTIAL[4]; }) : t.CATEGORICAL));
     return new Chart(ctx, {
       type: 'bar',
       data: {
@@ -91,18 +83,18 @@
           maxBarThickness: 22,
         }],
       },
-      options: commonOptions({
+      options: commonOptions(t, {
         indexAxis: 'y',
         scales: {
-          x: { beginAtZero: true, ticks: { color: TEXT_MUTED, font: { family: FONT }, precision: 0 }, grid: { color: GRID_COLOR, drawTicks: false } },
+          x: { beginAtZero: true, ticks: { color: t.TEXT_MUTED, font: { family: t.FONT }, precision: 0 }, grid: { color: t.GRID_COLOR, drawTicks: false } },
           y: {
             ticks: {
-              color: tiers ? function (c) { return tiers[c.index] === 'child' ? TEXT_MUTED : TEXT_PRIMARY; } : TEXT_PRIMARY,
+              color: tiers ? function (c) { return tiers[c.index] === 'child' ? t.TEXT_MUTED : t.TEXT_PRIMARY; } : t.TEXT_PRIMARY,
               font: tiers ? function (c) {
                 return tiers[c.index] === 'child'
-                  ? { family: FONT, size: 11 }
-                  : { family: FONT, size: 12, weight: '600' };
-              } : { family: FONT },
+                  ? { family: t.FONT, size: 11 }
+                  : { family: t.FONT, size: 12, weight: '600' };
+              } : { family: t.FONT },
             },
             grid: { display: false },
           },
@@ -117,8 +109,8 @@
    * conteo), coloreada con una rampa ordinal clara->oscura. La leyenda
    * de Chart.js hace de identidad de cada etapa.
    */
-  function renderStageBar(ctx, spec) {
-    var colors = stepsFrom(SEQUENTIAL_BLUE, spec.labels.length);
+  function renderStageBar(ctx, spec, t) {
+    var colors = NxChartTheme.stepsFrom(t.SEQUENTIAL, spec.labels.length);
     var total = spec.values.reduce(function (a, b) { return a + b; }, 0);
     var datasets = spec.labels.map(function (label, i) {
       return {
@@ -132,14 +124,16 @@
     return new Chart(ctx, {
       type: 'bar',
       data: { labels: [''], datasets: datasets },
-      options: commonOptions({
+      options: commonOptions(t, {
         indexAxis: 'y',
         plugins: {
           legend: {
-            display: true, position: 'bottom', labels: { color: TEXT_PRIMARY, font: { family: FONT, size: 11 }, boxWidth: 12, boxHeight: 12, padding: 14 },
+            display: true, position: 'bottom', labels: { color: t.TEXT_PRIMARY, font: { family: t.FONT, size: 11 }, boxWidth: 12, boxHeight: 12, padding: 14 },
           },
           tooltip: {
-            titleFont: { family: FONT }, bodyFont: { family: FONT }, backgroundColor: '#1A1C1E', padding: 10, cornerRadius: 6,
+            titleFont: { family: t.FONT }, bodyFont: { family: t.FONT },
+            backgroundColor: t.TOOLTIP_BG, titleColor: t.TOOLTIP_TEXT, bodyColor: t.TOOLTIP_TEXT,
+            padding: 10, cornerRadius: 6,
             callbacks: {
               label: function (c) {
                 var pct = total > 0 ? Math.round((c.parsed.x / total) * 100) : 0;
@@ -156,72 +150,87 @@
     });
   }
 
-  function renderLine(ctx, spec) {
+  function renderLine(ctx, spec, t) {
     return new Chart(ctx, {
       type: 'line',
       data: {
         labels: spec.labels,
         datasets: (spec.series || []).map(function (s, i) {
+          var color = t.CATEGORICAL[i % t.CATEGORICAL.length];
           return {
             label: s.label,
             data: s.values,
-            borderColor: CATEGORICAL[i % CATEGORICAL.length],
-            backgroundColor: CATEGORICAL[i % CATEGORICAL.length],
+            borderColor: color,
+            backgroundColor: color,
             borderWidth: 2,
             pointRadius: 3,
             pointHoverRadius: 5,
-            pointBackgroundColor: '#fff',
-            pointBorderColor: CATEGORICAL[i % CATEGORICAL.length],
+            pointBackgroundColor: t.POINT_BG,
+            pointBorderColor: color,
             pointBorderWidth: 2,
             tension: 0,
             fill: false,
           };
         }),
       },
-      options: commonOptions({
+      options: commonOptions(t, {
         plugins: {
-          legend: { display: (spec.series || []).length > 1, labels: { font: { family: FONT }, color: TEXT_PRIMARY, boxWidth: 12, boxHeight: 12 } },
+          legend: { display: (spec.series || []).length > 1, labels: { font: { family: t.FONT }, color: t.TEXT_PRIMARY, boxWidth: 12, boxHeight: 12 } },
           tooltip: {
-            titleFont: { family: FONT }, bodyFont: { family: FONT }, backgroundColor: '#1A1C1E', padding: 10, cornerRadius: 6,
+            titleFont: { family: t.FONT }, bodyFont: { family: t.FONT },
+            backgroundColor: t.TOOLTIP_BG, titleColor: t.TOOLTIP_TEXT, bodyColor: t.TOOLTIP_TEXT,
+            padding: 10, cornerRadius: 6,
             callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + fmt(c.parsed.y); } },
           },
         },
         scales: {
-          x: { ticks: { color: TEXT_MUTED, font: { family: FONT } }, grid: { display: false } },
-          y: { beginAtZero: true, ticks: { color: TEXT_MUTED, font: { family: FONT }, precision: 0 }, grid: { color: GRID_COLOR, drawTicks: false } },
+          x: { ticks: { color: t.TEXT_MUTED, font: { family: t.FONT } }, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { color: t.TEXT_MUTED, font: { family: t.FONT }, precision: 0 }, grid: { color: t.GRID_COLOR, drawTicks: false } },
         },
       }),
     });
   }
 
-  window.ReportsCharts = { STATUS: STATUS, CATEGORICAL: CATEGORICAL, SEQUENTIAL_BLUE: SEQUENTIAL_BLUE, stepsFrom: stepsFrom };
+  function renderAll() {
+    charts.forEach(function (c) { c.destroy(); });
+    charts = [];
+    if (! specsByCanvas) { return; }
+    var t = NxChartTheme.palette();
+    Object.keys(specsByCanvas).forEach(function (key) {
+      var canvas = document.getElementById('chart-' + key);
+      if (! canvas) { return; }
+      var spec = specsByCanvas[key];
+      var ctx = canvas.getContext('2d');
+      var chart;
+      if (spec.type === 'hbar') {
+        chart = renderHbar(ctx, spec, t);
+      } else if (spec.type === 'stagebar') {
+        chart = renderStageBar(ctx, spec, t);
+      } else if (spec.type === 'line') {
+        chart = renderLine(ctx, spec, t);
+      }
+      if (chart) { charts.push(chart); }
+    });
+  }
+
+  window.ReportsCharts = {
+    get STATUS() { return NxChartTheme.palette().STATUS; },
+    get CATEGORICAL() { return NxChartTheme.palette().CATEGORICAL; },
+    get SEQUENTIAL_BLUE() { return NxChartTheme.palette().SEQUENTIAL; },
+    stepsFrom: function (ramp, n) { return NxChartTheme.stepsFrom(ramp, n); },
+  };
 
   document.addEventListener('DOMContentLoaded', function () {
     var holder = document.getElementById('reports-dashboard-data');
-    if (! holder || typeof Chart === 'undefined') {
+    if (! holder || typeof Chart === 'undefined' || typeof NxChartTheme === 'undefined') {
       return;
     }
-    var charts;
     try {
-      charts = JSON.parse(holder.getAttribute('data-charts') || '{}');
+      specsByCanvas = JSON.parse(holder.getAttribute('data-charts') || '{}');
     } catch (e) {
       return;
     }
-
-    Object.keys(charts).forEach(function (key) {
-      var canvas = document.getElementById('chart-' + key);
-      if (! canvas) {
-        return;
-      }
-      var spec = charts[key];
-      var ctx = canvas.getContext('2d');
-      if (spec.type === 'hbar') {
-        renderHbar(ctx, spec);
-      } else if (spec.type === 'stagebar') {
-        renderStageBar(ctx, spec);
-      } else if (spec.type === 'line') {
-        renderLine(ctx, spec);
-      }
-    });
+    renderAll();
+    NxChartTheme.onChange(renderAll);
   });
 })();

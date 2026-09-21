@@ -18,15 +18,15 @@
     <div class="stat-label">Total</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value" style="color:var(--color-success-default)"><?= (int) $stats['sent'] ?></div>
+    <div class="stat-value" style="color: var(--status-success-text)"><?= (int) $stats['sent'] ?></div>
     <div class="stat-label">Enviados</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value" style="color:var(--color-warning-default)"><?= (int) $stats['queued'] ?></div>
+    <div class="stat-value" style="color:var(--status-warning-text)"><?= (int) $stats['queued'] ?></div>
     <div class="stat-label">En cola</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value" style="color:var(--color-critical-default)"><?= (int) ($stats['failed'] + $stats['bounced']) ?></div>
+    <div class="stat-value" style="color:var(--status-critical-text)"><?= (int) ($stats['failed'] + $stats['bounced']) ?></div>
     <div class="stat-label">Fallidos / Rebotados</div>
   </div>
 </div>
@@ -83,7 +83,7 @@
             <?= $log['opened_at'] ? date('d/m/Y H:i', strtotime($log['opened_at'])) : '-' ?>
           </td>
           <?php endif; ?>
-          <td class="text-sm" style="color:var(--color-critical-default)">
+          <td class="text-sm" style="color: var(--status-critical-text)">
             <?= esc($log['error_message'] ?? '') ?>
           </td>
         </tr>

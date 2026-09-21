@@ -153,12 +153,12 @@ $ticketDrill = static function (string $dimension, int $id, string $label) use (
     <?php if ($critHref !== ''): ?>
       <a href="<?= esc($critHref) ?>" class="card hs-stat-link"><div class="hs-stat">
         <p class="hs-stat-label">Críticos (&gt;<?= $critDays ?>d)</p>
-        <p class="hs-stat-value" style="color:var(--color-critical-default);"><?= $critCount ?></p>
+        <p class="hs-stat-value" style="color: var(--status-critical-text);"><?= $critCount ?></p>
       </div></a>
     <?php else: ?>
       <div class="card hs-stat-link is-disabled"><div class="hs-stat">
         <p class="hs-stat-label">Críticos (&gt;<?= $critDays ?>d)</p>
-        <p class="hs-stat-value" style="color:var(--color-critical-default);">0</p>
+        <p class="hs-stat-value" style="color: var(--status-critical-text);">0</p>
       </div></div>
     <?php endif; ?>
 

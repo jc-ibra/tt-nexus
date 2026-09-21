@@ -17,6 +17,22 @@
 
 ## 2. Color
 
+### 2.0 Modelo de tokens en tres capas
+
+```
+Capa 1  Primitivas   --color-blue-*, --color-neutral-*, --color-*-default/-surface/-strong
+                     Invariantes: el mismo valor en claro y en oscuro. Nunca se usan
+                     directamente fuera de la definición de un alias en :root.
+Capa 2  Semánticas   --bg-*, --text-*, --border-*, --action-*, --accent-*, --status-*
+                     Se re-vinculan por tema en [data-theme-resolved="dark"]. Todo CSS
+                     de componentes y toda vista deben usar SOLO estos.
+Capa 3  Componente   --sidebar-*, --chart-*, --shadow-*
+                     Tokens de una parte específica de la interfaz; también se
+                     re-vinculan por tema.
+```
+
+**Regla dura:** si necesitas un color y no existe un alias de Capa 2/3 para el caso, el bug es que falta el alias — no uses la primitiva directamente ni un hex literal.
+
 ### Paleta principal — Blue
 
 | Token                   | Valor HEX | Uso |
@@ -72,6 +88,8 @@
   --bg-page:         var(--color-neutral-50);
   --bg-surface:      var(--color-neutral-0);
   --bg-surface-alt:  var(--color-neutral-100);
+  --bg-elevated:     var(--color-neutral-0);  /* dropdowns, popovers */
+  --bg-hover:        var(--color-neutral-100);
   --bg-overlay:      rgba(0, 0, 0, 0.5);
 
   /* Texto */
@@ -79,11 +97,13 @@
   --text-secondary:  var(--color-neutral-700);
   --text-muted:      var(--color-neutral-500);
   --text-disabled:   var(--color-neutral-400);
-  --text-inverse:    #FFFFFF;
+  --text-inverse:    #FFFFFF;   /* texto sobre chrome oscuro — sí se re-vincula */
+  --on-accent:       #FFFFFF;   /* texto sobre relleno de marca — fijo en los dos temas */
   --text-link:       var(--color-blue-500);
   --text-link-hover: var(--color-blue-600);
 
   /* Bordes */
+  --border-subtle:   var(--color-neutral-200);
   --border-default:  var(--color-neutral-300);
   --border-strong:   var(--color-neutral-400);
   --border-focus:    var(--color-blue-500);
@@ -94,15 +114,71 @@
   --action-primary-hover:    var(--color-blue-400);
   --action-primary-pressed:  var(--color-blue-600);
   --action-primary-disabled: var(--color-neutral-300);
+
+  /* Acento (tinte de "seleccionado/activo") y estado (superficie+texto+borde) */
+  --accent-surface: var(--color-blue-50);
+  --accent-text:    var(--color-blue-700);
+  --accent-border:  var(--color-blue-200);
+  --status-info-text:     var(--color-blue-800);
+  --status-success-text:  var(--color-success-strong);
+  --status-warning-text:  var(--color-warning-strong);
+  --status-critical-text: var(--color-critical-strong);
 }
 ```
 
 ### Reglas de uso de color
 
 - Máximo **2 colores de acento por pantalla**: el primario (`blue-500`) y un semántico si hay estado.
-- El fondo de página siempre es `--bg-page` (`#F6F6F7`). Las cards y modales van sobre `--bg-surface` (`#FFFFFF`).
+- El fondo de página siempre es `--bg-page`. Las cards y modales van sobre `--bg-surface`; los dropdowns/popovers sobre `--bg-elevated` (en claro son el mismo blanco; en oscuro `--bg-elevated` es un paso más claro que `--bg-surface`, porque ahí no hay sombra que los separe visualmente).
 - Nunca uses `blue-500` directamente como fondo de una superficie grande — solo en botones, badges, y highlights pequeños.
-- Los textos sobre azul sólido deben ser blancos. Verifica ratio mínimo 4.5:1.
+- Los textos sobre azul sólido usan `--on-accent` (blanco fijo), no `--text-inverse` (que sí cambia con el tema). Verifica ratio mínimo 4.5:1.
+- **Nunca uses una primitiva `--color-*` fuera de la definición de un alias en `:root`.** Si el alias que necesitas no existe, agrégalo — no reintroduzcas la primitiva en el CSS del componente.
+
+### Tema oscuro
+
+Tres estados de preferencia, dos temas efectivos:
+
+| Atributo (en `<html>`) | Valores | Qué hace |
+|---|---|---|
+| `data-theme` | `light` / `dark` / `system` | La preferencia guardada del usuario (`localStorage nx_theme`). Solo la lee el selector de la interfaz. |
+| `data-theme-resolved` | `light` / `dark` | El tema efectivo que usa el CSS. Es `dark` cuando la preferencia es `dark`, o cuando es `system` y el SO está en oscuro. |
+
+Ambos se fijan **antes del primer pintado** por un script en `<head>` (`Core/Views/partials/theme_boot.php`, incluido antes del `<link>` a `app.css` en cada layout) — el mismo patrón que ya usa `nx_sidebar_collapsed` para evitar el parpadeo del ancho del sidebar. La preferencia es por dispositivo (localStorage), no hay columna en `users`.
+
+```css
+:root { /* claro — valores por defecto, ver §13 */ }
+
+:root[data-theme-resolved="dark"] {
+  /* un solo bloque de overrides: SOLO Capa 2 y Capa 3. Las primitivas de
+     Capa 1 nunca se re-vinculan aquí. */
+}
+```
+
+**Por qué la rampa `--color-neutral-*` nunca se invierte:** invertirla (hacer que `neutral-0` valga un tono oscuro) parece ahorrar trabajo, pero rompe el modelo — cada primitiva pasaría a significar cosas distintas según el tema, y el oscuro dejaría de ser una decisión de diseño propia (compresión de contraste, elevación por luminosidad, estados desaturados) para ser un espejo automático del claro, que casi nunca es la superficie correcta. Rebindar solo los alias de Capa 2/3 es más trabajo una vez, y correcto para siempre.
+
+**Elevación:** claro eleva con sombra (`--shadow-*` sobre un fondo ya claro se ve). Oscuro no puede: la sombra por sí sola es invisible sobre un fondo ya oscuro, así que eleva con **luminosidad** — cada nivel (`--bg-page` → `--bg-surface` → `--bg-surface-alt` → `--bg-elevated`) es un paso más claro que el anterior — más un filo superior sutil (`--shadow-elevation-highlight`, `inset 0 1px 0 rgba(255,255,255,.05)` en oscuro, `none` en claro).
+
+**El sidebar es oscuro en los dos temas, pero no del mismo oscuro** — es la única superficie con esta regla, y es fácil "simplificarla" por error:
+- En **claro**, el sidebar contrasta por **inversión**: la página es clara, el sidebar es la superficie oscura de la aplicación.
+- En **oscuro**, no se puede invertir — la página ya es oscura. El sidebar contrasta por **elevación hacia arriba**: un paso más claro que `--bg-page`, con un borde visible (`--sidebar-border`), no el mismo negro que la página.
+
+**Contraste verificado en oscuro** (superficie `--bg-surface` `#1A222B`):
+
+| Alias | Valor | Ratio | ¿Pasa AA? |
+|---|---|---|---|
+| `--text-primary` | `#D2D9E0` | 11.3:1 | ✅ |
+| `--text-muted` | `#8795A2` | 5.6:1 | ✅ |
+| `--text-link` | `#6FB2EA` | ~6.1:1 | ✅ |
+| `--status-success-text` | `#55D6A8` | 7.9:1 | ✅ |
+| `--status-warning-text` | `#F2C55C` | 9.2:1 | ✅ |
+| `--status-critical-text` | `#FF8F7A` | 5.0:1 | ✅ |
+
+> **Trampa:** `--color-success-default` (`#008060`) es ~2.4:1 sobre `--bg-surface` en oscuro — no pasa AA como texto. Por eso `--status-success-text` existe como alias separado de la primitiva de estado: para **texto** en oscuro siempre usa `--status-*-text`, nunca `--color-*-default` directo.
+
+**Qué NO sigue el tema del usuario, y por qué:**
+- **Correos** (`Views/emails/*.php`): los clientes de correo no soportan `prefers-color-scheme` ni variables CSS de forma confiable. Se quedan en claro, con hex fijo — es lo correcto ahí, no una omisión.
+- **Modo presentación** (`Reports/Views/present.php`): tiene identidad propia y deliberada (deck siempre oscuro, para proyectar), documentada en su propio encabezado. No debe acoplarse a `nx_theme`.
+- **Widget público de ServiceDesk** (`Views/widget/*.php`): se embebe en sitios de terceros vía iframe; debe verse igual sin importar el tema del usuario de Nexus que lo insertó.
 
 ---
 
@@ -112,37 +188,44 @@
 
 ```css
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-               'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+               Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 ```
 
-> No se usan fuentes de display personalizadas. El sistema confía en las fuentes del sistema para velocidad y consistencia — igual que Polaris.
+**IBM Plex Sans / IBM Plex Mono, autoalojadas** (`public/fonts/`, licencia SIL OFL 1.1). Nexus es una consola de operaciones — folios de ticket, IDs de GLPI, correos, timestamps, cifras KPI — e IBM Plex está dibujada para eso: producto técnico/enterprise, con carácter propio (no lee como la fuente por defecto de cualquier sitio) y buena cobertura de diacríticos en español. Plex Mono acompaña en identificadores y datos donde importa el alineado.
+
+> **`public/fonts/` es la única fuente permitida.** La CSP del proyecto es `styleSrc/scriptSrc 'self'` — no se carga tipografía desde un CDN (ni Google Fonts, ni ningún otro). Si se agrega un peso o un nuevo corte, se descarga el `.woff2`, se sube a `public/fonts/` y se declara con `@font-face` en `app.css`, igual que los cuatro archivos actuales (latin + latin-ext, Sans 400–700 variable + Mono 400).
+>
+> Si el archivo `.woff2` no carga por cualquier razón, el stack cae a las fuentes del sistema (`-apple-system`, `Segoe UI`, etc.) — la lectura nunca se rompe.
 
 ### Escala tipográfica
+
+Los saltos son perceptibles a propósito. La escala anterior tenía 4 niveles (`sm`/`base`/`md`/`lg`) repartidos en 3px — una diferencia menor al antialiasing, que no genera jerarquía visible.
 
 | Token               | `font-size` | `line-height` | `font-weight` | Uso |
 |---------------------|-------------|----------------|----------------|-----|
 | `--text-xs`         | `12px`      | `16px`         | 400            | Metadata, timestamps, captions |
 | `--text-sm`         | `13px`      | `20px`         | 400            | Labels de campos, texto de ayuda |
 | `--text-base`       | `14px`      | `20px`         | 400            | Cuerpo de texto, párrafos |
-| `--text-md`         | `15px`      | `22px`         | 400            | Cuerpo de listas, descripciones |
-| `--text-lg`         | `16px`      | `24px`         | 500            | Subtítulos de sección |
-| `--text-xl`         | `20px`      | `28px`         | 600            | Títulos de página, headings |
-| `--text-2xl`        | `24px`      | `32px`         | 600            | Headings principales, stat numbers |
-| `--text-3xl`        | `32px`      | `40px`         | 700            | Hero stats, números grandes |
+| `--text-lg`         | `16px`      | `24px`         | 500            | Subtítulos de sección (`--text-md` es alias de este, por compatibilidad) |
+| `--text-xl`         | `18px`      | `28px`         | 600            | Títulos de página, headings |
+| `--text-2xl`        | `22px`      | `32px`         | 600            | Headings principales, stat numbers |
+| `--text-3xl`        | `28px`      | `36px`         | 700            | Hero stats, números grandes |
+
+Cifras (montos, conteos, IDs de ticket) llevan `font-variant-numeric: tabular-nums` — utilidad `.tabular-nums`, ya aplicada por defecto en `.table`, `.stat-value`, `.stat-delta` y `.pagination` — para que alineen en columna en vez de bailar por el ancho variable de cada dígito.
 
 ```css
 :root {
   --text-xs:   0.75rem;
   --text-sm:   0.8125rem;
   --text-base: 0.875rem;
-  --text-md:   0.9375rem;
+  --text-md:   1rem;    /* alias de --text-lg */
   --text-lg:   1rem;
-  --text-xl:   1.25rem;
-  --text-2xl:  1.5rem;
-  --text-3xl:  2rem;
+  --text-xl:   1.125rem;
+  --text-2xl:  1.375rem;
+  --text-3xl:  1.75rem;
 
   --leading-tight:  1.25;
   --leading-normal: 1.4286;   /* 20/14 */
@@ -223,27 +306,41 @@ Sistema de **base 4px**. Todos los valores de margin, padding y gap deben ser m�
 
 ## 6. Sombras / Elevación
 
-| Token             | Valor CSS | Uso |
+Las sombras se componen sobre `--shadow-color`, no llevan el color escrito adentro — así se pueden re-vincular por tema sin repetir cada `rgba(...)`. En claro es negro suave; en oscuro es más negro y más opaco, porque sobre un fondo ya oscuro una sombra tenue no se distingue (ver "Tema oscuro" en §2).
+
+| Token             | Composición | Uso |
 |-------------------|-----------|-----|
-| `--shadow-xs`     | `0 1px 2px rgba(0,0,0,0.08)` | Hover de row, hover de card |
-| `--shadow-sm`     | `0 2px 4px rgba(0,0,0,0.10)` | Card en reposo |
-| `--shadow-md`     | `0 4px 12px rgba(0,0,0,0.12)` | Dropdown, popover |
-| `--shadow-lg`     | `0 8px 24px rgba(0,0,0,0.14)` | Modal, dialog |
-| `--shadow-xl`     | `0 16px 48px rgba(0,0,0,0.16)` | Drawer lateral |
-| `--shadow-focus`  | `0 0 0 3px rgba(23,115,200,0.35)` | Estado de foco (ring) |
-| `--shadow-focus-critical` | `0 0 0 3px rgba(215,44,13,0.30)` | Foco en campo con error |
+| `--shadow-xs`     | `0 1px 2px var(--shadow-color)` | Hover de row, hover de card |
+| `--shadow-sm`     | `0 2px 4px var(--shadow-color)` | Card en reposo |
+| `--shadow-md`     | `0 4px 12px var(--shadow-color)` | Dropdown, popover |
+| `--shadow-lg`     | `0 8px 24px var(--shadow-color-strong)` | Modal, dialog |
+| `--shadow-xl`     | `0 16px 48px var(--shadow-color-strong)` | Drawer lateral |
+| `--shadow-focus`  | fijo | Estado de foco (ring) — azul en claro, blue-300 en oscuro |
+| `--shadow-focus-critical` | fijo | Foco en campo con error |
+| `--shadow-elevation-highlight` | `none` en claro / `inset 0 1px 0 rgba(255,255,255,.05)` en oscuro | Filo superior en superficies elevadas (dropdown, modal) — el sustituto de la sombra en oscuro |
 
 ```css
 :root {
-  --shadow-xs:    0 1px 2px rgba(0,0,0,0.08);
-  --shadow-sm:    0 2px 4px rgba(0,0,0,0.10);
-  --shadow-md:    0 4px 12px rgba(0,0,0,0.12);
-  --shadow-lg:    0 8px 24px rgba(0,0,0,0.14);
-  --shadow-xl:    0 16px 48px rgba(0,0,0,0.16);
+  --shadow-color:        rgba(0, 0, 0, 0.10);
+  --shadow-color-strong: rgba(0, 0, 0, 0.16);
+  --shadow-xs:    0 1px 2px var(--shadow-color);
+  --shadow-sm:    0 2px 4px var(--shadow-color);
+  --shadow-md:    0 4px 12px var(--shadow-color);
+  --shadow-lg:    0 8px 24px var(--shadow-color-strong);
+  --shadow-xl:    0 16px 48px var(--shadow-color-strong);
   --shadow-focus: 0 0 0 3px rgba(23,115,200,0.35);
   --shadow-focus-critical: 0 0 0 3px rgba(215,44,13,0.30);
+  --shadow-elevation-highlight: none;
+}
+
+:root[data-theme-resolved="dark"] {
+  --shadow-color:        rgba(0, 0, 0, 0.55);
+  --shadow-color-strong: rgba(0, 0, 0, 0.70);
+  --shadow-elevation-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 ```
+
+**Regla:** una superficie que solo necesita distinguirse del fondo (tablas, `.stat-card`, inputs) lleva borde y nada más — sin sombra decorativa. Las superficies que flotan sobre el resto del contenido (`.card`, dropdowns, modales) sí llevan sombra además del borde, con la intensidad según cuánto flotan: `--shadow-sm` para una card en el flujo normal, `--shadow-lg`/`--shadow-xl` para lo que aparece encima de todo. Ver §2 "Tema oscuro" para la regla de elevación en oscuro (luminosidad, no sombra).
 
 ---
 
@@ -505,9 +602,23 @@ al usuario sin el contexto. Si el banner explica cómo funciona la pantalla, va 
   vertical-align: middle;
 }
 
-.table tr:hover td { background: var(--color-neutral-50); }
+.table tr:hover td { background: var(--bg-hover); }
 .table tr:last-child td { border-bottom: none; }
 ```
+
+### 8.8 Gráficas (Chart.js)
+
+Los dashboards con Chart.js (Reports, Employees, KPIsOperativos) no llevan color fijo: leen su paleta de `NxChartTheme.palette()` (`public/js/chart-theme.js`), que a su vez lee los tokens `--chart-*` de `app.css`. Nunca hardcodees un hex en un config de Chart.js — agrega o usa uno de estos tokens.
+
+| Token | Uso |
+|---|---|
+| `--chart-cat-1/-2/-3` | Identidad categórica, orden fijo — nunca se reciclan para otra cosa |
+| `--chart-good/-warning/-serious/-critical` | Paleta de estado, fija — nunca se reusa para una serie cualquiera |
+| `--chart-seq-1` … `--chart-seq-5` | Rampa secuencial (magnitud/ordinal). **Se invierte en oscuro**: en fondo oscuro "más" se lee más claro, no más oscuro |
+| `--chart-grid`, `--chart-text`, `--chart-text-muted` | Ejes y rejilla |
+| `--chart-tooltip-bg`, `--chart-tooltip-text`, `--chart-point-bg` | Tooltip y borde de punto/segmento |
+
+Un dashboard nuevo debe: llamar `NxChartTheme.palette()` al construir cada gráfica (no guardar los colores en una constante a nivel de módulo — se evaluaría una sola vez, con el tema de la primera carga) y suscribirse con `NxChartTheme.onChange(renderAll)` para destruir y reconstruir sus `Chart` cuando el usuario cambia de tema. Ver `public/js/reports-dashboard.js` como referencia.
 
 ---
 
@@ -629,6 +740,21 @@ Todas las animaciones sirven un propósito funcional. No hay animaciones decorat
 
 > **Nota de accesibilidad:** `#1773C8` está en el límite para texto normal de 14px regular. Para links en cuerpo de texto usa `font-weight: 500` o el tono más oscuro `--color-blue-700` (`#0D497F`). Los botones primarios con texto blanco en semibold pasan AA en categoría "large text" (texto UI ≥14px bold cuenta como large text según WCAG).
 
+### Contrastes verificados (oscuro)
+
+Sobre `--bg-surface` en oscuro (`#1A222B`):
+
+| Combinación | Ratio | ¿Pasa AA? |
+|-------------|-------|-----------|
+| `--text-primary` (`#D2D9E0`) | 11.3:1 | ✅ |
+| `--text-muted` (`#8795A2`) | 5.6:1 | ✅ |
+| `--text-link` (`#6FB2EA`) | ~6.1:1 | ✅ |
+| `--status-success-text` (`#55D6A8`) | 7.9:1 | ✅ |
+| `--status-warning-text` (`#F2C55C`) | 9.2:1 | ✅ |
+| `--status-critical-text` (`#FF8F7A`) | 5.0:1 | ✅ |
+
+> **Trampa:** `--color-success-default` (`#008060`, la primitiva de estado) es ~2.4:1 sobre superficie oscura — no pasa AA como texto ahí. Para texto en oscuro siempre usa el alias `--status-*-text`, nunca la primitiva `--color-*-default` directo. Ver §2 "Tema oscuro".
+
 ---
 
 ## 12. Tonos de voz y copy
@@ -672,123 +798,71 @@ grep -rnE "[😀-🙏✅❌⚠️🎉]" app/Modules/*/Views/
 
 ## 13. Variables CSS — referencia completa
 
+La fuente de verdad es `public/css/app.css` — este bloque es un resumen. Estructura real del archivo: **13.1** primitivas (invariantes), **13.2** semánticas claro/oscuro lado a lado, **13.3** tokens de componente (sidebar, gráficas, sombras), **13.4** alias heredados.
+
+### 13.1 Primitivas (Capa 1 — no cambian entre temas)
+
 ```css
-:root {
-  /* Blue */
-  --color-blue-50:  #EEF5FC;
-  --color-blue-100: #D5E8F7;
-  --color-blue-200: #9CCAEE;
-  --color-blue-300: #57A5E0;
-  --color-blue-400: #2F89D4;
-  --color-blue-500: #1773C8;
-  --color-blue-600: #115EA3;
-  --color-blue-700: #0D497F;
-  --color-blue-800: #09345A;
-  --color-blue-900: #061F36;
-
-  /* Neutrals */
-  --color-neutral-0:   #FFFFFF;
-  --color-neutral-50:  #F6F6F7;
-  --color-neutral-100: #F1F1F2;
-  --color-neutral-200: #E3E4E5;
-  --color-neutral-300: #C9CCCF;
-  --color-neutral-400: #8C9196;
-  --color-neutral-500: #6D7175;
-  --color-neutral-600: #5C6166;
-  --color-neutral-700: #44494D;
-  --color-neutral-800: #303538;
-  --color-neutral-900: #1A1C1E;
-
-  /* Semantic */
-  --color-success-surface: #F1F8F5;
-  --color-success-default: #008060;
-  --color-success-strong:  #00593F;
-  --color-warning-surface: #FFF5EA;
-  --color-warning-default: #B98900;
-  --color-warning-strong:  #8A6500;
-  --color-critical-surface: #FFF4F4;
-  --color-critical-default: #D72C0D;
-  --color-critical-strong:  #A21A00;
-  --color-info-surface: #EEF5FC;
-  --color-info-default: #1773C8;
-
-  /* Aliases */
-  --bg-page:        #F6F6F7;
-  --bg-surface:     #FFFFFF;
-  --bg-surface-alt: #F1F1F2;
-  --bg-overlay:     rgba(0,0,0,0.5);
-  --text-primary:   #1A1C1E;
-  --text-secondary: #44494D;
-  --text-muted:     #6D7175;
-  --text-disabled:  #8C9196;
-  --text-inverse:   #FFFFFF;
-  --text-link:      #1773C8;
-  --text-link-hover: #115EA3;
-  --border-default: #C9CCCF;
-  --border-strong:  #8C9196;
-  --border-focus:   #1773C8;
-  --border-critical: #D72C0D;
-  --action-primary:          #1773C8;
-  --action-primary-hover:    #2F89D4;
-  --action-primary-pressed:  #115EA3;
-  --action-primary-disabled: #C9CCCF;
-
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  --text-xs:   0.75rem;
-  --text-sm:   0.8125rem;
-  --text-base: 0.875rem;
-  --text-md:   0.9375rem;
-  --text-lg:   1rem;
-  --text-xl:   1.25rem;
-  --text-2xl:  1.5rem;
-  --text-3xl:  2rem;
-  --weight-regular:  400;
-  --weight-medium:   500;
-  --weight-semibold: 600;
-  --weight-bold:     700;
-
-  /* Spacing */
-  --space-1:  0.25rem;
-  --space-2:  0.5rem;
-  --space-3:  0.75rem;
-  --space-4:  1rem;
-  --space-5:  1.25rem;
-  --space-6:  1.5rem;
-  --space-8:  2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
-  --space-20: 5rem;
-
-  /* Radii */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-xl:   16px;
-  --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-xs:    0 1px 2px rgba(0,0,0,0.08);
-  --shadow-sm:    0 2px 4px rgba(0,0,0,0.10);
-  --shadow-md:    0 4px 12px rgba(0,0,0,0.12);
-  --shadow-lg:    0 8px 24px rgba(0,0,0,0.14);
-  --shadow-xl:    0 16px 48px rgba(0,0,0,0.16);
-  --shadow-focus: 0 0 0 3px rgba(23,115,200,0.35);
-  --shadow-focus-critical: 0 0 0 3px rgba(215,44,13,0.30);
-
-  /* Motion */
-  --duration-fast:     100ms;
-  --duration-base:     150ms;
-  --duration-moderate: 200ms;
-  --duration-slow:     300ms;
-  --duration-slower:   400ms;
-  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
-  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
-}
+--color-blue-50..900:     #EEF5FC → #061F36  (10 pasos)
+--color-neutral-0..900:   #FFFFFF → #1A1C1E  (11 pasos)
+--color-success-surface/-default/-strong:  #F1F8F5 / #008060 / #00593F
+--color-warning-surface/-default/-strong:  #FFF5EA / #B98900 / #8A6500
+--color-critical-surface/-default/-strong: #FFF4F4 / #D72C0D / #A21A00
+--color-info-surface/-default:             #EEF5FC / #1773C8
 ```
+
+### 13.2 Semánticas (Capa 2 — claro / oscuro)
+
+| Token | Claro | Oscuro |
+|---|---|---|
+| `--bg-page` | `#F6F6F7` | `#10151B` |
+| `--bg-surface` | `#FFFFFF` | `#1A222B` |
+| `--bg-surface-alt` | `#F1F1F2` | `#212B35` |
+| `--bg-elevated` | `#FFFFFF` | `#28333F` |
+| `--bg-hover` | `neutral-100` | `rgba(255,255,255,.06)` |
+| `--text-primary` | `#1A1C1E` | `#D2D9E0` |
+| `--text-secondary` | `#44494D` | `#AEB9C4` |
+| `--text-muted` | `#6D7175` | `#8795A2` |
+| `--text-link` | `#1773C8` | `#6FB2EA` |
+| `--on-accent` | `#FFFFFF` | `#FFFFFF` (fijo) |
+| `--border-subtle` | `#E3E4E5` | `rgba(255,255,255,.09)` |
+| `--border-default` | `#C9CCCF` | `rgba(255,255,255,.15)` |
+| `--border-focus` | `#1773C8` | `#57A5E0` |
+| `--action-primary` | `#1773C8` | `#1773C8` (fijo — el botón no cambia, solo lo que lo rodea) |
+| `--accent-surface`/`-text`/`-border` | tinte azul claro | tinte azul translúcido |
+| `--status-{info,success,warning,critical}-{surface,text,border}` | superficie tenue + texto `-strong` | superficie translúcida + texto más claro |
+
+```css
+--font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+--font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+--text-xs/-sm/-base/-lg/-xl/-2xl/-3xl: 12 / 13 / 14 / 16 / 18 / 22 / 28px;
+--weight-regular/-medium/-semibold/-bold: 400 / 500 / 600 / 700;
+
+--space-1..20 (base 4px): 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64 / 80px;
+--radius-sm/-md/-lg/-xl/-full: 4 / 8 / 12 / 16px / 9999px;
+
+--duration-fast/-base/-moderate/-slow/-slower: 100 / 150 / 200 / 300 / 400ms;
+--ease-default/-in/-out/-spring: cubic-bezier(...);
+```
+
+### 13.3 Tokens de componente (Capa 3 — claro / oscuro)
+
+```css
+/* Sombras — composición, ver §6 */
+--shadow-color / --shadow-color-strong;         /* rgba(0,0,0,.10/.16) claro; .55/.70 oscuro */
+--shadow-elevation-highlight;                    /* none claro; inset highlight oscuro */
+
+/* Sidebar — oscuro en los dos temas, no el mismo oscuro (ver §2) */
+--sidebar-bg/-border/-text/-text-hover/-icon/-section-label/-hover-bg/-active-bg/-active-text/-accent;
+
+/* Gráficas Chart.js — ver §8.8 */
+--chart-cat-1/-2/-3; --chart-good/-warning/-serious/-critical;
+--chart-seq-1..5 (se invierte en oscuro); --chart-grid/-text/-text-muted/-tooltip-bg/-tooltip-text/-point-bg;
+```
+
+### 13.4 Alias heredados (no usar en código nuevo)
+
+`app.css` define `--color-primary`, `--color-text`, `--color-border`, `--surface`, `--radius-base`, etc. — nombres que ya existían en vistas de módulos antes de que este documento fijara los nombres canónicos. Son alias de solo lectura hacia los tokens de 13.2/13.1 (así heredan el tema automáticamente); no se usan al escribir CSS nuevo, solo existen para que las vistas antiguas no queden rotas. La lista completa está al final del bloque `:root` en `app.css`, marcada con ese mismo comentario.
 
 ---
 
@@ -806,3 +880,23 @@ grep -rnE "[😀-🙏✅❌⚠️🎉]" app/Modules/*/Views/
 - Texto de error en color rojo puro (`#FF0000`): usa `--color-critical-default`.
 - **Em-dashes (`—`) en cualquier texto renderizado al usuario.** Reescribir la frase o usar `:`, `·`, `-` (ver §12).
 - **Emojis en la interfaz.** Usar íconos SVG (ver §7 y §12).
+- **Invertir la rampa `--color-neutral-*` para simular oscuro.** Es Capa 1, invariante — el oscuro se hace re-vinculando los alias de Capa 2/3 (ver §2 "Tema oscuro").
+- **Usar una primitiva `--color-*` fuera de la definición de un alias en `:root`.** Si falta el alias, agrégalo.
+- **Un `<style>` con hex literal en una vista del shell principal.** Las únicas excepciones legítimas son las plantillas de correo, el modo presentación y el widget público (ver §2 "Tema oscuro" → qué no sigue el tema).
+- **Cargar tipografía desde un CDN.** La CSP es `'self'`; toda fuente va autoalojada en `public/fonts/` (ver §3).
+- **Asumir que el tema oscuro es el claro invertido.** Cambia la estrategia de elevación (luminosidad, no sombra), el sidebar contrasta al revés, y la rampa secuencial de gráficas se invierte — no es un filtro, es una decisión de diseño propia.
+
+### Verificación
+
+```bash
+# Tokens usados en vistas pero nunca definidos en app.css (debe regresar solo
+# los locales de widget/frame.php, widget/landing.php y present.php)
+comm -23 \
+  <(grep -rhoE 'var\(--[a-z0-9-]+' app/Modules --include=*.php | sed 's/var(//' | sort -u) \
+  <(grep -oE '^\s*--[a-z0-9-]+' public/css/app.css | tr -d ' ' | sort -u)
+
+# Color literal en style="" de una vista del shell (debe tender a 0; excluye
+# emails, widget público y present.php)
+grep -rnE 'style="[^"]*(color|background|border|shadow)[^"]*#[0-9a-fA-F]{3,8}' app/Modules --include=*.php \
+  | grep -v -E 'emails/|widget/|Reports/Views/present.php'
+```

@@ -51,7 +51,7 @@
           <div style="margin-bottom:var(--space-3);">
             <label class="label" for="cred_<?= esc($name) ?>">
               <?= esc($label) ?>
-              <?php if ($req): ?><span style="color:var(--color-critical-default);">*</span><?php endif; ?>
+              <?php if ($req): ?><span style="color: var(--status-critical-text);">*</span><?php endif; ?>
               <?php if ($isSet): ?>
                 <span class="badge badge-success" style="margin-left:var(--space-1);">Configurada</span>
               <?php endif; ?>
@@ -64,7 +64,7 @@
 
     <?php $opts = $system['options_array'] ?? []; ?>
     <?php if (! empty($opts)): ?>
-      <fieldset style="border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); padding:var(--space-3);">
+      <fieldset style="border: 1px solid var(--border-subtle); border-radius:var(--radius-md); padding:var(--space-3);">
         <legend style="padding:0 var(--space-2); font-weight:600;">Opciones</legend>
         <?php foreach ($opts as $k => $v): ?>
           <div style="margin-bottom:var(--space-3);">

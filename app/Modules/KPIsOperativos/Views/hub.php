@@ -21,7 +21,7 @@
       gap: var(--space-3);
       padding: var(--space-5);
       background: var(--bg-surface);
-      border: 1px solid var(--color-neutral-200);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       box-shadow: var(--shadow-sm);
       color: inherit;
@@ -34,12 +34,12 @@
       position: absolute;
       inset: 0 0 auto 0;
       height: 4px;
-      background: var(--accent-color, var(--color-blue-500));
+      background: var(--accent-color, var(--action-primary));
     }
     .source-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
-      border-color: var(--accent-color, var(--color-blue-500));
+      border-color: var(--accent-color, var(--action-primary));
     }
     .source-card.is-disabled {
       opacity: 0.55;
@@ -59,8 +59,8 @@
       align-items: center;
       justify-content: center;
       border-radius: var(--radius-md);
-      background: var(--accent-bg, var(--color-blue-50));
-      color: var(--accent-color, var(--color-blue-500));
+      background: var(--accent-bg, var(--accent-surface));
+      color: var(--accent-color, var(--text-link));
     }
     .source-icon svg { width: 22px; height: 22px; }
 
@@ -82,7 +82,7 @@
       grid-template-columns: 1fr 1fr;
       gap: var(--space-3);
       padding-top: var(--space-3);
-      border-top: 1px solid var(--color-neutral-100);
+      border-top: 1px solid var(--border-subtle);
     }
     .source-stat-label {
       font-size: var(--text-xs);
@@ -107,7 +107,7 @@
       color: var(--text-muted);
     }
     .source-card-cta {
-      color: var(--accent-color, var(--color-blue-500));
+      color: var(--accent-color, var(--text-link));
       font-weight: var(--weight-medium, 500);
       display: inline-flex;
       align-items: center;

@@ -152,7 +152,7 @@ $currentStatus = $old('status', 'active');
 /* ---------- Segmented control (status) ---------- */
 .seg-control {
   display: inline-flex;
-  background: var(--color-neutral-100);
+  background: var(--bg-surface-alt);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: 3px;
@@ -178,12 +178,12 @@ $currentStatus = $old('status', 'active');
   height: 0;
 }
 .seg-option.is-active {
-  background: var(--color-neutral-0);
+  background: var(--bg-surface);
   color: var(--text-primary);
   box-shadow: var(--shadow-xs);
 }
-.seg-option:has(input[value="active"]).is-active  { color: var(--color-success-default); }
-.seg-option:has(input[value="inactive"]).is-active { color: var(--color-critical-default); }
+.seg-option:has(input[value="active"]).is-active  { color: var(--status-success-text); }
+.seg-option:has(input[value="inactive"]).is-active { color: var(--status-critical-text); }
 
 /* ---------- Module grid ---------- */
 .module-grid {
@@ -200,16 +200,16 @@ $currentStatus = $old('status', 'active');
   border: 1.5px solid var(--border-default);
   border-radius: var(--radius-md);
   cursor: pointer;
-  background: var(--color-neutral-0);
+  background: var(--bg-surface);
   transition: border-color .15s, background .15s, box-shadow .15s;
 }
 .module-card:hover {
-  border-color: var(--color-blue-300);
+  border-color: var(--accent-border);
   box-shadow: var(--shadow-xs);
 }
 .module-card.is-checked {
-  border-color: var(--color-blue-500);
-  background: var(--color-blue-50);
+  border-color: var(--action-primary);
+  background: var(--accent-surface);
 }
 .module-card input[type="checkbox"] {
   position: absolute;
@@ -222,7 +222,7 @@ $currentStatus = $old('status', 'active');
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: var(--color-neutral-100);
+  background: var(--bg-surface-alt);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -231,8 +231,8 @@ $currentStatus = $old('status', 'active');
   transition: background .15s, color .15s;
 }
 .module-card.is-checked .module-card-icon {
-  background: var(--color-blue-100);
-  color: var(--color-blue-600);
+  background: var(--accent-surface);
+  color: var(--accent-text);
 }
 
 .module-card-body {
@@ -269,8 +269,8 @@ $currentStatus = $old('status', 'active');
   transition: background .15s, border-color .15s, color .15s;
 }
 .module-card.is-checked .module-card-check {
-  background: var(--color-blue-500);
-  border-color: var(--color-blue-500);
+  background: var(--action-primary);
+  border-color: var(--action-primary);
   color: #fff;
 }
 </style>

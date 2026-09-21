@@ -56,7 +56,7 @@
               </a>
               <form action="<?= route_to('admin.roles.destroy', $role['id']) ?>" method="post" onsubmit="return confirm('¿Eliminar el rol «<?= esc($role['name']) ?>»?')">
                 <?= csrf_field() ?>
-                <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--color-critical-default);">
+                <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                   Eliminar
                 </button>

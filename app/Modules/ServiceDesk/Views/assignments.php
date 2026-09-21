@@ -14,8 +14,8 @@
   .sda-table tbody tr:hover .sda-cat { background: var(--bg-surface-alt); }
   .sda-cat-lead { color: var(--text-muted); font-weight: var(--weight-regular); }
   .sda-agent-col { min-width: 128px; }
-  .sda-is-mine { background: var(--color-blue-50) !important; }
-  .sda-table thead th.sda-is-mine { background: var(--color-blue-100) !important; }
+  .sda-is-mine { background: var(--accent-surface) !important; }
+  .sda-table thead th.sda-is-mine { background: var(--accent-surface) !important; }
 
   /* One chip per stage the agent covers in that category. */
   .sda-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
@@ -28,10 +28,10 @@
   .sda-chip .sda-sep   { opacity: .4; }
   .sda-chip .sda-chan  { font-weight: var(--weight-medium); }
   /* The tint carries the channel; the border only separates chips that touch. */
-  .sda-ch-E  { background: var(--color-blue-50);         border-color: #D9E8F6; color: var(--color-blue-800); }
-  .sda-ch-W  { background: var(--color-success-surface);  border-color: #D3EAE0; color: var(--color-success-strong); }
-  .sda-ch-I  { background: var(--color-warning-surface);  border-color: #F2E2C4; color: var(--color-warning-strong); }
-  .sda-ch-EW { background: var(--color-blue-50);         border-color: #D3EAE0; color: var(--color-blue-800); }
+  .sda-ch-E  { background: var(--accent-surface);         border-color: #D9E8F6; color: var(--accent-text); }
+  .sda-ch-W  { background: var(--status-success-surface);  border-color: #D3EAE0; color: var(--status-success-text); }
+  .sda-ch-I  { background: var(--status-warning-surface);  border-color: #F2E2C4; color: var(--status-warning-text); }
+  .sda-ch-EW { background: var(--accent-surface);         border-color: #D3EAE0; color: var(--accent-text); }
   .sda-ch-NA { background: var(--bg-surface-alt);        border-color: var(--border-default); color: var(--text-muted); }
   .sda-ch-x  { background: var(--bg-surface-alt);        border-color: var(--border-default); color: var(--text-secondary); }
 

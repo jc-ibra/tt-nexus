@@ -44,7 +44,7 @@ $statusBadge = static function (string $state): string {
 
   <?php $rowErrors = session()->getFlashdata('rowErrors'); ?>
   <?php if (! empty($rowErrors)): ?>
-    <div class="card" style="margin-bottom: var(--space-4); border-left: 4px solid var(--color-critical-default);">
+    <div class="card" style="margin-bottom: var(--space-4); border-left: 4px solid var(--status-critical-border);">
       <div class="card-header"><h2 class="card-title">Errores de validación</h2></div>
       <div class="card-body" style="max-height: 280px; overflow:auto;">
         <ul style="margin:0; padding-left: var(--space-4);">

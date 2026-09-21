@@ -108,7 +108,7 @@ $sinceLogin = static function (?string $value): string {
               <?php if ((int) $user['id'] !== (int) session()->get('user_id')): ?>
               <form action="<?= route_to('admin.users.destroy', $user['id']) ?>" method="post" onsubmit="return confirm('¿Eliminar a <?= esc($user['name']) ?>?')">
                 <?= csrf_field() ?>
-                <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--color-critical-default);" aria-label="Eliminar <?= esc($user['name']) ?>">
+                <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);" aria-label="Eliminar <?= esc($user['name']) ?>">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
                   Eliminar
                 </button>

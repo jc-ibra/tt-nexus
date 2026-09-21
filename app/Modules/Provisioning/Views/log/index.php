@@ -103,16 +103,16 @@
               $url      = $debug['debug']['url']          ?? null;
               $method   = $debug['debug']['method']       ?? null;
             ?>
-            <tr style="background:var(--color-critical-surface, #fff5f5);">
+            <tr style="background: var(--status-critical-surface);">
               <td colspan="7" style="padding:0;">
                 <details style="padding:var(--space-2) var(--space-4);">
-                  <summary style="cursor:pointer; font-size:var(--text-sm); font-weight:600; color:var(--color-critical-default); list-style:none; padding:var(--space-2) 0;">
+                  <summary style="cursor:pointer; font-size:var(--text-sm); font-weight:600; color: var(--status-critical-text); list-style:none; padding:var(--space-2) 0;">
                     Ver request / response
                   </summary>
                   <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); margin-top:var(--space-2);">
                     <div>
                       <p style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-muted); margin:0 0 var(--space-1);">Request</p>
-                      <pre style="background:var(--color-neutral-100); border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-2); font-size:var(--text-xs); overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-all;"><?php
+                      <pre style="background: var(--bg-surface-alt); border: 1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:var(--space-2); font-size:var(--text-xs); overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-all;"><?php
                         $reqLines = [];
                         if ($method && $url) {
                             $reqLines[] = $method . ' ' . $url;
@@ -129,7 +129,7 @@
                     </div>
                     <div>
                       <p style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-muted); margin:0 0 var(--space-1);">Response<?= $httpCode ? ' · HTTP ' . (int) $httpCode : '' ?></p>
-                      <pre style="background:var(--color-neutral-100); border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-2); font-size:var(--text-xs); overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-all;"><?php
+                      <pre style="background:var(--color-neutral-100); border: 1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:var(--space-2); font-size:var(--text-xs); overflow-x:auto; margin:0; white-space:pre-wrap; word-break:break-all;"><?php
                         if ($respRaw) {
                             $decoded = json_decode($respRaw, true);
                             echo esc($decoded !== null

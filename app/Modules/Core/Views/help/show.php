@@ -26,8 +26,8 @@
     display: inline-flex;
     align-items: center; justify-content: center;
     border-radius: var(--radius-md);
-    background: var(--color-blue-50, #EAF3FB);
-    color: var(--color-blue-500);
+    background: var(--accent-surface);
+    color: var(--text-link);
   }
   .help-guide-icon svg { width: 26px; height: 26px; }
   .help-guide-header h1 { font-size: var(--text-2xl); font-weight: var(--weight-bold, 700); color: var(--text-primary); }
@@ -58,7 +58,7 @@
     overscroll-behavior: contain;
   }
   .help-toc::-webkit-scrollbar { width: 6px; }
-  .help-toc::-webkit-scrollbar-thumb { background: var(--color-neutral-200); border-radius: var(--radius-full, 999px); }
+  .help-toc::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: var(--radius-full, 999px); }
   .help-toc-label {
     font-size: var(--text-xs);
     font-weight: var(--weight-semibold);
@@ -78,11 +78,11 @@
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     transition: color var(--motion-fast, 120ms) ease, border-color var(--motion-fast, 120ms) ease, background var(--motion-fast, 120ms) ease;
   }
-  .help-toc a:hover { color: var(--text-primary); background: var(--color-neutral-50); text-decoration: none; }
+  .help-toc a:hover { color: var(--text-primary); background: var(--bg-page); text-decoration: none; }
   .help-toc a.is-active {
-    color: var(--color-blue-500);
-    border-left-color: var(--color-blue-500);
-    background: var(--color-blue-50, #EAF3FB);
+    color: var(--text-link);
+    border-left-color: var(--action-primary);
+    background: var(--accent-surface);
     font-weight: var(--weight-medium);
   }
 
@@ -95,7 +95,7 @@
     color: var(--text-primary);
     padding-bottom: var(--space-2);
     margin-bottom: var(--space-3);
-    border-bottom: 1px solid var(--color-neutral-200);
+    border-bottom: 1px solid var(--border-subtle);
   }
   .help-article h3 {
     font-size: var(--text-md);
@@ -108,7 +108,7 @@
   .help-article ul li { margin-bottom: var(--space-1); }
   .help-article strong { color: var(--text-primary); font-weight: var(--weight-semibold); }
   .help-article code {
-    background: var(--color-neutral-100);
+    background: var(--bg-surface-alt);
     padding: 1px 6px;
     border-radius: var(--radius-sm);
     font-size: 0.85em;
@@ -118,8 +118,8 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    background: var(--color-neutral-100);
-    border: 1px solid var(--color-neutral-200);
+    background: var(--bg-surface-alt);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: 1px 6px;
     font-size: var(--text-sm);
@@ -135,7 +135,7 @@
   .help-figure img {
     width: 100%;
     height: auto;
-    border: 1px solid var(--color-neutral-200);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     background: var(--bg-surface);
   }
@@ -151,7 +151,7 @@
      if the script never runs, the image stays an ordinary image and nothing
      promises behaviour that will not happen. */
   .help-figure img.is-zoomable { cursor: zoom-in; }
-  .help-figure img.is-zoomable:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+  .help-figure img.is-zoomable:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 2px; }
 
   .help-lightbox {
     position: fixed;
@@ -209,7 +209,7 @@
   .help-steps > li {
     position: relative;
     padding: 0 0 var(--space-4) var(--space-6);
-    border-left: 2px solid var(--color-neutral-200);
+    border-left: 2px solid var(--border-subtle);
     margin-left: 12px;
   }
   .help-steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
@@ -220,7 +220,7 @@
     left: -13px; top: -2px;
     width: 24px; height: 24px;
     display: flex; align-items: center; justify-content: center;
-    background: var(--color-blue-500);
+    background: var(--action-primary);
     color: #fff;
     border-radius: 50%;
     font-size: var(--text-xs);
@@ -243,13 +243,13 @@
   .help-callout svg { flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px; }
   .help-callout p { margin: 0; color: inherit; }
   .help-callout strong { color: inherit; }
-  .help-callout-tip     { background: var(--color-success-surface); border-color: #B8E0D4; color: var(--color-success-strong); }
-  .help-callout-info    { background: var(--color-info-surface, #EAF3FB); border-color: var(--color-blue-200, #B3D4F0); color: var(--color-blue-800, #115EA3); }
-  .help-callout-warning { background: var(--color-warning-surface); border-color: #FFDF99; color: var(--color-warning-strong); }
+  .help-callout-tip     { background: var(--status-success-surface); border-color: #B8E0D4; color: var(--status-success-text); }
+  .help-callout-info    { background: var(--status-info-surface); border-color: var(--accent-border); color: var(--accent-text); }
+  .help-callout-warning { background: var(--status-warning-surface); border-color: #FFDF99; color: var(--status-warning-text); }
 
   /* FAQ accordion (native details/summary) */
   .help-faq details {
-    border: 1px solid var(--color-neutral-200);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     margin-bottom: var(--space-2);
     background: var(--bg-surface);
@@ -274,7 +274,7 @@
     transition: transform var(--motion-fast, 150ms) ease;
   }
   .help-faq details[open] summary .help-faq-chevron { transform: rotate(180deg); }
-  .help-faq details[open] summary { border-bottom: 1px solid var(--color-neutral-200); }
+  .help-faq details[open] summary { border-bottom: 1px solid var(--border-subtle); }
   .help-faq-body { padding: var(--space-3) var(--space-4); }
   .help-faq-body p { margin: 0; color: var(--text-secondary); line-height: var(--leading-relaxed, 1.6); }
 
@@ -290,8 +290,8 @@
     .help-layout { grid-template-columns: 1fr; }
     .help-toc { position: static; margin-bottom: var(--space-4); max-height: none; overflow: visible; }
     .help-toc-nav { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-    .help-toc-nav a { border-left: none; border: 1px solid var(--color-neutral-200); border-radius: var(--radius-full); }
-    .help-toc-nav a.is-active { border-color: var(--color-blue-500); }
+    .help-toc-nav a { border-left: none; border: 1px solid var(--border-subtle); border-radius: var(--radius-full); }
+    .help-toc-nav a.is-active { border-color: var(--action-primary); }
   }
 </style>
 <?= $this->endSection() ?>

@@ -19,7 +19,7 @@
     <iframe
       id="preview-frame"
       sandbox="allow-same-origin"
-      style="width:100%; min-height:600px; border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); background:#f4f6f8;"
+      style="width:100%; min-height:600px; border: 1px solid var(--border-subtle); border-radius:var(--radius-sm); background:var(--bg-surface-alt);"
       title="Vista previa del comunicado"
     ></iframe>
   </div>

@@ -75,7 +75,7 @@ $isReady  = (string) ($import['status'] ?? '') === 'ready';
   </div></div>
   <div class="card"><div class="card-body">
     <p class="text-muted text-sm"><?= esc($okLabel) ?></p>
-    <p id="stat-ok" style="font-size:1.8rem; font-weight:600; margin:var(--space-1) 0 0; color: var(--color-success-default);">0</p>
+    <p id="stat-ok" style="font-size:1.8rem; font-weight:600; margin:var(--space-1) 0 0; color: var(--status-success-text);">0</p>
   </div></div>
   <?php if ($isUpdate): ?>
     <div class="card"><div class="card-body">
@@ -85,11 +85,11 @@ $isReady  = (string) ($import['status'] ?? '') === 'ready';
   <?php endif; ?>
   <div class="card"><div class="card-body">
     <p class="text-muted text-sm"><?= esc($errLabel) ?></p>
-    <p id="stat-err" style="font-size:1.8rem; font-weight:600; margin:var(--space-1) 0 0; color: var(--color-critical-default);">0</p>
+    <p id="stat-err" style="font-size:1.8rem; font-weight:600; margin:var(--space-1) 0 0; color: var(--status-critical-text);">0</p>
   </div></div>
 </div>
 
-<div class="card" id="problem-card" style="display:none; margin-bottom: var(--space-4); border-left: 4px solid var(--color-critical-default);">
+<div class="card" id="problem-card" style="display:none; margin-bottom: var(--space-4); border-left: 4px solid var(--status-critical-border);">
   <div class="card-header">
     <h2 class="card-title">Filas con problema</h2>
   </div>

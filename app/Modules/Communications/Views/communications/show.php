@@ -109,7 +109,7 @@ $st = $statusLabels[$communication['status']] ?? ['label' => $communication['sta
 <!-- Body preview -->
 <div class="card" style="margin-top:var(--space-4);">
   <div class="card-header"><h2 class="card-title">Cuerpo del correo</h2></div>
-  <div class="card-body" style="border:1px solid var(--color-neutral-200); border-radius:var(--radius-sm); padding:var(--space-6); background:var(--bg-surface-alt);">
+  <div class="card-body" style="border: 1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:var(--space-6); background:var(--bg-surface-alt);">
     <div class="email-body-preview">
       <?= $communication['body'] ?>
     </div>

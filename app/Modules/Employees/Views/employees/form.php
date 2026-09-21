@@ -48,7 +48,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
       <div class="field" style="margin-bottom: var(--space-5);">
         <label class="field-label" for="new-photo">Foto <span class="text-muted" style="font-weight:400;">(opcional)</span></label>
         <div style="display:flex; gap:var(--space-4); align-items:center;">
-          <div id="new-photo-wrap" style="width:72px; height:72px; border-radius:var(--radius-full); overflow:hidden; background:var(--color-neutral-100); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+          <div id="new-photo-wrap" style="width:72px; height:72px; border-radius:var(--radius-full); overflow:hidden; background: var(--bg-surface-alt); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
             <?php if ($isEdit && ! empty($employee['photo'])): ?>
               <img id="new-photo-img" src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="Foto del empleado" style="width:100%; height:100%; object-fit:cover; display:block;">
             <?php else: ?>
@@ -59,7 +59,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
             <input type="file" id="new-photo" name="photo" accept="image/jpeg,image/png,image/webp" style="display:none;" aria-label="Seleccionar foto">
             <div id="new-photo-dropzone"
                  role="button" tabindex="0" aria-label="Subir foto"
-                 style="border:2px dashed var(--color-neutral-300); border-radius:var(--radius-md); padding:var(--space-4); text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; background:var(--color-neutral-50);">
+                 style="border: 2px dashed var(--border-default); border-radius:var(--radius-md); padding:var(--space-4); text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s; background: var(--bg-page);">
               <p id="new-photo-label" style="margin:0; font-size:var(--text-sm); color:var(--text-muted);">Arrastra una imagen o <span style="color:var(--color-primary); font-weight:500;">selecciona un archivo</span></p>
               <p style="margin:var(--space-1) 0 0; font-size:var(--text-xs); color:var(--text-muted);">JPG, PNG o WEBP · máximo 1 MB</p>
             </div>
@@ -244,7 +244,7 @@ $actionUrl = $isEdit ? route_to('employees.update', $employee['id']) : route_to(
 
     if (file.size > MAX_BYTES) {
       resetField();
-      label.innerHTML = '<span style="color:var(--color-critical, #d72c0d); font-weight:500;">La imagen supera 1 MB. Elige un archivo más pequeño.</span>';
+      label.innerHTML = '<span style="color: var(--color-critical, var(--status-critical-text)); font-weight:500;">La imagen supera 1 MB. Elige un archivo más pequeño.</span>';
       return;
     }
 

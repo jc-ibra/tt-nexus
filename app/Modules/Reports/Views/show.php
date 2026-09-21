@@ -2,6 +2,7 @@
 
 <?= $this->section('head') ?>
 <script src="<?= asset_url('js/vendor/chart.umd.min.js') ?>" defer></script>
+<script src="<?= asset_url('js/chart-theme.js') ?>" defer></script>
 <script src="<?= asset_url('js/reports-dashboard.js') ?>" defer></script>
 <style>
   .rpt-section { margin-bottom: var(--space-6); }
@@ -12,14 +13,14 @@
   .rpt-section-subtitle { font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-3) 0; }
   .rpt-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
   .rpt-kpi {
-    background: var(--bg-surface); border: 1px solid var(--color-neutral-200);
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
-    border-top: 3px solid var(--color-blue-500); padding: var(--space-4);
+    border-top: 3px solid var(--action-primary); padding: var(--space-4);
   }
-  .rpt-kpi.accent-success  { border-top-color: var(--color-success-default); }
-  .rpt-kpi.accent-warning  { border-top-color: var(--color-warning-default); }
-  .rpt-kpi.accent-critical { border-top-color: var(--color-critical-default); }
-  .rpt-kpi.accent-neutral  { border-top-color: var(--color-neutral-400); }
+  .rpt-kpi.accent-success  { border-top-color: var(--status-success-border); }
+  .rpt-kpi.accent-warning  { border-top-color: var(--status-warning-border); }
+  .rpt-kpi.accent-critical { border-top-color: var(--status-critical-border); }
+  .rpt-kpi.accent-neutral  { border-top-color: var(--border-strong); }
   .rpt-kpi-label { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 var(--space-2) 0; }
   .rpt-kpi-value { font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--text-primary); margin: 0; }
   .rpt-kpi-sub { font-size: var(--text-xs); color: var(--text-muted); margin: var(--space-1) 0 0 0; }
@@ -28,13 +29,19 @@
   .rpt-chart-wrap { position: relative; width: 100%; height: 300px; }
   .rpt-chart-wrap-stage { height: 90px; }
   .rpt-delta { font-size: var(--text-sm); }
-  .rpt-delta.up { color: var(--color-success-strong); }
-  .rpt-delta.down { color: var(--color-critical-strong); }
+  .rpt-delta.up { color: var(--status-success-text); }
+  .rpt-delta.down { color: var(--status-critical-text); }
   .rpt-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); }
   .rpt-legend-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); }
   .rpt-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-  .rpt-meter-track { height: 12px; border-radius: var(--radius-full); background: #E9EAEB; overflow: hidden; }
-  .rpt-meter-fill { height: 100%; border-radius: var(--radius-full); background: var(--color-success-default); }
+  /* Mismas llaves de severidad que usa el chart (NxChartTheme), para que la
+     leyenda y las barras siempre queden en el mismo color. */
+  .rpt-legend-swatch.is-critical { background: var(--chart-critical); }
+  .rpt-legend-swatch.is-warning  { background: var(--chart-warning); }
+  .rpt-legend-swatch.is-info     { background: var(--chart-cat-1); }
+  .rpt-legend-swatch.is-good     { background: var(--chart-good); }
+  .rpt-meter-track { height: 12px; border-radius: var(--radius-full); background: var(--bg-surface-alt); overflow: hidden; }
+  .rpt-meter-fill { height: 100%; border-radius: var(--radius-full); background: var(--status-success-text); }
   .rpt-meter-value { font-size: var(--text-sm); color: var(--text-primary); margin: var(--space-2) 0 0 0; }
   .rpt-meter-sub { color: var(--text-muted); font-weight: var(--weight-regular); }
   .rpt-cat-hint { font-size: var(--text-xs); color: var(--text-muted); margin: var(--space-2) 0 0 0; }
@@ -44,12 +51,6 @@
 <?= $this->section('content') ?>
 
 <?php
-// Paleta de estado fija (misma que public/js/reports-dashboard.js): nunca se
-// reusa para una serie cualquiera, solo cuando el color realmente significa
-// bien/mal.
-$STATUS_GOOD = '#0ca30c'; $STATUS_WARNING = '#fab219';
-$STATUS_CRITICAL = '#d03b3b'; $STATUS_INFO = '#2a78d6';
-
 $tuples = static fn(array $t): array => ['labels' => array_map(static fn($r) => (string) $r[0], $t), 'values' => array_map(static fn($r) => (int) $r[1], $t)];
 
 $glpi    = $payload['glpi_tickets'] ?? ['available' => false];
@@ -109,8 +110,11 @@ if ($quality['available'] ?? false) {
     // solo su frecuencia: sin esto, un ranking de una sola tinta escondería
     // qué tan grave es cada desviación.
     $topRules = array_slice($quality['rules'], 0, 8);
+    // Se manda la llave semántica ('critical'/'warning'/'info'), no un hex: el
+    // color real lo resuelve reports-dashboard.js contra la paleta del tema
+    // activo (NxChartTheme), así responde a claro/oscuro.
     $sevColor = static fn(string $sev) => match ($sev) {
-        'critical' => $STATUS_CRITICAL, 'warning' => $STATUS_WARNING, default => $STATUS_INFO,
+        'critical' => 'critical', 'warning' => 'warning', default => 'info',
     };
     $charts['quality_rules'] = [
         'type'   => 'hbar',
@@ -126,7 +130,7 @@ if ($agents['available'] ?? false) {
     // orden: un agente en zona crítica debe saltar a la vista, no solo
     // aparecer último.
     $scoreColor = static fn(float $s) => match (true) {
-        $s >= 90.0 => $STATUS_GOOD, $s >= 70.0 => $STATUS_WARNING, default => $STATUS_CRITICAL,
+        $s >= 90.0 => 'good', $s >= 70.0 => 'warning', default => 'critical',
     };
     $charts['agents_scores'] = [
         'type'   => 'hbar',
@@ -338,9 +342,9 @@ if ($agents['available'] ?? false) {
     <div class="card-body">
       <div class="rpt-chart-wrap"><canvas id="chart-quality_rules"></canvas></div>
       <div class="rpt-legend">
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #d03b3b;"></span>Crítica</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #fab219;"></span>Warning</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #2a78d6;"></span>Info</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-critical"></span>Crítica</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-warning"></span>Warning</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-info"></span>Info</span>
       </div>
     </div>
   </div>
@@ -368,9 +372,9 @@ if ($agents['available'] ?? false) {
     <div class="card-body">
       <div class="rpt-chart-wrap"><canvas id="chart-agents_scores"></canvas></div>
       <div class="rpt-legend">
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #0ca30c;"></span>90% o más</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #fab219;"></span>70% a 89%</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch" style="background: #d03b3b;"></span>Menos de 70%</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-good"></span>90% o más</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-warning"></span>70% a 89%</span>
+        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-critical"></span>Menos de 70%</span>
       </div>
     </div>
   </div>

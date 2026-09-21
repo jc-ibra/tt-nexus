@@ -36,7 +36,7 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
 .sd-tabs {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-neutral-200);
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: var(--space-4);
 }
 .sd-tab {

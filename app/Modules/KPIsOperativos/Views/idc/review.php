@@ -25,7 +25,7 @@
   <div class="card">
     <div class="card-body" style="padding: 0;">
       <?php foreach ($aliases as $a): ?>
-        <div style="padding: var(--space-4); border-bottom: 1px solid var(--color-neutral-100);">
+        <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;">
             <div style="flex: 1; min-width: 260px;">
               <p class="text-muted text-sm" style="margin: 0;">Alias raw:</p>

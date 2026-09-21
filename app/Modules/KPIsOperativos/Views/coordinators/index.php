@@ -55,7 +55,7 @@
                 <form action="<?= route_to('kpi.coordinators.destroy', $c['id']) ?>" method="post"
                       onsubmit="return confirm('¿Eliminar la zona «<?= esc($c['zone']) ?>»?')">
                   <?= csrf_field() ?>
-                  <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--color-critical-default);">Eliminar</button>
+                  <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);">Eliminar</button>
                 </form>
               </div>
             </td>

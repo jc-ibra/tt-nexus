@@ -36,7 +36,7 @@
   <div class="card stat-card" data-filter="active" role="button" tabindex="0" aria-pressed="false" aria-label="Filtrar buzones activos">
     <div class="card-body" style="padding:var(--space-3) var(--space-4);">
       <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Buzones activos</p>
-      <p class="stat-val" id="stat-active" style="color:var(--color-success-default);">—</p>
+      <p class="stat-val" id="stat-active" style="color: var(--status-success-text);">—</p>
       <p class="text-sm text-muted stat-sub">&nbsp;</p>
     </div>
   </div>
@@ -52,7 +52,7 @@
   <div class="card stat-card" data-filter="critical" role="button" tabindex="0" aria-pressed="false" aria-label="Filtrar buzones con uso critico">
     <div class="card-body" style="padding:var(--space-3) var(--space-4);">
       <p class="text-sm text-muted" style="margin:0 0 var(--space-1);">Buzones con uso critico</p>
-      <p class="stat-val" id="stat-critical" style="color:var(--color-critical-default);">—</p>
+      <p class="stat-val" id="stat-critical" style="color: var(--status-critical-text);">—</p>
       <p class="text-sm text-muted stat-sub">&ge;80% de su cuota</p>
     </div>
   </div>
@@ -137,7 +137,7 @@
       </table>
     </div>
     <!-- Pagination -->
-    <div id="pagination-bar" style="padding: var(--space-3) var(--space-4); display:flex; align-items:center; justify-content:space-between; border-top: 1px solid var(--color-neutral-200);">
+    <div id="pagination-bar" style="padding: var(--space-3) var(--space-4); display:flex; align-items:center; justify-content:space-between; border-top: 1px solid var(--border-subtle);">
       <span id="pagination-info" class="text-sm text-muted"></span>
       <div id="pagination-controls" style="display:flex; gap:var(--space-1);"></div>
     </div>
@@ -275,28 +275,28 @@
 .stat-sub { margin: 0; min-height: 1.25em; }
 .stat-card { cursor: pointer; transition: box-shadow var(--duration-base) ease, border-color var(--duration-base) ease, transform var(--duration-base) ease; }
 .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.stat-card:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
-.stat-card.is-active { border-color: var(--color-blue-500); box-shadow: 0 0 0 1px var(--color-blue-500); }
+.stat-card:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 2px; }
+.stat-card.is-active { border-color: var(--action-primary); box-shadow: 0 0 0 1px var(--action-primary); }
 @keyframes spin { to { transform: rotate(360deg); } }
-.quota-bar { height: 6px; border-radius: var(--radius-full); background: var(--color-neutral-200); overflow:hidden; margin-top: var(--space-1); }
+.quota-bar { height: 6px; border-radius: var(--radius-full); background: var(--border-subtle); overflow:hidden; margin-top: var(--space-1); }
 .quota-bar-fill { height: 100%; border-radius: var(--radius-full); transition: width 0.3s ease; }
-.quota-bar-fill.ok      { background: var(--color-success-default); }
-.quota-bar-fill.warning { background: var(--color-warning-default); }
-.quota-bar-fill.critical { background: var(--color-critical-default); }
+.quota-bar-fill.ok      { background: var(--status-success-text); }
+.quota-bar-fill.warning { background: var(--status-warning-text); }
+.quota-bar-fill.critical { background: var(--status-critical-text); }
 .sort-icon { color: var(--text-muted); font-size: var(--text-xs); }
 th.sorted-asc  .sort-icon::after { content: '↑'; }
 th.sorted-desc .sort-icon::after { content: '↓'; }
 th.sorted-asc  .sort-icon,
-th.sorted-desc .sort-icon { color: var(--color-blue-500); }
+th.sorted-desc .sort-icon { color: var(--text-link); }
 .toggle-switch { position:relative; display:inline-block; width:36px; height:20px; cursor:pointer; }
 .toggle-switch input { opacity:0; width:0; height:0; }
-.toggle-slider { position:absolute; inset:0; background:var(--color-neutral-300); border-radius:var(--radius-full); transition:background var(--duration-base); }
-.toggle-slider::before { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform var(--duration-base); }
-.toggle-switch input:checked + .toggle-slider { background:var(--color-success-default); }
+.toggle-slider { position:absolute; inset:0; background: var(--border-default); border-radius:var(--radius-full); transition:background var(--duration-base); }
+.toggle-slider::before { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; background: var(--bg-surface); border-radius:50%; transition:transform var(--duration-base); }
+.toggle-switch input:checked + .toggle-slider { background: var(--status-success-text); }
 .toggle-switch input:checked + .toggle-slider::before { transform:translateX(16px); }
 .toast { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); color:#fff; font-size:var(--text-sm); box-shadow:var(--shadow-md); pointer-events:auto; animation:slideIn 0.2s ease; max-width:320px; }
-.toast-success { background: var(--color-success-default); }
-.toast-error   { background: var(--color-critical-default); }
+.toast-success { background: var(--status-success-text); }
+.toast-error   { background: var(--status-critical-text); }
 @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 </style>
 

@@ -80,8 +80,8 @@ $addrList = static function (?string $raw): array {
   .md-avatar { flex:0 0 auto; width:40px; height:40px; border-radius:var(--radius-full);
     display:inline-flex; align-items:center; justify-content:center; font-weight:var(--weight-bold);
     font-size:var(--text-sm); line-height:1; letter-spacing:.02em; user-select:none; }
-  .md-avatar.in  { background:var(--color-blue-50);       color:var(--color-blue-700); }
-  .md-avatar.out { background:var(--color-success-surface); color:var(--color-success-strong); }
+  .md-avatar.in  { background: var(--accent-surface);       color: var(--accent-text); }
+  .md-avatar.out { background: var(--status-success-surface); color: var(--status-success-text); }
   .md-avatar-lg { width:44px; height:44px; font-size:var(--text-md); }
 
   /* ---- Tarjeta resumen del solicitante (compacta, aprovecha el ancho) ---- */
@@ -103,8 +103,8 @@ $addrList = static function (?string $raw): array {
   /* ---- Mensajes del hilo ---- */
   .md-msg { border:1px solid var(--border-default); border-radius:var(--radius-lg); margin-bottom:var(--space-4);
     overflow:hidden; box-shadow:var(--shadow-xs); background:var(--bg-surface); }
-  .md-msg.in  { border-left:3px solid var(--color-blue-500); }
-  .md-msg.out { border-left:3px solid var(--color-success-default); }
+  .md-msg.in  { border-left: 3px solid var(--action-primary); }
+  .md-msg.out { border-left: 3px solid var(--status-success-border); }
   .md-msg-head { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4);
     border-bottom:1px solid var(--border-default); background:var(--bg-surface); }
   .md-msg-who { min-width:0; flex:1; }
@@ -118,7 +118,7 @@ $addrList = static function (?string $raw): array {
 
   /* Contador de mensajes en el resumen (pill visible). */
   .md-count { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:22px;
-    padding:0 var(--space-2); background:var(--color-blue-50); color:var(--color-blue-700);
+    padding:0 var(--space-2); background: var(--accent-surface); color: var(--accent-text);
     border-radius:var(--radius-full); font-size:var(--text-sm); font-weight:var(--weight-bold); }
 
   /* Mensajes colapsables. */
@@ -135,23 +135,23 @@ $addrList = static function (?string $raw): array {
   .md-recipients-row { display:flex; gap:var(--space-3); align-items:flex-start; }
   .md-recipients-label { flex:0 0 auto; min-width:56px; padding-top:3px; font-size:var(--text-xs);
     text-transform:uppercase; letter-spacing:.04em; font-weight:var(--weight-semibold); color:var(--text-muted); }
-  .md-recipients-row.is-cc .md-recipients-label { color:var(--color-blue-700); }
+  .md-recipients-row.is-cc .md-recipients-label { color: var(--accent-text); }
   .md-recipients-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px;
     height:18px; margin-left:4px; padding:0 5px; border-radius:var(--radius-full);
-    background:var(--color-blue-100); color:var(--color-blue-700); font-size:11px; letter-spacing:0; }
+    background: var(--accent-surface); color: var(--accent-text); font-size:11px; letter-spacing:0; }
   .md-recipients-list { display:flex; flex-wrap:wrap; gap:var(--space-1) var(--space-2); min-width:0; }
   .md-addr { display:inline-flex; align-items:center; max-width:100%; font:inherit; font-size:var(--text-xs);
     line-height:1.4; padding:3px var(--space-2); border-radius:var(--radius-full);
     border:1px solid var(--border-default); background:var(--bg-surface); color:var(--text-secondary);
     overflow-wrap:anywhere; text-align:left; cursor:pointer; }
-  .md-recipients-row.is-cc .md-addr { border-color:var(--color-blue-200); background:var(--color-blue-50);
-    color:var(--color-blue-700); font-weight:var(--weight-medium); }
+  .md-recipients-row.is-cc .md-addr { border-color: var(--accent-border); background: var(--accent-surface);
+    color: var(--accent-text); font-weight:var(--weight-medium); }
   .md-addr:hover { border-color:var(--action-primary); color:var(--action-primary); }
   .md-addr:focus-visible { outline:2px solid var(--action-primary); outline-offset:2px; }
   /* Aviso de copiados en el encabezado: visible incluso con el mensaje colapsado. */
   .md-cc-flag { display:inline-flex; align-items:center; gap:4px; padding:1px var(--space-2);
-    border:1px solid var(--color-blue-200); border-radius:var(--radius-full); background:var(--color-blue-50);
-    color:var(--color-blue-700); font-size:var(--text-xs); font-weight:var(--weight-medium); white-space:nowrap; }
+    border: 1px solid var(--accent-border); border-radius:var(--radius-full); background: var(--accent-surface);
+    color: var(--accent-text); font-size:var(--text-xs); font-weight:var(--weight-medium); white-space:nowrap; }
   .md-cc-flag svg { width:13px; height:13px; }
   .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3);
     color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis;
@@ -162,7 +162,7 @@ $addrList = static function (?string $raw): array {
 
   /* Alto acotado a la pantalla; el iframe hace scroll vertical propio si el
      correo es más alto, para que la barra derecha no se pierda. */
-  .md-msg-body-frame { width:100%; border:0; min-height:280px; max-height:calc(100vh - 260px); background:#fff; display:block; }
+  .md-msg-body-frame { width:100%; border:0; min-height:280px; max-height:calc(100vh - 260px); background: var(--bg-surface); display:block; }
   .md-msg-pre { white-space:pre-wrap; word-break:break-word; padding:var(--space-4); margin:0;
     font-family:inherit; font-size:var(--text-sm); color:var(--text-primary); line-height:1.55; }
 
@@ -476,7 +476,7 @@ $isOutbound = ! empty($conv['outbound_only']);
               <p class="text-sm" style="color:var(--color-success-strong);">Verificado el <?= esc(date('d/m/y H:i', strtotime((string) $conv['verified_at']))) ?>.</p>
             <?php endif; ?>
           <?php elseif ($agState === 'review'): ?>
-            <p class="field-help" style="color:var(--color-warning-strong); margin-bottom:var(--space-3);">
+            <p class="field-help" style="color: var(--status-warning-text); margin-bottom:var(--space-3);">
               Requiere revisión: <?= esc((string) ($conv['autogen_error'] ?? 'faltan datos')) ?>. Completa y crea el ticket.
             </p>
             <form action="<?= route_to('dispatch.autogen.complete', $conv['id']) ?>" method="post">
@@ -492,7 +492,7 @@ $isOutbound = ! empty($conv['outbound_only']);
               <button type="submit" class="btn btn-primary" style="width:100%;">Crear ticket</button>
             </form>
           <?php elseif ($agState === 'failed'): ?>
-            <p class="field-help" style="color:var(--color-critical-strong); margin-bottom:var(--space-3);">
+            <p class="field-help" style="color: var(--status-critical-text); margin-bottom:var(--space-3);">
               Error al crear el ticket: <?= esc((string) ($conv['autogen_error'] ?? '')) ?>
             </p>
             <form action="<?= route_to('dispatch.autogen.retry', $conv['id']) ?>" method="post">
@@ -518,7 +518,7 @@ $isOutbound = ! empty($conv['outbound_only']);
               <button type="submit" class="btn btn-primary" style="width:100%;">Verificar</button>
             </form>
           <?php else: ?>
-            <p class="text-sm" style="margin-bottom:var(--space-3); color:var(--color-success-strong);">
+            <p class="text-sm" style="margin-bottom:var(--space-3); color: var(--status-success-text);">
               Verificado<?= ! empty($conv['verified_at']) ? ' el ' . esc(date('d/m/y H:i', strtotime((string) $conv['verified_at']))) : '' ?>.
             </p>
           <?php endif; ?>

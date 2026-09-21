@@ -41,7 +41,7 @@ $isNarrowed = ($filters['q'] ?? '') !== '' || ! empty($filters['area_id'])
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exportar
       </button>
-      <div id="<?= $exportToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background:#fff; border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
+      <div id="<?= $exportToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
         <a href="<?= esc($exportUrl('csv')) ?>" class="dropdown-item">CSV</a>
         <a href="<?= esc($exportUrl('xlsx')) ?>" class="dropdown-item">Excel (.xlsx)</a>
       </div>
@@ -52,7 +52,7 @@ $isNarrowed = ($filters['q'] ?? '') !== '' || ! empty($filters['area_id'])
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         Catálogos
       </button>
-      <div id="<?= $catalogToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background:#fff; border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
+      <div id="<?= $catalogToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
         <a href="<?= route_to('employees.areas.index') ?>" class="dropdown-item">Áreas</a>
         <a href="<?= route_to('employees.departments.index') ?>" class="dropdown-item">Departamentos</a>
         <a href="<?= route_to('employees.positions.index') ?>" class="dropdown-item">Puestos</a>
@@ -84,8 +84,8 @@ $isNarrowed = ($filters['q'] ?? '') !== '' || ! empty($filters['area_id'])
 a.emp-stat { transition: box-shadow var(--duration-base) ease, transform var(--duration-base) ease; }
 /* The global a:hover adds an underline and the link colour; neither belongs on a card. */
 a.emp-stat:hover { text-decoration: none; color: inherit; box-shadow: var(--shadow-md); transform: translateY(-1px); }
-a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
-.emp-stat.is-active { border-color: var(--color-blue-500); box-shadow: 0 0 0 1px var(--color-blue-500); }
+a.emp-stat:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 2px; }
+.emp-stat.is-active { border-color: var(--action-primary); box-shadow: 0 0 0 1px var(--action-primary); }
 </style>
 
 <div class="emp-stats">
@@ -102,7 +102,7 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
      aria-label="Filtrar empleados activos">
     <div class="card-body">
       <p class="text-sm text-muted emp-stat-label">Activos</p>
-      <p class="emp-stat-value" style="color:var(--color-success-default);"><?= number_format($stats['active']) ?></p>
+      <p class="emp-stat-value" style="color: var(--status-success-text);"><?= number_format($stats['active']) ?></p>
       <p class="text-sm text-muted emp-stat-sub">Estado activo</p>
     </div>
   </a>
@@ -182,7 +182,7 @@ a.emp-stat:focus-visible { outline: 2px solid var(--color-blue-500); outline-off
                   <img src="<?= route_to('employees.photo.serve', $e['id']) ?>" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">
                 </div>
               <?php else: ?>
-                <div style="width:32px; height:32px; border-radius:50%; background:var(--color-neutral-200); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:var(--text-sm); font-weight:600;">
+                <div style="width:32px; height:32px; border-radius:50%; background: var(--border-subtle); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:var(--text-sm); font-weight:600;">
                   <?= esc(strtoupper(mb_substr($e['name'] ?? '?', 0, 1))) ?>
                 </div>
               <?php endif; ?>

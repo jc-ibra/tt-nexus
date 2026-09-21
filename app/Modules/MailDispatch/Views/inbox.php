@@ -107,11 +107,11 @@ $initials = static function (?string $name, ?string $email): string {
     font-weight:var(--weight-medium); }
   .gm-rail a svg { width:18px; height:18px; flex:0 0 auto; color:var(--text-muted); }
   .gm-rail a:hover { background:var(--bg-surface-alt); color:var(--text-primary); }
-  .gm-rail a.is-active { background:var(--color-blue-50); color:var(--color-blue-700); font-weight:var(--weight-bold); }
-  .gm-rail a.is-active svg { color:var(--color-blue-600); }
+  .gm-rail a.is-active { background: var(--accent-surface); color: var(--accent-text); font-weight:var(--weight-bold); }
+  .gm-rail a.is-active svg { color: var(--accent-text); }
   .gm-rail .gm-rail-count { margin-left:auto; font-size:var(--text-xs); font-weight:var(--weight-bold);
     color:var(--text-muted); }
-  .gm-rail a.is-active .gm-rail-count { color:var(--color-blue-700); }
+  .gm-rail a.is-active .gm-rail-count { color: var(--accent-text); }
   .gm-rail-sep { height:1px; background:var(--border-default); margin:var(--space-2) var(--space-1); }
   /* "Mis métricas" no es un enlace más de la lista: lleva dos cifras propias del
      agente que cambian durante el día, que es lo que da motivo para entrar.
@@ -120,9 +120,9 @@ $initials = static function (?string $name, ?string $email): string {
      rail, y aquí hace falta un bloque de dos renglones. */
   .gm-rail a.gm-me { display:block; align-items:stretch; gap:0;
            margin:var(--space-1) 0 var(--space-2); padding:var(--space-2) var(--space-3);
-           border:1px solid var(--color-blue-200, #B3D4F0); border-radius:var(--radius-md);
-           background:var(--color-blue-50); color:var(--color-blue-700); text-decoration:none; }
-  .gm-rail a.gm-me:hover { background:var(--color-blue-100, #D6E9FA); color:var(--color-blue-800, #115EA3); }
+           border: 1px solid var(--accent-border); border-radius:var(--radius-md);
+           background: var(--accent-surface); color: var(--accent-text); text-decoration:none; }
+  .gm-rail a.gm-me:hover { background: var(--accent-surface); color: var(--accent-text); }
   .gm-rail a.gm-me svg { color:currentColor; }
   .gm-me-top { display:flex; align-items:center; gap:var(--space-3); font-weight:var(--weight-bold);
                font-size:var(--text-sm); line-height:1.3; }
@@ -130,7 +130,7 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-me-stats { display:flex; flex-direction:column; gap:2px; margin-top:4px; padding-left:30px;
                  font-size:var(--text-xs); color:var(--text-secondary); line-height:1.4; }
   .gm-me-stats b { font-variant-numeric:tabular-nums; color:var(--text-primary); }
-  .gm-me-stats .is-critical, .gm-me-stats .is-critical b { color:var(--color-critical-strong); }
+  .gm-me-stats .is-critical, .gm-me-stats .is-critical b { color: var(--status-critical-text); }
   .rail-collapsed .gm-rail a.gm-me { padding:var(--space-2) 0; }
   .rail-collapsed .gm-me-top { justify-content:center; }
   .rail-collapsed .gm-me-top span, .rail-collapsed .gm-me-stats { display:none; }
@@ -177,18 +177,18 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-row:last-child { border-bottom:0; }
   .gm-row:hover { background:var(--bg-surface-alt); text-decoration:none; }
   .gm-row:hover .gm-sender, .gm-row:hover .gm-subject { text-decoration:none; }
-  .gm-row.is-active { background:var(--color-blue-50); box-shadow:inset 3px 0 0 var(--color-blue-500); }
-  .gm-row.is-breach { box-shadow:inset 3px 0 0 var(--color-critical-default); }
-  .gm-row.is-breach.is-active { box-shadow:inset 3px 0 0 var(--color-critical-default); background:var(--color-blue-50); }
+  .gm-row.is-active { background: var(--accent-surface); box-shadow: inset 3px 0 0 var(--action-primary); }
+  .gm-row.is-breach { box-shadow: inset 3px 0 0 var(--status-critical-border); }
+  .gm-row.is-breach.is-active { box-shadow: inset 3px 0 0 var(--status-critical-border); background: var(--accent-surface); }
 
   /* Avatar con iniciales del solicitante; tono por estado. */
   .gm-av { width:34px; height:34px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
     font-size:var(--text-xs); font-weight:var(--weight-bold); line-height:1; flex:0 0 auto; }
-  .gm-av.info { background:var(--color-blue-50); color:var(--color-blue-700); }
-  .gm-av.success { background:var(--color-success-surface); color:var(--color-success-strong); }
-  .gm-av.warning { background:var(--color-warning-surface); color:var(--color-warning-strong); }
-  .gm-av.critical { background:var(--color-critical-surface); color:var(--color-critical-strong); }
-  .gm-av.neutral { background:var(--color-neutral-100); color:var(--color-neutral-700); }
+  .gm-av.info { background: var(--accent-surface); color: var(--accent-text); }
+  .gm-av.success { background: var(--status-success-surface); color: var(--status-success-text); }
+  .gm-av.warning { background: var(--status-warning-surface); color: var(--status-warning-text); }
+  .gm-av.critical { background: var(--status-critical-surface); color: var(--status-critical-text); }
+  .gm-av.neutral { background: var(--bg-surface-alt); color: var(--text-secondary); }
 
   .gm-body { min-width:0; display:flex; flex-direction:column; gap:2px; }
   /* Línea 1: remitente ......... [SLA] [adjunto] hora. */
@@ -196,8 +196,8 @@ $initials = static function (?string $name, ?string $email): string {
   .gm-sender { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     font-size:var(--text-sm); color:var(--text-primary); }
   .gm-clip { flex:0 0 auto; width:14px; height:14px; color:var(--text-muted); }
-  .gm-sla { flex:0 0 auto; font-size:10px; font-weight:var(--weight-bold); letter-spacing:.03em; color:var(--color-critical-strong);
-    background:var(--color-critical-surface); border-radius:var(--radius-sm); padding:1px 5px; white-space:nowrap; }
+  .gm-sla { flex:0 0 auto; font-size:10px; font-weight:var(--weight-bold); letter-spacing:.03em; color: var(--status-critical-text);
+    background: var(--status-critical-surface); border-radius:var(--radius-sm); padding:1px 5px; white-space:nowrap; }
   .gm-time { flex:0 0 auto; margin-left:2px; font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap; }
   /* Línea 2: asunto ......... [Tomar]. */
   .gm-line2 { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
@@ -218,25 +218,25 @@ $initials = static function (?string $name, ?string $email): string {
     font-size:var(--text-xs); font-weight:var(--weight-semibold); border-radius:var(--radius-full); padding:2px 9px;
     cursor:pointer; opacity:0; transition:opacity .12s ease; white-space:nowrap; }
   .gm-row:hover .gm-claim { opacity:1; }
-  .gm-claim:hover { border-color:var(--action-primary); background:var(--color-blue-50); }
+  .gm-claim:hover { border-color:var(--action-primary); background: var(--accent-surface); }
 
   /* Autoarchivo: acción Verificar (siempre visible) y sello de verificado. */
-  .gm-verify { flex:0 0 auto; border:1px solid var(--color-success-default); background:var(--color-success-surface);
-    color:var(--color-success-strong); font-size:var(--text-xs); font-weight:var(--weight-semibold);
+  .gm-verify { flex:0 0 auto; border: 1px solid var(--status-success-border); background: var(--status-success-surface);
+    color: var(--status-success-text); font-size:var(--text-xs); font-weight:var(--weight-semibold);
     border-radius:var(--radius-full); padding:2px 9px; cursor:pointer; white-space:nowrap; }
   .gm-verify:hover { filter:brightness(0.97); }
   .gm-verified { flex:0 0 auto; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;
-    font-size:var(--text-xs); font-weight:var(--weight-medium); color:var(--color-success-strong); }
+    font-size:var(--text-xs); font-weight:var(--weight-medium); color: var(--status-success-text); }
   .gm-verified svg { width:13px; height:13px; }
 
   /* Pill de estado (mismo tono que el avatar) a la derecha del asunto. */
   .gm-status { flex:0 0 auto; font-size:10px; font-weight:var(--weight-semibold); letter-spacing:.02em;
     padding:1px 7px; border-radius:var(--radius-full); white-space:nowrap; }
-  .gm-status.info { background:var(--color-blue-50); color:var(--color-blue-700); }
-  .gm-status.success { background:var(--color-success-surface); color:var(--color-success-strong); }
-  .gm-status.warning { background:var(--color-warning-surface); color:var(--color-warning-strong); }
-  .gm-status.critical { background:var(--color-critical-surface); color:var(--color-critical-strong); }
-  .gm-status.neutral { background:var(--color-neutral-100); color:var(--color-neutral-700); }
+  .gm-status.info { background: var(--accent-surface); color: var(--accent-text); }
+  .gm-status.success { background: var(--status-success-surface); color: var(--status-success-text); }
+  .gm-status.warning { background: var(--status-warning-surface); color: var(--status-warning-text); }
+  .gm-status.critical { background: var(--status-critical-surface); color: var(--status-critical-text); }
+  .gm-status.neutral { background: var(--bg-surface-alt); color: var(--text-secondary); }
 
   .gm-empty { padding:var(--space-6); color:var(--text-muted); text-align:center; }
 
@@ -262,11 +262,11 @@ $initials = static function (?string $name, ?string $email): string {
   /* ---- Estilos de mensajes (compartidos con el detalle) ---- */
   .md-avatar { flex:0 0 auto; width:40px; height:40px; border-radius:var(--radius-full); display:inline-flex;
     align-items:center; justify-content:center; font-weight:var(--weight-bold); font-size:var(--text-sm); line-height:1; }
-  .md-avatar.in { background:var(--color-blue-50); color:var(--color-blue-700); }
-  .md-avatar.out { background:var(--color-success-surface); color:var(--color-success-strong); }
+  .md-avatar.in { background: var(--accent-surface); color: var(--accent-text); }
+  .md-avatar.out { background: var(--status-success-surface); color: var(--status-success-text); }
   .md-msg { border:1px solid var(--border-default); border-radius:var(--radius-lg); margin-bottom:var(--space-4);
     overflow:hidden; box-shadow:var(--shadow-xs); background:var(--bg-surface); }
-  .md-msg.in { border-left:3px solid var(--color-blue-500); } .md-msg.out { border-left:3px solid var(--color-success-default); }
+  .md-msg.in { border-left: 3px solid var(--action-primary); } .md-msg.out { border-left: 3px solid var(--status-success-border); }
   .md-msg-head { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4);
     border-bottom:1px solid var(--border-default); background:var(--bg-surface-alt); cursor:pointer; user-select:none; }
   .md-msg-who { min-width:0; flex:1; }
@@ -285,23 +285,23 @@ $initials = static function (?string $name, ?string $email): string {
   .md-recipients-row { display:flex; gap:var(--space-3); align-items:flex-start; }
   .md-recipients-label { flex:0 0 auto; min-width:56px; padding-top:3px; font-size:var(--text-xs);
     text-transform:uppercase; letter-spacing:.04em; font-weight:var(--weight-semibold); color:var(--text-muted); }
-  .md-recipients-row.is-cc .md-recipients-label { color:var(--color-blue-700); }
+  .md-recipients-row.is-cc .md-recipients-label { color: var(--accent-text); }
   .md-recipients-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px;
     height:18px; margin-left:4px; padding:0 5px; border-radius:var(--radius-full);
-    background:var(--color-blue-100); color:var(--color-blue-700); font-size:11px; letter-spacing:0; }
+    background: var(--accent-surface); color: var(--accent-text); font-size:11px; letter-spacing:0; }
   .md-recipients-list { display:flex; flex-wrap:wrap; gap:var(--space-1) var(--space-2); min-width:0; }
   .md-addr { display:inline-flex; align-items:center; max-width:100%; font-size:var(--text-xs); line-height:1.4;
     padding:3px var(--space-2); border-radius:var(--radius-full); border:1px solid var(--border-default);
     background:var(--bg-surface); color:var(--text-secondary); overflow-wrap:anywhere; }
-  .md-recipients-row.is-cc .md-addr { border-color:var(--color-blue-200); background:var(--color-blue-50);
-    color:var(--color-blue-700); font-weight:var(--weight-medium); }
+  .md-recipients-row.is-cc .md-addr { border-color: var(--accent-border); background: var(--accent-surface);
+    color: var(--accent-text); font-weight:var(--weight-medium); }
   .md-cc-flag { display:inline-flex; align-items:center; gap:4px; padding:1px var(--space-2);
-    border:1px solid var(--color-blue-200); border-radius:var(--radius-full); background:var(--color-blue-50);
-    color:var(--color-blue-700); font-size:var(--text-xs); font-weight:var(--weight-medium); white-space:nowrap; }
+    border: 1px solid var(--accent-border); border-radius:var(--radius-full); background: var(--accent-surface);
+    color: var(--accent-text); font-size:var(--text-xs); font-weight:var(--weight-medium); white-space:nowrap; }
   .md-cc-flag svg { width:13px; height:13px; }
   .md-msg-preview { display:none; padding:var(--space-2) var(--space-4) var(--space-3); color:var(--text-secondary); font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .md-msg.is-collapsed .md-msg-preview { display:block; }
-  .md-msg-body-frame { width:100%; border:0; min-height:200px; background:#fff; display:block; }
+  .md-msg-body-frame { width:100%; border:0; min-height:200px; background: var(--bg-surface); display:block; }
   .md-msg-pre { white-space:pre-wrap; word-break:break-word; padding:var(--space-4); margin:0; font-family:inherit; font-size:var(--text-sm); color:var(--text-primary); line-height:1.55; }
   .md-attachments { display:flex; flex-wrap:wrap; gap:var(--space-2); padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--border-default); background:var(--bg-page); }
   .md-chip { display:inline-flex; align-items:center; gap:var(--space-2); max-width:100%; padding:var(--space-2) var(--space-3); background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-md); text-decoration:none; color:var(--text-primary); font-size:var(--text-sm); }

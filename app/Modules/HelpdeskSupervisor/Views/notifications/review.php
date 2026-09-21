@@ -69,7 +69,7 @@ $isSent = (string) $n['status'] === 'sent';
   <div class="card">
     <div class="card-header"><h2 class="card-title">Vista previa</h2></div>
     <div class="card-body" style="padding:0;">
-      <iframe id="preview" title="Vista previa del correo" sandbox="" style="width:100%; height:520px; border:0; background:#fff;" srcdoc="<?= esc($body, 'attr') ?>"></iframe>
+      <iframe id="preview" title="Vista previa del correo" sandbox="" style="width:100%; height:520px; border:0; background: var(--bg-surface);" srcdoc="<?= esc($body, 'attr') ?>"></iframe>
     </div>
   </div>
 </div>

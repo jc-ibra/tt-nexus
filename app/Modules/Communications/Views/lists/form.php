@@ -59,7 +59,7 @@ $selectedIds     = array_map('strval', $selectedIds);
         <?php endif; ?>
       </div>
       <?php if (! empty($allRecipients)): ?>
-        <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-neutral-200);">
+        <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
           <input type="text" id="recipient-search" class="input" placeholder="Filtrar por nombre o correo…"
                  oninput="filterRecipients(this.value)" autocomplete="off">
         </div>

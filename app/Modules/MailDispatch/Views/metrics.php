@@ -84,7 +84,7 @@ $qs = http_build_query($personal
   /* Tarjeta en vivo (misma lectura que la de Equipo, en una sola columna). */
   .mm-card { display:flex; flex-direction:column; gap:var(--space-4); max-width:300px; }
   .mm-head { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
-  .mm-av { flex:0 0 auto; width:32px; height:32px; border-radius:var(--radius-full); background:var(--color-neutral-100);
+  .mm-av { flex:0 0 auto; width:32px; height:32px; border-radius:var(--radius-full); background: var(--bg-surface-alt);
            color:var(--text-secondary); display:inline-flex; align-items:center; justify-content:center;
            font-size:var(--text-xs); font-weight:var(--weight-bold); }
   .mm-name { font-weight:var(--weight-bold); color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -92,22 +92,22 @@ $qs = http_build_query($personal
   .mm-open { display:flex; align-items:baseline; gap:var(--space-2); }
   .mm-open .n { font-size:28px; font-weight:var(--weight-bold); line-height:1; color:var(--text-primary); }
   .mm-open .u { font-size:var(--text-sm); color:var(--text-muted); }
-  .mm-metrics { border:1px solid var(--color-neutral-200); border-radius:var(--radius-md); overflow:hidden; }
+  .mm-metrics { border: 1px solid var(--border-subtle); border-radius:var(--radius-md); overflow:hidden; }
   .mm-metric { display:flex; justify-content:space-between; gap:var(--space-3);
                padding:var(--space-2) var(--space-3); font-size:var(--text-sm); }
-  .mm-metric + .mm-metric { border-top:1px solid var(--color-neutral-200); }
+  .mm-metric + .mm-metric { border-top: 1px solid var(--border-subtle); }
   .mm-metric .k { color:var(--text-muted); }
   .mm-metric .v { font-weight:var(--weight-bold); font-variant-numeric:tabular-nums; color:var(--text-primary); }
-  .mm-metric .v.is-warning  { color:var(--color-warning-strong); }
-  .mm-metric .v.is-critical { color:var(--color-critical-strong); }
+  .mm-metric .v.is-warning  { color: var(--status-warning-text); }
+  .mm-metric .v.is-critical { color: var(--status-critical-text); }
   .mm-metric .v.is-on       { color:var(--action-primary); }
   .mm-foot { display:flex; flex-direction:column; gap:var(--space-2); font-size:var(--text-xs); color:var(--text-muted); }
   .mm-line { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
-  .mm-dot { flex:0 0 auto; width:6px; height:6px; border-radius:var(--radius-full); background:var(--color-neutral-300); }
-  .mm-silence.s-critical { color:var(--color-critical-strong); font-weight:var(--weight-medium); }
-  .mm-silence.s-critical .mm-dot { background:var(--color-critical-default); }
-  .mm-silence.s-warning  .mm-dot { background:var(--color-warning-default); }
-  .mm-silence.s-ok       .mm-dot { background:var(--color-success-default); }
+  .mm-dot { flex:0 0 auto; width:6px; height:6px; border-radius:var(--radius-full); background: var(--border-default); }
+  .mm-silence.s-critical { color: var(--status-critical-text); font-weight:var(--weight-medium); }
+  .mm-silence.s-critical .mm-dot { background: var(--status-critical-text); }
+  .mm-silence.s-warning  .mm-dot { background: var(--status-warning-text); }
+  .mm-silence.s-ok       .mm-dot { background: var(--status-success-text); }
   /* Dos bloques con aire real entre ellos: el filete separa "lo que traigo" de
      "qué hago con ello" sin necesidad de dos tarjetas. */
   .mm-split { display:grid; align-items:stretch; row-gap:var(--space-8); column-gap:var(--space-10);
@@ -115,17 +115,17 @@ $qs = http_build_query($personal
   /* Columna del medio: qué hacer con lo que dice la tarjeta, no una explicación
      de ella. Lo que significa cada término vive en el término mismo (title). */
   .mm-now { display:flex; flex-direction:column; gap:var(--space-4);
-            border-left:1px solid var(--color-neutral-200); padding-left:var(--space-10); }
+            border-left: 1px solid var(--border-subtle); padding-left:var(--space-10); }
   .mm-now .mm-sub, .mm-now .mm-note { max-width:62ch; }
   @media (max-width: 860px) {
     .mm-split { grid-template-columns:1fr; column-gap:0; }
     .mm-card { max-width:none; }
     .mm-now { border-left:0; padding-left:0; padding-top:var(--space-6);
-              border-top:1px solid var(--color-neutral-200); }
+              border-top: 1px solid var(--border-subtle); }
   }
   .mm-lead { font-size:var(--text-xl); font-weight:var(--weight-bold); color:var(--text-primary); line-height:1.25; }
-  .mm-lead.is-critical { color:var(--color-critical-strong); }
-  .mm-lead.is-warning  { color:var(--color-warning-strong); }
+  .mm-lead.is-critical { color: var(--status-critical-text); }
+  .mm-lead.is-warning  { color: var(--status-warning-text); }
   .mm-sub { font-size:var(--text-sm); color:var(--text-secondary); }
   .mm-cta { display:flex; flex-wrap:wrap; gap:var(--space-2); }
   .mm-note { font-size:var(--text-xs); color:var(--text-muted); line-height:1.6; }
@@ -139,10 +139,10 @@ $qs = http_build_query($personal
              background:var(--bg-surface); text-decoration:none; color:var(--text-primary);
              transition:border-color var(--duration-base) var(--ease-default),
                         background var(--duration-base) var(--ease-default); }
-  .mm-help:hover { border-color:var(--action-primary); background:var(--color-blue-50); text-decoration:none; }
+  .mm-help:hover { border-color:var(--action-primary); background: var(--accent-surface); text-decoration:none; }
   .mm-help:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
   .mm-help-ic { flex:0 0 auto; width:34px; height:34px; border-radius:var(--radius-full);
-                background:var(--color-blue-50); color:var(--action-primary);
+                background: var(--accent-surface); color:var(--action-primary);
                 display:inline-flex; align-items:center; justify-content:center; }
   .mm-help:hover .mm-help-ic { background:var(--bg-surface); }
   .mm-help-ic svg { width:18px; height:18px; }

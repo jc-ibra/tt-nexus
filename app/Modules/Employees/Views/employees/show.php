@@ -31,7 +31,7 @@ $canManageEmployees = service('access')->canAccessModule('employees');
 .emp-tabs {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-neutral-200);
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: var(--space-4);
 }
 .emp-tab {
@@ -69,7 +69,7 @@ $canManageEmployees = service('access')->canAccessModule('employees');
         <img src="<?= route_to('employees.photo.serve', $employee['id']) ?>" alt="<?= esc($fullName) ?>"
              style="width:180px; height:180px; border-radius:var(--radius-md); object-fit:cover; display:block; margin:0 auto var(--space-3);">
       <?php else: ?>
-        <div style="width:180px; height:180px; border-radius:var(--radius-md); background:var(--color-neutral-200); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:64px; font-weight:600; margin:0 auto var(--space-3);">
+        <div style="width:180px; height:180px; border-radius:var(--radius-md); background: var(--border-subtle); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:64px; font-weight:600; margin:0 auto var(--space-3);">
           <?= esc(strtoupper(mb_substr($employee['name'] ?? '?', 0, 1))) ?>
         </div>
       <?php endif; ?>

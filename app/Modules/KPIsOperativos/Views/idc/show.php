@@ -31,7 +31,7 @@
         <p class="text-muted" style="padding: var(--space-4);">No hay aliases registrados.</p>
       <?php else: ?>
         <?php foreach ($aliases as $a): ?>
-          <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-neutral-100);">
+          <div style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
             <div style="display: flex; justify-content: space-between; gap: var(--space-2);">
               <span><?= esc($a['alias_raw']) ?></span>
               <span style="display: inline-flex; gap: var(--space-2); align-items: center;">
@@ -121,7 +121,7 @@
           <form action="<?= route_to('kpi.idc.destroy', $canonical['id']) ?>" method="post"
                 onsubmit="return confirm('¿Eliminar este canonical?')">
             <?= csrf_field() ?>
-            <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--color-critical-default);">
+            <button type="submit" class="btn btn-tertiary btn-sm" style="color: var(--status-critical-text);">
               Eliminar
             </button>
           </form>

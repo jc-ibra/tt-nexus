@@ -136,7 +136,7 @@ $to   = min($page * $perPage, $total);
   </div>
 
   <?php if ($total > 0): ?>
-  <div class="pager-bar" style="padding:var(--space-3) var(--space-4); border-top:1px solid var(--color-neutral-200); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:var(--space-2);">
+  <div class="pager-bar" style="padding:var(--space-3) var(--space-4); border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:var(--space-2);">
     <span class="pager-summary text-sm text-muted">
       Mostrando <?= $from ?>–<?= $to ?> de <?= number_format($total) ?>
       · Página <?= $page ?> de <?= $lastPage ?>

@@ -12,7 +12,8 @@
  */
 ?>
 <link rel="manifest" href="<?= base_url('manifest.json') ?>">
-<meta name="theme-color" content="#1773C8">
+<meta name="theme-color" content="#F6F6F7" media="(prefers-color-scheme: light)" id="theme-color-light">
+<meta name="theme-color" content="#10151B" media="(prefers-color-scheme: dark)" id="theme-color-dark">
 <meta name="application-name" content="Nexus">
 <meta name="apple-mobile-web-app-title" content="Nexus">
 <meta name="apple-mobile-web-app-capable" content="yes">

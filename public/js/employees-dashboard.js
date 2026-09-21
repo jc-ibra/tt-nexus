@@ -7,6 +7,11 @@
  *
  * Tipos soportados: doughnut, hbar (barras horizontales), grouped (barras
  * verticales agrupadas).
+ *
+ * La paleta categórica (departamentos/categorías, hasta 13 series) es fija en
+ * ambos temas — son colores de identidad, no de superficie. Lo que sí cambia
+ * con el tema son los textos de eje, la rejilla y el fondo del tooltip, leídos
+ * de NxChartTheme (public/js/chart-theme.js).
  */
 (function () {
   'use strict';
@@ -29,9 +34,16 @@
     '#C9CCCF'  // neutral 300 (cola / "Otros")
   ];
 
-  var TICK_COLOR = '#44494D';
-  var GRID_COLOR = '#E3E4E5';
-  var FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  var charts = [];
+  var specsByCanvas = null;
+
+  function theme() {
+    if (typeof NxChartTheme !== 'undefined') {
+      var p = NxChartTheme.palette();
+      return { TICK: p.TEXT_MUTED, GRID: p.GRID_COLOR, FONT: p.FONT, TOOLTIP_BG: p.TOOLTIP_BG, TOOLTIP_TEXT: p.TOOLTIP_TEXT, SEGMENT_BORDER: p.POINT_BG };
+    }
+    return { TICK: '#44494D', GRID: '#E3E4E5', FONT: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif", TOOLTIP_BG: '#1A1C1E', TOOLTIP_TEXT: '#FFFFFF', SEGMENT_BORDER: '#FFFFFF' };
+  }
 
   function colorsFor(count) {
     var out = [];
@@ -41,16 +53,16 @@
     return out;
   }
 
-  function commonOptions(extra) {
+  function commonOptions(t, extra) {
     return Object.assign({
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1A1C1E',
-          titleColor: '#FFFFFF',
-          bodyColor: '#FFFFFF',
+          backgroundColor: t.TOOLTIP_BG,
+          titleColor: t.TOOLTIP_TEXT,
+          bodyColor: t.TOOLTIP_TEXT,
           borderColor: 'transparent',
           padding: 10,
           cornerRadius: 6,
@@ -60,7 +72,7 @@
     }, extra || {});
   }
 
-  function doughnutConfig(spec) {
+  function doughnutConfig(spec, t) {
     return {
       type: 'doughnut',
       data: {
@@ -68,22 +80,22 @@
         datasets: [{
           data: spec.values,
           backgroundColor: colorsFor(spec.labels.length),
-          borderColor: '#FFFFFF',
+          borderColor: t.SEGMENT_BORDER,
           borderWidth: 2
         }]
       },
-      options: commonOptions({
+      options: commonOptions(t, {
         cutout: '58%',
         plugins: {
           legend: {
             display: true,
             position: 'bottom',
-            labels: { color: TICK_COLOR, padding: 12, boxWidth: 12, boxHeight: 12 }
+            labels: { color: t.TICK, padding: 12, boxWidth: 12, boxHeight: 12 }
           },
           tooltip: {
-            backgroundColor: '#1A1C1E',
-            titleColor: '#FFFFFF',
-            bodyColor: '#FFFFFF',
+            backgroundColor: t.TOOLTIP_BG,
+            titleColor: t.TOOLTIP_TEXT,
+            bodyColor: t.TOOLTIP_TEXT,
             padding: 10,
             cornerRadius: 6,
             callbacks: {
@@ -99,7 +111,7 @@
     };
   }
 
-  function hbarConfig(spec) {
+  function hbarConfig(spec, t) {
     return {
       type: 'bar',
       data: {
@@ -112,24 +124,24 @@
           maxBarThickness: 26
         }]
       },
-      options: commonOptions({
+      options: commonOptions(t, {
         indexAxis: 'y',
         scales: {
           x: {
             beginAtZero: true,
-            grid: { color: GRID_COLOR, drawBorder: false },
-            ticks: { color: TICK_COLOR, precision: 0 }
+            grid: { color: t.GRID, drawBorder: false },
+            ticks: { color: t.TICK, precision: 0 }
           },
           y: {
             grid: { display: false },
-            ticks: { color: TICK_COLOR, font: { weight: 500 }, autoSkip: false }
+            ticks: { color: t.TICK, font: { weight: 500 }, autoSkip: false }
           }
         }
       })
     };
   }
 
-  function groupedConfig(spec) {
+  function groupedConfig(spec, t) {
     var datasets = spec.series.map(function (s, i) {
       return {
         label: s.label,
@@ -143,27 +155,27 @@
     return {
       type: 'bar',
       data: { labels: spec.labels, datasets: datasets },
-      options: commonOptions({
+      options: commonOptions(t, {
         plugins: {
           legend: {
             display: true,
             position: 'bottom',
-            labels: { color: TICK_COLOR, padding: 12, boxWidth: 12, boxHeight: 12 }
+            labels: { color: t.TICK, padding: 12, boxWidth: 12, boxHeight: 12 }
           },
           tooltip: {
-            backgroundColor: '#1A1C1E',
-            titleColor: '#FFFFFF',
-            bodyColor: '#FFFFFF',
+            backgroundColor: t.TOOLTIP_BG,
+            titleColor: t.TOOLTIP_TEXT,
+            bodyColor: t.TOOLTIP_TEXT,
             padding: 10,
             cornerRadius: 6
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: TICK_COLOR } },
+          x: { grid: { display: false }, ticks: { color: t.TICK } },
           y: {
             beginAtZero: true,
-            grid: { color: GRID_COLOR, drawBorder: false },
-            ticks: { color: TICK_COLOR, precision: 0 }
+            grid: { color: t.GRID, drawBorder: false },
+            ticks: { color: t.TICK, precision: 0 }
           }
         }
       })
@@ -194,17 +206,47 @@
     return config;
   }
 
-  function build(spec, canvas) {
+  function build(spec, canvas, t) {
     if (spec.type === 'doughnut') {
-      return attachDrillDown(doughnutConfig(spec), spec, canvas);
+      return attachDrillDown(doughnutConfig(spec, t), spec, canvas);
     }
     if (spec.type === 'hbar') {
-      return attachDrillDown(hbarConfig(spec), spec, canvas);
+      return attachDrillDown(hbarConfig(spec, t), spec, canvas);
     }
     if (spec.type === 'grouped') {
-      return groupedConfig(spec);
+      return groupedConfig(spec, t);
     }
     return null;
+  }
+
+  function renderAll() {
+    charts.forEach(function (c) { c.destroy(); });
+    charts = [];
+    if (!specsByCanvas) {
+      return;
+    }
+
+    var t = theme();
+    Chart.defaults.font.family = t.FONT;
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = t.TICK;
+
+    Object.keys(specsByCanvas).forEach(function (key) {
+      var canvas = document.getElementById('chart-' + key);
+      if (!canvas) {
+        return;
+      }
+
+      var spec = specsByCanvas[key];
+      if (!spec || !spec.labels || !spec.labels.length) {
+        return;
+      }
+
+      var config = build(spec, canvas, t);
+      if (config) {
+        charts.push(new Chart(canvas, config));
+      }
+    });
   }
 
   function bootstrap() {
@@ -219,33 +261,16 @@
       return;
     }
 
-    var charts;
     try {
-      charts = JSON.parse(host.dataset.charts || '{}');
+      specsByCanvas = JSON.parse(host.dataset.charts || '{}');
     } catch (e) {
       return;
     }
 
-    Chart.defaults.font.family = FONT;
-    Chart.defaults.font.size = 12;
-    Chart.defaults.color = TICK_COLOR;
-
-    Object.keys(charts).forEach(function (key) {
-      var canvas = document.getElementById('chart-' + key);
-      if (!canvas) {
-        return;
-      }
-
-      var spec = charts[key];
-      if (!spec || !spec.labels || !spec.labels.length) {
-        return;
-      }
-
-      var config = build(spec, canvas);
-      if (config) {
-        new Chart(canvas, config);
-      }
-    });
+    renderAll();
+    if (typeof NxChartTheme !== 'undefined') {
+      NxChartTheme.onChange(renderAll);
+    }
   }
 
   if (document.readyState === 'loading') {

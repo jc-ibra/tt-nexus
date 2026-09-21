@@ -3,10 +3,10 @@
 <?= $this->section('head') ?>
 <style>
   .sd-prog { position:relative; height:20px; min-width:130px; border-radius:999px; overflow:hidden;
-    background: var(--color-neutral-200, #e5e7eb); }
+    background: var(--border-subtle); }
   .sd-prog-seg { position:absolute; top:0; height:100%; }
-  .sd-prog-ok  { left:0; background: var(--color-success-default, #2e7d32); }
-  .sd-prog-err { background: var(--color-critical-default, #c62828); }
+  .sd-prog-ok  { left:0; background: var(--status-success-text); }
+  .sd-prog-err { background: var(--status-critical-text); }
   .sd-prog-label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:11px; font-weight:600; color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.35); white-space:nowrap; }
 </style>
@@ -76,7 +76,7 @@ $originBadge = static function (?string $source): string {
 
   <?php $rowErrors = session()->getFlashdata('rowErrors'); ?>
   <?php if (! empty($rowErrors)): ?>
-    <div class="card" style="margin-bottom: var(--space-4); border-left: 4px solid var(--color-critical-default);">
+    <div class="card" style="margin-bottom: var(--space-4); border-left: 4px solid var(--status-critical-border);">
       <div class="card-header"><h2 class="card-title">Errores de validación</h2></div>
       <div class="card-body" style="max-height: 280px; overflow:auto;">
         <ul style="margin:0; padding-left: var(--space-4);">

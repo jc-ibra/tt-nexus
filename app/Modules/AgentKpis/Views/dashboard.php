@@ -32,9 +32,9 @@ $fin = static fn(array $e) => match ((string) $e['final_status']) {
   width:1.125rem;
   height:1.125rem;
   padding:0;
-  border:1px solid var(--color-neutral-300);
+  border: 1px solid var(--border-default);
   border-radius:var(--radius-full);
-  background:var(--color-neutral-100);
+  background: var(--bg-surface-alt);
   color:var(--text-secondary);
   font-size:0.6875rem;
   font-weight:var(--weight-bold);
@@ -46,7 +46,7 @@ $fin = static fn(array $e) => match ((string) $e['final_status']) {
   vertical-align:middle;
 }
 .hs-info-tip:hover {
-  background:var(--color-blue-50, #eef6fd);
+  background: var(--accent-surface);
   border-color:var(--color-primary);
   color:var(--color-primary);
 }
@@ -61,8 +61,8 @@ $fin = static fn(array $e) => match ((string) $e['final_status']) {
   z-index:1200;
   width:min(18rem, calc(100vw - 1rem));
   padding:var(--space-2) var(--space-3);
-  background:var(--bg-surface, #fff);
-  border:1px solid var(--color-neutral-200);
+  background: var(--bg-surface, var(--bg-surface));
+  border: 1px solid var(--border-subtle);
   border-radius:var(--radius-sm);
   box-shadow:var(--shadow-md);
   font-size:var(--text-sm);
