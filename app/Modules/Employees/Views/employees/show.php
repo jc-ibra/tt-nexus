@@ -108,6 +108,10 @@ $canManageEmployees = service('access')->canAccessModule('employees');
               aria-selected="false" aria-controls="emp-panel-prov" tabindex="-1" data-panel="emp-panel-prov">
         Aprovisionamiento
       </button>
+      <button type="button" class="emp-tab" id="emp-tab-audit" role="tab"
+              aria-selected="false" aria-controls="emp-panel-audit" tabindex="-1" data-panel="emp-panel-audit">
+        Bitácora
+      </button>
     </div>
 
     <!-- Tab: Información del empleado -->
@@ -239,6 +243,72 @@ $canManageEmployees = service('access')->canAccessModule('employees');
     }
     ?>
     </div><!-- /emp-panel-prov -->
+
+    <!-- Tab: Bitácora -->
+    <div id="emp-panel-audit" class="emp-tab-panel" role="tabpanel" aria-labelledby="emp-tab-audit" style="display:none;">
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Bitácora del empleado</h2></div>
+      <div class="card-body">
+        <?php if (empty($auditEvents)): ?>
+          <p class="text-muted">Sin cambios registrados.</p>
+        <?php else: ?>
+          <?php
+            // Rows come ordered created_at DESC, id DESC — consecutive rows with
+            // the same event_id belong to the same save, so a straight pass
+            // groups them without needing to sort.
+            $auditEventGroups = [];
+            foreach ($auditEvents as $row) {
+                $eventId = $row['event_id'];
+                if (! isset($auditEventGroups[$eventId])) {
+                    $auditEventGroups[$eventId] = [
+                        'action'     => $row['action'],
+                        'created_at' => $row['created_at'],
+                        'actor_name' => $row['actor_name'],
+                        'rows'       => [],
+                    ];
+                }
+                $auditEventGroups[$eventId]['rows'][] = $row;
+            }
+
+            $auditActionLabels = \App\Modules\Employees\Services\EmployeeAuditService::actionLabels();
+            $auditBadgeClass = [
+                'created'       => 'badge-success',
+                'reactivated'   => 'badge-success',
+                'deactivated'   => 'badge-critical',
+                'deleted'       => 'badge-critical',
+                'photo_updated' => 'badge-neutral',
+                'updated'       => 'badge-neutral',
+            ];
+          ?>
+          <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:var(--space-4);">
+            <?php foreach ($auditEventGroups as $event): ?>
+              <li style="border-left:2px solid var(--border-subtle); padding-left:var(--space-3);">
+                <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; margin-bottom:var(--space-1);">
+                  <span class="text-sm text-muted"><?= esc(date('d/m/Y H:i', strtotime($event['created_at']))) ?></span>
+                  <span class="text-sm text-muted">·</span>
+                  <span class="text-sm"><?= esc($event['actor_name'] ?: 'Sistema') ?></span>
+                  <span class="badge <?= esc($auditBadgeClass[$event['action']] ?? 'badge-neutral') ?>">
+                    <?= esc($auditActionLabels[$event['action']] ?? $event['action']) ?>
+                  </span>
+                </div>
+                <?php if (! empty($event['rows'][0]['field'])): ?>
+                  <dl style="display:grid; grid-template-columns:180px 1fr; gap:var(--space-1) var(--space-3); margin:0;">
+                    <?php foreach ($event['rows'] as $row): ?>
+                      <dt class="text-muted text-sm"><?= esc(\App\Modules\Employees\Services\EmployeeAuditService::fieldLabel($row['field'])) ?></dt>
+                      <dd class="text-sm"><?= esc($row['old_value'] ?? '(vacío)') ?> &rarr; <?= esc($row['new_value'] ?? '(vacío)') ?></dd>
+                    <?php endforeach; ?>
+                  </dl>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </div>
+    </div>
+    <p class="text-sm" style="margin-top:var(--space-3);">
+      <a href="<?= route_to('employees.audit') ?>?employee_id=<?= (int) $employee['id'] ?>">Ver bitácora completa</a>
+    </p>
+    </div><!-- /emp-panel-audit -->
   </div>
 </div>
 

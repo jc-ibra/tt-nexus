@@ -25,12 +25,14 @@ use App\Modules\Core\Services\InvitationService;
 use App\Modules\Core\Services\RoleService;
 use App\Modules\Core\Services\UserService;
 use App\Modules\Employees\Models\EmployeeAreaModel;
+use App\Modules\Employees\Models\EmployeeAuditLogModel;
 use App\Modules\Employees\Models\EmployeeDepartmentModel;
 use App\Modules\Employees\Models\EmployeeEmailAccountModel;
 use App\Modules\Employees\Models\EmployeeLocationModel;
 use App\Modules\Employees\Models\EmployeeModel;
 use App\Modules\Employees\Models\EmployeePositionModel;
 use App\Modules\Employees\Models\EmployeeStateModel;
+use App\Modules\Employees\Services\EmployeeAuditService;
 use App\Modules\Employees\Services\EmployeeCatalogService;
 use App\Modules\Employees\Services\EmployeeDashboardService;
 use App\Modules\Employees\Services\EmployeeExportService;
@@ -284,6 +286,15 @@ class Services extends BaseService
             new EmployeeEmailAccountModel(),
             self::glpiCatalogService(),
         );
+    }
+
+    public static function employeeAudit(bool $getShared = true): EmployeeAuditService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('employeeAudit');
+        }
+
+        return new EmployeeAuditService(new EmployeeAuditLogModel());
     }
 
     public static function employeeExportService(bool $getShared = true): EmployeeExportService

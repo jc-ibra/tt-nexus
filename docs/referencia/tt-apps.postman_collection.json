@@ -2103,6 +2103,157 @@
           ]
         },
         {
+          "name": "Audit Log (bitácora, global)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/audit-log?action=updated&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "audit-log"
+              ],
+              "query": [
+                {
+                  "key": "action",
+                  "value": "updated",
+                  "description": "created | updated | photo_updated | deactivated | reactivated | deleted"
+                },
+                {
+                  "key": "field",
+                  "value": "",
+                  "description": "Clave técnica del campo, p.ej. department_id",
+                  "disabled": true
+                },
+                {
+                  "key": "employee_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "actor_user_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "date_from",
+                  "value": "",
+                  "description": "YYYY-MM-DD",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "",
+                  "description": "YYYY-MM-DD",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Nombre, apellido o número de empleado",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "50",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Bitácora de cambios del expediente de empleados (alta, edición, foto, baja, reactivación, borrado), paginada y filtrable. Un renglón por campo cambiado, agrupado por `event_id` (todos los cambios de un mismo guardado comparten el mismo `event_id` y `created_at`)."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/employees/audit-log"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": 118,\n      \"employee_id\": 42,\n      \"event_id\": \"5b1f7e2a-6b3c-4a2d-9c0e-2f8a1d4e7b90\",\n      \"action\": \"updated\",\n      \"field\": \"department_id\",\n      \"old_value\": \"Sistemas\",\n      \"new_value\": \"Finanzas\",\n      \"actor_user_id\": 3,\n      \"actor_name\": \"Ana Torres\",\n      \"source\": \"web\",\n      \"ip_address\": \"10.0.0.14\",\n      \"created_at\": \"2026-09-15 10:32:00\",\n      \"employee_name\": \"Luis\",\n      \"employee_lastname\": \"Ramos\",\n      \"employee_number\": \"1042\"\n    }\n  ],\n  \"meta\": {\n    \"total\": 1,\n    \"page\": 1,\n    \"per_page\": 50,\n    \"last_page\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Audit Log (bitácora de un empleado)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/:id/audit-log",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                ":id",
+                "audit-log"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "42"
+                }
+              ]
+            },
+            "description": "Últimos cambios registrados para un empleado (por defecto 100, máx 500 vía `limit`). Es la misma fuente que alimenta la pestaña «Bitácora» del expediente."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/employees/42/audit-log"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": 118,\n      \"employee_id\": 42,\n      \"event_id\": \"5b1f7e2a-6b3c-4a2d-9c0e-2f8a1d4e7b90\",\n      \"action\": \"updated\",\n      \"field\": \"department_id\",\n      \"old_value\": \"Sistemas\",\n      \"new_value\": \"Finanzas\",\n      \"actor_user_id\": 3,\n      \"actor_name\": \"Ana Torres\",\n      \"source\": \"web\",\n      \"ip_address\": \"10.0.0.14\",\n      \"created_at\": \"2026-09-15 10:32:00\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
           "name": "Upload Employee Photo",
           "request": {
             "method": "POST",

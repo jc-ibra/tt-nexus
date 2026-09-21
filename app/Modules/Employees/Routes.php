@@ -114,6 +114,9 @@ $routes->group('employees', [
     // Directory export (CSV/Excel) — literal, declared above (:num) so it is not
     // consumed by the show route. Carries the same columns the index shows.
     $routes->get('export',       'Employees::export',        ['as' => 'employees.export']);
+    // Audit trail (bitácora) — literals, declared above (:num) for the same reason.
+    $routes->get('audit-log',        'Employees::auditLog',        ['as' => 'employees.audit']);
+    $routes->get('audit-log/export', 'Employees::exportAuditLog',  ['as' => 'employees.audit.export']);
     $routes->get('(:num)',       'Employees::show/$1',       ['as' => 'employees.show']);
     $routes->get('(:num)/photo', 'Employees::servePhoto/$1', ['as' => 'employees.photo.serve']);
 });
@@ -148,6 +151,10 @@ $routes->group('api/v1/employees', [
     // Search and dashboard must precede (:num) to avoid being captured.
     $routes->get('search',              'EmployeesApiController::search');
     $routes->get('dashboard',           'EmployeeDashboardApiController::index');
+
+    // Audit trail (bitácora) — literal must precede (:num).
+    $routes->get('audit-log',           'EmployeesApiController::auditLog');
+    $routes->get('(:num)/audit-log',    'EmployeesApiController::employeeAuditLog/$1');
 
     // Employees CRUD
     $routes->get('/',                   'EmployeesApiController::index');

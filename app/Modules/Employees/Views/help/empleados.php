@@ -132,6 +132,23 @@
   </p>
 </section>
 
+<section id="bitacora">
+  <h2>Bitácora de cambios</h2>
+  <p>
+    Cada alta, edición, foto, baja o reactivación de un colaborador queda registrada. En la ficha del
+    empleado, la pestaña <strong>Bitácora</strong> muestra, agrupados por fecha, los campos que
+    cambiaron, su valor anterior y el nuevo, y quién hizo el cambio.
+  </p>
+  <ul>
+    <li>Una baja hecha desde <strong>Aprovisionamiento</strong> también queda registrada aquí, no solo las ediciones hechas desde Empleados.</li>
+    <li>Si un guardado no modificó ningún dato, no se genera ningún registro.</li>
+  </ul>
+  <p>
+    Además de la pestaña por empleado, existe una vista global en <strong>Bitácora</strong> (botón junto
+    a Exportar en el directorio) con filtros por acción, campo, usuario y fecha, y exportación a CSV.
+  </p>
+</section>
+
 <section id="catalogos">
   <h2>Catálogos</h2>
   <p>

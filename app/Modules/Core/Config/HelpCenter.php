@@ -162,6 +162,7 @@ final class HelpCenter
                     ['id' => 'buscar',     'label' => 'Buscar y filtrar'],
                     ['id' => 'editar',     'label' => 'Editar datos y foto'],
                     ['id' => 'estados',    'label' => 'Activos, inactivos y bajas'],
+                    ['id' => 'bitacora',   'label' => 'Bitácora de cambios'],
                     ['id' => 'catalogos',  'label' => 'Catálogos'],
                     ['id' => 'accesos',    'label' => 'Correo y accesos a sistemas'],
                     ['id' => 'faq',        'label' => 'Preguntas frecuentes'],

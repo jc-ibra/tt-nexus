@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Employees\Controllers\Api;
 
 use App\Modules\Core\Controllers\Api\BaseApiController;
+use App\Modules\Employees\Models\EmployeeAuditLogModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class EmployeesApiController extends BaseApiController
@@ -92,6 +93,48 @@ class EmployeesApiController extends BaseApiController
         }
 
         return $this->success(service('employeeService')->search($term, $limit, $excludeId));
+    }
+
+    /**
+     * Global, filterable audit trail (bitácora).
+     */
+    public function auditLog(): ResponseInterface
+    {
+        $logModel = new EmployeeAuditLogModel();
+
+        $page    = (int) ($this->request->getGet('page') ?? 1);
+        $perPage = (int) ($this->request->getGet('per_page') ?? 50);
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 50;
+
+        $filters = [
+            'employee_id'   => $this->request->getGet('employee_id'),
+            'actor_user_id' => $this->request->getGet('actor_user_id'),
+            'action'        => $this->request->getGet('action'),
+            'field'         => $this->request->getGet('field'),
+            'date_from'     => $this->request->getGet('date_from'),
+            'date_to'       => $this->request->getGet('date_to'),
+            'q'             => trim((string) ($this->request->getGet('q') ?? '')),
+        ];
+
+        $total = $logModel->countWithFilters($filters);
+        $items = $logModel->listRecent($filters, $perPage, max(1, $page));
+
+        return $this->successPaginated($items, $this->buildMeta($total, max(1, $page), $perPage));
+    }
+
+    /**
+     * Audit trail of a single employee.
+     */
+    public function employeeAuditLog($id = null): ResponseInterface
+    {
+        if (! service('employeeService')->findById((int) $id)) {
+            return $this->notFound('Empleado no encontrado.');
+        }
+
+        $limit = (int) ($this->request->getGet('limit') ?? 100);
+        $limit = $limit > 0 && $limit <= 500 ? $limit : 100;
+
+        return $this->success((new EmployeeAuditLogModel())->listForEmployee((int) $id, $limit));
     }
 
     public function uploadPhoto($id = null): ResponseInterface

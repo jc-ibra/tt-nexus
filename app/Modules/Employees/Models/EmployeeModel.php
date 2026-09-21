@@ -45,6 +45,82 @@ class EmployeeModel extends Model
         'date_discharge'  => 'permit_empty|valid_date',
     ];
 
+    // -----------------------------------------------------------------------
+    // Audit trail — captured here, once, instead of at every call site, so
+    // every writer is covered: the web/API forms via EmployeeService, AND
+    // AccessOrchestrator (Provisioning), which updates this row directly on
+    // baja/reactivación. See EmployeeAuditService for what gets recorded.
+    //
+    // beforeUpdate stashes the pre-update row (keyed by id) so afterUpdate can
+    // diff against it; only single-row updates (the only kind this module
+    // performs) are captured — a batch/where()->set() update has no `id` and
+    // is silently skipped.
+    // -----------------------------------------------------------------------
+    protected $afterInsert = ['auditAfterInsert'];
+    protected $beforeUpdate = ['auditBeforeUpdate'];
+    protected $afterUpdate  = ['auditAfterUpdate'];
+    protected $afterDelete  = ['auditAfterDelete'];
+
+    /** @var array<int, array|null> Pre-update snapshots, keyed by employee id. */
+    private array $auditBeforeState = [];
+
+    protected function auditAfterInsert(array $data): array
+    {
+        if (! empty($data['result']) && ! empty($data['id'])) {
+            $employee = $this->find((int) $data['id']);
+            if ($employee !== null) {
+                service('employeeAudit')->logCreated($employee);
+            }
+        }
+
+        return $data;
+    }
+
+    protected function auditBeforeUpdate(array $data): array
+    {
+        $ids = $data['id'] ?? [];
+        if (is_array($ids) && count($ids) === 1) {
+            $id = (int) $ids[0];
+            $this->auditBeforeState[$id] = $this->find($id);
+        }
+
+        return $data;
+    }
+
+    protected function auditAfterUpdate(array $data): array
+    {
+        $ids = $data['id'] ?? [];
+        if (is_array($ids) && count($ids) === 1 && ! empty($data['result'])) {
+            $id     = (int) $ids[0];
+            $before = $this->auditBeforeState[$id] ?? null;
+            unset($this->auditBeforeState[$id]);
+
+            if ($before !== null) {
+                $after = $this->find($id);
+                if ($after !== null) {
+                    service('employeeAudit')->logUpdated($id, $before, $after);
+                }
+            }
+        }
+
+        return $data;
+    }
+
+    protected function auditAfterDelete(array $data): array
+    {
+        $ids = $data['id'] ?? [];
+        if (is_array($ids)) {
+            foreach ($ids as $id) {
+                $employee = $this->withDeleted()->find((int) $id);
+                if ($employee !== null) {
+                    service('employeeAudit')->logDeleted($employee);
+                }
+            }
+        }
+
+        return $data;
+    }
+
     protected $validationMessages = [
         'name'     => ['required' => 'El nombre es obligatorio.'],
         'lastname' => ['required' => 'Los apellidos son obligatorios.'],

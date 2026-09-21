@@ -163,7 +163,85 @@ class Employees extends BaseController
             'primaryEmail'  => $svc->primaryEmailOf($emailAccounts),
             'msLicenses'    => $msLicenses,
             'hasEmail'      => $svc->hasConfiguredEmail($id),
+            'auditEvents'   => (new \App\Modules\Employees\Models\EmployeeAuditLogModel())->listForEmployee($id, 100),
         ]);
+    }
+
+    /**
+     * Global, filterable view of the employee audit trail (bitácora).
+     */
+    public function auditLog(): string
+    {
+        $logModel = new \App\Modules\Employees\Models\EmployeeAuditLogModel();
+        $page     = max(1, (int) ($this->request->getGet('page') ?? 1));
+
+        $filters = [
+            'employee_id'   => $this->request->getGet('employee_id'),
+            'actor_user_id' => $this->request->getGet('actor_user_id'),
+            'action'        => $this->request->getGet('action'),
+            'field'         => $this->request->getGet('field'),
+            'date_from'     => $this->request->getGet('date_from'),
+            'date_to'       => $this->request->getGet('date_to'),
+            'q'             => trim((string) ($this->request->getGet('q') ?? '')),
+        ];
+
+        return view('App\Modules\Employees\Views\employees\audit_log', [
+            'pageTitle' => 'Bitácora de empleados',
+            'rows'      => $logModel->listRecent($filters, 50, $page),
+            'pager'     => $logModel->pager,
+            'filters'   => $filters,
+            'actors'    => $logModel->distinctActors(),
+        ]);
+    }
+
+    /**
+     * CSV export of the audit trail (respects the same filters as auditLog()).
+     */
+    public function exportAuditLog(): ResponseInterface
+    {
+        $filters = [
+            'employee_id'   => $this->request->getGet('employee_id'),
+            'actor_user_id' => $this->request->getGet('actor_user_id'),
+            'action'        => $this->request->getGet('action'),
+            'field'         => $this->request->getGet('field'),
+            'date_from'     => $this->request->getGet('date_from'),
+            'date_to'       => $this->request->getGet('date_to'),
+            'q'             => trim((string) ($this->request->getGet('q') ?? '')),
+        ];
+
+        $rows = (new \App\Modules\Employees\Models\EmployeeAuditLogModel())->listAllForExport($filters);
+
+        $actionLabels = \App\Modules\Employees\Services\EmployeeAuditService::actionLabels();
+
+        $handle = fopen('php://temp', 'r+');
+        fputcsv($handle, ['Fecha', 'Empleado', 'Número empleado', 'Acción', 'Campo', 'Valor anterior', 'Valor nuevo', 'Usuario', 'Origen', 'IP']);
+
+        foreach ($rows as $r) {
+            $employeeName = trim(($r['employee_name'] ?? '') . ' ' . ($r['employee_lastname'] ?? ''));
+            fputcsv($handle, [
+                date('d/m/Y H:i', strtotime($r['created_at'])),
+                $employeeName,
+                $r['employee_number'] ?? '',
+                $actionLabels[$r['action']] ?? $r['action'],
+                $r['field'] ? \App\Modules\Employees\Services\EmployeeAuditService::fieldLabel($r['field']) : '',
+                $r['old_value'] ?? '',
+                $r['new_value'] ?? '',
+                $r['actor_name'] ?: 'Sistema',
+                $r['source'],
+                $r['ip_address'] ?? '',
+            ]);
+        }
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        $filename = 'bitacora_empleados_' . date('Y-m-d_His');
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '.csv"')
+            ->setBody("\xEF\xBB\xBF" . $csv);
     }
 
     public function edit(int $id): string
