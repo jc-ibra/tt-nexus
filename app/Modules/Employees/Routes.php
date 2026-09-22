@@ -20,6 +20,10 @@ $routes->group('employees', [
     $routes->get('mailboxes-search',  'Employees::mailboxesSearch',  ['as' => 'employees.mailboxes-search']);
     $routes->get('employees-search',  'Employees::searchEmployees',  ['as' => 'employees.search']);
 
+    // Catalogs hub — single sidebar entry that fans out to the 5 catalogs below.
+    // Literal, kept above /(:num) so /employees/catalogs is not consumed by show.
+    $routes->get('catalogs', 'EmployeeCatalogs::index', ['as' => 'employees.catalogs.index']);
+
     // Catalogs (kept above /(:num) so /employees/catalogs is not consumed by show).
     $routes->group('catalogs', function (RouteCollection $routes): void {
 

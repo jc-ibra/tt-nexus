@@ -83,37 +83,26 @@ $moduleSubnav = [
             'active' => $currentPath === '/employees'
                 || (str_starts_with($currentPath, '/employees')
                     && ! str_starts_with($currentPath, '/employees/catalogs')
-                    && ! str_starts_with($currentPath, '/employees/dashboard')),
+                    && ! str_starts_with($currentPath, '/employees/dashboard')
+                    && ! str_starts_with($currentPath, '/employees/audit-log')),
         ],
         [
-            'label'  => 'Panel',
+            'label'  => 'Dashboard',
             'url'    => base_url('employees/dashboard'),
             'active' => str_starts_with($currentPath, '/employees/dashboard'),
         ],
         [
-            'label'  => 'Áreas',
-            'url'    => base_url('employees/catalogs/areas'),
-            'active' => str_starts_with($currentPath, '/employees/catalogs/areas'),
+            // Catálogos (áreas, departamentos, puestos, estados y ubicaciones de
+            // origen) se cambian muy poco: viven detrás de un solo hub en vez de
+            // ocupar 5 renglones del sidebar. Ver EmployeeCatalogs::index().
+            'label'  => 'Catálogos',
+            'url'    => base_url('employees/catalogs'),
+            'active' => str_starts_with($currentPath, '/employees/catalogs'),
         ],
         [
-            'label'  => 'Departamentos',
-            'url'    => base_url('employees/catalogs/departments'),
-            'active' => str_starts_with($currentPath, '/employees/catalogs/departments'),
-        ],
-        [
-            'label'  => 'Puestos',
-            'url'    => base_url('employees/catalogs/positions'),
-            'active' => str_starts_with($currentPath, '/employees/catalogs/positions'),
-        ],
-        [
-            'label'  => 'Estados de origen',
-            'url'    => base_url('employees/catalogs/states'),
-            'active' => str_starts_with($currentPath, '/employees/catalogs/states'),
-        ],
-        [
-            'label'  => 'Ubicaciones de origen',
-            'url'    => base_url('employees/catalogs/locations'),
-            'active' => str_starts_with($currentPath, '/employees/catalogs/locations'),
+            'label'  => 'Bitácora',
+            'url'    => base_url('employees/audit-log'),
+            'active' => str_starts_with($currentPath, '/employees/audit-log'),
         ],
     ],
     'provisioning' => [

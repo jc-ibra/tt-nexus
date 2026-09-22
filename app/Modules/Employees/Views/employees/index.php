@@ -2,7 +2,6 @@
 <?= $this->section('content') ?>
 
 <?php
-$catalogToggleId = 'employees-catalog-menu';
 $exportToggleId  = 'employees-export-menu';
 // Provisioning users may reach this directory read-only (to open an employee
 // and provision their accounts); management actions stay in the Employees role.
@@ -51,19 +50,10 @@ $isNarrowed = ($filters['q'] ?? '') !== '' || ! empty($filters['area_id'])
       Bitácora
     </a>
   <?php if ($canManageEmployees): ?>
-    <div style="position:relative;">
-      <button type="button" class="btn btn-secondary" id="<?= $catalogToggleId ?>-btn" aria-expanded="false" aria-controls="<?= $catalogToggleId ?>">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-        Catálogos
-      </button>
-      <div id="<?= $catalogToggleId ?>" style="position:absolute; right:0; top:100%; margin-top:var(--space-2); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius:var(--radius-md); box-shadow:var(--shadow-md); min-width:200px; display:none; z-index:50; padding:var(--space-1) 0;">
-        <a href="<?= route_to('employees.areas.index') ?>" class="dropdown-item">Áreas</a>
-        <a href="<?= route_to('employees.departments.index') ?>" class="dropdown-item">Departamentos</a>
-        <a href="<?= route_to('employees.positions.index') ?>" class="dropdown-item">Puestos</a>
-        <a href="<?= route_to('employees.states.index') ?>" class="dropdown-item">Estados de origen</a>
-        <a href="<?= route_to('employees.locations.index') ?>" class="dropdown-item">Ubicaciones de origen</a>
-      </div>
-    </div>
+    <a href="<?= route_to('employees.catalogs.index') ?>" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      Catálogos
+    </a>
     <a href="<?= route_to('employees.new') ?>" class="btn btn-primary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nuevo empleado
@@ -323,7 +313,7 @@ a.emp-stat:focus-visible { outline: 2px solid var(--action-primary); outline-off
 
 <script>
 (function () {
-  const menus = ['<?= $catalogToggleId ?>', '<?= $exportToggleId ?>']
+  const menus = ['<?= $exportToggleId ?>']
     .map(id => ({ btn: document.getElementById(id + '-btn'), menu: document.getElementById(id) }))
     .filter(m => m.btn && m.menu);
 
