@@ -166,4 +166,17 @@ $to   = min($page * $perPage, $total);
   <?php endif; ?>
 </div>
 
+<script>
+// Auto-refresco: sin websockets, sólo recarga la página cada cierto tiempo.
+// Se pospone mientras el usuario tiene el foco en un control de la página
+// (p. ej. un botón "Resolver" a punto de confirmarse), para no interrumpirlo.
+(function () {
+  setInterval(function () {
+    var el = document.activeElement;
+    if (el && el !== document.body) return;
+    location.reload();
+  }, 30000);
+})();
+</script>
+
 <?= $this->endSection() ?>
