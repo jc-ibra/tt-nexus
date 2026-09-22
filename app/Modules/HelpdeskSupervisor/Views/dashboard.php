@@ -48,7 +48,7 @@ $complianceColor = $complianceVal >= 90
         'extraHidden'  => [],
     ]) ?>
 
-    <div style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:center;">
+    <div class="hs-actions-row">
     <form method="post" action="<?= route_to('helpdesk.audit.run') ?>" style="margin:0;">
       <?= csrf_field() ?>
       <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
@@ -57,13 +57,17 @@ $complianceColor = $complianceVal >= 90
     </form>
 
     <?php if ($run && $totalDeviations > 0): ?>
-      <form method="post" action="<?= route_to('helpdesk.notifications.prepareAll') ?>" style="margin:0;">
-        <?= csrf_field() ?>
-        <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
-        <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
-        <button type="submit" class="btn btn-secondary">Preparar notificaciones</button>
-      </form>
-      <a href="<?= route_to('helpdesk.notifications.index') ?>" class="btn btn-secondary">Ver notificaciones</a>
+      <span class="hs-actions-divider" aria-hidden="true"></span>
+      <div class="hs-actions-group">
+        <span class="text-sm text-muted">Notificaciones:</span>
+        <form method="post" action="<?= route_to('helpdesk.notifications.prepareAll') ?>" style="margin:0;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="period_start" value="<?= esc($periodStart) ?>">
+          <input type="hidden" name="period_end" value="<?= esc($periodEnd) ?>">
+          <button type="submit" class="btn btn-secondary">Preparar notificaciones</button>
+        </form>
+        <a href="<?= route_to('helpdesk.notifications.index') ?>" class="btn btn-tertiary">Ver notificaciones</a>
+      </div>
     <?php endif; ?>
     </div>
   </div>

@@ -114,6 +114,25 @@
   .hs-period-divider { display:none; }
 }
 
+.hs-actions-row {
+  display:flex;
+  gap:var(--space-3);
+  flex-wrap:wrap;
+  align-items:center;
+  padding-top:var(--space-3);
+  border-top:1px solid var(--border-subtle);
+}
+.hs-actions-divider {
+  align-self:stretch;
+  width:1px;
+  background: var(--border-subtle);
+  margin:var(--space-1) 0;
+}
+.hs-actions-group { display:flex; gap:var(--space-2); flex-wrap:wrap; align-items:center; }
+@media (max-width:720px) {
+  .hs-actions-divider { display:none; }
+}
+
 .hs-agent-summary-top {
   display:grid;
   grid-template-columns:1fr 1fr;
