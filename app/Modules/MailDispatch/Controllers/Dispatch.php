@@ -352,6 +352,12 @@ class Dispatch extends BaseController
             session_write_close();
         }
 
+        // La sesión ya mandó Expires/Pragma: no-cache por su cuenta al
+        // arrancar (session.cache_limiter), fuera del objeto Response: sin
+        // esto, setHeader('Cache-Control', …) no basta para que el navegador
+        // vea una respuesta cacheable de verdad.
+        $svc->clearSessionCacheHeaders();
+
         $validators = $svc->validatorsFor($path, $id);
         $this->response
             ->setHeader('Cache-Control', 'private, max-age=604800, immutable')

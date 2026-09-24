@@ -293,6 +293,23 @@ class AttachmentService
         return false;
     }
 
+    /**
+     * PHP's session module (session.cache_limiter=nocache, CI4's default) sends
+     * `Expires`/`Pragma: no-cache` via a raw header() call the moment the
+     * session starts — before the controller ever runs, and outside CI4's
+     * Response header bag. $response->setHeader('Cache-Control', …) alone
+     * doesn't touch them, so without this an old HTTP/1.0-only cache would
+     * still see the response marked as already expired. Safe any time before
+     * headers are actually sent.
+     */
+    public function clearSessionCacheHeaders(): void
+    {
+        if (! headers_sent()) {
+            header_remove('Expires');
+            header_remove('Pragma');
+        }
+    }
+
     /** Streams a file straight to output without loading it fully into memory. */
     public function stream(string $path): void
     {

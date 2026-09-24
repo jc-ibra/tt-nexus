@@ -92,6 +92,10 @@ class DispatchApiController extends BaseApiController
             session_write_close();
         }
 
+        // La sesión ya mandó Expires/Pragma: no-cache por su cuenta al
+        // arrancar (session.cache_limiter), fuera del objeto Response.
+        $svc->clearSessionCacheHeaders();
+
         $validators = $svc->validatorsFor($path, $id);
         $this->response
             ->setHeader('Cache-Control', 'private, max-age=604800, immutable')
