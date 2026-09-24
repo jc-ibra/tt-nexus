@@ -71,7 +71,10 @@ class Dispatch extends BaseController
             'slaCutoff'     => $slaUnassigned > 0 ? $calendar->cutoff($slaUnassigned) : '',
             'businessHours' => $calendar->isEnabled(),
             'slaResponse'   => $settings->slaFirstResponseMinutes(),
-            'counts'        => (new ConversationModel())->counts($userId, $q),
+            // Reusa $conv en vez de una segunda instancia: countAllResults()
+            // resetea su propio builder en cada llamada, así que es seguro
+            // encadenarlo sobre la misma instancia que ya resolvió forQueue().
+            'counts'        => $conv->counts($userId, $q),
             'bodySnippets'  => $bodySnippets,
             'canDispatch'   => $this->canDispatch(),
             // Cifras propias del agente en el rail: le dan una razón para mirar
@@ -548,12 +551,17 @@ class Dispatch extends BaseController
      */
     private function enrichMessages(array $messages): array
     {
-        $attModel   = new AttachmentModel();
         $attSvc     = service('mailDispatchAttachments');
         $stripIntro = service('mailDispatchSettings')->treatAsForwards();
 
+        // Una consulta para los adjuntos de TODO el hilo en vez de una por
+        // mensaje: un hilo de 30 mensajes pasaba de 1 a 30 consultas aquí.
+        $attsByMessage = (new AttachmentModel())->forMessages(
+            array_map(static fn(array $m): int => (int) $m['id'], $messages)
+        );
+
         foreach ($messages as &$m) {
-            $atts = $attModel->forMessage((int) $m['id']);
+            $atts = $attsByMessage[(int) $m['id']] ?? [];
             if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
                 $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
             }
