@@ -578,7 +578,14 @@ function mdFitFrame(f) {
       var msg = head.closest('.md-msg');
       var collapsed = msg.classList.toggle('is-collapsed');
       head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      if (!collapsed) { var f = msg.querySelector('.md-msg-body-frame'); if (f) setTimeout(function () { mdFitFrame(f); }, 30); }
+      if (!collapsed) {
+        var f = msg.querySelector('.md-msg-body-frame');
+        if (f) {
+          // Hidratar el cuerpo diferido: recién ahora se piden sus imágenes.
+          if (f.dataset.srcdoc !== undefined) { f.srcdoc = f.dataset.srcdoc; delete f.dataset.srcdoc; }
+          setTimeout(function () { mdFitFrame(f); }, 30);
+        }
+      }
     });
   }
 
@@ -660,16 +667,6 @@ function mdFitFrame(f) {
     var target = rows.find(function (r) { return r.dataset.id === m[1]; });
     if (target) loadPane(target);
   }
-
-  // Auto-refresco: sin websockets, sólo recarga cada minuto. El hash con la
-  // conversación abierta sobrevive y se vuelve a cargar en el panel (arriba).
-  // Se pospone mientras el despachador escribe en la búsqueda o tiene un
-  // select enfocado, para no tumbarle la interacción.
-  setInterval(function () {
-    var el = document.activeElement;
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
-    location.reload();
-  }, 60000);
 })();
 </script>
 <?= $this->endSection() ?>

@@ -164,19 +164,11 @@ $addrList = static function (?string $raw): array {
       <div class="md-msg-preview"><?= esc($prev) ?></div>
 
       <?php
-        $atts   = is_array($m['attachments'] ?? null) ? $m['attachments'] : [];
-        $isHtml = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
-        $renderBody = (string) $m['body'];
-        $files = [];
-        foreach ($atts as $a) {
-            $cid = (string) ($a['content_id'] ?? '');
-            $embedded = false;
-            if ($isHtml && $cid !== '' && ! empty($a['storage_path']) && stripos($renderBody, 'cid:' . $cid) !== false) {
-                $renderBody = str_ireplace(['cid:<' . $cid . '>', 'cid:' . $cid], $attUrl((int) $a['id']), $renderBody);
-                $embedded = true;
-            }
-            if (! $embedded) $files[] = $a;
-        }
+        $isHtml     = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
+        // El controlador ya resolvió los cid: embebidos (con tope) y separó
+        // los demás adjuntos como archivos descargables.
+        $renderBody = (string) ($m['render_body'] ?? $m['body']);
+        $files      = is_array($m['files'] ?? null) ? $m['files'] : ($m['attachments'] ?? []);
       ?>
       <div class="md-msg-collapsible">
         <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
@@ -208,9 +200,10 @@ $addrList = static function (?string $raw): array {
         <?php endif; ?>
 
         <?php if ($isHtml): ?>
-          <iframe class="md-msg-body-frame" sandbox="allow-same-origin" loading="lazy"
-                  srcdoc="<?= esc($renderBody, 'attr') ?>"
-                  onload="mdFitFrame(this)"></iframe>
+          <?php // Mensajes colapsados: cuerpo diferido, ver inbox.php (toggle) para la hidratación. ?>
+          <iframe class="md-msg-body-frame" sandbox="allow-same-origin"
+                  <?= $collapsed ? 'data-srcdoc' : 'srcdoc' ?>="<?= esc($renderBody, 'attr') ?>"
+                  onload="if (window.mdFitFrame) mdFitFrame(this)"></iframe>
         <?php else: ?>
           <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
         <?php endif; ?>

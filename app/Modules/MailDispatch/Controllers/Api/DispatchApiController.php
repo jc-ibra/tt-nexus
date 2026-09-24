@@ -70,7 +70,12 @@ class DispatchApiController extends BaseApiController
         ]);
     }
 
-    /** Streams an attachment (bearer-authenticated + module access). */
+    /**
+     * Streams an attachment (bearer-authenticated + module access). Mirrors
+     * the web endpoint's caching/streaming: immutable cache headers, 304 on a
+     * match, session lock released before touching the file, and the file
+     * streamed straight out instead of loaded into memory.
+     */
     public function downloadAttachment(int $id): ResponseInterface
     {
         $att = (new AttachmentModel())->find($id);
@@ -83,17 +88,40 @@ class DispatchApiController extends BaseApiController
             return $this->notFound('El archivo del adjunto no está disponible.');
         }
 
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        // La sesión ya mandó Expires/Pragma: no-cache por su cuenta al
+        // arrancar (session.cache_limiter), fuera del objeto Response.
+        $svc->clearSessionCacheHeaders();
+
+        $validators = $svc->validatorsFor($path, $id);
+        $this->response
+            ->setHeader('Cache-Control', 'private, max-age=604800, immutable')
+            ->setHeader('ETag', $validators['etag'])
+            ->setHeader('Last-Modified', gmdate('D, d M Y H:i:s', $validators['mtime']) . ' GMT')
+            ->setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
+
+        if ($svc->isFresh($this->request, $validators['etag'], $validators['mtime'])) {
+            return $this->response->setStatusCode(304);
+        }
+
         $mime = (string) ($att['mime_type'] ?? '') ?: 'application/octet-stream';
         $ext  = strtolower(pathinfo((string) $att['filename'], PATHINFO_EXTENSION));
         $forceDownload = in_array($ext, (new MailDispatchConfig())->blockedExtensions, true) || ! $svc->isInlineSafe($mime);
         $safeName = preg_replace('/["\r\n]+/', '_', (string) $att['filename']) ?? 'archivo';
 
-        return $this->response
+        $this->response
+            ->setStatusCode(200)
             ->setHeader('Content-Type', $forceDownload ? 'application/octet-stream' : $mime)
             ->setHeader('Content-Disposition', ($forceDownload ? 'attachment' : 'inline') . '; filename="' . $safeName . '"')
-            ->setHeader('Content-Length', (string) filesize($path))
+            ->setHeader('Content-Length', (string) $validators['size'])
             ->setHeader('X-Content-Type-Options', 'nosniff')
-            ->setBody((string) file_get_contents($path));
+            ->sendHeaders();
+
+        $svc->stream($path);
+        exit;
     }
 
     public function claim(int $id): ResponseInterface

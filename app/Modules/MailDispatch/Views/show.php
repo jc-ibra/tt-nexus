@@ -352,29 +352,11 @@ $isOutbound = ! empty($conv['outbound_only']);
         <div class="md-msg-preview"><?= esc($preview) ?></div>
 
         <?php
-          $atts   = is_array($m['attachments'] ?? null) ? $m['attachments'] : [];
-          $isHtml = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
-          $renderBody = (string) $m['body'];
-          // An attachment is embedded ONLY when its cid: is actually referenced
-          // in the body (rewrite to the authenticated URL); everything else is a
-          // downloadable chip. Robust against mailers that tag every part inline.
-          $files = [];
-          foreach ($atts as $a) {
-              $cid       = (string) ($a['content_id'] ?? '');
-              $embedded  = false;
-              if ($isHtml && $cid !== '' && ! empty($a['storage_path'])
-                  && stripos($renderBody, 'cid:' . $cid) !== false) {
-                  $renderBody = str_ireplace(
-                      ['cid:<' . $cid . '>', 'cid:' . $cid],
-                      $attUrl((int) $a['id']),
-                      $renderBody
-                  );
-                  $embedded = true;
-              }
-              if (! $embedded) {
-                  $files[] = $a;
-              }
-          }
+          $isHtml     = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
+          // El controlador ya resolvió los cid: embebidos (con tope) y separó
+          // los demás adjuntos como archivos descargables.
+          $renderBody = (string) ($m['render_body'] ?? $m['body']);
+          $files      = is_array($m['files'] ?? null) ? $m['files'] : ($m['attachments'] ?? []);
         ?>
         <div class="md-msg-collapsible">
           <?php if ($canForward): ?>
@@ -435,9 +417,24 @@ $isOutbound = ! empty($conv['outbound_only']);
           <?php endif; ?>
 
           <?php if ($isHtml): ?>
-            <iframe class="md-msg-body-frame" sandbox="allow-same-origin" loading="lazy"
-                    srcdoc="<?= esc($renderBody, 'attr') ?>"
-                    onload="mdFitFrame(this)"></iframe>
+            <?php
+              // Los mensajes colapsados nunca resuelven cid: al cargar la página:
+              // el cuerpo va en data-srcdoc y el JS de colapsar/expandir lo
+              // vuelca a srcdoc recién cuando el agente lo abre. Sin esto, un
+              // hilo largo dispara una petición de adjunto por cada imagen
+              // embebida de CADA mensaje, aunque esté oculto.
+            ?>
+            <?php
+              // Un iframe con data-srcdoc no lleva src/srcdoc real, así que su
+              // about:blank inicial dispara onload casi de inmediato — antes
+              // de que el <script> de más abajo (que define mdFitFrame) se
+              // haya ejecutado. Guardado defensivo; el ajuste real ocurre al
+              // hidratar (ver el toggle de colapsar/expandir) o en el barrido
+              // inicial al final de este archivo.
+            ?>
+            <iframe class="md-msg-body-frame" sandbox="allow-same-origin"
+                    <?= $collapsed ? 'data-srcdoc' : 'srcdoc' ?>="<?= esc($renderBody, 'attr') ?>"
+                    onload="if (window.mdFitFrame) mdFitFrame(this)"></iframe>
           <?php else: ?>
             <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
           <?php endif; ?>
@@ -770,6 +767,11 @@ function mdFitFrame(f) {
     setTimeout(fit, 300);
   } catch (e) { /* cross-origin u otro: se queda con min-height */ }
 }
+// Barrido inicial: cubre el caso en que el onload de algún iframe ya corrió
+// (antes de que esta función existiera) y se perdió silenciosamente por el
+// guardado de arriba. Inofensivo sobre los colapsados (about:blank, no mide
+// nada) y necesario para el mensaje expandido si su srcdoc cargó rápido.
+Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
 window.addEventListener('resize', function () {
   Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
 });
@@ -798,9 +800,15 @@ window.addEventListener('resize', function () {
       var collapsed = msg.classList.toggle('is-collapsed');
       head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       if (!collapsed) {
-        // Al expandir, reajustar el iframe (estaba oculto al cargar).
         var f = msg.querySelector('.md-msg-body-frame');
-        if (f) { setTimeout(function () { mdFitFrame(f); }, 30); }
+        if (f) {
+          // Hidratar el cuerpo diferido: recién ahora se piden sus imágenes.
+          if (f.dataset.srcdoc !== undefined) {
+            f.srcdoc = f.dataset.srcdoc;
+            delete f.dataset.srcdoc;
+          }
+          setTimeout(function () { mdFitFrame(f); }, 30);
+        }
       }
     }
     head.addEventListener('click', toggle);

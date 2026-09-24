@@ -99,18 +99,7 @@ class Dispatch extends BaseController
         $config      = new MailDispatchConfig();
         $canDispatch = $this->canDispatch();
 
-        // Enrich each message with its attachments.
-        $messages = (new MessageModel())->forConversation($id);
-        $attModel = new AttachmentModel();
-        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
-        foreach ($messages as &$m) {
-            $m['attachments'] = $attModel->forMessage((int) $m['id']);
-            // Forward mode: drop the empty forwarder intro (blank + divider line).
-            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
-                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
-            }
-        }
-        unset($m);
+        $messages = $this->enrichMessages((new MessageModel())->forConversation($id));
 
         return view('App\Modules\MailDispatch\Views\show', [
             'pageTitle'    => 'Conversación · Despacho de Correo',
@@ -244,17 +233,8 @@ class Dispatch extends BaseController
             return '<div class="md-pane-msg">Conversación no encontrada.</div>';
         }
 
-        $config     = new MailDispatchConfig();
-        $messages   = (new MessageModel())->forConversation($id);
-        $attModel   = new AttachmentModel();
-        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
-        foreach ($messages as &$m) {
-            $m['attachments'] = $attModel->forMessage((int) $m['id']);
-            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
-                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
-            }
-        }
-        unset($m);
+        $config   = new MailDispatchConfig();
+        $messages = $this->enrichMessages((new MessageModel())->forConversation($id));
 
         return view('App\Modules\MailDispatch\Views\preview', [
             'conv'          => $conv,
@@ -343,6 +323,12 @@ class Dispatch extends BaseController
      * the route group (any dispatch agent may open any conversation, as in the
      * inbox). Inline-safe types render in the browser; everything else — and any
      * blocked/executable extension — is forced to download.
+     *
+     * Attachments are immutable (AttachmentModel only tracks `created_at`), so
+     * they're cached hard and answered with a 304 whenever the browser already
+     * has them — this endpoint was the single biggest source of PHP processes
+     * on the shared host, at ~50k requests/day, because nothing was cacheable
+     * and every request re-ran the whole framework + a full file read.
      */
     public function downloadAttachment(int $id): ResponseInterface
     {
@@ -357,6 +343,34 @@ class Dispatch extends BaseController
             throw PageNotFoundException::forPageNotFound('El archivo del adjunto no está disponible.');
         }
 
+        // El filtro auth ya validó la sesión y aquí no se vuelve a escribir en
+        // ella: soltar el candado antes de tocar el archivo evita que una
+        // ráfaga de adjuntos del mismo usuario se encole esperando el lock de
+        // sesión (el cierre global de Config/Events.php ocurre en
+        // post_controller, es decir después de leer el archivo completo).
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        // La sesión ya mandó Expires/Pragma: no-cache por su cuenta al
+        // arrancar (session.cache_limiter), fuera del objeto Response: sin
+        // esto, setHeader('Cache-Control', …) no basta para que el navegador
+        // vea una respuesta cacheable de verdad.
+        $svc->clearSessionCacheHeaders();
+
+        $validators = $svc->validatorsFor($path, $id);
+        $this->response
+            ->setHeader('Cache-Control', 'private, max-age=604800, immutable')
+            ->setHeader('ETag', $validators['etag'])
+            ->setHeader('Last-Modified', gmdate('D, d M Y H:i:s', $validators['mtime']) . ' GMT')
+            // El filtro `noindex` (after) no corre en la respuesta de abajo
+            // porque termina en exit; se manda la misma cabecera a mano.
+            ->setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
+
+        if ($svc->isFresh($this->request, $validators['etag'], $validators['mtime'])) {
+            return $this->response->setStatusCode(304);
+        }
+
         $mime = (string) ($att['mime_type'] ?? '') ?: 'application/octet-stream';
         $ext  = strtolower(pathinfo((string) $att['filename'], PATHINFO_EXTENSION));
         $config = new MailDispatchConfig();
@@ -366,12 +380,20 @@ class Dispatch extends BaseController
         // Filename sanitized for the header (no CR/LF, no quotes).
         $safeName = preg_replace('/["\r\n]+/', '_', (string) $att['filename']) ?? 'archivo';
 
-        return $this->response
+        // Cabeceras enviadas y transmisión directa: nunca carga el archivo
+        // completo a memoria. exit salta los filtros after y post_system, pero
+        // el único que hacía algo (noindex) ya se mandó arriba a mano; ver
+        // AttachmentService::stream().
+        $this->response
+            ->setStatusCode(200)
             ->setHeader('Content-Type', $forceDownload ? 'application/octet-stream' : $mime)
             ->setHeader('Content-Disposition', $disposition . '; filename="' . $safeName . '"')
-            ->setHeader('Content-Length', (string) filesize($path))
+            ->setHeader('Content-Length', (string) $validators['size'])
             ->setHeader('X-Content-Type-Options', 'nosniff')
-            ->setBody((string) file_get_contents($path));
+            ->sendHeaders();
+
+        $svc->stream($path);
+        exit;
     }
 
     // -----------------------------------------------------------------------
@@ -513,6 +535,40 @@ class Dispatch extends BaseController
     private function userId(): int
     {
         return (int) session()->get('user_id');
+    }
+
+    /**
+     * Enriches a conversation's messages for display: attachments, forward-mode
+     * intro stripping, and the cid: → attachment-URL rewrite (capped, so a
+     * single message can never embed more than a handful of images). Shared by
+     * show() and preview() — the two places that render a full thread.
+     *
+     * Sets `attachments` (raw, for the resend/forward flows that still need the
+     * full list) plus `render_body` and `files` (what the view actually shows).
+     */
+    private function enrichMessages(array $messages): array
+    {
+        $attModel   = new AttachmentModel();
+        $attSvc     = service('mailDispatchAttachments');
+        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
+
+        foreach ($messages as &$m) {
+            $atts = $attModel->forMessage((int) $m['id']);
+            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
+                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
+            }
+            $prepared = $attSvc->prepareBody(
+                (string) $m['body'],
+                $atts,
+                (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== ''
+            );
+            $m['attachments'] = $atts;
+            $m['render_body'] = $prepared['body'];
+            $m['files']       = $prepared['files'];
+        }
+        unset($m);
+
+        return $messages;
     }
 
     /**

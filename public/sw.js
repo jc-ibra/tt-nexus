@@ -15,11 +15,16 @@
  *      API, el login y las descargas (exportaciones a CSV/Excel) pasan de largo
  *      sin que este archivo intervenga.
  *   3. Los estáticos se sirven de caché y se revalidan contra la red en segundo
- *      plano. Además las páginas los piden con la fecha del archivo en la URL
- *      (ver asset_url() en app/Common.php), así que tras un despliegue la URL es
- *      otra, aquí no hay nada guardado bajo esa clave y el archivo nuevo se pide
- *      a la red de una vez: el usuario nunca ve una mezcla de HTML nuevo con
- *      CSS viejo.
+ *      plano, apoyándose en la caché HTTP normal del navegador (ver
+ *      public/.htaccess). Además las páginas los piden con la fecha del
+ *      archivo en la URL (ver asset_url() en app/Common.php), así que tras un
+ *      despliegue la URL es otra, aquí no hay nada guardado bajo esa clave y
+ *      el archivo nuevo se pide a la red de una vez: el usuario nunca ve una
+ *      mezcla de HTML nuevo con CSS viejo.
+ *   4. Los adjuntos de Dispatch (/dispatch/attachments/…) nunca pasan por la
+ *      caché de este archivo: su propia caché HTTP (Cache-Control + ETag) ya
+ *      los cubre, y duplicarla aquí fue justo lo que agotó los procesos PHP
+ *      del hosting compartido en 2026-09-23.
  *
  * Interruptor de apagado: pon DISABLED en true y despliega. El service worker
  * borrará sus cachés y se desinstalará solo la próxima vez que alguien abra la
@@ -130,6 +135,15 @@ function isStaticAsset(url) {
     }
     const path = url.pathname.slice(BASE.length);
 
+    // Los adjuntos de Dispatch nunca deben pasar por esta caché: son GET del
+    // mismo origen bajo /dispatch/, así que sin esta exclusión explícita un
+    // cambio futuro de prefijo podría empezar a interceptarlos. La caché HTTP
+    // normal ya los cubre (ver Dispatch::downloadAttachment(), Cache-Control
+    // + ETag), y aquí sólo pasan de largo como cualquier otra navegación.
+    if (path.startsWith('dispatch/')) {
+        return false;
+    }
+
     return path.startsWith('css/') || path.startsWith('js/') || path.startsWith('img/');
 }
 
@@ -137,17 +151,18 @@ function isStaticAsset(url) {
  * Responde con lo que haya en caché y, en paralelo, revalida contra el servidor
  * para la próxima vez.
  *
- * La revalidación va con `cache: 'no-cache'` para que la pida al servidor de
- * verdad (condicional, con el ETag) en vez de que se la resuelva la caché del
- * navegador: los estáticos se sirven sin `Cache-Control`, así que el navegador
- * aplica su heurística y podría devolver la copia vieja, dejándola guardada aquí
- * más tiempo del debido.
+ * La revalidación usa la caché HTTP normal del navegador (sin forzar
+ * `cache: 'no-cache'`): los estáticos ahora se sirven con `Cache-Control`
+ * explícito (css/js versionados por asset_url() -> immutable; img/fuentes sin
+ * versión -> una semana, ver public/.htaccess), así que un acierto de esa
+ * caché resuelve la petición sin ir a la red. Forzar 'no-cache' aquí
+ * duplicaba el tráfico de estáticos en vez de reducirlo.
  */
 async function staleWhileRevalidate(event, request) {
     const cache  = await caches.open(CACHE);
     const cached = await cache.match(request);
 
-    const network = fetch(request, { cache: 'no-cache' })
+    const network = fetch(request)
         .then(async (response) => {
             // 'basic' = mismo origen y respuesta completa: nada opaco ni parcial.
             if (response && response.ok && response.type === 'basic') {

@@ -8,6 +8,7 @@ use App\Modules\Core\Services\ServiceResult;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AttachmentModel;
 use CodeIgniter\HTTP\Files\UploadedFile;
+use CodeIgniter\HTTP\IncomingRequest;
 
 /**
  * Stores and validates MailDispatch attachments. Files live under
@@ -174,6 +175,148 @@ class AttachmentService
             return null;
         }
         return $abs;
+    }
+
+    /** 1x1 transparent GIF: swapped in for a cid: reference that goes unresolved (over the embed cap, or missing on disk), so the sandboxed iframe never shows a broken-image icon it cannot recover from (no allow-scripts). */
+    private const BLANK_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+    /**
+     * Prepares a message's HTML body for display: rewrites cid: references to
+     * the authenticated attachment URL only for the attachments actually
+     * embedded in the body, up to $maxEmbedded. Everything else — attachments
+     * past the cap, or without a matching cid: — comes back in `files`, to be
+     * shown as a downloadable chip instead of fetched.
+     *
+     * This is what keeps a long thread from firing one request per inline
+     * image per message on every render: the caller decides how many messages
+     * get their body rendered at all (collapsed messages get none), and this
+     * caps how many images even a single rendered message can pull.
+     *
+     * @param array<int,array<string,mixed>> $attachments
+     * @return array{body:string, files:array<int,array<string,mixed>>}
+     */
+    public function prepareBody(string $html, array $attachments, bool $isHtml, int $maxEmbedded = 20): array
+    {
+        if (! $isHtml || trim($html) === '') {
+            return ['body' => $html, 'files' => $attachments];
+        }
+
+        $files    = [];
+        $embedded = 0;
+
+        foreach ($attachments as $a) {
+            $cid = (string) ($a['content_id'] ?? '');
+            if ($cid === '' || empty($a['storage_path']) || stripos($html, 'cid:' . $cid) === false) {
+                $files[] = $a;
+                continue;
+            }
+
+            if ($embedded >= $maxEmbedded) {
+                // Referenced, but the cap is already spent for this message:
+                // stays out of the network entirely instead of being fetched.
+                $html    = str_ireplace(['cid:<' . $cid . '>', 'cid:' . $cid], self::BLANK_PIXEL, $html);
+                $files[] = $a;
+                continue;
+            }
+
+            $html = str_ireplace(
+                ['cid:<' . $cid . '>', 'cid:' . $cid],
+                base_url('dispatch/attachments/' . (int) $a['id']),
+                $html
+            );
+            $embedded++;
+        }
+
+        return ['body' => $this->addLazyImgAttrs($html), 'files' => $files];
+    }
+
+    /** Adds loading="lazy" decoding="async" to <img> tags that don't already carry them. */
+    private function addLazyImgAttrs(string $html): string
+    {
+        $result = preg_replace_callback('/<img\b([^>]*)>/i', static function (array $m): string {
+            $attrs = $m[1];
+            if (! preg_match('/\bloading\s*=/i', $attrs)) {
+                $attrs .= ' loading="lazy"';
+            }
+            if (! preg_match('/\bdecoding\s*=/i', $attrs)) {
+                $attrs .= ' decoding="async"';
+            }
+            return '<img' . $attrs . '>';
+        }, $html);
+
+        return $result ?? $html;
+    }
+
+    /**
+     * Cache validators for a stored attachment file. Attachments never change
+     * once written (only `created_at` is tracked — see the model docblock), so
+     * id + size + mtime is a cheap, stable ETag: no need to hash the bytes.
+     *
+     * @return array{etag:string, mtime:int, size:int}
+     */
+    public function validatorsFor(string $path, int $id): array
+    {
+        $mtime = @filemtime($path) ?: time();
+        $size  = @filesize($path) ?: 0;
+
+        return [
+            'etag'  => '"' . $id . '-' . $size . '-' . $mtime . '"',
+            'mtime' => $mtime,
+            'size'  => $size,
+        ];
+    }
+
+    /**
+     * Whether the request's conditional headers already match these
+     * validators — if so, the caller answers 304 without touching the file.
+     */
+    public function isFresh(IncomingRequest $request, string $etag, int $mtime): bool
+    {
+        $ifNoneMatch = trim($request->getHeaderLine('If-None-Match'));
+        if ($ifNoneMatch !== '') {
+            foreach (explode(',', $ifNoneMatch) as $candidate) {
+                if (trim($candidate) === $etag) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        $ifModifiedSince = trim($request->getHeaderLine('If-Modified-Since'));
+        if ($ifModifiedSince !== '') {
+            $since = strtotime($ifModifiedSince);
+            if ($since !== false && $mtime <= $since) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * PHP's session module (session.cache_limiter=nocache, CI4's default) sends
+     * `Expires`/`Pragma: no-cache` via a raw header() call the moment the
+     * session starts — before the controller ever runs, and outside CI4's
+     * Response header bag. $response->setHeader('Cache-Control', …) alone
+     * doesn't touch them, so without this an old HTTP/1.0-only cache would
+     * still see the response marked as already expired. Safe any time before
+     * headers are actually sent.
+     */
+    public function clearSessionCacheHeaders(): void
+    {
+        if (! headers_sent()) {
+            header_remove('Expires');
+            header_remove('Pragma');
+        }
+    }
+
+    /** Streams a file straight to output without loading it fully into memory. */
+    public function stream(string $path): void
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        readfile($path);
     }
 
     /**
