@@ -104,6 +104,10 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
           aria-selected="false" aria-controls="sd-panel-asignaciones" tabindex="-1" data-panel="sd-panel-asignaciones" data-hash="asignaciones">
     Asignaciones
   </button>
+  <button type="button" class="sd-tab" id="sd-tab-asistencia" role="tab"
+          aria-selected="false" aria-controls="sd-panel-asistencia" tabindex="-1" data-panel="sd-panel-asistencia" data-hash="asistencia">
+    Asistencia
+  </button>
 </div>
 
 <!-- Tab: Importación -->
@@ -1119,6 +1123,50 @@ $bMunCont = (int) ($s['backlog_municipio_container_id'] ?? 0);
   <?php endif; ?>
 
 </div><!-- /sd-panel-asignaciones -->
+
+<!-- Tab: Asistencia -->
+<div id="sd-panel-asistencia" class="sd-tab-panel" role="tabpanel" aria-labelledby="sd-tab-asistencia" style="display:none;">
+  <div class="card" style="max-width: 640px;">
+    <div class="card-header"><h2 class="card-title">Asistencia / jornada laboral</h2></div>
+    <div class="card-body">
+      <p class="text-muted text-sm" style="margin-top:0;">
+        Los agentes marcan entrada/salida y esquema (presencial, home office o permiso) en
+        Service Desk · Asistencia. El único usuario elegido aquí aprueba los permisos y ve el
+        historial completo en Helpdesk Supervisor · Asistencia.
+      </p>
+      <form action="<?= route_to('servicedesk.attendance.save') ?>" method="post">
+        <?= csrf_field() ?>
+        <label class="field-check" style="margin-bottom: var(--space-4);">
+          <input type="checkbox" name="attendance_enabled" value="1" <?= $attendanceEnabled ? 'checked' : '' ?>>
+          <span>Habilitar el registro de asistencia</span>
+        </label>
+        <div class="field" style="margin-bottom: var(--space-4);">
+          <label class="field-label" for="attendance_expected_checkin">Hora de entrada esperada</label>
+          <input type="time" id="attendance_expected_checkin" name="attendance_expected_checkin" class="input"
+                 value="<?= esc($attendanceCheckin, 'attr') ?>" style="max-width: 160px;">
+        </div>
+        <div class="field" style="margin-bottom: var(--space-4);">
+          <label class="field-label" for="attendance_tolerance_minutes">Tolerancia de retardo (minutos)</label>
+          <input type="number" id="attendance_tolerance_minutes" name="attendance_tolerance_minutes" class="input"
+                 value="<?= (int) $attendanceTolerance ?>" min="0" step="1" style="max-width: 160px;">
+        </div>
+        <div class="field" style="margin-bottom: var(--space-4);">
+          <label class="field-label" for="attendance_supervisor_user_id">Supervisor de asistencia</label>
+          <select id="attendance_supervisor_user_id" name="attendance_supervisor_user_id" class="input">
+            <option value="0">Sin asignar</option>
+            <?php foreach ($attendanceUsers as $u): ?>
+              <option value="<?= (int) $u['id'] ?>" <?= (int) $u['id'] === (int) $attendanceSupervisorId ? 'selected' : '' ?>>
+                <?= esc($u['name']) ?> · <?= esc($u['email']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <p class="field-help">Esta persona (y cualquier SuperAdmin) ve Helpdesk Supervisor · Asistencia.</p>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar configuración</button>
+      </form>
+    </div>
+  </div>
+</div><!-- /sd-panel-asistencia -->
 
 <script>
 (function () {

@@ -3759,6 +3759,100 @@
       ]
     },
     {
+      "name": "Service Desk — Asistencia",
+      "item": [
+        {
+          "name": "Mi asistencia (hoy + semana del equipo)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/attendance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "attendance"
+              ]
+            },
+            "description": "Estatus de mi jornada de hoy, el tablero semanal (lunes a domingo) de todo el equipo con esquema y horarios, y la hora de entrada esperada."
+          },
+          "response": []
+        },
+        {
+          "name": "Iniciar jornada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/attendance/checkin",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "attendance",
+                "checkin"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheme\": \"presencial\",\n  \"notes\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "scheme: presencial | home_office | permiso. Si es \"permiso\", crea una solicitud pendiente de aprobación (no bloquea el check-in). 422 si ya inició jornada hoy."
+          },
+          "response": []
+        },
+        {
+          "name": "Cerrar jornada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/attendance/checkout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "attendance",
+                "checkout"
+              ]
+            },
+            "description": "422 si no ha iniciado jornada hoy o ya la cerró."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Service Desk — Autoservicio del agente",
       "description": "Vista propia del agente: siempre acotada al usuario del token. No hay forma de consultar los datos de otro agente.",
       "item": [
@@ -5640,6 +5734,111 @@
               ]
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "Supervisor de Mesa — Asistencia",
+      "item": [
+        {
+          "name": "Permisos pendientes, incidencias e historial",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/attendance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "attendance"
+              ]
+            },
+            "description": "Solo el supervisor de asistencia configurado (o SuperAdmin); 403 para cualquier otro usuario. Acepta ?month=&year= o ?period_start=&period_end= (por defecto, el mes en curso)."
+          },
+          "response": []
+        },
+        {
+          "name": "Aprobar permiso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/attendance/permits/1/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "attendance",
+                "permits",
+                "1",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_notes\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar permiso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/attendance/permits/1/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "attendance",
+                "permits",
+                "1",
+                "reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_notes\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },

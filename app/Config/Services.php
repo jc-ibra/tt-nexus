@@ -63,7 +63,10 @@ use App\Modules\ServiceDesk\Models\ServiceDeskCategoryMapModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskFollowupRunModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
+use App\Modules\ServiceDesk\Models\AttendanceLogModel;
+use App\Modules\ServiceDesk\Models\AttendancePermitModel;
 use App\Modules\ServiceDesk\Services\AssignmentMatrixImporter;
+use App\Modules\ServiceDesk\Services\AttendanceService;
 use App\Modules\ServiceDesk\Services\AutoFollowupService;
 use App\Modules\ServiceDesk\Services\BacklogReportService;
 use App\Modules\ServiceDesk\Services\FollowupTemplateRenderer;
@@ -441,6 +444,18 @@ class Services extends BaseService
         return new AssignmentMatrixImporter(
             new ServiceDeskAssignmentModel(),
             new ServiceDeskCategoryMapModel(),
+            new ServiceDeskSettingsModel(),
+        );
+    }
+
+    public static function serviceDeskAttendance(bool $getShared = true): AttendanceService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('serviceDeskAttendance');
+        }
+        return new AttendanceService(
+            new AttendanceLogModel(),
+            new AttendancePermitModel(),
             new ServiceDeskSettingsModel(),
         );
     }

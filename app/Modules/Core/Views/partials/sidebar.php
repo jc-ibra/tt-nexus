@@ -148,6 +148,11 @@ $moduleSubnav = [
             'url'    => base_url('servicedesk/asignaciones'),
             'active' => str_starts_with($currentPath, '/servicedesk/asignaciones'),
         ],
+        [
+            'label'  => 'Asistencia',
+            'url'    => base_url('servicedesk/asistencia'),
+            'active' => str_starts_with($currentPath, '/servicedesk/asistencia'),
+        ],
     ],
     'mail_dispatch' => [
         [
@@ -274,6 +279,19 @@ if ($currentUserGlpiId > 0) {
         'url'    => base_url('servicedesk/mis-evaluaciones'),
         'active' => str_starts_with($currentPath, '/servicedesk/mis-evaluaciones'),
     ];
+}
+
+// Attendance approvals/history: only the single configured attendance
+// supervisor (or SuperAdmin) gets the entry, so the nav never dead-ends in a 403.
+if (in_array('helpdesk_supervisor', array_column($modules, 'key'), true)
+    && service('serviceDeskAttendance')->isSupervisor($sessionUserId)) {
+    $settingsItem = array_pop($moduleSubnav['helpdesk_supervisor']);
+    $moduleSubnav['helpdesk_supervisor'][] = [
+        'label'  => 'Asistencia',
+        'url'    => base_url('helpdesk-supervisor/attendance'),
+        'active' => str_starts_with($currentPath, '/helpdesk-supervisor/attendance'),
+    ];
+    $moduleSubnav['helpdesk_supervisor'][] = $settingsItem;
 }
 
 // AgentKpis consumes HelpdeskSupervisor audit data — one nav group when both are granted.

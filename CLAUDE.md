@@ -514,6 +514,8 @@ See **DESIGN.md** for comprehensive UI/UX guidelines including:
 
 Key rule: **Always use CSS custom property tokens, never hardcode values.**
 
+**Whenever a task requires touching UI** (new views, redesigns, or visual fixes to existing screens), use the `/frontend-design` skill before writing markup/CSS — even for a small internal-tool screen. Stay inside this project's existing design system (DESIGN.md tokens, component classes); the skill's job here is to force a deliberate design pass (hierarchy, copy, friendlier interaction patterns) rather than to invent a new visual identity.
+
 ---
 
 ## Future Extensibility
