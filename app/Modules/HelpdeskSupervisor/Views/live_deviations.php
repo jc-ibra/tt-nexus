@@ -170,12 +170,21 @@ $to   = min($page * $perPage, $total);
 // Auto-refresco: sin websockets, sólo recarga la página cada cierto tiempo.
 // Se pospone mientras el usuario tiene el foco en un control de la página
 // (p. ej. un botón "Resolver" a punto de confirmarse), para no interrumpirlo.
+// Se pausa además mientras la pestaña no está visible: esta pantalla se deja
+// proyectada o en segundo plano, y recargar para nadie sólo gasta un proceso
+// PHP cada 30 s por cada pestaña abierta.
 (function () {
+  var PERIOD = 30000, last = Date.now();
   setInterval(function () {
+    if (document.hidden) return;
     var el = document.activeElement;
     if (el && el !== document.body) return;
+    last = Date.now();
     location.reload();
-  }, 30000);
+  }, PERIOD);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && Date.now() - last >= PERIOD) location.reload();
+  });
 })();
 </script>
 

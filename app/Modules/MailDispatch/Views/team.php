@@ -314,7 +314,7 @@ $chips = [
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Equipo</h1>
-    <p class="page-subtitle">Qué trae cada agente en este momento. Se actualiza solo cada 30 segundos.</p>
+    <p class="page-subtitle">Qué trae cada agente en este momento.</p>
     <?php if (! empty($totals['businessHours'])): ?>
       <p class="page-subtitle" style="margin-top:var(--space-1);">
         Tiempos en horas hábiles: <?= esc($totals['scheduleSummary']) ?>
@@ -323,6 +323,10 @@ $chips = [
     <?php endif; ?>
   </div>
   <div class="page-actions">
+    <a href="<?= current_url(true) ?>" class="btn btn-secondary" title="Recargar el tablero (no consulta el buzón)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px;vertical-align:-2px;margin-right:4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Actualizar
+    </a>
     <a href="<?= base_url('dispatch') ?>" class="btn btn-secondary">Bandeja</a>
     <a href="<?= base_url('dispatch/metrics') ?>" class="btn btn-secondary">Métricas</a>
   </div>
@@ -635,15 +639,6 @@ $chips = [
     var m = (location.hash || '').match(/^#f=(\w+)$/);
     if (m && chips.some(function (c) { return c.dataset.filter === m[1]; })) apply(m[1]);
   })();
-
-  // Auto-refresco. Se pospone mientras el despachador tiene un select abierto o
-  // hay una reasignación en vuelo, para no tumbarle la interacción.
-  setInterval(function () {
-    if (busy) return;
-    var el = document.activeElement;
-    if (el && el.tagName === 'SELECT') return;
-    location.reload();
-  }, 30000);
 })();
 </script>
 
