@@ -4193,6 +4193,77 @@
           }
         },
         {
+          "name": "Show conversation (hilos grandes: paginada, sin cuerpos)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1?bodies=none&limit=25",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "bodies",
+                  "value": "none",
+                  "description": "'all' (default, sin cambios) | 'none' | 'last' (solo el mensaje más reciente trae body)"
+                },
+                {
+                  "key": "limit",
+                  "value": "25",
+                  "description": "Máximo 100. Sin bodies/limit/before, la respuesta es idéntica a la de siempre."
+                },
+                {
+                  "key": "before",
+                  "value": "",
+                  "description": "Id del mensaje más antiguo ya obtenido, para pedir la página anterior (paginación por cursor, no por offset)."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Message body (hilos grandes)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/messages/1/body",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "messages",
+                "1",
+                "body"
+              ]
+            },
+            "description": "Cuerpo ya preparado (cid: resueltos, tope de imágenes embebidas) de un mensaje, para hidratarlo bajo demanda en un hilo largo. ETag + Cache-Control: private, max-age=86400 — los mensajes son inmutables."
+          }
+        },
+        {
           "name": "Download attachment",
           "request": {
             "method": "GET",

@@ -50,25 +50,120 @@ class DispatchApiController extends BaseApiController
         ]);
     }
 
+    /**
+     * Sin `bodies`/`limit`/`before`, responde exactamente como antes: el hilo
+     * completo con el `body` de cada mensaje — ningún consumidor existente
+     * nota el cambio. Con alguno de esos parámetros (etapa 3, hilos grandes),
+     * responde paginado por cursor y sin cuerpos salvo que se pidan.
+     */
     public function showConversation(int $id): ResponseInterface
     {
         $conv = (new ConversationModel())->findFull($id);
         if ($conv === null) {
             return $this->notFound('Conversación no encontrada.');
         }
-        $messages = (new MessageModel())->forConversation($id);
-        $attsByMessage = (new AttachmentModel())->forMessages(
-            array_map(static fn(array $m): int => (int) $m['id'], $messages)
-        );
-        foreach ($messages as &$m) {
-            $m['attachments'] = $attsByMessage[(int) $m['id']] ?? [];
+
+        $bodies   = (string) ($this->request->getGet('bodies') ?? 'all');
+        $limit    = (int) ($this->request->getGet('limit') ?? 0);
+        $beforeId = (int) ($this->request->getGet('before') ?? 0);
+        $msgModel = new MessageModel();
+
+        if ($bodies === 'all' && $limit <= 0 && $beforeId <= 0) {
+            $messages = $msgModel->forConversation($id);
+            $attsByMessage = (new AttachmentModel())->forMessages(
+                array_map(static fn(array $m): int => (int) $m['id'], $messages)
+            );
+            foreach ($messages as &$m) {
+                $m['attachments'] = $attsByMessage[(int) $m['id']] ?? [];
+            }
+            unset($m);
+
+            return $this->success([
+                'conversation' => $conv,
+                'messages'     => $messages,
+                'events'       => (new EventModel())->forConversation($id),
+            ]);
         }
-        unset($m);
+
+        $cursor = null;
+        if ($beforeId > 0) {
+            $cursor = $msgModel->cursorFor($beforeId, $id);
+            if ($cursor === null) {
+                return $this->notFound('Mensaje no encontrado.');
+            }
+        }
+
+        $rows = $msgModel->forConversationMeta($id, $limit > 0 ? min($limit, 100) : 25, $cursor);
+
+        if ($bodies === 'last' && $rows !== []) {
+            $full = $msgModel->bodyFor((int) $rows[0]['id'], $id);
+            if ($full !== null) {
+                $rows[0]['body'] = $full['body'];
+            }
+        }
+
+        $oldest    = $rows === [] ? null : $rows[count($rows) - 1];
+        $remaining = $oldest === null ? 0 : $msgModel->countForConversation($id, [
+            'id' => (int) $oldest['id'], 'received_at' => $oldest['received_at'],
+        ]);
 
         return $this->success([
             'conversation' => $conv,
-            'messages'     => $messages,
+            'messages'     => $rows,
+            'remaining'    => $remaining,
+            'next_before'  => $remaining > 0 ? (int) $oldest['id'] : null,
             'events'       => (new EventModel())->forConversation($id),
+        ]);
+    }
+
+    /**
+     * Hilos grandes (etapa 3): el cuerpo ya preparado de un mensaje, espejo de
+     * Dispatch::messageBody(). Mensajes inmutables -> ETag + caché privada.
+     */
+    public function messageBody(int $id, int $messageId): ResponseInterface
+    {
+        $m = (new MessageModel())->bodyFor($messageId, $id);
+        if ($m === null) {
+            return $this->notFound('Mensaje no encontrado.');
+        }
+
+        $svc = service('mailDispatchAttachments');
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        $svc->clearSessionCacheHeaders();
+
+        $body = (string) ($m['body'] ?? '');
+        if (service('mailDispatchSettings')->treatAsForwards() && (int) $m['body_is_html'] === 1 && $body !== '') {
+            $body = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro($body);
+        }
+        $isHtml = (int) $m['body_is_html'] === 1 && trim($body) !== '';
+        $atts   = (new AttachmentModel())->forMessage((int) $m['id']);
+
+        if ($isHtml) {
+            $prepared = $svc->prepareBody($body, $atts, true);
+            $outBody  = $prepared['body'];
+            $files    = $prepared['files'];
+        } else {
+            $outBody = $body !== '' ? $body : (string) ($m['body_preview'] ?? '');
+            $files   = $atts;
+        }
+
+        $etag  = '"' . md5($outBody . '|' . json_encode(array_map(static fn(array $a) => $a['id'], $files))) . '"';
+        $mtime = strtotime((string) ($m['created_at'] ?? '')) ?: time();
+
+        $this->response
+            ->setHeader('Cache-Control', 'private, max-age=86400')
+            ->setHeader('ETag', $etag);
+
+        if ($svc->isFresh($this->request, $etag, $mtime)) {
+            return $this->response->setStatusCode(304);
+        }
+
+        return $this->success([
+            'is_html'     => $isHtml,
+            'body'        => $outBody,
+            'attachments' => $files,
         ]);
     }
 

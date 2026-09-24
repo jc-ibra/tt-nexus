@@ -14,6 +14,7 @@ use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
 use App\Modules\MailDispatch\Models\SignatureModel;
 use App\Modules\MailDispatch\Models\TemplateModel;
+use App\Modules\MailDispatch\Services\ForwardParser;
 use App\Modules\MailDispatch\Services\TemplateRenderer;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -102,12 +103,20 @@ class Dispatch extends BaseController
         $config      = new MailDispatchConfig();
         $canDispatch = $this->canDispatch();
 
-        $messages = $this->enrichMessages((new MessageModel())->forConversation($id));
+        // Hilos grandes (etapa 3): solo metadatos de los 25 más recientes; el
+        // cuerpo de cada mensaje llega bajo demanda (ver messageBody()), y los
+        // mensajes más antiguos por bloques de 25 (ver messageBlock()).
+        $msgModel = new MessageModel();
+        $messages = $msgModel->forConversationMeta($id);
+        $older    = $this->olderBlock($msgModel, $id, $messages, false);
 
         return view('App\Modules\MailDispatch\Views\show', [
             'pageTitle'    => 'Conversación · Despacho de Correo',
             'conv'         => $conv,
             'messages'     => $messages,
+            'msgCount'     => $msgModel->countForConversation($id),
+            'olderUrl'     => $older['url'],
+            'olderRemaining' => $older['remaining'],
             'events'       => (new EventModel())->forConversation($id),
             'dispositions' => (new DispositionModel())->active(),
             'statusLabels' => $config->statusLabels,
@@ -237,17 +246,127 @@ class Dispatch extends BaseController
         }
 
         $config   = new MailDispatchConfig();
-        $messages = $this->enrichMessages((new MessageModel())->forConversation($id));
+        $msgModel = new MessageModel();
+        $messages = $msgModel->forConversationMeta($id);
+        $older    = $this->olderBlock($msgModel, $id, $messages, true);
 
         return view('App\Modules\MailDispatch\Views\preview', [
             'conv'          => $conv,
             'messages'      => $messages,
+            'olderUrl'      => $older['url'],
+            'olderRemaining' => $older['remaining'],
             'statusLabels'  => $config->statusLabels,
             'statusTones'   => $config->statusTones,
             'manualStatuses' => $config->manualStatuses,
             'currentUserId' => $this->userId(),
             'canDispatch'   => $this->canDispatch(),
         ]);
+    }
+
+    /**
+     * Hilos grandes (etapa 3): página de mensajes (solo metadatos) anteriores a
+     * `before` (id del mensaje más antiguo ya mostrado). Sin `before`, sería la
+     * primera página — no se usa así: show()/preview() ya traen esa primera
+     * página resuelta, este endpoint solo entrega las siguientes.
+     */
+    public function messageBlock(int $id): ResponseInterface
+    {
+        $conv = (new ConversationModel())->find($id);
+        if ($conv === null) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Conversación no encontrada.');
+        }
+
+        $msgModel = new MessageModel();
+        $beforeId = (int) ($this->request->getGet('before') ?? 0);
+        $cursor   = null;
+        if ($beforeId > 0) {
+            $cursor = $msgModel->cursorFor($beforeId, $id);
+            if ($cursor === null) {
+                throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Mensaje no encontrado.');
+            }
+        }
+
+        // Igual que downloadAttachment(): el filtro auth ya validó la sesión, y
+        // esta respuesta no vuelve a escribir en ella.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        $pane = (string) ($this->request->getGet('pane') ?? '') === '1';
+        $rows = $msgModel->forConversationMeta($id, 25, $cursor);
+
+        // Reenviar usa la misma puerta que responder (ver show.php); el panel
+        // de lectura no tiene esa acción.
+        $canForward = ! $pane
+            && ! empty(service('mailDispatchSettings')->isSendEnabled())
+            && ((int) ($conv['agent_id'] ?? 0) === $this->userId() || $this->canDispatch());
+
+        $html = '';
+        foreach ($rows as $m) {
+            $html .= view('App\Modules\MailDispatch\Views\_message_row', [
+                'm' => $m, 'conv' => $conv, 'collapsed' => true, 'canForward' => $canForward, 'pane' => $pane,
+            ], ['saveData' => false]);
+        }
+
+        $older = $this->olderBlock($msgModel, $id, $rows, $pane);
+
+        return $this->response
+            ->setHeader('Cache-Control', 'private, no-store')
+            ->setJSON([
+                'status' => 'success',
+                'data'   => ['html' => $html, 'remaining' => $older['remaining'], 'next_url' => $older['url']],
+            ]);
+    }
+
+    /**
+     * Hilos grandes (etapa 3): el cuerpo ya preparado de un mensaje (cid:
+     * resueltos, tope de imágenes embebidas, intro de reenvío recortada), para
+     * hidratar el iframe al expandir. Mensajes inmutables -> ETag + caché
+     * privada; 304 si el navegador ya lo tiene.
+     */
+    public function messageBody(int $id, int $messageId): ResponseInterface
+    {
+        $m = (new MessageModel())->bodyFor($messageId, $id);
+        if ($m === null) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Mensaje no encontrado.');
+        }
+
+        $svc  = service('mailDispatchAttachments');
+        $pane = (string) ($this->request->getGet('pane') ?? '') === '1';
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        $svc->clearSessionCacheHeaders();
+
+        $prepared = $this->prepareMessageBody($m, $svc, $pane);
+        $etag     = '"' . md5($prepared['body'] . '|' . $prepared['filesHtml'] . '|' . $prepared['recipientsHtml']) . '"';
+        $mtime    = strtotime((string) ($m['created_at'] ?? '')) ?: time();
+
+        $this->response
+            ->setHeader('Cache-Control', 'private, max-age=86400')
+            ->setHeader('ETag', $etag);
+
+        if ($svc->isFresh($this->request, $etag, $mtime)) {
+            return $this->response->setStatusCode(304);
+        }
+
+        // JSON a mano (no setJSON()): el cuerpo trae muchas '/' de cierre de
+        // tags y acentos — sin JSON_UNESCAPED_SLASHES|UNICODE, el escape a
+        // \/ y \uXXXX vuelve a inflar justo lo que este endpoint existe para
+        // evitar.
+        $payload = json_encode([
+            'status' => 'success',
+            'data'   => [
+                'is_html'         => $prepared['isHtml'],
+                'body'            => $prepared['body'],
+                'files_html'      => $prepared['filesHtml'],
+                'recipients_html' => $prepared['recipientsHtml'],
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $this->response
+            ->setContentType('application/json')
+            ->setBody((string) $payload);
     }
 
     public function close(int $id): ResponseInterface
@@ -541,42 +660,100 @@ class Dispatch extends BaseController
     }
 
     /**
-     * Enriches a conversation's messages for display: attachments, forward-mode
-     * intro stripping, and the cid: → attachment-URL rewrite (capped, so a
-     * single message can never embed more than a handful of images). Shared by
-     * show() and preview() — the two places that render a full thread.
+     * Prepares a single message's body for display: forward-mode intro
+     * stripping, and the cid: → attachment-URL rewrite (capped, so a message
+     * can never embed more than a handful of images). Used only by
+     * messageBody() — show()/preview() no longer render any message body, so
+     * this runs once per request instead of once per message in the thread.
      *
-     * Sets `attachments` (raw, for the resend/forward flows that still need the
-     * full list) plus `render_body` and `files` (what the view actually shows).
+     * @return array{isHtml:bool, body:string, filesHtml:string, recipientsHtml:string}
      */
-    private function enrichMessages(array $messages): array
+    private function prepareMessageBody(array $m, $attSvc, bool $pane): array
     {
-        $attSvc     = service('mailDispatchAttachments');
-        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
-
-        // Una consulta para los adjuntos de TODO el hilo en vez de una por
-        // mensaje: un hilo de 30 mensajes pasaba de 1 a 30 consultas aquí.
-        $attsByMessage = (new AttachmentModel())->forMessages(
-            array_map(static fn(array $m): int => (int) $m['id'], $messages)
-        );
-
-        foreach ($messages as &$m) {
-            $atts = $attsByMessage[(int) $m['id']] ?? [];
-            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
-                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
-            }
-            $prepared = $attSvc->prepareBody(
-                (string) $m['body'],
-                $atts,
-                (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== ''
-            );
-            $m['attachments'] = $atts;
-            $m['render_body'] = $prepared['body'];
-            $m['files']       = $prepared['files'];
+        $body = (string) ($m['body'] ?? '');
+        if (service('mailDispatchSettings')->treatAsForwards() && (int) $m['body_is_html'] === 1 && $body !== '') {
+            $body = ForwardParser::stripIntro($body);
         }
-        unset($m);
 
-        return $messages;
+        $isHtml = (int) $m['body_is_html'] === 1 && trim($body) !== '';
+        $atts   = (new AttachmentModel())->forMessage((int) $m['id']);
+        $recipientsHtml = $this->recipientsHtml($m, $pane);
+
+        if (! $isHtml) {
+            $plain = $body !== '' ? $body : (string) ($m['body_preview'] ?? '');
+            return ['isHtml' => false, 'body' => $plain, 'filesHtml' => $this->filesHtml($atts), 'recipientsHtml' => $recipientsHtml];
+        }
+
+        $prepared = $attSvc->prepareBody($body, $atts, true);
+
+        return [
+            'isHtml'         => true,
+            'body'           => $prepared['body'],
+            'filesHtml'      => $this->filesHtml($prepared['files']),
+            'recipientsHtml' => $recipientsHtml,
+        ];
+    }
+
+    /** Renders the downloadable-attachment chips shown alongside a message's body. */
+    private function filesHtml(array $files): string
+    {
+        if ($files === []) {
+            return '';
+        }
+        return view('App\Modules\MailDispatch\Views\_message_files', ['files' => $files], ['saveData' => false]);
+    }
+
+    /**
+     * Renders the Para/CC address chips shown alongside a message's body. Moved
+     * out of the metadata row (see _message_row.php): a message can carry 15-20
+     * recipients, and one <button> per address per collapsed message is what
+     * pushed a 25-message page past the size budget.
+     */
+    private function recipientsHtml(array $m, bool $pane): string
+    {
+        $addrList = static function (?string $raw): array {
+            $parts = preg_split('/[,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $out   = [];
+            foreach ($parts as $p) {
+                $p = trim($p);
+                if ($p !== '') {
+                    $out[$p] = $p;
+                }
+            }
+            return array_values($out);
+        };
+
+        $toAddrs = $addrList($m['to_recipients'] ?? '');
+        $ccAddrs = $addrList($m['cc_recipients'] ?? '');
+        if ($toAddrs === [] && $ccAddrs === []) {
+            return '';
+        }
+
+        return view('App\Modules\MailDispatch\Views\_message_recipients', [
+            'toAddrs' => $toAddrs, 'ccAddrs' => $ccAddrs, 'pane' => $pane,
+        ], ['saveData' => false]);
+    }
+
+    /**
+     * Where the "Ver N mensajes anteriores" button (if any) should point, given
+     * the oldest message of the page just rendered. Null url = nothing older.
+     *
+     * @return array{url:?string, remaining:int}
+     */
+    private function olderBlock(MessageModel $model, int $convId, array $messages, bool $pane): array
+    {
+        if ($messages === []) {
+            return ['url' => null, 'remaining' => 0];
+        }
+        $oldest    = $messages[count($messages) - 1];
+        $cursor    = ['id' => (int) $oldest['id'], 'received_at' => $oldest['received_at']];
+        $remaining = $model->countForConversation($convId, $cursor);
+        if ($remaining <= 0) {
+            return ['url' => null, 'remaining' => 0];
+        }
+
+        $url = route_to('dispatch.messages.block', $convId) . '?before=' . (int) $oldest['id'] . ($pane ? '&pane=1' : '');
+        return ['url' => $url, 'remaining' => $remaining];
     }
 
     /**
