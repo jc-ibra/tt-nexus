@@ -8,6 +8,7 @@ use App\Modules\Core\Services\ServiceResult;
 use App\Modules\MailDispatch\Config\MailDispatch as MailDispatchConfig;
 use App\Modules\MailDispatch\Models\AttachmentModel;
 use CodeIgniter\HTTP\Files\UploadedFile;
+use CodeIgniter\HTTP\IncomingRequest;
 
 /**
  * Stores and validates MailDispatch attachments. Files live under
@@ -244,6 +245,61 @@ class AttachmentService
         }, $html);
 
         return $result ?? $html;
+    }
+
+    /**
+     * Cache validators for a stored attachment file. Attachments never change
+     * once written (only `created_at` is tracked — see the model docblock), so
+     * id + size + mtime is a cheap, stable ETag: no need to hash the bytes.
+     *
+     * @return array{etag:string, mtime:int, size:int}
+     */
+    public function validatorsFor(string $path, int $id): array
+    {
+        $mtime = @filemtime($path) ?: time();
+        $size  = @filesize($path) ?: 0;
+
+        return [
+            'etag'  => '"' . $id . '-' . $size . '-' . $mtime . '"',
+            'mtime' => $mtime,
+            'size'  => $size,
+        ];
+    }
+
+    /**
+     * Whether the request's conditional headers already match these
+     * validators — if so, the caller answers 304 without touching the file.
+     */
+    public function isFresh(IncomingRequest $request, string $etag, int $mtime): bool
+    {
+        $ifNoneMatch = trim($request->getHeaderLine('If-None-Match'));
+        if ($ifNoneMatch !== '') {
+            foreach (explode(',', $ifNoneMatch) as $candidate) {
+                if (trim($candidate) === $etag) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        $ifModifiedSince = trim($request->getHeaderLine('If-Modified-Since'));
+        if ($ifModifiedSince !== '') {
+            $since = strtotime($ifModifiedSince);
+            if ($since !== false && $mtime <= $since) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Streams a file straight to output without loading it fully into memory. */
+    public function stream(string $path): void
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        readfile($path);
     }
 
     /**

@@ -323,6 +323,12 @@ class Dispatch extends BaseController
      * the route group (any dispatch agent may open any conversation, as in the
      * inbox). Inline-safe types render in the browser; everything else — and any
      * blocked/executable extension — is forced to download.
+     *
+     * Attachments are immutable (AttachmentModel only tracks `created_at`), so
+     * they're cached hard and answered with a 304 whenever the browser already
+     * has them — this endpoint was the single biggest source of PHP processes
+     * on the shared host, at ~50k requests/day, because nothing was cacheable
+     * and every request re-ran the whole framework + a full file read.
      */
     public function downloadAttachment(int $id): ResponseInterface
     {
@@ -337,6 +343,28 @@ class Dispatch extends BaseController
             throw PageNotFoundException::forPageNotFound('El archivo del adjunto no está disponible.');
         }
 
+        // El filtro auth ya validó la sesión y aquí no se vuelve a escribir en
+        // ella: soltar el candado antes de tocar el archivo evita que una
+        // ráfaga de adjuntos del mismo usuario se encole esperando el lock de
+        // sesión (el cierre global de Config/Events.php ocurre en
+        // post_controller, es decir después de leer el archivo completo).
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        $validators = $svc->validatorsFor($path, $id);
+        $this->response
+            ->setHeader('Cache-Control', 'private, max-age=604800, immutable')
+            ->setHeader('ETag', $validators['etag'])
+            ->setHeader('Last-Modified', gmdate('D, d M Y H:i:s', $validators['mtime']) . ' GMT')
+            // El filtro `noindex` (after) no corre en la respuesta de abajo
+            // porque termina en exit; se manda la misma cabecera a mano.
+            ->setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
+
+        if ($svc->isFresh($this->request, $validators['etag'], $validators['mtime'])) {
+            return $this->response->setStatusCode(304);
+        }
+
         $mime = (string) ($att['mime_type'] ?? '') ?: 'application/octet-stream';
         $ext  = strtolower(pathinfo((string) $att['filename'], PATHINFO_EXTENSION));
         $config = new MailDispatchConfig();
@@ -346,12 +374,20 @@ class Dispatch extends BaseController
         // Filename sanitized for the header (no CR/LF, no quotes).
         $safeName = preg_replace('/["\r\n]+/', '_', (string) $att['filename']) ?? 'archivo';
 
-        return $this->response
+        // Cabeceras enviadas y transmisión directa: nunca carga el archivo
+        // completo a memoria. exit salta los filtros after y post_system, pero
+        // el único que hacía algo (noindex) ya se mandó arriba a mano; ver
+        // AttachmentService::stream().
+        $this->response
+            ->setStatusCode(200)
             ->setHeader('Content-Type', $forceDownload ? 'application/octet-stream' : $mime)
             ->setHeader('Content-Disposition', $disposition . '; filename="' . $safeName . '"')
-            ->setHeader('Content-Length', (string) filesize($path))
+            ->setHeader('Content-Length', (string) $validators['size'])
             ->setHeader('X-Content-Type-Options', 'nosniff')
-            ->setBody((string) file_get_contents($path));
+            ->sendHeaders();
+
+        $svc->stream($path);
+        exit;
     }
 
     // -----------------------------------------------------------------------
