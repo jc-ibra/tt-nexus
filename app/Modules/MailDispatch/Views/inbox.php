@@ -578,7 +578,14 @@ function mdFitFrame(f) {
       var msg = head.closest('.md-msg');
       var collapsed = msg.classList.toggle('is-collapsed');
       head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      if (!collapsed) { var f = msg.querySelector('.md-msg-body-frame'); if (f) setTimeout(function () { mdFitFrame(f); }, 30); }
+      if (!collapsed) {
+        var f = msg.querySelector('.md-msg-body-frame');
+        if (f) {
+          // Hidratar el cuerpo diferido: recién ahora se piden sus imágenes.
+          if (f.dataset.srcdoc !== undefined) { f.srcdoc = f.dataset.srcdoc; delete f.dataset.srcdoc; }
+          setTimeout(function () { mdFitFrame(f); }, 30);
+        }
+      }
     });
   }
 

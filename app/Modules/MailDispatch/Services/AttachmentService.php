@@ -176,6 +176,76 @@ class AttachmentService
         return $abs;
     }
 
+    /** 1x1 transparent GIF: swapped in for a cid: reference that goes unresolved (over the embed cap, or missing on disk), so the sandboxed iframe never shows a broken-image icon it cannot recover from (no allow-scripts). */
+    private const BLANK_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+    /**
+     * Prepares a message's HTML body for display: rewrites cid: references to
+     * the authenticated attachment URL only for the attachments actually
+     * embedded in the body, up to $maxEmbedded. Everything else — attachments
+     * past the cap, or without a matching cid: — comes back in `files`, to be
+     * shown as a downloadable chip instead of fetched.
+     *
+     * This is what keeps a long thread from firing one request per inline
+     * image per message on every render: the caller decides how many messages
+     * get their body rendered at all (collapsed messages get none), and this
+     * caps how many images even a single rendered message can pull.
+     *
+     * @param array<int,array<string,mixed>> $attachments
+     * @return array{body:string, files:array<int,array<string,mixed>>}
+     */
+    public function prepareBody(string $html, array $attachments, bool $isHtml, int $maxEmbedded = 20): array
+    {
+        if (! $isHtml || trim($html) === '') {
+            return ['body' => $html, 'files' => $attachments];
+        }
+
+        $files    = [];
+        $embedded = 0;
+
+        foreach ($attachments as $a) {
+            $cid = (string) ($a['content_id'] ?? '');
+            if ($cid === '' || empty($a['storage_path']) || stripos($html, 'cid:' . $cid) === false) {
+                $files[] = $a;
+                continue;
+            }
+
+            if ($embedded >= $maxEmbedded) {
+                // Referenced, but the cap is already spent for this message:
+                // stays out of the network entirely instead of being fetched.
+                $html    = str_ireplace(['cid:<' . $cid . '>', 'cid:' . $cid], self::BLANK_PIXEL, $html);
+                $files[] = $a;
+                continue;
+            }
+
+            $html = str_ireplace(
+                ['cid:<' . $cid . '>', 'cid:' . $cid],
+                base_url('dispatch/attachments/' . (int) $a['id']),
+                $html
+            );
+            $embedded++;
+        }
+
+        return ['body' => $this->addLazyImgAttrs($html), 'files' => $files];
+    }
+
+    /** Adds loading="lazy" decoding="async" to <img> tags that don't already carry them. */
+    private function addLazyImgAttrs(string $html): string
+    {
+        $result = preg_replace_callback('/<img\b([^>]*)>/i', static function (array $m): string {
+            $attrs = $m[1];
+            if (! preg_match('/\bloading\s*=/i', $attrs)) {
+                $attrs .= ' loading="lazy"';
+            }
+            if (! preg_match('/\bdecoding\s*=/i', $attrs)) {
+                $attrs .= ' decoding="async"';
+            }
+            return '<img' . $attrs . '>';
+        }, $html);
+
+        return $result ?? $html;
+    }
+
     /**
      * Reads a stored message's attachments back as raw buffers so they can be
      * re-attached to an outgoing mail (the "reenviar" action). Inline parts are

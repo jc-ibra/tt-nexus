@@ -99,18 +99,7 @@ class Dispatch extends BaseController
         $config      = new MailDispatchConfig();
         $canDispatch = $this->canDispatch();
 
-        // Enrich each message with its attachments.
-        $messages = (new MessageModel())->forConversation($id);
-        $attModel = new AttachmentModel();
-        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
-        foreach ($messages as &$m) {
-            $m['attachments'] = $attModel->forMessage((int) $m['id']);
-            // Forward mode: drop the empty forwarder intro (blank + divider line).
-            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
-                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
-            }
-        }
-        unset($m);
+        $messages = $this->enrichMessages((new MessageModel())->forConversation($id));
 
         return view('App\Modules\MailDispatch\Views\show', [
             'pageTitle'    => 'Conversación · Despacho de Correo',
@@ -244,17 +233,8 @@ class Dispatch extends BaseController
             return '<div class="md-pane-msg">Conversación no encontrada.</div>';
         }
 
-        $config     = new MailDispatchConfig();
-        $messages   = (new MessageModel())->forConversation($id);
-        $attModel   = new AttachmentModel();
-        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
-        foreach ($messages as &$m) {
-            $m['attachments'] = $attModel->forMessage((int) $m['id']);
-            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
-                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
-            }
-        }
-        unset($m);
+        $config   = new MailDispatchConfig();
+        $messages = $this->enrichMessages((new MessageModel())->forConversation($id));
 
         return view('App\Modules\MailDispatch\Views\preview', [
             'conv'          => $conv,
@@ -513,6 +493,40 @@ class Dispatch extends BaseController
     private function userId(): int
     {
         return (int) session()->get('user_id');
+    }
+
+    /**
+     * Enriches a conversation's messages for display: attachments, forward-mode
+     * intro stripping, and the cid: → attachment-URL rewrite (capped, so a
+     * single message can never embed more than a handful of images). Shared by
+     * show() and preview() — the two places that render a full thread.
+     *
+     * Sets `attachments` (raw, for the resend/forward flows that still need the
+     * full list) plus `render_body` and `files` (what the view actually shows).
+     */
+    private function enrichMessages(array $messages): array
+    {
+        $attModel   = new AttachmentModel();
+        $attSvc     = service('mailDispatchAttachments');
+        $stripIntro = service('mailDispatchSettings')->treatAsForwards();
+
+        foreach ($messages as &$m) {
+            $atts = $attModel->forMessage((int) $m['id']);
+            if ($stripIntro && (int) $m['body_is_html'] === 1 && ! empty($m['body'])) {
+                $m['body'] = \App\Modules\MailDispatch\Services\ForwardParser::stripIntro((string) $m['body']);
+            }
+            $prepared = $attSvc->prepareBody(
+                (string) $m['body'],
+                $atts,
+                (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== ''
+            );
+            $m['attachments'] = $atts;
+            $m['render_body'] = $prepared['body'];
+            $m['files']       = $prepared['files'];
+        }
+        unset($m);
+
+        return $messages;
     }
 
     /**
