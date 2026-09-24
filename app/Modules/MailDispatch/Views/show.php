@@ -44,30 +44,9 @@ $initials = function (?string $name, ?string $email): string {
     return $ini !== '' ? $ini : '?';
 };
 
-$msgCount = is_array($messages ?? null) ? count($messages) : 0;
+// $msgCount ya viene resuelto del controlador (COUNT real del hilo, no
+// count($messages): la vista solo recibe la página de 25 más recientes).
 
-// Human-readable size.
-$fmtSize = static function (int $bytes): string {
-    if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
-    if ($bytes >= 1024)    return round($bytes / 1024) . ' KB';
-    return $bytes . ' B';
-};
-
-// URL to download/serve an attachment.
-$attUrl = static fn (int $id): string => base_url('dispatch/attachments/' . $id);
-
-// "a@x.com, b@y.com" -> lista limpia de direcciones.
-$addrList = static function (?string $raw): array {
-    $parts = preg_split('/[,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-    $out   = [];
-    foreach ($parts as $p) {
-        $p = trim($p);
-        if ($p !== '') {
-            $out[$p] = $p;
-        }
-    }
-    return array_values($out);
-};
 ?>
 
 <style>
@@ -294,152 +273,20 @@ $isOutbound = ! empty($conv['outbound_only']);
 
 <div class="md-detail">
   <!-- ============================ Thread ============================ -->
-  <div class="md-thread">
+  <div class="md-thread" data-thread>
     <?php if (empty($messages)): ?>
       <div class="card"><div class="card-body"><p class="text-muted">Sin mensajes en el hilo.</p></div></div>
     <?php endif; ?>
-    <?php /* Más reciente arriba; el más reciente abierto, los demás colapsados. */ ?>
-    <?php foreach (array_reverse($messages) as $i => $m): $out = $m['direction'] === 'out'; $collapsed = $i > 0; ?>
-      <?php
-        // Destinatarios reales del correo: la respuesta desde Nexus sale solo
-        // al solicitante, así que el agente necesita ver a quién más iba
-        // dirigido para decidir a quién copiar a mano. Se calculan aquí arriba
-        // porque el encabezado también avisa cuántos van en copia.
-        $toAddrs = $addrList($m['to_recipients'] ?? '');
-        $ccAddrs = $addrList($m['cc_recipients'] ?? '');
-      ?>
-      <div class="md-msg <?= $out ? 'out' : 'in' ?><?= $collapsed ? ' is-collapsed' : '' ?>">
-        <div class="md-msg-head" role="button" tabindex="0" aria-expanded="<?= $collapsed ? 'false' : 'true' ?>">
-          <span class="md-avatar <?= $out ? 'out' : 'in' ?>"><?= esc($initials($m['from_name'] ?? '', $m['from_email'] ?? '')) ?></span>
-          <div class="md-msg-who">
-            <div class="md-msg-name"><?= esc($m['from_name'] ?: ($m['from_email'] ?: 'Remitente desconocido')) ?></div>
-            <?php if (! empty($m['from_email']) && $m['from_email'] !== $m['from_name']): ?>
-              <div class="md-msg-from"><?= esc($m['from_email']) ?></div>
-            <?php endif; ?>
-          </div>
-          <div class="md-msg-side">
-            <span class="badge badge-<?= $out ? 'success' : 'info' ?>"><?= $out ? 'Saliente' : 'Entrante' ?></span>
-            <span class="md-msg-time"><?= esc($fmtDate($m['received_at'] ?? null)) ?></span>
-            <?php if ($ccAddrs !== []): ?>
-              <span class="md-cc-flag" title="<?= esc(implode(', ', $ccAddrs), 'attr') ?>">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <?= count($ccAddrs) ?> en copia
-              </span>
-            <?php endif; ?>
-            <?php if ($m['has_attachments']): ?>
-              <span class="md-attach" title="Con adjuntos">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                Adjunto
-              </span>
-            <?php endif; ?>
-          </div>
-          <span class="md-msg-toggle" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          </span>
-        </div>
-
-        <?php
-          // Preview en texto plano: quita bloques <style>/<script>, decodifica
-          // entidades (&nbsp;, &lt;…) y colapsa espacios, para no mostrar CSS ni
-          // símbolos crudos cuando está colapsado. Los registros viejos guardaron
-          // el CSS dentro del preview, de ahí el respaldo sobre el cuerpo.
-          $fp      = \App\Modules\MailDispatch\Services\ForwardParser::class;
-          $preview = $fp::plainText((string) ($m['body_preview'] ?? ''), 160);
-          if ($preview === '') {
-              $preview = $fp::plainText((string) ($m['body'] ?? ''), 160);
-          }
-        ?>
-        <div class="md-msg-preview"><?= esc($preview) ?></div>
-
-        <?php
-          $isHtml     = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
-          // El controlador ya resolvió los cid: embebidos (con tope) y separó
-          // los demás adjuntos como archivos descargables.
-          $renderBody = (string) ($m['render_body'] ?? $m['body']);
-          $files      = is_array($m['files'] ?? null) ? $m['files'] : ($m['attachments'] ?? []);
-        ?>
-        <div class="md-msg-collapsible">
-          <?php if ($canForward): ?>
-            <details class="md-forward">
-              <summary class="md-forward-toggle">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
-                Reenviar este mensaje
-              </summary>
-              <form action="<?= route_to('dispatch.message.forward', $conv['id'], $m['id']) ?>" method="post" class="md-forward-form">
-                <?= csrf_field() ?>
-                <label class="field-label" for="fwd-to-<?= (int) $m['id'] ?>">Para</label>
-                <input type="text" id="fwd-to-<?= (int) $m['id'] ?>" name="to" class="input" required autocomplete="off"
-                       placeholder="correo@dominio.com, otro@dominio.com">
-                <label class="field-label" for="fwd-cc-<?= (int) $m['id'] ?>">Copia (opcional)</label>
-                <input type="text" id="fwd-cc-<?= (int) $m['id'] ?>" name="cc" class="input" autocomplete="off"
-                       placeholder="correo@dominio.com">
-                <label class="field-label" for="fwd-note-<?= (int) $m['id'] ?>">Nota (opcional)</label>
-                <textarea id="fwd-note-<?= (int) $m['id'] ?>" name="comment" class="input" rows="2"
-                          placeholder="Se agrega arriba del mensaje reenviado."></textarea>
-                <p class="md-file-hint">
-                  Se envía este correo tal cual, con sus adjuntos. No cambia el estado de la conversación
-                  ni le llega al solicitante.
-                </p>
-                <button type="submit" class="btn btn-secondary">Reenviar mensaje</button>
-              </form>
-            </details>
-          <?php endif; ?>
-
-          <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
-            <div class="md-recipients">
-              <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
-                <?php if ($addrs !== []): ?>
-                  <div class="md-recipients-row<?= $label === 'CC' ? ' is-cc' : '' ?>">
-                    <span class="md-recipients-label"><?= $label ?><?php if (count($addrs) > 1): ?><span class="md-recipients-count"><?= count($addrs) ?></span><?php endif; ?></span>
-                    <span class="md-recipients-list">
-                      <?php foreach ($addrs as $addr): ?>
-                        <button type="button" class="md-addr" data-addr="<?= esc($addr, 'attr') ?>"
-                                title="Agregar a copia de la respuesta"><?= esc($addr) ?></button>
-                      <?php endforeach; ?>
-                    </span>
-                  </div>
-                <?php endif; ?>
-              <?php endforeach; ?>
-            </div>
-          <?php endif; ?>
-
-          <?php if ($files !== []): ?>
-            <div class="md-attachments">
-              <?php foreach ($files as $a): ?>
-                <a class="md-chip" href="<?= esc($attUrl((int) $a['id']), 'attr') ?>" target="_blank" rel="noopener"
-                   <?= empty($a['storage_path']) ? 'aria-disabled="true" style="opacity:.55; pointer-events:none;"' : '' ?>>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                  <span class="md-chip-name"><?= esc($a['filename']) ?></span>
-                  <span class="md-chip-size"><?= esc($fmtSize((int) ($a['size_bytes'] ?? 0))) ?></span>
-                </a>
-              <?php endforeach; ?>
-            </div>
-          <?php endif; ?>
-
-          <?php if ($isHtml): ?>
-            <?php
-              // Los mensajes colapsados nunca resuelven cid: al cargar la página:
-              // el cuerpo va en data-srcdoc y el JS de colapsar/expandir lo
-              // vuelca a srcdoc recién cuando el agente lo abre. Sin esto, un
-              // hilo largo dispara una petición de adjunto por cada imagen
-              // embebida de CADA mensaje, aunque esté oculto.
-            ?>
-            <?php
-              // Un iframe con data-srcdoc no lleva src/srcdoc real, así que su
-              // about:blank inicial dispara onload casi de inmediato — antes
-              // de que el <script> de más abajo (que define mdFitFrame) se
-              // haya ejecutado. Guardado defensivo; el ajuste real ocurre al
-              // hidratar (ver el toggle de colapsar/expandir) o en el barrido
-              // inicial al final de este archivo.
-            ?>
-            <iframe class="md-msg-body-frame" sandbox="allow-same-origin"
-                    <?= $collapsed ? 'data-srcdoc' : 'srcdoc' ?>="<?= esc($renderBody, 'attr') ?>"
-                    onload="if (window.mdFitFrame) mdFitFrame(this)"></iframe>
-          <?php else: ?>
-            <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
-          <?php endif; ?>
-        </div>
-      </div>
+    <?php if (! empty($olderUrl)): ?>
+      <button type="button" class="btn btn-secondary" data-load-older="<?= esc($olderUrl, 'attr') ?>" style="width:100%; margin-bottom:var(--space-4);">
+        Ver <?= (int) $olderRemaining ?> mensajes anteriores
+      </button>
+    <?php endif; ?>
+    <?php /* Ya vienen del más reciente al más antiguo (ORDER BY received_at DESC); el más reciente abierto, los demás colapsados. */ ?>
+    <?php foreach ($messages as $i => $m): ?>
+      <?= view('App\Modules\MailDispatch\Views\_message_row', [
+          'm' => $m, 'conv' => $conv, 'collapsed' => $i > 0, 'canForward' => $canForward, 'pane' => false,
+      ]) ?>
     <?php endforeach; ?>
   </div>
 
@@ -740,38 +587,12 @@ $isOutbound = ! empty($conv['outbound_only']);
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<script src="<?= asset_url('js/maildispatch-thread.js') ?>"></script>
 <script>
-// Auto-ajusta la altura del iframe del correo a su contenido real, sin scroll
-// interno. Requiere sandbox="allow-same-origin" (sin allow-scripts) para poder
-// leer el documento embebido; el HTML del correo sigue sin poder ejecutar JS.
-function mdFitFrame(f) {
-  try {
-    var d = f.contentWindow.document;
-    var fit = function () {
-      var h = Math.max(d.body ? d.body.scrollHeight : 0, d.documentElement ? d.documentElement.scrollHeight : 0);
-      if (h > 0) {
-        // Tope = espacio real desde la parte superior del iframe hasta el fondo
-        // de la pantalla (así no genera scroll de página). Si el correo es más
-        // alto, el iframe se queda en el tope y scrollea su propio contenido.
-        var avail = window.innerHeight - f.getBoundingClientRect().top - 24;
-        var maxH = Math.max(280, avail);
-        f.style.height = Math.min(h + 28, maxH) + 'px';
-      }
-    };
-    fit();
-    // Reajusta cuando terminan de cargar imágenes (que cambian la altura).
-    Array.prototype.forEach.call(d.images || [], function (img) {
-      if (!img.complete) { img.addEventListener('load', fit); img.addEventListener('error', fit); }
-    });
-    // Reajuste tardío por si el layout se asienta después del onload.
-    setTimeout(fit, 300);
-  } catch (e) { /* cross-origin u otro: se queda con min-height */ }
-}
-// Barrido inicial: cubre el caso en que el onload de algún iframe ya corrió
-// (antes de que esta función existiera) y se perdió silenciosamente por el
-// guardado de arriba. Inofensivo sobre los colapsados (about:blank, no mide
-// nada) y necesario para el mensaje expandido si su srcdoc cargó rápido.
-Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
+// Hidrata el hilo: carga bajo demanda el cuerpo del mensaje expandido, el de
+// cada mensaje al expandirlo, y el bloque "Ver N mensajes anteriores".
+MDThread.init(document.querySelector('[data-thread]'));
+
 window.addEventListener('resize', function () {
   Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
 });
@@ -789,33 +610,6 @@ window.addEventListener('resize', function () {
   }
   sel.addEventListener('change', sync);
   sync();
-})();
-
-// Colapsar/expandir cada mensaje del hilo.
-(function () {
-  Array.prototype.forEach.call(document.querySelectorAll('.md-msg-head'), function (head) {
-    function toggle() {
-      var msg = head.closest('.md-msg');
-      if (!msg) return;
-      var collapsed = msg.classList.toggle('is-collapsed');
-      head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      if (!collapsed) {
-        var f = msg.querySelector('.md-msg-body-frame');
-        if (f) {
-          // Hidratar el cuerpo diferido: recién ahora se piden sus imágenes.
-          if (f.dataset.srcdoc !== undefined) {
-            f.srcdoc = f.dataset.srcdoc;
-            delete f.dataset.srcdoc;
-          }
-          setTimeout(function () { mdFitFrame(f); }, 30);
-        }
-      }
-    }
-    head.addEventListener('click', toggle);
-    head.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-    });
-  });
 })();
 
 // Clic en un destinatario del hilo: lo agrega al campo de copia de la respuesta.

@@ -42,6 +42,11 @@ $routes->group('dispatch', [
     // Reading-pane partial (AJAX) for the inbox split view.
     $routes->get('(:num)/preview',    'Dispatch::preview/$1',     ['as' => 'dispatch.preview']);
 
+    // Hilos grandes (etapa 3): página de metadatos anteriores a un cursor, y el
+    // cuerpo de un mensaje bajo demanda (ambos, solo lectura, AJAX).
+    $routes->get('(:num)/messages',             'Dispatch::messageBlock/$1', ['as' => 'dispatch.messages.block']);
+    $routes->get('(:num)/messages/(:num)/body', 'Dispatch::messageBody/$1/$2', ['as' => 'dispatch.message.body']);
+
     // Conversation detail + actions.
     $routes->get('(:num)',            'Dispatch::show/$1',        ['as' => 'dispatch.show']);
     $routes->post('(:num)/claim',     'Dispatch::claim/$1',       ['as' => 'dispatch.claim']);
@@ -100,6 +105,8 @@ $routes->group('api/v1/dispatch', [
 ], function (RouteCollection $routes): void {
     $routes->get('conversations',            'DispatchApiController::listConversations');
     $routes->get('conversations/(:num)',     'DispatchApiController::showConversation/$1');
+    // Hilos grandes (etapa 3): mismas reglas de caché/acceso que el endpoint web.
+    $routes->get('conversations/(:num)/messages/(:num)/body', 'DispatchApiController::messageBody/$1/$2');
     $routes->get('attachments/(:num)',       'DispatchApiController::downloadAttachment/$1');
     $routes->post('conversations/(:num)/claim',  'DispatchApiController::claim/$1');
     $routes->post('conversations/(:num)/release', 'DispatchApiController::release/$1');

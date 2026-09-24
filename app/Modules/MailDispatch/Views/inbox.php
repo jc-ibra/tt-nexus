@@ -492,23 +492,9 @@ $initials = static function (?string $name, ?string $email): string {
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<script src="<?= asset_url('js/maildispatch-thread.js') ?>"></script>
 <script>
 var MD_CSRF = { header: '<?= csrf_header() ?>', hash: '<?= csrf_hash() ?>' };
-
-// Ajuste de altura del iframe del correo (usado por el panel de lectura).
-// El iframe toma la altura de su contenido; el panel de lectura hace el scroll.
-function mdFitFrame(f) {
-  try {
-    var d = f.contentWindow.document;
-    var fit = function () {
-      var h = Math.max(d.body ? d.body.scrollHeight : 0, d.documentElement ? d.documentElement.scrollHeight : 0);
-      if (h > 0) { f.style.height = (h + 24) + 'px'; }
-    };
-    fit();
-    Array.prototype.forEach.call(d.images || [], function (img) { if (!img.complete) { img.addEventListener('load', fit); } });
-    setTimeout(fit, 300);
-  } catch (e) {}
-}
 
 (function () {
   var reader = document.getElementById('gm-reader');
@@ -556,7 +542,14 @@ function mdFitFrame(f) {
     reader.innerHTML = '<div class="md-pane-msg">Cargando…</div>';
     fetch(row.dataset.preview, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.text(); })
-      .then(function (html) { reader.innerHTML = html; if (history.replaceState) history.replaceState(null, '', '#c' + row.dataset.id); })
+      .then(function (html) {
+        reader.innerHTML = html;
+        if (history.replaceState) history.replaceState(null, '', '#c' + row.dataset.id);
+        // reader.innerHTML acaba de reemplazarse: los listeners delegados de
+        // MDThread.init() (más abajo) siguen valiendo, pero el mensaje más
+        // reciente de ESTE panel hay que hidratarlo de nuevo.
+        MDThread.autoOpen(reader);
+      })
       .catch(function () { reader.innerHTML = '<div class="md-pane-msg">No se pudo cargar la conversación.</div>'; });
   }
 
@@ -570,23 +563,10 @@ function mdFitFrame(f) {
     });
   });
 
-  // Delegación: colapsar/expandir mensajes dentro del panel.
+  // Colapsar/expandir mensajes y "ver anteriores" dentro del panel: un solo
+  // init() basta (delega sobre `reader`, que no se reemplaza entre cargas).
   if (reader) {
-    reader.addEventListener('click', function (e) {
-      var head = e.target.closest('.md-msg-head');
-      if (!head) return;
-      var msg = head.closest('.md-msg');
-      var collapsed = msg.classList.toggle('is-collapsed');
-      head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      if (!collapsed) {
-        var f = msg.querySelector('.md-msg-body-frame');
-        if (f) {
-          // Hidratar el cuerpo diferido: recién ahora se piden sus imágenes.
-          if (f.dataset.srcdoc !== undefined) { f.srcdoc = f.dataset.srcdoc; delete f.dataset.srcdoc; }
-          setTimeout(function () { mdFitFrame(f); }, 30);
-        }
-      }
-    });
+    MDThread.init(reader);
   }
 
   // Acción rápida (POST vía AJAX) para "Tomar", tanto en la fila como en el panel.

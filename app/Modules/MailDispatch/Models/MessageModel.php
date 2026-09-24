@@ -166,6 +166,11 @@ class MessageModel extends Model
         . 'references_header, direction, from_name, from_email, to_recipients, cc_recipients, subject, '
         . 'body_preview, body, body_is_html, has_attachments, attachment_names, received_at, created_at';
 
+    /** Same as THREAD_COLUMNS but without `body`: what a paginated thread page renders. */
+    private const META_COLUMNS = 'id, conversation_id, graph_id, internet_message_id, in_reply_to, '
+        . 'references_header, direction, from_name, from_email, to_recipients, cc_recipients, subject, '
+        . 'body_preview, body_is_html, has_attachments, attachment_names, received_at, created_at';
+
     /**
      * Full thread for a conversation, oldest first. Excludes body_text: it only
      * feeds the FULLTEXT search index (see snippetsFor()/matchIds() below) and
@@ -179,6 +184,100 @@ class MessageModel extends Model
             ->orderBy('received_at', 'ASC')
             ->orderBy('id', 'ASC')
             ->findAll();
+    }
+
+    // -----------------------------------------------------------------------
+    // Hilo paginado (etapa 3): sin `body`, más recientes primero, por cursor
+    // -----------------------------------------------------------------------
+
+    /**
+     * One page of a thread's metadata (everything the collapsed view needs
+     * except the body), most recent first. `$before` — the {id, received_at} of
+     * the oldest message already shown — asks for the page right before it.
+     *
+     * Paginated by cursor, not by offset: with offset, a mail that arrives
+     * while the agent is reading would shift the whole window and the next
+     * page would re-show a message already on screen. The cursor compares the
+     * full sort key (received_at, id), so ties on received_at neither repeat
+     * nor skip a row.
+     *
+     * @param array{id:int,received_at:?string}|null $before
+     */
+    public function forConversationMeta(int $conversationId, int $limit = 25, ?array $before = null): array
+    {
+        $q = $this->select(self::META_COLUMNS)
+            ->select('LEFT(body_text, 240) AS body_excerpt', false)
+            ->where('conversation_id', $conversationId);
+
+        if ($before !== null) {
+            $q = $q->where($this->cursorSql($before), null, false);
+        }
+
+        return $q->orderBy('received_at', 'DESC')->orderBy('id', 'DESC')->limit($limit)->findAll();
+    }
+
+    /**
+     * Count of a conversation's messages, or of only those before `$before` —
+     * used both for the total shown in the header and for "Ver N mensajes
+     * anteriores" (same cursor predicate as forConversationMeta(), so the
+     * number and the next page never disagree).
+     *
+     * @param array{id:int,received_at:?string}|null $before
+     */
+    public function countForConversation(int $conversationId, ?array $before = null): int
+    {
+        $q = $this->where('conversation_id', $conversationId);
+        if ($before !== null) {
+            $q = $q->where($this->cursorSql($before), null, false);
+        }
+
+        return $q->countAllResults();
+    }
+
+    /** The {id, received_at} of a message, for use as a pagination cursor. Null if it isn't in that conversation. */
+    public function cursorFor(int $messageId, int $conversationId): ?array
+    {
+        $row = $this->select('id, received_at')
+            ->where('id', $messageId)
+            ->where('conversation_id', $conversationId)
+            ->first();
+
+        return $row === null ? null : ['id' => (int) $row['id'], 'received_at' => $row['received_at']];
+    }
+
+    /**
+     * A single message's body, for the "load on demand" endpoint. Scoped to a
+     * conversation id so a caller can't fetch a message that isn't actually
+     * part of the conversation they were granted (the real access check is the
+     * route's auth + module_access filters; this only rules out an id mismatch).
+     */
+    public function bodyFor(int $messageId, int $conversationId): ?array
+    {
+        return $this->select('id, conversation_id, body, body_preview, body_is_html, to_recipients, cc_recipients, created_at')
+            ->where('id', $messageId)
+            ->where('conversation_id', $conversationId)
+            ->first();
+    }
+
+    /**
+     * Raw SQL for "strictly before this cursor" under (received_at DESC, id
+     * DESC). `received_at` is nullable: a null is ordered as the oldest
+     * possible row (how MySQL already sorts NULL last in DESC), so a message
+     * without a date is never skipped or duplicated across pages.
+     *
+     * @param array{id:int,received_at:?string} $cursor
+     */
+    private function cursorSql(array $cursor): string
+    {
+        $id = (int) $cursor['id'];
+        $ts = $cursor['received_at'] ?? null;
+
+        if ($ts === null) {
+            return 'received_at IS NULL AND id < ' . $id;
+        }
+
+        $tsSql = $this->db->escape($ts);
+        return '(received_at IS NULL OR received_at < ' . $tsSql . ' OR (received_at = ' . $tsSql . ' AND id < ' . $id . '))';
     }
 
     // -----------------------------------------------------------------------

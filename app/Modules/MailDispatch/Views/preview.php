@@ -30,25 +30,6 @@ $initials = function (?string $name, ?string $email): string {
     $ini = mb_strtoupper($a . $b);
     return $ini !== '' ? $ini : '?';
 };
-$fmtSize = function (int $bytes): string {
-    if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
-    if ($bytes >= 1024)    return round($bytes / 1024) . ' KB';
-    return $bytes . ' B';
-};
-$attUrl = fn (int $id): string => base_url('dispatch/attachments/' . $id);
-
-// "a@x.com, b@y.com" -> lista limpia de direcciones.
-$addrList = static function (?string $raw): array {
-    $parts = preg_split('/[,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-    $out   = [];
-    foreach ($parts as $p) {
-        $p = trim($p);
-        if ($p !== '') {
-            $out[$p] = $p;
-        }
-    }
-    return array_values($out);
-};
 ?>
 
 <div class="md-pane-head">
@@ -121,93 +102,15 @@ $addrList = static function (?string $raw): array {
   <?php if (empty($messages)): ?>
     <p class="text-muted" style="padding:var(--space-4);">Sin mensajes en el hilo.</p>
   <?php endif; ?>
-  <?php foreach (array_reverse($messages) as $i => $m): $out = $m['direction'] === 'out'; $collapsed = $i > 0; ?>
-    <?php
-      // Destinatarios reales del correo. Aquí son solo texto: el panel no tiene
-      // formulario de respuesta, así que no hay campo de copia al cual sumarlos.
-      // Se calculan antes del encabezado porque ahí se avisa cuántos van en copia.
-      $toAddrs = $addrList($m['to_recipients'] ?? '');
-      $ccAddrs = $addrList($m['cc_recipients'] ?? '');
-    ?>
-    <div class="md-msg <?= $out ? 'out' : 'in' ?><?= $collapsed ? ' is-collapsed' : '' ?>">
-      <div class="md-msg-head" role="button" tabindex="0" aria-expanded="<?= $collapsed ? 'false' : 'true' ?>">
-        <span class="md-avatar <?= $out ? 'out' : 'in' ?>"><?= esc($initials($m['from_name'] ?? '', $m['from_email'] ?? '')) ?></span>
-        <div class="md-msg-who">
-          <div class="md-msg-name"><?= esc($m['from_name'] ?: ($m['from_email'] ?: 'Remitente desconocido')) ?></div>
-          <?php if (! empty($m['from_email']) && $m['from_email'] !== $m['from_name']): ?>
-            <div class="md-msg-from"><?= esc($m['from_email']) ?></div>
-          <?php endif; ?>
-        </div>
-        <div class="md-msg-side">
-          <span class="badge badge-<?= $out ? 'success' : 'info' ?>"><?= $out ? 'Saliente' : 'Entrante' ?></span>
-          <span class="md-msg-time"><?= esc($fmtDate($m['received_at'] ?? null)) ?></span>
-          <?php if ($ccAddrs !== []): ?>
-            <span class="md-cc-flag" title="<?= esc(implode(', ', $ccAddrs), 'attr') ?>">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <?= count($ccAddrs) ?> en copia
-            </span>
-          <?php endif; ?>
-        </div>
-        <span class="md-msg-toggle" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </span>
-      </div>
-
-      <?php
-        // Mismo criterio que la vista del hilo: sin CSS, sin tags, sin entidades.
-        $fp   = \App\Modules\MailDispatch\Services\ForwardParser::class;
-        $prev = $fp::plainText((string) ($m['body_preview'] ?? ''), 160);
-        if ($prev === '') {
-            $prev = $fp::plainText((string) ($m['body'] ?? ''), 160);
-        }
-      ?>
-      <div class="md-msg-preview"><?= esc($prev) ?></div>
-
-      <?php
-        $isHtml     = (int) $m['body_is_html'] === 1 && trim((string) $m['body']) !== '';
-        // El controlador ya resolvió los cid: embebidos (con tope) y separó
-        // los demás adjuntos como archivos descargables.
-        $renderBody = (string) ($m['render_body'] ?? $m['body']);
-        $files      = is_array($m['files'] ?? null) ? $m['files'] : ($m['attachments'] ?? []);
-      ?>
-      <div class="md-msg-collapsible">
-        <?php if ($toAddrs !== [] || $ccAddrs !== []): ?>
-          <div class="md-recipients">
-            <?php foreach (['Para' => $toAddrs, 'CC' => $ccAddrs] as $label => $addrs): ?>
-              <?php if ($addrs !== []): ?>
-                <div class="md-recipients-row<?= $label === 'CC' ? ' is-cc' : '' ?>">
-                  <span class="md-recipients-label"><?= $label ?><?php if (count($addrs) > 1): ?><span class="md-recipients-count"><?= count($addrs) ?></span><?php endif; ?></span>
-                  <span class="md-recipients-list">
-                    <?php foreach ($addrs as $addr): ?><span class="md-addr"><?= esc($addr) ?></span><?php endforeach; ?>
-                  </span>
-                </div>
-              <?php endif; ?>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
-
-        <?php if ($files !== []): ?>
-          <div class="md-attachments">
-            <?php foreach ($files as $a): ?>
-              <a class="md-chip" href="<?= esc($attUrl((int) $a['id']), 'attr') ?>" target="_blank" rel="noopener"
-                 <?= empty($a['storage_path']) ? 'aria-disabled="true" style="opacity:.55; pointer-events:none;"' : '' ?>>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                <span class="md-chip-name"><?= esc($a['filename']) ?></span>
-                <span class="md-chip-size"><?= esc($fmtSize((int) ($a['size_bytes'] ?? 0))) ?></span>
-              </a>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
-
-        <?php if ($isHtml): ?>
-          <?php // Mensajes colapsados: cuerpo diferido, ver inbox.php (toggle) para la hidratación. ?>
-          <iframe class="md-msg-body-frame" sandbox="allow-same-origin"
-                  <?= $collapsed ? 'data-srcdoc' : 'srcdoc' ?>="<?= esc($renderBody, 'attr') ?>"
-                  onload="if (window.mdFitFrame) mdFitFrame(this)"></iframe>
-        <?php else: ?>
-          <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
-        <?php endif; ?>
-      </div>
-    </div>
+  <?php if (! empty($olderUrl)): ?>
+    <button type="button" class="btn btn-secondary" data-load-older="<?= esc($olderUrl, 'attr') ?>" style="width:100%; margin-bottom:var(--space-4);">
+      Ver <?= (int) $olderRemaining ?> mensajes anteriores
+    </button>
+  <?php endif; ?>
+  <?php /* Ya vienen del más reciente al más antiguo (ORDER BY received_at DESC); el más reciente abierto, los demás colapsados. */ ?>
+  <?php foreach ($messages as $i => $m): ?>
+    <?= view('App\Modules\MailDispatch\Views\_message_row', [
+        'm' => $m, 'conv' => $conv, 'collapsed' => $i > 0, 'canForward' => false, 'pane' => true,
+    ]) ?>
   <?php endforeach; ?>
 </div>
