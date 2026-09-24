@@ -57,9 +57,11 @@ class DispatchApiController extends BaseApiController
             return $this->notFound('Conversación no encontrada.');
         }
         $messages = (new MessageModel())->forConversation($id);
-        $attModel = new AttachmentModel();
+        $attsByMessage = (new AttachmentModel())->forMessages(
+            array_map(static fn(array $m): int => (int) $m['id'], $messages)
+        );
         foreach ($messages as &$m) {
-            $m['attachments'] = $attModel->forMessage((int) $m['id']);
+            $m['attachments'] = $attsByMessage[(int) $m['id']] ?? [];
         }
         unset($m);
 

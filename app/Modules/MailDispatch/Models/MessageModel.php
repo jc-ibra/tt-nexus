@@ -161,10 +161,21 @@ class MessageModel extends Model
         return $row ? (int) $row['conversation_id'] : null;
     }
 
-    /** Full thread for a conversation, oldest first. */
+    /** Columns the thread view/API actually render — everything but body_text. */
+    private const THREAD_COLUMNS = 'id, conversation_id, graph_id, internet_message_id, in_reply_to, '
+        . 'references_header, direction, from_name, from_email, to_recipients, cc_recipients, subject, '
+        . 'body_preview, body, body_is_html, has_attachments, attachment_names, received_at, created_at';
+
+    /**
+     * Full thread for a conversation, oldest first. Excludes body_text: it only
+     * feeds the FULLTEXT search index (see snippetsFor()/matchIds() below) and
+     * can run up to BODY_TEXT_LIMIT chars per message — dead weight on every
+     * thread render.
+     */
     public function forConversation(int $conversationId): array
     {
-        return $this->where('conversation_id', $conversationId)
+        return $this->select(self::THREAD_COLUMNS)
+            ->where('conversation_id', $conversationId)
             ->orderBy('received_at', 'ASC')
             ->orderBy('id', 'ASC')
             ->findAll();

@@ -32,6 +32,30 @@ class AttachmentModel extends Model
         return $this->where('message_id', $messageId)->orderBy('id', 'ASC')->findAll();
     }
 
+    /**
+     * Attachments for several messages in one query, grouped by message_id —
+     * for rendering a full thread, where calling forMessage() per message in a
+     * loop turns into one query per message.
+     *
+     * @param  int[] $messageIds
+     * @return array<int,array<int,array<string,mixed>>> message_id => attachments, oldest first
+     */
+    public function forMessages(array $messageIds): array
+    {
+        if ($messageIds === []) {
+            return [];
+        }
+
+        $rows = $this->whereIn('message_id', $messageIds)->orderBy('id', 'ASC')->findAll();
+
+        $byMessage = [];
+        foreach ($rows as $row) {
+            $byMessage[(int) $row['message_id']][] = $row;
+        }
+
+        return $byMessage;
+    }
+
     /** Only the inline (cid-referenced) attachments of a message. */
     public function inlineForMessage(int $messageId): array
     {

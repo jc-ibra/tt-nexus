@@ -22,6 +22,19 @@ class MailDispatchSettingsModel
     private BaseConnection $db;
     private CredentialCipher $cipher;
 
+    /**
+     * Per-request memo, keyed by setting key: {exists: bool, value: string}.
+     * This service is a shared instance for the whole request (see
+     * Config\Services::mailDispatchSettings()), and a single dispatch page
+     * load reads the same handful of keys many times over (SLA thresholds,
+     * calendar flags) — each previously its own SELECT with no caching at all.
+     * Not invalidated across requests, which is fine: settings only change
+     * from the SuperAdmin panel, a separate request.
+     *
+     * @var array<string, array{exists: bool, value: string}>
+     */
+    private array $memo = [];
+
     public function __construct(?CredentialCipher $cipher = null)
     {
         $this->db     = \Config\Database::connect();
@@ -30,14 +43,20 @@ class MailDispatchSettingsModel
 
     public function get(string $key, string $default = ''): string
     {
-        $row = $this->db->table('maildispatch_settings')->where('key', $key)->get()->getRow();
-        $val = $row ? (string) $row->value : $default;
+        if (! array_key_exists($key, $this->memo)) {
+            $row = $this->db->table('maildispatch_settings')->where('key', $key)->get()->getRow();
+            $val = $row ? (string) $row->value : '';
 
-        if ($val !== '' && in_array($key, self::ENCRYPTED_KEYS, true)) {
-            return $this->cipher->decrypt($val);
+            if ($val !== '' && in_array($key, self::ENCRYPTED_KEYS, true)) {
+                $val = $this->cipher->decrypt($val);
+            }
+
+            $this->memo[$key] = ['exists' => $row !== null, 'value' => $val];
         }
 
-        return $val;
+        $cached = $this->memo[$key];
+
+        return $cached['exists'] ? $cached['value'] : $default;
     }
 
     public function getAll(): array
@@ -87,6 +106,8 @@ class MailDispatchSettingsModel
                 'updated_at' => $now,
             ]);
         }
+
+        unset($this->memo[$key]);
     }
 
     public function setMany(array $data): void
