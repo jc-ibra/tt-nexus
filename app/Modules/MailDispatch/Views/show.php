@@ -424,9 +424,17 @@ $isOutbound = ! empty($conv['outbound_only']);
               // hilo largo dispara una petición de adjunto por cada imagen
               // embebida de CADA mensaje, aunque esté oculto.
             ?>
+            <?php
+              // Un iframe con data-srcdoc no lleva src/srcdoc real, así que su
+              // about:blank inicial dispara onload casi de inmediato — antes
+              // de que el <script> de más abajo (que define mdFitFrame) se
+              // haya ejecutado. Guardado defensivo; el ajuste real ocurre al
+              // hidratar (ver el toggle de colapsar/expandir) o en el barrido
+              // inicial al final de este archivo.
+            ?>
             <iframe class="md-msg-body-frame" sandbox="allow-same-origin"
                     <?= $collapsed ? 'data-srcdoc' : 'srcdoc' ?>="<?= esc($renderBody, 'attr') ?>"
-                    onload="mdFitFrame(this)"></iframe>
+                    onload="if (window.mdFitFrame) mdFitFrame(this)"></iframe>
           <?php else: ?>
             <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
           <?php endif; ?>
@@ -759,6 +767,11 @@ function mdFitFrame(f) {
     setTimeout(fit, 300);
   } catch (e) { /* cross-origin u otro: se queda con min-height */ }
 }
+// Barrido inicial: cubre el caso en que el onload de algún iframe ya corrió
+// (antes de que esta función existiera) y se perdió silenciosamente por el
+// guardado de arriba. Inofensivo sobre los colapsados (about:blank, no mide
+// nada) y necesario para el mensaje expandido si su srcdoc cargó rápido.
+Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
 window.addEventListener('resize', function () {
   Array.prototype.forEach.call(document.querySelectorAll('.md-msg-body-frame'), mdFitFrame);
 });

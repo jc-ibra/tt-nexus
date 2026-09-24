@@ -203,7 +203,7 @@ $addrList = static function (?string $raw): array {
           <?php // Mensajes colapsados: cuerpo diferido, ver inbox.php (toggle) para la hidratación. ?>
           <iframe class="md-msg-body-frame" sandbox="allow-same-origin"
                   <?= $collapsed ? 'data-srcdoc' : 'srcdoc' ?>="<?= esc($renderBody, 'attr') ?>"
-                  onload="mdFitFrame(this)"></iframe>
+                  onload="if (window.mdFitFrame) mdFitFrame(this)"></iframe>
         <?php else: ?>
           <pre class="md-msg-pre"><?= esc($m['body'] !== '' ? $m['body'] : ($m['body_preview'] ?? '')) ?></pre>
         <?php endif; ?>
