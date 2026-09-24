@@ -53,6 +53,13 @@ $routes->group('helpdesk-supervisor', [
     $routes->post('notifications/(:num)/send',       'Notifications::send/$1',     ['as' => 'helpdesk.notifications.send']);
     $routes->post('notifications/(:num)/delete',     'Notifications::destroy/$1',  ['as' => 'helpdesk.notifications.delete']);
 
+    // Attendance mirror (single attendance supervisor, enforced in the controller):
+    // pending permit approvals, incidence summary, full history + Excel export.
+    $routes->get('attendance',                     'Attendance::index',        ['as' => 'helpdesk.attendance.index']);
+    $routes->get('attendance/export',              'Attendance::export',       ['as' => 'helpdesk.attendance.export']);
+    $routes->post('attendance/permits/(:num)/approve', 'Attendance::approvePermit/$1', ['as' => 'helpdesk.attendance.permits.approve']);
+    $routes->post('attendance/permits/(:num)/reject',  'Attendance::rejectPermit/$1',  ['as' => 'helpdesk.attendance.permits.reject']);
+
     // Settings
     $routes->get('settings',                 'Settings::index', ['as' => 'helpdesk.settings']);
     $routes->post('settings',                'Settings::save',  ['as' => 'helpdesk.settings.save']);
@@ -103,6 +110,11 @@ $routes->group('api/v1/helpdesk-supervisor', [
     $routes->post('escalations',          'HelpdeskSupervisorApiController::escalationsCreate');
     $routes->put('escalations/(:num)',    'HelpdeskSupervisorApiController::escalationsUpdate/$1');
     $routes->delete('escalations/(:num)', 'HelpdeskSupervisorApiController::escalationsDelete/$1');
+
+    // Attendance mirror (mirror of the web actions).
+    $routes->get('attendance',                          'AttendanceApiController::index');
+    $routes->post('attendance/permits/(:num)/approve',  'AttendanceApiController::approvePermit/$1');
+    $routes->post('attendance/permits/(:num)/reject',   'AttendanceApiController::rejectPermit/$1');
 
     // Notifications (Fase 2)
     $routes->get('notifications',                 'HelpdeskSupervisorApiController::notificationsIndex');

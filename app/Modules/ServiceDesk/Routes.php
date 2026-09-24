@@ -26,6 +26,11 @@ $routes->group('servicedesk', [
     // Assignment matrix: read-only for the whole team (who answers what, and how)
     $routes->get('asignaciones', 'Assignments::index', ['as' => 'servicedesk.assignments']);
 
+    // Attendance: agent check-in/out + the whole team's week (transparency)
+    $routes->get('asistencia',          'Attendance::index',    ['as' => 'servicedesk.attendance']);
+    $routes->post('asistencia/entrada', 'Attendance::checkIn',  ['as' => 'servicedesk.attendance.checkin']);
+    $routes->post('asistencia/salida',  'Attendance::checkOut', ['as' => 'servicedesk.attendance.checkout']);
+
     // Agent self-view: my audited deviations (confirmed) + escalations
     $routes->get('mi-desempeno', 'MyPerformance::index', ['as' => 'servicedesk.myperformance']);
 
@@ -85,6 +90,8 @@ $routes->group('admin/servicedesk', [
     // Assignment matrix: replace it from a workbook, and map each name to a user.
     $routes->post('assignments',        'ServiceDeskAdmin::saveAssignments',      ['as' => 'servicedesk.assignments.upload']);
     $routes->post('assignments/agents', 'ServiceDeskAdmin::saveAssignmentAgents', ['as' => 'servicedesk.assignments.agents.save']);
+    // Attendance: master switch, expected check-in, tolerance, approving supervisor.
+    $routes->post('attendance',         'ServiceDeskAdmin::saveAttendance', ['as' => 'servicedesk.attendance.save']);
     // Live preview of the introspected plugin containers/fields.
     $routes->get('schema',         'ServiceDeskAdmin::schema',       ['as' => 'servicedesk.schema']);
     // Public self-service landing config (enable, title/intro, key, rate limit).
@@ -168,4 +175,9 @@ $routes->group('api/v1/servicedesk', [
     $routes->post('creator/columns', 'TicketCreatorApiController::columns');
     $routes->post('creator/chat',    'TicketCreatorApiController::chat');
     $routes->post('creator/tickets', 'TicketCreatorApiController::create');
+
+    // Attendance (mirror of the web actions). Always scoped to the token's own user.
+    $routes->get('attendance',          'AttendanceApiController::index');
+    $routes->post('attendance/checkin', 'AttendanceApiController::checkIn');
+    $routes->post('attendance/checkout', 'AttendanceApiController::checkOut');
 });

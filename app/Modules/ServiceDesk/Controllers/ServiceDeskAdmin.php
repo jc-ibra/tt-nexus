@@ -83,7 +83,25 @@ class ServiceDeskAdmin extends BaseController
             'assignFilename'  => $stored[AssignmentMatrixImporter::KEY_FILENAME] ?? '',
             'assignUsers'     => (new UserModel())
                 ->select('id, name, email')->where('status', 'active')->orderBy('name', 'ASC')->findAll(),
+            // Attendance tab: schedule tolerance + the single approving supervisor.
+            'attendanceEnabled'      => service('serviceDeskAttendance')->enabled(),
+            'attendanceCheckin'      => service('serviceDeskAttendance')->expectedCheckin(),
+            'attendanceTolerance'    => service('serviceDeskAttendance')->toleranceMinutes(),
+            'attendanceSupervisorId' => service('serviceDeskAttendance')->supervisorUserId(),
+            'attendanceUsers'        => (new UserModel())
+                ->select('id, name, email')->where('status', 'active')->orderBy('name', 'ASC')->findAll(),
         ]);
+    }
+
+    /**
+     * Saves the attendance configuration: master switch, expected check-in
+     * time, late tolerance, and which single Nexus user reviews permits.
+     */
+    public function saveAttendance(): ResponseInterface
+    {
+        $result = service('serviceDeskAttendance')->saveSettings($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#asistencia')
+            ->with($result->success ? 'success' : 'error', $result->message);
     }
 
     /**
