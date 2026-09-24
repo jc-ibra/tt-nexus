@@ -170,13 +170,15 @@ $icons = [
               <td class="att-name<?= $row['user_id'] === $myUserId ? ' att-me' : '' ?>">
                 <?= esc($row['name']) ?><?= $row['user_id'] === $myUserId ? ' <span class="text-muted text-xs">(tú)</span>' : '' ?>
               </td>
-              <?php foreach ($board['days'] as $day): $cell = $row['cells'][$day]; ?>
+              <?php foreach ($board['days'] as $day): $cell = $row['cells'][$day]; $isTodayCell = $day === date('Y-m-d'); $isWeekdayCell = (int) date('N', strtotime($day)) <= 5; ?>
                 <td class="<?= $row['user_id'] === $myUserId ? 'att-me' : '' ?>">
                   <?php if ($cell['is_future']): ?>
                     <span class="att-cell-empty">·</span>
                   <?php elseif (! $cell['has_log']): ?>
                     <?php if ($cell['is_absent']): ?>
                       <span class="badge badge-critical">No reportó</span>
+                    <?php elseif ($isTodayCell && $isWeekdayCell): ?>
+                      <span class="badge badge-warning">Pendiente</span>
                     <?php else: ?>
                       <span class="att-cell-empty">·</span>
                     <?php endif; ?>
