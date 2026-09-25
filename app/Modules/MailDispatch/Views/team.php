@@ -314,7 +314,7 @@ $chips = [
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Equipo</h1>
-    <p class="page-subtitle">Qué trae cada agente en este momento.</p>
+    <p class="page-subtitle">Qué trae cada agente en este momento. Se actualiza solo cada minuto.</p>
     <?php if (! empty($totals['businessHours'])): ?>
       <p class="page-subtitle" style="margin-top:var(--space-1);">
         Tiempos en horas hábiles: <?= esc($totals['scheduleSummary']) ?>
@@ -639,6 +639,17 @@ $chips = [
     var m = (location.hash || '').match(/^#f=(\w+)$/);
     if (m && chips.some(function (c) { return c.dataset.filter === m[1]; })) apply(m[1]);
   })();
+
+  // Auto-refresco. Este tablero no consulta el buzón (no hay adjuntos que
+  // procesar), así que no pega contra el límite de procesos de la cuenta
+  // compartida. Se pospone mientras el despachador tiene un select abierto o
+  // hay una reasignación en vuelo, para no tumbarle la interacción.
+  setInterval(function () {
+    if (busy) return;
+    var el = document.activeElement;
+    if (el && el.tagName === 'SELECT') return;
+    location.reload();
+  }, 60000);
 })();
 </script>
 
