@@ -60,6 +60,10 @@ $routes->group('helpdesk-supervisor', [
     $routes->post('attendance/permits/(:num)/approve', 'Attendance::approvePermit/$1', ['as' => 'helpdesk.attendance.permits.approve']);
     $routes->post('attendance/permits/(:num)/reject',  'Attendance::rejectPermit/$1',  ['as' => 'helpdesk.attendance.permits.reject']);
 
+    // CSAT survey (mirror of MailDispatch's survey, read via service).
+    $routes->get('satisfaction',        'Satisfaction::index',  ['as' => 'helpdesk.satisfaction']);
+    $routes->get('satisfaction/export', 'Satisfaction::export', ['as' => 'helpdesk.satisfaction.export']);
+
     // Settings
     $routes->get('settings',                 'Settings::index', ['as' => 'helpdesk.settings']);
     $routes->post('settings',                'Settings::save',  ['as' => 'helpdesk.settings.save']);
@@ -115,6 +119,11 @@ $routes->group('api/v1/helpdesk-supervisor', [
     $routes->get('attendance',                          'AttendanceApiController::index');
     $routes->post('attendance/permits/(:num)/approve',  'AttendanceApiController::approvePermit/$1');
     $routes->post('attendance/permits/(:num)/reject',   'AttendanceApiController::rejectPermit/$1');
+
+    // CSAT survey (mirror of the web satisfaction screen).
+    $routes->get('satisfaction',        'HelpdeskSupervisorApiController::satisfaction');
+    $routes->get('satisfaction/stats',  'HelpdeskSupervisorApiController::satisfactionStats');
+    $routes->get('satisfaction/export', 'HelpdeskSupervisorApiController::satisfactionExport');
 
     // Notifications (Fase 2)
     $routes->get('notifications',                 'HelpdeskSupervisorApiController::notificationsIndex');

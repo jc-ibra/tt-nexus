@@ -25,7 +25,8 @@ class ReplyService
         private GraphMailService $graph,
         private ConversationModel $conversations,
         private MessageModel $messages,
-        private EventModel $events
+        private EventModel $events,
+        private ?SurveyService $survey = null
     ) {}
 
     /** Máximo de copias manuales por respuesta (igual que en SMTP). */
@@ -70,7 +71,15 @@ class ReplyService
         }
 
         $html = $this->toHtml($body);
-        $res  = $this->graph->reply($target['graph_id'], $html, $ccList);
+        // The CSAT survey block is appended only to what goes OUT over Graph;
+        // the stored $html stays exactly what the agent wrote, same as before.
+        $surveyHtml = $this->survey?->replyBlock(
+            $conversationId,
+            $userId,
+            (string) ($conv['requester_email'] ?? ''),
+            $ccList
+        ) ?? '';
+        $res = $this->graph->reply($target['graph_id'], $html . $surveyHtml, $ccList);
         if (! $res['success']) {
             return ServiceResult::fail('No se pudo enviar la respuesta: ' . $res['error']);
         }

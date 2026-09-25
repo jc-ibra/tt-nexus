@@ -10,6 +10,7 @@ $eventLabels = [
     'assign' => 'Asignación', 'reassign' => 'Reasignación', 'unassign' => 'Liberación',
     'status' => 'Cambio de estado', 'close' => 'Cierre', 'reopen' => 'Reapertura', 'note' => 'Nota',
     'forward' => 'Reenvío', 'verify' => 'Verificación', 'autoclose' => 'Autoarchivo', 'autogen' => 'Autogestión',
+    'survey' => 'Encuesta',
 ];
 
 // Reenviar usa la misma puerta que responder: envío activo, y la conversación
@@ -558,6 +559,51 @@ $isOutbound = ! empty($conv['outbound_only']);
       </div>
     </div>
 
+    <!-- CSAT survey -->
+    <?php if (! empty($survey)): ?>
+      <?php
+        $mdConfig = new \App\Modules\MailDispatch\Config\MailDispatch();
+        $tk       = $survey['token'];
+        $sep      = 'margin-top:var(--space-3); padding-top:var(--space-3); border-top:1px solid var(--border-default);';
+      ?>
+      <div class="card">
+        <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2);">
+          <h2 class="card-title">Satisfacción</h2>
+          <span class="text-sm text-muted"><?= (int) $survey['used'] ?> de <?= (int) $survey['max'] ?></span>
+        </div>
+        <div class="card-body">
+          <?php foreach ($survey['responses'] as $i => $r): ?>
+            <div style="<?= $i > 0 ? $sep : '' ?>">
+              <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2);">
+                <span class="badge badge-<?= esc($mdConfig->surveyRatingTones[(int) $r['rating']] ?? 'neutral') ?>"><?= (int) $r['rating'] ?> / 5</span>
+                <span class="text-sm text-muted">Resuelto: <?= esc($mdConfig->surveyResolvedLabels[$r['resolved']] ?? $r['resolved']) ?></span>
+              </div>
+              <?php if (! empty($r['comment'])): ?>
+                <p class="text-sm" style="margin-bottom:var(--space-2);"><?= esc($r['comment']) ?></p>
+              <?php endif; ?>
+              <p class="md-meta">Respondida el <?= esc($fmtDate($r['responded_at'])) ?></p>
+            </div>
+          <?php endforeach; ?>
+
+          <?php $withSep = $survey['responses'] !== [] ? $sep : ''; ?>
+          <?php if ($survey['state'] === 'pending'): ?>
+            <p class="text-muted text-sm" style="<?= $withSep ?>">
+              <?php if ($survey['responses'] === []): ?>
+                Encuesta enviada el <?= esc($fmtDate($tk['last_sent_at'] ?? $tk['created_at'])) ?>. Sin respuesta todavía.
+              <?php endif; ?>
+              Quedan <?= (int) $survey['remaining'] ?> de <?= (int) $survey['max'] ?> respuestas por recibir. Vence el <?= esc($fmtDate($tk['expires_at'])) ?>.
+            </p>
+          <?php elseif ($survey['state'] === 'full'): ?>
+            <p class="text-muted text-sm" style="<?= $withSep ?>">Se alcanzó el máximo de <?= (int) $survey['max'] ?> respuestas.</p>
+          <?php elseif ($survey['state'] === 'expired'): ?>
+            <p class="text-muted text-sm" style="<?= $withSep ?>">Se envió el <?= esc($fmtDate($tk['last_sent_at'] ?? $tk['created_at'])) ?>. El enlace venció el <?= esc($fmtDate($tk['expires_at'])) ?><?= $survey['responses'] === [] ? ' sin respuesta' : '' ?>.</p>
+          <?php else: ?>
+            <p class="text-muted text-sm" style="<?= $withSep ?>">Encuesta cancelada.</p>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <!-- Timeline -->
     <div class="card">
       <div class="card-header"><h2 class="card-title">Bitácora</h2></div>
@@ -569,7 +615,7 @@ $isOutbound = ! empty($conv['outbound_only']);
             <?php foreach ($events as $e): ?>
               <li>
                 <strong><?= esc($eventLabels[$e['type']] ?? $e['type']) ?></strong>
-                <?php if ($e['type'] === 'note' && $e['note']): ?>
+                <?php if (in_array($e['type'], ['note', 'survey'], true) && $e['note']): ?>
                   <div><?= esc($e['note']) ?></div>
                 <?php elseif ($e['from_value'] || $e['to_value']): ?>
                   <div class="text-sm"><?= esc($e['from_value'] ?? '-') ?> → <?= esc($e['to_value'] ?? '-') ?></div>

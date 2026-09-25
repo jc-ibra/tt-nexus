@@ -307,6 +307,16 @@ class DispatchApiController extends BaseApiController
         ));
     }
 
+    /** Mirrors the "Satisfacción" card in Dispatch::show() — the CSAT survey state of one conversation. */
+    public function survey(int $id): ResponseInterface
+    {
+        if ((new ConversationModel())->find($id) === null) {
+            return $this->notFound('Conversación no encontrada.');
+        }
+
+        return $this->success(service('mailDispatchSurvey')->forConversation($id));
+    }
+
     public function reply(int $id): ResponseInterface
     {
         $files = $this->request->getFileMultiple('files') ?? [];
@@ -523,6 +533,17 @@ class DispatchApiController extends BaseApiController
         }
 
         return $this->fromResult(service('mailDispatchSettings')->saveSchedule($post));
+    }
+
+    /** CSAT survey settings: kill switch, TTL and the three copy fields. SuperAdmin only. */
+    public function saveSurveySettings(): ResponseInterface
+    {
+        $post = $this->request->getJSON(true);
+        if (! is_array($post)) {
+            $post = (array) $this->request->getRawInput();
+        }
+
+        return $this->fromResult(service('mailDispatchSettings')->saveSurvey($post));
     }
 
     // -----------------------------------------------------------------------

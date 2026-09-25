@@ -79,4 +79,24 @@ class MailDispatch extends BaseConfig
         'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp',
         'application/pdf', 'text/plain',
     ];
+
+    // -----------------------------------------------------------------------
+    // CSAT survey
+    // -----------------------------------------------------------------------
+
+    /** Stored value (English, per CONVENTIONS) => Spanish label. */
+    public array $surveyResolvedLabels = [
+        'yes'     => 'Sí',
+        'partial' => 'Parcial',
+        'no'      => 'No',
+    ];
+
+    /** Rating (1..5) => badge tone. */
+    public array $surveyRatingTones = [
+        1 => 'critical',
+        2 => 'critical',
+        3 => 'warning',
+        4 => 'success',
+        5 => 'success',
+    ];
 }

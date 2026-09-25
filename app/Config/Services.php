@@ -149,6 +149,9 @@ use App\Modules\MailDispatch\Services\MailDispatchMetrics;
 use App\Modules\MailDispatch\Services\MailDispatchSettings;
 use App\Modules\MailDispatch\Services\ReplyService as MailDispatchReplyService;
 use App\Modules\MailDispatch\Services\SmtpReplyService as MailDispatchSmtpReplyService;
+use App\Modules\MailDispatch\Services\SurveyService as MailDispatchSurveyService;
+use App\Modules\MailDispatch\Models\SurveyTokenModel as MailDispatchSurveyTokenModel;
+use App\Modules\MailDispatch\Models\SurveyResponseModel as MailDispatchSurveyResponseModel;
 use App\Modules\MailDispatch\Services\TeamBoardService as MailDispatchTeamBoardService;
 use App\Modules\MailDispatch\Models\AutogenRuleModel as MailDispatchAutogenRuleModel;
 use App\Modules\MailDispatch\Models\AutogenWhitelistModel as MailDispatchAutogenWhitelistModel;
@@ -832,6 +835,7 @@ class Services extends BaseService
                 new MailDispatchMessageModel(),
                 new MailDispatchEventModel(),
                 self::mailDispatchAttachments(),
+                self::mailDispatchSurvey(),
             );
         }
         return new MailDispatchReplyService(
@@ -840,6 +844,23 @@ class Services extends BaseService
             new MailDispatchConversationModel(),
             new MailDispatchMessageModel(),
             new MailDispatchEventModel(),
+            self::mailDispatchSurvey(),
+        );
+    }
+
+    /** CSAT survey appended below the signature on every reply sent from Nexus. */
+    public static function mailDispatchSurvey(bool $getShared = true): MailDispatchSurveyService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('mailDispatchSurvey');
+        }
+        return new MailDispatchSurveyService(
+            self::mailDispatchSettings(),
+            new MailDispatchSurveyTokenModel(),
+            new MailDispatchSurveyResponseModel(),
+            new MailDispatchConversationModel(),
+            new MailDispatchEventModel(),
+            self::credentialCipher(),
         );
     }
 

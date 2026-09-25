@@ -8,6 +8,7 @@ use App\Modules\Core\Filters\ModuleAccessAnyFilter;
 use App\Modules\Core\Filters\ModuleAccessFilter;
 use App\Modules\Core\Filters\NoIndexFilter;
 use App\Modules\Core\Filters\SuperAdminFilter;
+use App\Modules\MailDispatch\Filters\SurveyAccessFilter;
 use App\Modules\ServiceDesk\Filters\LandingAccessFilter;
 use App\Modules\ServiceDesk\Filters\WidgetAccessFilter;
 use App\Modules\TechBot\Filters\TelegramWebhookFilter;
@@ -51,6 +52,7 @@ class Filters extends BaseFilters
         'super_admin'       => SuperAdminFilter::class,
         'widget_access'     => WidgetAccessFilter::class,
         'landing_access'    => LandingAccessFilter::class,
+        'survey_access'     => SurveyAccessFilter::class,
         'techbot_webhook'   => TelegramWebhookFilter::class,
         'helpdesk_glpi_webhook' => GlpiWebhookFilter::class,
         'noindex'           => NoIndexFilter::class,

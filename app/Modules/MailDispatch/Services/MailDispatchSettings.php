@@ -310,6 +310,39 @@ class MailDispatchSettings
     public function autogenAiReady(): bool      { return $this->aiDetectionEnabled() && $this->autogenAiApiKey() !== ''; }
 
     // -----------------------------------------------------------------------
+    // Encuesta de satisfacción (CSAT), anexada a cada respuesta desde Nexus
+    // -----------------------------------------------------------------------
+
+    public function surveyEnabled(): bool { return $this->model->get('survey_enabled', '0') === '1'; }
+
+    /** Días de vigencia del enlace de la encuesta (se extiende en cada reenvío). */
+    public function surveyTtlDays(): int
+    {
+        $n = (int) $this->model->get('survey_ttl_days', '7');
+        return $n > 0 ? min($n, 90) : 7;
+    }
+
+    /** Cuántas personas del hilo pueden contestar el mismo enlace antes de que se cierre. */
+    public function surveyMaxResponses(): int
+    {
+        $n = (int) $this->model->get('survey_max_responses', '3');
+        return $n > 0 ? min($n, 20) : 3;
+    }
+
+    public function surveyBlockTitle(): string { return $this->model->get('survey_block_title', '¿Cómo estuvo nuestra atención?'); }
+    public function surveyBlockText(): string  { return $this->model->get('survey_block_text', 'Tu opinión nos ayuda a mejorar el servicio. Toma menos de un minuto.'); }
+    public function surveyBlockCta(): string   { return $this->model->get('survey_block_cta', 'Calificar la atención'); }
+
+    public function surveyRateLimitPerHour(): int
+    {
+        $n = (int) $this->model->get('survey_rate_limit_per_hour', '20');
+        return $n > 0 ? $n : 20;
+    }
+
+    /** Si se reabre el hilo y ya había respuesta, ¿se emite una encuesta nueva al volver a responder? */
+    public function surveyReissueAfterResponse(): bool { return $this->model->get('survey_reissue_after_response', '0') === '1'; }
+
+    // -----------------------------------------------------------------------
     // Writes
     // -----------------------------------------------------------------------
 
@@ -730,6 +763,27 @@ class MailDispatchSettings
         }
 
         return ServiceResult::ok(null, 'Reglas de autogestión actualizadas.');
+    }
+
+    /** Persists the CSAT survey tab: kill switch, TTL and the three copy fields. */
+    public function saveSurvey(array $post): ServiceResult
+    {
+        $title = trim((string) ($post['survey_block_title'] ?? ''));
+        $text  = trim((string) ($post['survey_block_text'] ?? ''));
+        $cta   = trim((string) ($post['survey_block_cta'] ?? ''));
+
+        $this->model->setMany([
+            'survey_enabled'                => isset($post['survey_enabled']) ? '1' : '0',
+            'survey_ttl_days'                => (string) max(1, min(90, (int) ($post['survey_ttl_days'] ?? 7))),
+            'survey_max_responses'           => (string) max(1, min(20, (int) ($post['survey_max_responses'] ?? 3))),
+            'survey_block_title'             => mb_substr($title !== '' ? $title : '¿Cómo estuvo nuestra atención?', 0, 200),
+            'survey_block_text'              => mb_substr($text !== '' ? $text : 'Tu opinión nos ayuda a mejorar el servicio. Toma menos de un minuto.', 0, 400),
+            'survey_block_cta'               => mb_substr($cta !== '' ? $cta : 'Calificar la atención', 0, 60),
+            'survey_rate_limit_per_hour'     => (string) max(1, (int) ($post['survey_rate_limit_per_hour'] ?? 20)),
+            'survey_reissue_after_response'  => isset($post['survey_reissue_after_response']) ? '1' : '0',
+        ]);
+
+        return ServiceResult::ok(null, 'Configuración de la encuesta guardada.');
     }
 
     /** Convierte el textarea "Etiqueta | target | requerido" en el JSON field_map. */

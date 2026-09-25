@@ -231,6 +231,14 @@ class MailDispatchAdmin extends BaseController
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 
+    /** CSAT survey: kill switch, TTL, copy del bloque anexado a cada respuesta. */
+    public function saveSurvey(): ResponseInterface
+    {
+        $result = service('mailDispatchSettings')->saveSurvey($this->request->getPost());
+        return redirect()->to(route_to('dispatch.settings') . '#encuesta')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
     /**
      * Danger zone: purge the operational data (the Nexus inbox), never the real
      * mailbox nor any configuration. Requires typing the exact mailbox address as

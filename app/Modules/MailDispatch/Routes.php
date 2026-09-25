@@ -68,6 +68,20 @@ $routes->group('dispatch', [
 });
 
 // -----------------------------------------------------------------------
+// CSAT survey — PUBLIC (no auth). Gated by survey_access: enabled + per-IP
+// rate limit on POST + same-origin on POST. The 64-hex token in the URL is
+// itself the credential (see SurveyAccessFilter).
+// -----------------------------------------------------------------------
+$routes->group('survey', [
+    'namespace' => 'App\Modules\MailDispatch\Controllers',
+    'filter'    => 'survey_access',
+], function (RouteCollection $routes): void {
+    $routes->get('([a-f0-9]{64})',  'Survey::show/$1',   ['as' => 'dispatch.survey.show']);
+    $routes->post('([a-f0-9]{64})', 'Survey::submit/$1', ['as' => 'dispatch.survey.submit']);
+    $routes->options('(:any)', 'Survey::show'); // CORS preflight (short-circuited by the filter)
+});
+
+// -----------------------------------------------------------------------
 // MailDispatch administration — SuperAdmin only, under /admin
 // All configuration: Graph credentials, mailbox, sync control, agents,
 // dispositions, SLA thresholds, sync status log.
@@ -92,6 +106,8 @@ $routes->group('admin/dispatch', [
     // Autogestión: settings globales + editor de reglas de auto-creación.
     $routes->post('autogen',          'MailDispatchAdmin::saveAutogen',      ['as' => 'dispatch.autogen.save']);
     $routes->post('autogen-rules',    'MailDispatchAdmin::saveAutogenRules', ['as' => 'dispatch.autogenrules.save']);
+    // CSAT survey: kill switch, TTL, copy del bloque anexado a cada respuesta.
+    $routes->post('survey',           'MailDispatchAdmin::saveSurvey',       ['as' => 'dispatch.survey.settings.save']);
     // Danger zone: purge operational data (never config, never the real mailbox).
     $routes->post('purge',            'MailDispatchAdmin::purge',            ['as' => 'dispatch.purge']);
 });
@@ -122,6 +138,7 @@ $routes->group('api/v1/dispatch', [
     $routes->post('conversations/(:num)/reopen', 'DispatchApiController::reopen/$1');
     $routes->post('conversations/(:num)/note',   'DispatchApiController::addNote/$1');
     $routes->post('conversations/(:num)/reply',  'DispatchApiController::reply/$1'); // phase 3
+    $routes->get('conversations/(:num)/survey',  'DispatchApiController::survey/$1'); // CSAT, mirrors the card in show()
 
     // Metrics mirror (phase 2).
     $routes->get('team',        'DispatchApiController::team'); // live workload board
@@ -152,4 +169,6 @@ $routes->group('api/v1/admin/dispatch', [
     // Service calendar behind the SLA clock (weekly schedule + holidays).
     $routes->get('schedule',  'DispatchApiController::schedule');
     $routes->post('schedule', 'DispatchApiController::saveSchedule');
+    // CSAT survey settings: kill switch, TTL, copy del bloque.
+    $routes->post('survey',   'DispatchApiController::saveSurveySettings');
 });

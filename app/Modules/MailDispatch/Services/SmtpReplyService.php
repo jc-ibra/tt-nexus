@@ -30,7 +30,8 @@ class SmtpReplyService
         private ConversationModel $conversations,
         private MessageModel $messages,
         private EventModel $events,
-        private AttachmentService $attachments
+        private AttachmentService $attachments,
+        private ?SurveyService $survey = null
     ) {}
 
     /** Máximo de copias manuales por respuesta, para acotar el volumen SMTP. */
@@ -85,9 +86,15 @@ class SmtpReplyService
         // in Nexus as the outbound message.
         $replyHtml = $this->normalizeBody($body);
         $bodyHtml  = $replyHtml . $this->signatureHtml($userId);
+        // The CSAT survey block is only ever appended to what goes OUT, never to
+        // what is stored: storing it would mean every later reply re-quotes it
+        // N times inside historyHtml() below, with N different (or repeated)
+        // tokens — noise in the customer's inbox and in the thread the agent
+        // reads in Nexus. '' when the survey is off or already answered.
+        $surveyHtml = $this->survey?->replyBlock($conversationId, $userId, $to, $ccList) ?? '';
         // What actually goes out also quotes the prior thread underneath, so it
         // reads like a real reply sent from the mailbox (history is preserved).
-        $sendHtml  = $bodyHtml . $this->historyHtml($conversationId);
+        $sendHtml  = $bodyHtml . $surveyHtml . $this->historyHtml($conversationId);
 
         // Effective SMTP config (Core or module-owned, per the smtp_use_core toggle).
         $smtp      = $this->settings->effectiveSmtp();

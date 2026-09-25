@@ -181,6 +181,44 @@ destinatarios que se indiquen, con una nota opcional arriba.
 
 ---
 
+## Encuesta de satisfacción (CSAT)
+
+Cada respuesta enviada desde Nexus (Graph o IMAP/SMTP) puede llevar, debajo de
+la firma del agente, un bloque corto con un enlace a un formulario público de
+tres preguntas: calificación 1-5, si se resolvió la solicitud, y un comentario
+opcional. Apagado por omisión (`survey_enabled`); se activa y personaliza en
+Administración → Despacho de Correo → pestaña **Encuesta**. Los resultados se
+consultan en **Supervisor de Mesa → Satisfacción**, leídos vía
+`SurveyService` (nunca directamente por otro módulo).
+
+- **Un token por CONVERSACIÓN, no por mensaje ni por persona.** La respuesta es
+  un solo correo con un solo cuerpo para el solicitante y todos los copiados;
+  no hay forma de repartir enlaces distintos sin partir el envío en N correos.
+  El enlace es un **cupo compartido**: acepta hasta `survey_max_responses`
+  respuestas (3 por omisión, 1-20) y se cierra al agotarse. Sigue sin haber
+  atribución por persona: solo un hash de IP y el user agent por respuesta,
+  para auditoría — así que nada impide que la misma persona use dos de los
+  cupos; el límite acota el ruido, no identifica.
+- **La reserva del cupo es atómica**
+  (`SurveyTokenModel::reserveResponseSlot()`): un solo `UPDATE` condicionado a
+  `response_count < max`, el mismo patrón que el claim de conversaciones
+  (`ConversationService::claim()`). Dos POST simultáneos por el último lugar:
+  uno entra, el otro ve "esta encuesta ya está cerrada".
+- **El mismo enlace se reenvía en cada respuesta del hilo** mientras le quede
+  cupo: cada envío extiende `expires_at` (`survey_ttl_days`, 7 días por
+  omisión), así que un correo anterior del hilo nunca deja de funcionar.
+- **Un GET nunca consume el token; solo un POST lo hace.** Outlook Safe Links y
+  los escáneres de gateway de correo abren el enlace antes que el humano; si el
+  primer clic lo quemara, la persona real nunca llegaría al formulario.
+- **El bloque va en lo que se envía, nunca en lo que se guarda.** Así el hilo en
+  Nexus se ve limpio y el bloque no se re-cita N veces al citar el historial en
+  respuestas posteriores.
+- Ruta pública: `/survey/{token}`, gated por `survey_access` (kill switch +
+  límite por IP en el POST + mismo origen en el POST; sin site key, el token de
+  64 hex ya es la credencial).
+
+---
+
 ## Búsqueda (incluye el cuerpo del correo)
 
 El buscador de la bandeja cubre asunto, solicitante, correo, folio GLPI **y el
@@ -343,3 +381,4 @@ diferenciable porque el inmediato lleva `graph_id` con prefijo `nexus:`).
 - Ninguna credencial de Graph vive en `.env`: todo se edita desde la UI y el secret se guarda **cifrado**.
 - El secret nunca se muestra en claro ni se registra en logs.
 - Toda la configuración está restringida a **SuperAdmin**; el área operativa exige acceso al módulo `mail_dispatch` y estar registrado como agente para poder tomar/asignar.
+- El token de la encuesta CSAT nunca se guarda en claro: solo su hash sha256, más una copia cifrada (`CredentialCipher`) mientras el enlace sigue vivo, para poder reenviar el mismo link en la siguiente respuesta. Se borra al agotarse el cupo de respuestas o al revocar.

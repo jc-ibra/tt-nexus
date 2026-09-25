@@ -209,6 +209,11 @@ $moduleSubnav = [
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/notifications'),
         ],
         [
+            'label'  => 'Satisfacción',
+            'url'    => base_url('helpdesk-supervisor/satisfaction'),
+            'active' => str_starts_with($currentPath, '/helpdesk-supervisor/satisfaction'),
+        ],
+        [
             'label'  => 'Configuración',
             'url'    => base_url('helpdesk-supervisor/settings'),
             'active' => str_starts_with($currentPath, '/helpdesk-supervisor/settings'),

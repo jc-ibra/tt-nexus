@@ -10,6 +10,7 @@ use App\Modules\HelpdeskSupervisor\Models\DeviationModel;
 use App\Modules\HelpdeskSupervisor\Models\EscalationModel;
 use App\Modules\HelpdeskSupervisor\Models\NotificationModel;
 use App\Modules\HelpdeskSupervisor\Models\LiveDeviationModel;
+use App\Modules\HelpdeskSupervisor\Services\PeriodFilter;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -420,5 +421,65 @@ class HelpdeskSupervisorApiController extends BaseApiController
     {
         (new NotificationModel())->delete((int) $id);
         return $this->response->setStatusCode(204)->setBody('');
+    }
+
+    // ------------------------------------------------------------------
+    // CSAT survey — mirror of the web Satisfaction screen. Read exclusively
+    // through MailDispatch's SurveyService (cross-module reuse via service).
+    // ------------------------------------------------------------------
+
+    public function satisfaction(): ResponseInterface
+    {
+        [$start, $end] = PeriodFilter::resolveFromRequest($this->request);
+        $filters = $this->satisfactionFilters($start, $end);
+        $page    = max(1, (int) $this->request->getGet('page'));
+        $perPage = max(1, min(200, (int) ($this->request->getGet('per_page') ?: 25)));
+
+        $result = service('mailDispatchSurvey')->list($filters, $page, $perPage);
+
+        return $this->successPaginated($result['rows'], $this->buildMeta($result['total'], $page, $perPage));
+    }
+
+    public function satisfactionStats(): ResponseInterface
+    {
+        [$start, $end] = PeriodFilter::resolveFromRequest($this->request);
+
+        return $this->success(service('mailDispatchSurvey')->stats($this->satisfactionFilters($start, $end)));
+    }
+
+    public function satisfactionExport(): ResponseInterface
+    {
+        [$start, $end] = PeriodFilter::resolveFromRequest($this->request);
+        $csv = service('mailDispatchSurvey')->csv($this->satisfactionFilters($start, $end));
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="satisfaccion-' . date('Ymd-His') . '.csv"')
+            ->setBody($csv);
+    }
+
+    /** @return array{from:string,to:string,agent_id?:int,rating?:int,resolved?:string,q?:string} */
+    private function satisfactionFilters(string $start, string $end): array
+    {
+        $filters = ['from' => $start, 'to' => $end];
+
+        $agentId = (int) $this->request->getGet('agent_id');
+        if ($agentId > 0) {
+            $filters['agent_id'] = $agentId;
+        }
+        $rating = (int) $this->request->getGet('rating');
+        if ($rating >= 1 && $rating <= 5) {
+            $filters['rating'] = $rating;
+        }
+        $resolved = (string) $this->request->getGet('resolved');
+        if (in_array($resolved, ['yes', 'partial', 'no'], true)) {
+            $filters['resolved'] = $resolved;
+        }
+        $q = trim((string) $this->request->getGet('q'));
+        if ($q !== '') {
+            $filters['q'] = $q;
+        }
+
+        return $filters;
     }
 }

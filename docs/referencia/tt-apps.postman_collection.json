@@ -5227,6 +5227,139 @@
             },
             "description": "Guarda el horario de servicio. Los siete días son obligatorios: cada uno con `open`/`close` (HH:MM) o `closed: \"1\"`. Las excepciones se reconstruyen completas: las fechas que no vengan en el arreglo se eliminan. Con `business_hours_enabled` apagado el SLA vuelve a contarse a reloj corrido."
           }
+        },
+        {
+          "name": "Get conversation survey (CSAT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dispatch/conversations/1/survey",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dispatch",
+                "conversations",
+                "1",
+                "survey"
+              ]
+            },
+            "description": "Estado del cupo compartido de la encuesta CSAT del hilo. Devuelve null si nunca se emitió una encuesta; si no, { state: pending|full|expired|revoked, token, responses: [ { rating, resolved, comment, responded_at, ... } ], count, used, max, remaining }. `responses` trae TODAS las respuestas recibidas (varias personas del hilo pueden contestar el mismo enlace, hasta `survey_max_responses`); `used`/`max`/`remaining` describen el cupo del token vigente."
+          },
+          "response": []
+        },
+        {
+          "name": "Save survey settings (SuperAdmin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dispatch/survey",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dispatch",
+                "survey"
+              ]
+            },
+            "description": "Kill switch, TTL en días y el texto del bloque anexado a cada respuesta.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"survey_enabled\": \"1\",\n  \"survey_ttl_days\": \"7\",\n  \"survey_max_responses\": \"3\",\n  \"survey_block_title\": \"¿Cómo estuvo nuestra atención?\",\n  \"survey_block_text\": \"Tu opinión nos ayuda a mejorar el servicio. Toma menos de un minuto.\",\n  \"survey_block_cta\": \"Calificar la atención\",\n  \"survey_rate_limit_per_hour\": \"20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Despacho de Correo — Encuesta CSAT (pública)",
+      "item": [
+        {
+          "name": "Survey — formulario (GET, no consume)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/survey/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "survey",
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+              ]
+            },
+            "description": "Página pública del formulario. Abrir el enlace nunca consume el token (a prueba de Outlook Safe Links / escáneres de correo); solo el POST lo hace. Mismo mensaje genérico para token vencido, revocado o inexistente."
+          },
+          "response": []
+        },
+        {
+          "name": "Survey — enviar respuesta (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/survey/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "survey",
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd"
+              ]
+            },
+            "description": "Consume el token. Gated por survey_access: encuesta habilitada + límite por IP + mismo origen.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "rating",
+                  "value": "5"
+                },
+                {
+                  "key": "resolved",
+                  "value": "yes"
+                },
+                {
+                  "key": "comment",
+                  "value": "Excelente atención, gracias."
+                }
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -5805,6 +5938,86 @@
               ]
             }
           }
+        },
+        {
+          "name": "Satisfacción — lista (CSAT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/satisfaction?period_start=2026-09-01&period_end=2026-09-30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "satisfaction?period_start=2026-09-01&period_end=2026-09-30"
+              ]
+            },
+            "description": "Encuestas respondidas en el período, con filtros opcionales agent_id/rating/resolved/q. Lee vía MailDispatch’s SurveyService (nunca las tablas directamente)."
+          },
+          "response": []
+        },
+        {
+          "name": "Satisfacción — estadísticas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/satisfaction/stats?period_start=2026-09-01&period_end=2026-09-30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "satisfaction",
+                "stats?period_start=2026-09-01&period_end=2026-09-30"
+              ]
+            },
+            "description": "CSAT promedio, tasa de respuesta, distribución 1-5 y detractores del período."
+          },
+          "response": []
+        },
+        {
+          "name": "Satisfacción — exportar CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/satisfaction/export?period_start=2026-09-01&period_end=2026-09-30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "satisfaction",
+                "export?period_start=2026-09-01&period_end=2026-09-30"
+              ]
+            },
+            "description": "CSV (BOM UTF-8) de las encuestas respondidas en el período."
+          },
+          "response": []
         }
       ]
     },

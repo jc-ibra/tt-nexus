@@ -57,6 +57,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
   <button type="button" class="md-tab" role="tab" data-panel="md-disposiciones" data-hash="disposiciones">Disposiciones</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-reglas" data-hash="reglas">Autoarchivo</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-autogestion" data-hash="autogestion">Autogestión</button>
+  <button type="button" class="md-tab" role="tab" data-panel="md-encuesta" data-hash="encuesta">Encuesta</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-estado" data-hash="estado">Estado</button>
   <button type="button" class="md-tab" role="tab" data-panel="md-peligro" data-hash="peligro">Zona de peligro</button>
 </div>
@@ -667,6 +668,99 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <?php endforeach; ?>
       </div>
     </div>
+  </form>
+</div>
+
+<!-- ============================= Encuesta (CSAT) ============================= -->
+<?php
+  $previewUrl = base_url('survey/0000000000000000000000000000000000000000000000000000000000000000');
+?>
+<div id="md-encuesta" class="md-panel" role="tabpanel">
+  <form action="<?= route_to('dispatch.survey.settings.save') ?>" method="post" style="max-width:780px;">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Encuesta de satisfacción</h2></div>
+      <div class="card-body">
+        <label class="field-check" style="margin-bottom:var(--space-2);">
+          <input type="checkbox" name="survey_enabled" value="1" <?= $bool('survey_enabled') ? 'checked' : '' ?>>
+          <span>Anexar la encuesta a cada respuesta enviada desde Nexus</span>
+        </label>
+        <p class="field-help">Se agrega un bloque corto debajo de la firma, con un enlace a un formulario público de tres preguntas. El enlace es único por conversación y lo comparten el solicitante y todos los copiados: acepta hasta el número de respuestas configurado abajo, y se reenvía en cada respuesta del agente mientras le quede cupo.</p>
+        <?php if (! $bool('send_from_nexus_enabled')): ?>
+          <div class="banner banner-warning" style="margin-top:var(--space-3);">
+            <div class="banner-body">La respuesta desde Nexus está deshabilitada (pestaña «Conexión»), así que la encuesta no saldrá aunque la actives aquí.</div>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Vigencia y cupo del enlace</h2></div>
+      <div class="card-body">
+        <div class="field" style="max-width:220px;">
+          <label class="field-label" for="survey_ttl_days">Días antes de que expire</label>
+          <input type="number" id="survey_ttl_days" name="survey_ttl_days" class="input" min="1" max="90" value="<?= $val('survey_ttl_days', '7') ?>">
+          <p class="field-help">Si el agente responde otra vez y el enlace todavía tiene cupo, se reenvía el mismo y su vigencia se extiende estos días.</p>
+        </div>
+        <div class="field" style="max-width:220px; margin-top:var(--space-3);">
+          <label class="field-label" for="survey_max_responses">Respuestas máximas por conversación</label>
+          <input type="number" id="survey_max_responses" name="survey_max_responses" class="input" min="1" max="20" value="<?= $val('survey_max_responses', '3') ?>">
+          <p class="field-help">Un hilo de soporte suele ir con varios copiados. El mismo enlace acepta hasta este número de respuestas y después queda cerrado; no hay atribución por persona.</p>
+        </div>
+        <label class="field-check" style="margin-top:var(--space-3);">
+          <input type="checkbox" name="survey_reissue_after_response" value="1" <?= $bool('survey_reissue_after_response') ? 'checked' : '' ?>>
+          <span>Si el hilo se reabre y ya se agotó el cupo, emitir una encuesta nueva en la siguiente respuesta</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Texto del bloque</h2></div>
+      <div class="card-body">
+        <div class="field">
+          <label class="field-label" for="survey_block_title">Título</label>
+          <input type="text" id="survey_block_title" name="survey_block_title" class="input" maxlength="200" value="<?= $val('survey_block_title', '¿Cómo estuvo nuestra atención?') ?>">
+        </div>
+        <div class="field">
+          <label class="field-label" for="survey_block_text">Texto</label>
+          <input type="text" id="survey_block_text" name="survey_block_text" class="input" maxlength="400" value="<?= $val('survey_block_text', 'Tu opinión nos ayuda a mejorar el servicio. Toma menos de un minuto.') ?>">
+        </div>
+        <div class="field">
+          <label class="field-label" for="survey_block_cta">Texto del botón</label>
+          <input type="text" id="survey_block_cta" name="survey_block_cta" class="input" maxlength="60" value="<?= $val('survey_block_cta', 'Calificar la atención') ?>">
+        </div>
+
+        <p class="field-label" style="margin-top:var(--space-4);">Vista previa</p>
+        <p class="field-help" style="margin-bottom:var(--space-2);">Así se ve el bloque dentro del correo, debajo de la firma del agente. El enlace real lleva un token distinto por conversación; aquí se muestra uno de ejemplo.</p>
+        <div style="padding:var(--space-5) var(--space-4); background:#f2f4f7; border-radius:var(--radius-2); max-width:560px;">
+          <?php
+            // previewBlockHtml() escapes its own arguments — pass the raw
+            // stored values here, not $val()'s already-escaped output, or
+            // accents/quotes would be double-encoded.
+            $previewHtml = service('mailDispatchSurvey')->previewBlockHtml(
+                (string) ($s['survey_block_title'] ?? '¿Cómo estuvo nuestra atención?'),
+                (string) ($s['survey_block_text'] ?? 'Tu opinión nos ayuda a mejorar el servicio. Toma menos de un minuto.'),
+                (string) ($s['survey_block_cta'] ?? 'Calificar la atención')
+            );
+          ?>
+          <?= $previewHtml ?>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h2 class="card-title">Protección del formulario público</h2></div>
+      <div class="card-body">
+        <div class="field" style="max-width:220px;">
+          <label class="field-label" for="survey_rate_limit_per_hour">Envíos por IP y hora</label>
+          <input type="number" id="survey_rate_limit_per_hour" name="survey_rate_limit_per_hour" class="input" min="1" value="<?= $val('survey_rate_limit_per_hour', '20') ?>">
+        </div>
+        <p class="field-help">Solo limita el envío de la respuesta (POST); abrir el enlace para leerlo nunca cuenta, así un lector de correos automático no bloquea al destinatario real.</p>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar encuesta</button>
   </form>
 </div>
 

@@ -126,6 +126,7 @@ class Dispatch extends BaseController
             'agents'       => $canDispatch ? (new AgentModel())->activeAgents() : [],
             'currentUserId' => $this->userId(),
             'sendEnabled'  => service('mailDispatchSettings')->isSendEnabled(),
+            'survey'       => service('mailDispatchSurvey')->forConversation($id),
             'replyMaxMb'   => (int) round($config->maxTotalReplyBytes / 1048576),
             'replyMaxCount' => $config->maxReplyAttachments,
             // Plantillas de respuesta + valores ya resueltos de sus variables:
