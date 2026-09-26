@@ -13,6 +13,7 @@ use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\DispositionModel;
 use App\Modules\MailDispatch\Models\EventModel;
 use App\Modules\MailDispatch\Models\MessageModel;
+use App\Modules\MailDispatch\Models\SyncRunModel;
 use App\Modules\MailDispatch\Models\TemplateModel;
 use App\Modules\MailDispatch\Services\TemplateRenderer;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -495,6 +496,27 @@ class DispatchApiController extends BaseApiController
             : $maintenance->purgeAll();
 
         return $this->fromResult($result);
+    }
+
+    /**
+     * Mirror of the Estado tab's "Corridas recientes" table: paginated,
+     * filterable sync run history. SuperAdmin only (route filter).
+     */
+    public function syncRuns(): ResponseInterface
+    {
+        $filters = [
+            'date_from'     => (string) ($this->request->getGet('date_from') ?? ''),
+            'date_to'       => (string) ($this->request->getGet('date_to') ?? ''),
+            'status'        => (string) ($this->request->getGet('status') ?? ''),
+            'only_activity' => (string) ($this->request->getGet('only_activity') ?? '') === '1',
+        ];
+        $page    = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $perPage = max(1, min(100, (int) ($this->request->getGet('per_page') ?? 20)));
+
+        $model = new SyncRunModel();
+        $rows  = $model->listRuns($filters, $perPage, $page);
+
+        return $this->successPaginated($rows, $this->buildMeta($model->countWithFilters($filters), $page, $perPage));
     }
 
     /**

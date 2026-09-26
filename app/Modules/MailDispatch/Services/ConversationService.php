@@ -220,10 +220,22 @@ class ConversationService
             if ($status === 'cerrada') {
                 // Reopen keeping the prior assignment.
                 $newStatus   = 'esperando_agente';
-                $sysEvents[] = ['reopen', $status, $newStatus];
+                $sysEvents[] = ['reopen', $status, $newStatus, 'Automático por sincronización de correo.'];
             } elseif (in_array($status, ['respondida', 'en_atencion', 'asignada'], true)) {
                 $newStatus   = 'esperando_agente';
-                $sysEvents[] = ['status', $status, $newStatus];
+                $sysEvents[] = ['status', $status, $newStatus, 'Automático por sincronización de correo.'];
+            } elseif ($status === 'autoarchivo') {
+                // The autoarchivo rule was matched against the thread's original
+                // sender. If whoever is replying now doesn't match any active
+                // rule, this is a real person waiting on an answer: pull the
+                // thread back into the work queue instead of leaving the reply
+                // buried in a bucket nobody watches.
+                if ($this->matchRule((string) $f['from_email'], (string) $f['subject']) === null) {
+                    $newStatus            = empty($conv['agent_id']) ? 'nueva' : 'esperando_agente';
+                    $set['verified_by']   = null;
+                    $set['verified_at']   = null;
+                    $sysEvents[]          = ['reopen', $status, $newStatus, 'Respuesta fuera de las reglas de autoarchivo; regresada a la bandeja.'];
+                }
             }
         }
 
@@ -237,8 +249,8 @@ class ConversationService
             ->where('id', $convId)->update();
 
         // System-authored audit entries (no user).
-        foreach ($sysEvents as [$type, $from, $to]) {
-            $this->events->log($convId, $type, null, $from, $to, 'Automático por sincronización de correo.');
+        foreach ($sysEvents as [$type, $from, $to, $note]) {
+            $this->events->log($convId, $type, null, $from, $to, $note);
         }
 
         return 'appended';
@@ -486,6 +498,39 @@ class ConversationService
         $this->events->log($id, 'status', $userId, 'autoarchivo', 'nueva', 'Movida a la bandeja de entrada.');
 
         return ServiceResult::ok(null, 'Conversación movida a la bandeja.');
+    }
+
+    /**
+     * Retroactive counterpart of the autoarchivo-reopen check in
+     * appendToConversation(): given an "autoarchivo" conversation and its last
+     * inbound message, reopens it if that sender doesn't match any active
+     * rule. Used by the maildispatch:review-archived command to sweep threads
+     * that were buried before this check existed. Returns whether it reopened
+     * (or, with $apply false, whether it would).
+     */
+    public function reopenIfHumanReply(array $conv, array $lastInbound, bool $apply = true): bool
+    {
+        if ((string) $conv['status'] !== 'autoarchivo') {
+            return false;
+        }
+        if ($this->matchRule((string) ($lastInbound['from_email'] ?? ''), (string) ($lastInbound['subject'] ?? '')) !== null) {
+            return false;
+        }
+        if (! $apply) {
+            return true;
+        }
+
+        $convId    = (int) $conv['id'];
+        $newStatus = empty($conv['agent_id']) ? 'nueva' : 'esperando_agente';
+
+        $this->conversations->update($convId, [
+            'status'      => $newStatus,
+            'verified_by' => null,
+            'verified_at' => null,
+        ]);
+        $this->events->log($convId, 'reopen', null, 'autoarchivo', $newStatus, 'Revisión retroactiva de autoarchivo.');
+
+        return true;
     }
 
     /**

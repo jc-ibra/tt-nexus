@@ -171,4 +171,6 @@ $routes->group('api/v1/admin/dispatch', [
     $routes->post('schedule', 'DispatchApiController::saveSchedule');
     // CSAT survey settings: kill switch, TTL, copy del bloque.
     $routes->post('survey',   'DispatchApiController::saveSurveySettings');
+    // Sync run history: mirror of the Estado tab's "Corridas recientes" table.
+    $routes->get('sync-runs', 'DispatchApiController::syncRuns');
 });

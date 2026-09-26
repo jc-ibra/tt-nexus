@@ -123,9 +123,16 @@ class ConversationModel extends Model
                 break;
             case 'all':
             default:
-                // everything except the auto-triaged buckets, open first
-                $b->where('maildispatch_conversations.status !=', 'autoarchivo')
-                  ->where('maildispatch_conversations.status !=', 'autogenerado');
+                // Everything except the auto-triaged buckets, open first — but
+                // only when browsing without a search term. A search is looking
+                // for something specific; hiding autoarchivo/autogenerado hits
+                // just because they live in their own tab makes matches that
+                // clearly exist ("Sin resultados" on a folio that's right there
+                // in the subject) impossible to find from here.
+                if (trim($q) === '') {
+                    $b->where('maildispatch_conversations.status !=', 'autoarchivo')
+                      ->where('maildispatch_conversations.status !=', 'autogenerado');
+                }
                 break;
         }
 
@@ -369,13 +376,23 @@ class ConversationModel extends Model
             return $b;
         };
 
+        // "Todas" mirrors forQueue(): it only skips the auto-triaged buckets
+        // while browsing without a search term. With one, a match that lives
+        // in autoarchivo/autogenerado should still show up there.
+        $allBuilder = $q === ''
+            ? $this->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado')
+            : $this;
+
         return [
             'unassigned' => $search($this->where('agent_id', null)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado')->where('outbound_only', 0))->countAllResults(),
             'mine'       => $search($this->where('agent_id', $userId)->where('status !=', 'cerrada')->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
-            'all'        => $search($this->where('status !=', 'autoarchivo')->where('status !=', 'autogenerado'))->countAllResults(),
-            // Actionable count = pending verification.
-            'autoarchivo' => $search($this->where('status', 'autoarchivo')->where('verified_at', null))->countAllResults(),
-            'autogenerado' => $search($this->where('status', 'autogenerado')->groupStart()->whereIn('autogen_state', ['review', 'failed'])->orWhere('verified_at', null)->groupEnd())->countAllResults(),
+            'all'        => $search($allBuilder)->countAllResults(),
+            // Pending-verification count when idle; with a search term, count
+            // every match so the badge tells you where to look.
+            'autoarchivo' => $search($q === '' ? $this->where('status', 'autoarchivo')->where('verified_at', null) : $this->where('status', 'autoarchivo'))->countAllResults(),
+            'autogenerado' => $search($q === ''
+                ? $this->where('status', 'autogenerado')->groupStart()->whereIn('autogen_state', ['review', 'failed'])->orWhere('verified_at', null)->groupEnd()
+                : $this->where('status', 'autogenerado'))->countAllResults(),
             'closed'     => $search($this->where('status', 'cerrada'))->countAllResults(),
         ];
     }

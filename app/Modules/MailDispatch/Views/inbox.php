@@ -430,6 +430,11 @@ $initials = static function (?string $name, ?string $email): string {
               </span>
               <span class="gm-line2">
                 <span class="gm-subject"><?= $hl($c['subject'] ?: '(sin asunto)') ?></span>
+                <?php if (($filter ?? '') === 'all' && ($isAuto || $isAutogen)): ?>
+                  <span class="gm-status <?= esc($tone) ?>" title="Este resultado vive fuera de la bandeja normal; ábrelo desde su propia pestaña para gestionarlo.">
+                    <?= esc($statusLabels[$c['status']] ?? $c['status']) ?>
+                  </span>
+                <?php endif; ?>
                 <?php if ($isAutogen): ?>
                   <?php $agState = (string) ($c['autogen_state'] ?? ''); ?>
                   <?php if (! empty($c['auto_ticket_id'])): ?><span class="gm-status success">#<?= (int) $c['auto_ticket_id'] ?></span><?php endif; ?>

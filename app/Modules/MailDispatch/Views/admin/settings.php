@@ -796,12 +796,35 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
 
   <div class="card">
     <div class="card-header"><h2 class="card-title">Corridas recientes</h2></div>
-    <div class="card-body" style="padding:0;">
+
+    <form method="get" action="<?= route_to('dispatch.settings') ?>#estado" style="display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:end; padding:var(--space-4); border-bottom:1px solid var(--border-default);">
+      <label class="text-sm text-muted">Desde
+        <input type="datetime-local" name="run_from" class="input" value="<?= esc(str_replace(' ', 'T', substr((string) ($runFilters['date_from'] ?? ''), 0, 16)), 'attr') ?>">
+      </label>
+      <label class="text-sm text-muted">Hasta
+        <input type="datetime-local" name="run_to" class="input" value="<?= esc(str_replace(' ', 'T', substr((string) ($runFilters['date_to'] ?? ''), 0, 16)), 'attr') ?>">
+      </label>
+      <label class="text-sm text-muted">Resultado
+        <select name="run_status" class="select">
+          <option value="">Todos</option>
+          <option value="ok" <?= ($runFilters['status'] ?? '') === 'ok' ? 'selected' : '' ?>>ok</option>
+          <option value="error" <?= ($runFilters['status'] ?? '') === 'error' ? 'selected' : '' ?>>error</option>
+        </select>
+      </label>
+      <label class="text-sm text-muted" style="display:flex; align-items:center; gap:var(--space-1);">
+        <input type="checkbox" name="run_activity" value="1" <?= ! empty($runFilters['only_activity']) ? 'checked' : '' ?>>
+        Solo con actividad
+      </label>
+      <button type="submit" class="btn btn-secondary">Filtrar</button>
+      <a href="<?= route_to('dispatch.settings') ?>#estado" class="btn btn-tertiary">Limpiar</a>
+    </form>
+
+    <div class="card-body" style="padding:0; overflow-x:auto;">
       <?php if (empty($syncRuns)): ?>
-        <p class="text-muted" style="padding:var(--space-4);">Sin corridas registradas.</p>
+        <p class="text-muted" style="padding:var(--space-4);">Sin corridas para este filtro.</p>
       <?php else: ?>
         <table class="table" style="width:100%;">
-          <thead><tr><th>Fecha</th><th>Origen</th><th>Resultado</th><th>Proc.</th><th>Nuevas</th><th>Actual.</th><th>Errores</th><th>Detalle</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Origen</th><th>Resultado</th><th>Proc.</th><th>Nuevas</th><th>Actual.</th><th>Errores</th><th>Duración</th><th>Detalle</th></tr></thead>
           <tbody>
             <?php foreach ($syncRuns as $r): ?>
               <tr>
@@ -812,6 +835,7 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
                 <td><?= (int) $r['created'] ?></td>
                 <td><?= (int) $r['updated'] ?></td>
                 <td><?= (int) $r['errors'] ?></td>
+                <td class="text-muted text-sm"><?= number_format((int) $r['duration_ms']) ?> ms</td>
                 <td class="text-sm"><?= esc($r['message']) ?></td>
               </tr>
             <?php endforeach; ?>
@@ -819,6 +843,12 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         </table>
       <?php endif; ?>
     </div>
+
+    <?php if (! empty($runsPager) && $runsPager->getPageCount('default') > 1): ?>
+      <div class="card-footer" style="display:flex; align-items:center; justify-content:center; background:var(--bg-surface-alt);">
+        <?= $runsPager->only(['run_from', 'run_to', 'run_status', 'run_activity'])->links('default', 'pagination_hash') ?>
+      </div>
+    <?php endif; ?>
   </div>
 
   <p class="md-hint" style="margin-top:var(--space-4);">La sincronización corre por cron: <code>php spark maildispatch:sync-mailbox</code> (cada 1–2 minutos sugerido).</p>

@@ -86,6 +86,19 @@ class MailDispatchAdmin extends BaseController
 
         $calendar = service('mailDispatchCalendar');
 
+        // Estado tab: paginated, filterable sync run history, so an incident
+        // from days ago (a specific hour, an error) can be found instead of
+        // only ever seeing the last dozen runs.
+        $runFilters = [
+            'date_from'     => (string) ($this->request->getGet('run_from') ?? ''),
+            'date_to'       => (string) ($this->request->getGet('run_to') ?? ''),
+            'status'        => (string) ($this->request->getGet('run_status') ?? ''),
+            'only_activity' => (string) ($this->request->getGet('run_activity') ?? '') === '1',
+        ];
+        $runPage  = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $runModel = new SyncRunModel();
+        $syncRuns = $runModel->listRuns($runFilters, 20, $runPage);
+
         return view('App\Modules\MailDispatch\Views\admin\settings', [
             'pageTitle'    => 'Configuración · Despacho de Correo',
             'settings'     => $settings->all(),
@@ -106,7 +119,9 @@ class MailDispatchAdmin extends BaseController
             'rules'        => (new RuleModel())->allOrdered(),
             'autogenRules' => $autogenRules,
             'pluginRef'    => $pluginRef,
-            'syncRuns'     => (new SyncRunModel())->recent(12),
+            'syncRuns'     => $syncRuns,
+            'runsPager'    => $runModel->pager,
+            'runFilters'   => $runFilters,
             'syncState'    => (new SyncStateModel())->where('mailbox_address', $settings->mailbox())->findAll(),
             'secretMask'   => MailDispatchSettings::SECRET_MASK,
         ]);

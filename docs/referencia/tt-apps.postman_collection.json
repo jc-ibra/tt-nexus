@@ -5169,6 +5169,63 @@
           }
         },
         {
+          "name": "Get sync runs (SuperAdmin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dispatch/sync-runs?date_from=2026-09-24T00:00&date_to=2026-09-25T00:00&status=error&only_activity=1&page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dispatch",
+                "sync-runs"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "2026-09-24T00:00",
+                  "description": "Filtra por created_at >=. Acepta fecha (Y-m-d), datetime-local (Y-m-dTH:i) o Y-m-d H:i:s."
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-09-25T00:00",
+                  "description": "Filtra por created_at <=."
+                },
+                {
+                  "key": "status",
+                  "value": "error",
+                  "description": "\"ok\" o \"error\". Vacío = todos."
+                },
+                {
+                  "key": "only_activity",
+                  "value": "1",
+                  "description": "Solo corridas con processed>0 o errors>0 (oculta los ceros del cron ocioso sin trabajo)."
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "Máximo 100."
+                }
+              ]
+            },
+            "description": "Espejo del tab Estado > \"Corridas recientes\": historial paginado y filtrable de corridas de maildispatch:sync-mailbox (created_at, origen, resultado, procesados/nuevas/actualizadas/errores, duración, detalle). SuperAdmin only."
+          }
+        },
+        {
           "name": "Get service calendar (SuperAdmin)",
           "request": {
             "method": "GET",
