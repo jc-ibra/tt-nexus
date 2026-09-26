@@ -161,6 +161,18 @@ class MailDispatchSettings
     public function isSyncEnabled(): bool { return $this->model->get('sync_enabled', '0') === '1'; }
 
     /**
+     * Master switch for auto-reopening an "autoarchivo" thread when a reply
+     * arrives from a sender that doesn't match any active rule (see
+     * ConversationService::appendToConversation()). Off by default: it changes
+     * where a reply lands, so a SuperAdmin opts in deliberately from the
+     * Autoarchivo tab rather than getting it silently on for every mailbox.
+     */
+    public function isAutoarchivoReopenEnabled(): bool
+    {
+        return $this->model->get('autoarchivo_reopen_enabled', '0') === '1';
+    }
+
+    /**
      * Reply-from-Nexus master switch. In IMAP mode it additionally requires SMTP
      * to be configured, since IMAP is read-only and sending goes through SMTP.
      */
@@ -512,6 +524,8 @@ class MailDispatchSettings
      */
     public function saveRules(array $post): ServiceResult
     {
+        $this->model->set('autoarchivo_reopen_enabled', isset($post['autoarchivo_reopen_enabled']) ? '1' : '0');
+
         $rows  = (array) ($post['rule'] ?? []);
         $model = new RuleModel();
         $order = 1;

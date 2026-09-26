@@ -42,6 +42,15 @@ class ReviewArchivedReplies extends BaseCommand
         $since = (string) (CLI::getOption('since') ?? '');
         $apply = array_key_exists('apply', $params) || CLI::getOption('apply');
 
+        // This sweep is a manual, one-time cleanup and runs regardless of the
+        // toggle below — but if it's off, whatever this reopens today will go
+        // right back to being buried the next time someone replies. Flag that
+        // instead of letting the admin find out the hard way.
+        if (! service('mailDispatchSettings')->isAutoarchivoReopenEnabled()) {
+            CLI::write('Nota: la reapertura automática está desactivada (tab Autoarchivo). Esta barrida solo corrige los hilos existentes; las respuestas futuras se seguirán archivando hasta que la actives.', 'yellow');
+            CLI::newLine();
+        }
+
         $db = Database::connect();
 
         // Última respuesta entrante por conversación en autoarchivo: un solo

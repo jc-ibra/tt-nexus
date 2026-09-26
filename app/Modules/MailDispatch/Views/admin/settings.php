@@ -502,6 +502,22 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
           el <em>asunto</em> por coincidencia parcial. Deja un patrón vacío para no filtrar por él (pero al menos uno es obligatorio).
           <br><strong>Aplicar a la bandeja</strong> archiva de una vez las conversaciones sin asignar de la bandeja que coincidan con la regla <em>ya guardada</em> (guarda primero si la editaste).
         </p>
+        <div style="padding:0 var(--space-4) var(--space-4);">
+          <label class="text-sm" style="display:flex; align-items:flex-start; gap:var(--space-2); max-width:700px;">
+            <input type="checkbox" name="autoarchivo_reopen_enabled" value="1" style="margin-top:3px;"
+                   <?= $bool('autoarchivo_reopen_enabled') ? 'checked' : '' ?>>
+            <span>
+              <strong>Reabrir automáticamente si responde alguien fuera de las reglas.</strong>
+              <span class="text-muted">
+                Un hilo en Autoarchivo se evalúa solo contra el remitente que lo originó. Con esto activo, si
+                después responde alguien que no coincide con ninguna regla activa (un cliente, otro agente), el
+                hilo regresa solo a la bandeja (queda registrado en la bitácora del hilo). Apagado por defecto:
+                mientras esté así, esas respuestas se siguen archivando en silencio — usa
+                <code>php spark maildispatch:review-archived</code> para revisarlas y regresarlas a mano.
+              </span>
+            </span>
+          </label>
+        </div>
         <table class="table" style="width:100%;" id="md-rules-table">
           <thead><tr>
             <th>Nombre</th>

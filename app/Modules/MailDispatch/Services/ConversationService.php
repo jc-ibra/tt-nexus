@@ -224,12 +224,13 @@ class ConversationService
             } elseif (in_array($status, ['respondida', 'en_atencion', 'asignada'], true)) {
                 $newStatus   = 'esperando_agente';
                 $sysEvents[] = ['status', $status, $newStatus, 'Automático por sincronización de correo.'];
-            } elseif ($status === 'autoarchivo') {
+            } elseif ($status === 'autoarchivo' && $this->settings->isAutoarchivoReopenEnabled()) {
                 // The autoarchivo rule was matched against the thread's original
                 // sender. If whoever is replying now doesn't match any active
                 // rule, this is a real person waiting on an answer: pull the
                 // thread back into the work queue instead of leaving the reply
-                // buried in a bucket nobody watches.
+                // buried in a bucket nobody watches. Off by default (Autoarchivo
+                // tab toggle) — a SuperAdmin opts in deliberately.
                 if ($this->matchRule((string) $f['from_email'], (string) $f['subject']) === null) {
                     $newStatus            = empty($conv['agent_id']) ? 'nueva' : 'esperando_agente';
                     $set['verified_by']   = null;
