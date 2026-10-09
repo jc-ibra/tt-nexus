@@ -82,12 +82,6 @@ class PptxDeckBuilder
         if ($payload['dispatch']['available'] ?? false) {
             $sections[] = ['title' => 'Mesa de ayuda por correo', 'pages' => 1, 'render' => fn () => $this->slideDispatch($pres->createSlide(), $payload['dispatch'])];
         }
-        if ($payload['quality']['available'] ?? false) {
-            $sections[] = ['title' => 'Calidad documental', 'pages' => 1, 'render' => fn () => $this->slideQuality($pres->createSlide(), $payload['quality'])];
-        }
-        if ($payload['agents']['available'] ?? false) {
-            $sections[] = ['title' => 'Desempeño de agentes', 'pages' => 1, 'render' => fn () => $this->slideAgents($pres->createSlide(), $payload['agents'])];
-        }
         $sections[] = ['title' => 'Conclusiones y próximos pasos', 'pages' => 1, 'render' => fn () => $this->slideConclusiones($pres->createSlide(), $periodLabel)];
 
         // Slide 1 = portada, slide 2 = índice: el contenido empieza en la 3.
@@ -129,7 +123,7 @@ class PptxDeckBuilder
         $k->text($slide, $periodLabel, self::MARGIN_X, 152, 700, 64, [
             'size' => 38, 'bold' => true, 'color' => SlideKit::C_TEXT,
         ]);
-        $k->text($slide, 'Mesa de ayuda, correo, calidad y desempeño de agentes', self::MARGIN_X, 216, 760, 24, [
+        $k->text($slide, 'Mesa de ayuda, tendencia y correo', self::MARGIN_X, 216, 760, 24, [
             'size' => 13, 'color' => SlideKit::C_ACCENT,
         ]);
 
@@ -400,73 +394,6 @@ class PptxDeckBuilder
         $y = self::CONTENT_Y + 130;
         $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, self::CONTENT_H - 130, 'Disposiciones de conversaciones cerradas');
         $k->horizontalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, self::CONTENT_H - 130 - 56, $dispositions);
-    }
-
-    private function slideQuality(Slide $slide, array $q): void
-    {
-        $k = $this->kit;
-        $k->bg($slide);
-        $k->slideHeader($slide, 'Calidad', 'Calidad documental', 'Auditoría HelpdeskSupervisor del período');
-
-        $run   = $q['run'];
-        $cards = [
-            ['v' => number_format($run['total_tickets_audited']), 'l' => 'Tickets auditados', 'c' => SlideKit::C_PRIMARY],
-            ['v' => number_format($run['total_deviations_found']), 'l' => 'Desviaciones', 'c' => SlideKit::C_WARNING],
-            ['v' => number_format($q['valid_escalations']), 'l' => 'Escalaciones válidas', 'c' => SlideKit::C_CRITICAL],
-        ];
-        $this->kpiRow($slide, $cards, self::CONTENT_Y, 3);
-
-        // El color codifica la severidad de cada regla, no solo su
-        // frecuencia (ver docs/modulos/reports/spec.md).
-        $topRules = array_slice($q['rules'], 0, 8);
-        $rules    = [];
-        $sevColors = [];
-        foreach ($topRules as $r) {
-            $rules[$r['rule_name']] = (int) $r['count'];
-            $sevColors[] = match ($r['severity']) {
-                'critical' => SlideKit::C_CRITICAL, 'warning' => SlideKit::C_WARNING, default => SlideKit::C_INFO,
-            };
-        }
-        $y = self::CONTENT_Y + 130;
-        $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, self::CONTENT_H - 130, 'Reglas con más desviaciones');
-        $k->horizontalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, self::CONTENT_H - 130 - 70, $rules, SlideKit::C_INFO, $sevColors);
-        $this->legendChips($slide, self::MARGIN_X + 10, $y + (self::CONTENT_H - 130) - 20, [
-            ['Crítica', SlideKit::C_CRITICAL], ['Warning', SlideKit::C_WARNING], ['Info', SlideKit::C_INFO],
-        ]);
-    }
-
-    private function slideAgents(Slide $slide, array $a): void
-    {
-        $k = $this->kit;
-        $k->bg($slide);
-        $k->slideHeader($slide, 'Desempeño', 'Desempeño de agentes', 'Evaluación mensual AgentKpis');
-
-        $cards = [
-            ['v' => number_format((float) $a['avg_final_score'], 1) . '%', 'l' => 'Promedio general', 'c' => SlideKit::C_PRIMARY],
-            ['v' => (string) $a['evaluated_count'], 'l' => 'Evaluados', 'c' => SlideKit::C_SUCCESS],
-            ['v' => (string) $a['blocked_count'], 'l' => 'Bloqueados', 'c' => SlideKit::C_CRITICAL],
-        ];
-        $this->kpiRow($slide, $cards, self::CONTENT_Y, 3);
-
-        // final_score es un porcentaje 0-100 (igual que en AgentKpis, donde
-        // siempre se muestra con "%"), no una calificación 0-10 — las bandas
-        // van en esa escala. El color codifica la banda del score final (ver
-        // docs/modulos/reports/spec.md), no solo el orden del ranking.
-        $scores = [];
-        $bandColors = [];
-        foreach ($a['agents'] as $row) {
-            $score = (float) ($row['final_score'] ?? 0);
-            $scores[$row['agent_name']] = (int) round($score);
-            $bandColors[] = match (true) {
-                $score >= 90.0 => SlideKit::C_SUCCESS, $score >= 70.0 => SlideKit::C_WARNING, default => SlideKit::C_CRITICAL,
-            };
-        }
-        $y = self::CONTENT_Y + 130;
-        $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, self::CONTENT_H - 130, 'Score final por agente (%)');
-        $k->horizontalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, self::CONTENT_H - 130 - 70, $scores, SlideKit::C_PRIMARY, $bandColors);
-        $this->legendChips($slide, self::MARGIN_X + 10, $y + (self::CONTENT_H - 130) - 20, [
-            ['90% o más', SlideKit::C_SUCCESS], ['70% a 89%', SlideKit::C_WARNING], ['Menos de 70%', SlideKit::C_CRITICAL],
-        ]);
     }
 
     private function slideConclusiones(Slide $slide, string $periodLabel): void

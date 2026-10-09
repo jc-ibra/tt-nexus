@@ -6,8 +6,8 @@ use CodeIgniter\Router\RouteCollection;
 
 // -----------------------------------------------------------------------
 // Reports web (protected + module access). Monthly executive report:
-// GLPI tickets, trend, Dispatch mailbox, HelpdeskSupervisor quality and
-// AgentKpis performance, composed from a frozen monthly snapshot.
+// GLPI tickets, trend and Dispatch mailbox, composed from a frozen
+// monthly snapshot.
 // -----------------------------------------------------------------------
 $routes->group('reports', [
     'namespace' => 'App\Modules\Reports\Controllers',

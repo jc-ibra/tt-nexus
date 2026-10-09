@@ -167,8 +167,6 @@
 $glpi = $payload['glpi_tickets'] ?? ['available' => false];
 $trend = $payload['trend'] ?? ['available' => false];
 $dispatch = $payload['dispatch'] ?? ['available' => false];
-$quality = $payload['quality'] ?? ['available' => false];
-$agents = $payload['agents'] ?? ['available' => false];
 $summary = trim($commentary['summary']['body'] ?? '');
 
 // Compatibilidad con snapshots congelados antes de campos/formas que este
@@ -183,7 +181,7 @@ if ($glpi['available'] ?? false) {
   <section class="op-slide" data-section="Informe ejecutivo">
     <p class="op-cover-mark">Informe ejecutivo mensual</p>
     <h1 class="op-cover-title"><?= esc($period->label) ?></h1>
-    <p class="op-cover-period">Mesa de ayuda, correo, calidad y desempeño de agentes</p>
+    <p class="op-cover-period">Mesa de ayuda, tendencia y correo</p>
     <p class="op-cover-desc">Estado operativo del mes, congelado al cierre. El detalle en vivo queda a una pantalla de distancia si algo necesita revisarse ahora mismo.</p>
     <div class="op-score-row">
       <?php if ($glpi['available'] ?? false): ?>
@@ -342,46 +340,6 @@ if ($glpi['available'] ?? false) {
   </section>
   <?php endif; ?>
 
-  <?php if ($quality['available'] ?? false): ?>
-  <section class="op-slide" data-section="Calidad">
-    <h2 class="op-title">Calidad documental</h2>
-    <p class="op-subtitle">Auditoría HelpdeskSupervisor del período</p>
-    <hr class="op-rule">
-    <div class="op-score-row" style="margin-bottom: 32px;">
-      <div class="op-score"><div class="op-score-value"><?= number_format($quality['run']['total_tickets_audited']) ?></div><div class="op-score-label">Tickets auditados</div></div>
-      <div class="op-score"><div class="op-score-value"><?= number_format($quality['run']['total_deviations_found']) ?></div><div class="op-score-label">Desviaciones</div></div>
-      <div class="op-score"><div class="op-score-value"><?= number_format($quality['valid_escalations']) ?></div><div class="op-score-label">Escalaciones válidas</div></div>
-    </div>
-    <p class="op-panel-title">Reglas con más desviaciones</p>
-    <div class="op-chart"><canvas id="op-quality"></canvas></div>
-    <div class="op-legend">
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--critical);"></span>Crítica</span>
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--warning);"></span>Warning</span>
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--accent);"></span>Info</span>
-    </div>
-  </section>
-  <?php endif; ?>
-
-  <?php if ($agents['available'] ?? false): ?>
-  <section class="op-slide" data-section="Desempeño">
-    <h2 class="op-title">Desempeño de agentes</h2>
-    <p class="op-subtitle">Evaluación mensual AgentKpis</p>
-    <hr class="op-rule">
-    <div class="op-score-row" style="margin-bottom: 32px;">
-      <div class="op-score"><div class="op-score-value"><?= number_format($agents['avg_final_score'], 1) ?>%</div><div class="op-score-label">Promedio general</div></div>
-      <div class="op-score"><div class="op-score-value"><?= $agents['evaluated_count'] ?></div><div class="op-score-label">Evaluados</div></div>
-      <div class="op-score"><div class="op-score-value"><?= $agents['blocked_count'] ?></div><div class="op-score-label">Bloqueados</div></div>
-    </div>
-    <p class="op-panel-title">Score final por agente (%)</p>
-    <div class="op-chart"><canvas id="op-agents"></canvas></div>
-    <div class="op-legend">
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--good);"></span>90% o más</span>
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--warning);"></span>70% a 89%</span>
-      <span class="op-legend-item"><span class="op-legend-dot" style="background: var(--critical);"></span>Menos de 70%</span>
-    </div>
-  </section>
-  <?php endif; ?>
-
   <section class="op-slide" data-section="Cierre">
     <h2 class="op-title">Conclusiones y próximos pasos</h2>
     <p class="op-subtitle"><?= esc($period->label) ?></p>
@@ -447,8 +405,6 @@ if ($glpi['available'] ?? false) {
       'ids_bottom' => $glpi['available'] ?? false ? array_slice($glpi['ids_bottom'], 0, 10) : [],
       'trend' => $trend['available'] ?? false ? $trend['series'] : [],
       'dispositions' => $dispatch['available'] ?? false ? $dispatch['dispositions'] : [],
-      'rules' => $quality['available'] ?? false ? array_slice($quality['rules'], 0, 8) : [],
-      'agents' => $agents['available'] ?? false ? $agents['agents'] : [],
   ], JSON_UNESCAPED_UNICODE) ?>;
 
   function renderEstados() {
@@ -553,10 +509,6 @@ if ($glpi['available'] ?? false) {
     renderHbar('op-ids-bottom', PAYLOAD.ids_bottom.map(function (r) { return r[0]; }), PAYLOAD.ids_bottom.map(function (r) { return r[1]; }), STATUS.warning);
     renderTrend();
     renderHbar('op-dispatch', PAYLOAD.dispositions.map(function (r) { return r.disposition; }), PAYLOAD.dispositions.map(function (r) { return r.total; }));
-    renderHbar('op-quality', PAYLOAD.rules.map(function (r) { return r.rule_name; }), PAYLOAD.rules.map(function (r) { return r.count; }),
-      PAYLOAD.rules.map(function (r) { return r.severity === 'critical' ? STATUS.critical : (r.severity === 'warning' ? STATUS.warning : STATUS.info); }));
-    renderHbar('op-agents', PAYLOAD.agents.map(function (r) { return r.agent_name; }), PAYLOAD.agents.map(function (r) { return Math.round(r.final_score || 0); }),
-      PAYLOAD.agents.map(function (r) { var s = r.final_score || 0; return s >= 90 ? STATUS.good : (s >= 70 ? STATUS.warning : STATUS.critical); }));
   });
 })();
 

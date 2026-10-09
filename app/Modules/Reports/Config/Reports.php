@@ -23,8 +23,6 @@ class Reports extends BaseConfig
         'glpi_tickets' => ['label' => 'Mesa de Ayuda - GLPI', 'provider' => 'GlpiTickets'],
         'trend'        => ['label' => 'Tendencia y comparativas', 'provider' => 'Trend'],
         'dispatch'     => ['label' => 'Mesa de Ayuda por Correo', 'provider' => 'Dispatch'],
-        'quality'      => ['label' => 'Calidad Documental', 'provider' => 'Quality'],
-        'agents'       => ['label' => 'Desempeño de Agentes', 'provider' => 'AgentPerformance'],
     ];
 
     /** GLPI ticket states considered closed, mirrors KPIsOperativos legacy. */

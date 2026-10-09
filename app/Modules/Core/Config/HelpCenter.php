@@ -44,7 +44,7 @@ final class HelpCenter
                 'title'   => 'Informe ejecutivo mensual',
                 'module'  => 'reports',
                 'icon'    => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 17V11"/><path d="M12 17V7"/><path d="M16 17v-4"/></svg>',
-                'summary' => 'Cómo se arma el informe mensual congelado: GLPI, tendencia, correo, calidad y desempeño de agentes, más el modo presentación y el resumen con IA.',
+                'summary' => 'Cómo se arma el informe mensual congelado: GLPI, tendencia y correo, más el modo presentación y el resumen con IA.',
                 'view'    => 'App\Modules\Reports\Views\help\informes',
                 'sections' => [
                     ['id' => 'que-es',             'label' => 'Qué es el informe'],

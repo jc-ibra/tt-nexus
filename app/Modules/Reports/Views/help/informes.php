@@ -13,9 +13,8 @@
     agosto contra septiembre, ambos meses reflejan el mismo momento de corte.
   </p>
   <p>
-    El informe reúne cinco fuentes: tickets de GLPI, la tendencia contra meses anteriores, la mesa de
-    ayuda por correo (MailDispatch), la calidad documental (HelpdeskSupervisor) y el desempeño de
-    agentes (AgentKpis). Si una fuente no está configurada o no tiene datos ese mes, esa sección se
+    El informe reúne tres fuentes: tickets de GLPI, la tendencia contra meses anteriores y la mesa de
+    ayuda por correo (MailDispatch). Si una fuente no está configurada o no tiene datos ese mes, esa sección se
     muestra como no disponible en vez de detener todo el informe.
   </p>
 </section>

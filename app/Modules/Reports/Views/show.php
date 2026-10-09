@@ -56,8 +56,6 @@ $tuples = static fn(array $t): array => ['labels' => array_map(static fn($r) => 
 $glpi    = $payload['glpi_tickets'] ?? ['available' => false];
 $trend   = $payload['trend'] ?? ['available' => false];
 $dispatch = $payload['dispatch'] ?? ['available' => false];
-$quality  = $payload['quality'] ?? ['available' => false];
-$agents   = $payload['agents'] ?? ['available' => false];
 
 // Compatibilidad con snapshots congelados antes de campos/formas que este
 // módulo agregó después (ver GlpiTicketsProvider::withDefaults).
@@ -103,40 +101,6 @@ if ($dispatch['available'] ?? false) {
         'type'   => 'hbar', 'mono' => true,
         'labels' => array_map(static fn($r) => $r['disposition'], $dispatch['dispositions']),
         'values' => array_map(static fn($r) => $r['total'], $dispatch['dispositions']),
-    ];
-}
-if ($quality['available'] ?? false) {
-    // El color codifica la severidad de la regla (crítica/warning/info), no
-    // solo su frecuencia: sin esto, un ranking de una sola tinta escondería
-    // qué tan grave es cada desviación.
-    $topRules = array_slice($quality['rules'], 0, 8);
-    // Se manda la llave semántica ('critical'/'warning'/'info'), no un hex: el
-    // color real lo resuelve reports-dashboard.js contra la paleta del tema
-    // activo (NxChartTheme), así responde a claro/oscuro.
-    $sevColor = static fn(string $sev) => match ($sev) {
-        'critical' => 'critical', 'warning' => 'warning', default => 'info',
-    };
-    $charts['quality_rules'] = [
-        'type'   => 'hbar',
-        'labels' => array_map(static fn($r) => $r['rule_name'], $topRules),
-        'values' => array_map(static fn($r) => (int) $r['count'], $topRules),
-        'colors' => array_map(static fn($r) => $sevColor($r['severity']), $topRules),
-    ];
-}
-if ($agents['available'] ?? false) {
-    // final_score es un porcentaje 0-100 (igual que en AgentKpis, donde
-    // siempre se muestra con "%"), no una calificación 0-10: las bandas van
-    // en esa escala. El color codifica la banda de desempeño, no solo el
-    // orden: un agente en zona crítica debe saltar a la vista, no solo
-    // aparecer último.
-    $scoreColor = static fn(float $s) => match (true) {
-        $s >= 90.0 => 'good', $s >= 70.0 => 'warning', default => 'critical',
-    };
-    $charts['agents_scores'] = [
-        'type'   => 'hbar',
-        'labels' => array_map(static fn($r) => $r['agent_name'], $agents['agents']),
-        'values' => array_map(static fn($r) => (int) round((float) ($r['final_score'] ?? 0)), $agents['agents']),
-        'colors' => array_map(static fn($r) => $scoreColor((float) ($r['final_score'] ?? 0)), $agents['agents']),
     ];
 }
 ?>
@@ -323,66 +287,6 @@ if ($agents['available'] ?? false) {
       </div>
     </div>
   </div>
-</section>
-<?php endif; ?>
-
-<?php if ($quality['available'] ?? false): ?>
-<section class="rpt-section">
-  <h2 class="rpt-section-title">Calidad Documental</h2>
-  <p class="rpt-section-subtitle">Auditoría HelpdeskSupervisor del período</p>
-
-  <div class="rpt-kpi-grid">
-    <div class="rpt-kpi"><p class="rpt-kpi-label">Tickets auditados</p><p class="rpt-kpi-value"><?= number_format($quality['run']['total_tickets_audited']) ?></p></div>
-    <div class="rpt-kpi accent-warning"><p class="rpt-kpi-label">Desviaciones</p><p class="rpt-kpi-value"><?= number_format($quality['run']['total_deviations_found']) ?></p></div>
-    <div class="rpt-kpi accent-critical"><p class="rpt-kpi-label">Escalaciones válidas</p><p class="rpt-kpi-value"><?= number_format($quality['valid_escalations']) ?></p></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><h3 class="card-title">Reglas con más desviaciones</h3></div>
-    <div class="card-body">
-      <div class="rpt-chart-wrap"><canvas id="chart-quality_rules"></canvas></div>
-      <div class="rpt-legend">
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-critical"></span>Crítica</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-warning"></span>Warning</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-info"></span>Info</span>
-      </div>
-    </div>
-  </div>
-</section>
-<?php elseif (array_key_exists('quality', $payload)): ?>
-<section class="rpt-section">
-  <h2 class="rpt-section-title">Calidad Documental</h2>
-  <div class="banner banner-info" role="status"><div class="banner-body">No hay una corrida de auditoría completada para este mes.</div></div>
-</section>
-<?php endif; ?>
-
-<?php if ($agents['available'] ?? false): ?>
-<section class="rpt-section">
-  <h2 class="rpt-section-title">Desempeño de Agentes</h2>
-  <p class="rpt-section-subtitle">AgentKpis · evaluación mensual</p>
-
-  <div class="rpt-kpi-grid">
-    <div class="rpt-kpi"><p class="rpt-kpi-label">Promedio general</p><p class="rpt-kpi-value"><?= number_format($agents['avg_final_score'], 1) ?>%</p></div>
-    <div class="rpt-kpi accent-success"><p class="rpt-kpi-label">Evaluados</p><p class="rpt-kpi-value"><?= $agents['evaluated_count'] ?></p></div>
-    <div class="rpt-kpi accent-critical"><p class="rpt-kpi-label">Bloqueados</p><p class="rpt-kpi-value"><?= $agents['blocked_count'] ?></p></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><h3 class="card-title">Score final por agente (%)</h3></div>
-    <div class="card-body">
-      <div class="rpt-chart-wrap"><canvas id="chart-agents_scores"></canvas></div>
-      <div class="rpt-legend">
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-good"></span>90% o más</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-warning"></span>70% a 89%</span>
-        <span class="rpt-legend-item"><span class="rpt-legend-swatch is-critical"></span>Menos de 70%</span>
-      </div>
-    </div>
-  </div>
-</section>
-<?php elseif (array_key_exists('agents', $payload)): ?>
-<section class="rpt-section">
-  <h2 class="rpt-section-title">Desempeño de Agentes</h2>
-  <div class="banner banner-info" role="status"><div class="banner-body">Aún no hay evaluaciones mensuales para este período.</div></div>
 </section>
 <?php endif; ?>
 

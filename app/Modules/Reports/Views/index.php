@@ -11,7 +11,7 @@ $now = new DateTimeImmutable('first day of this month');
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Informes</h1>
-    <p class="page-subtitle">Informe ejecutivo mensual: mesa de ayuda, correo, calidad y desempeño de agentes.</p>
+    <p class="page-subtitle">Informe ejecutivo mensual: mesa de ayuda, tendencia y correo.</p>
   </div>
   <div class="page-actions">
     <form method="post" action="<?= route_to('reports.generate', (int) $now->modify('-1 month')->format('Y'), (int) $now->modify('-1 month')->format('n')) ?>">

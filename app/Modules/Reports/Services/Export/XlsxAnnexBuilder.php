@@ -36,8 +36,6 @@ class XlsxAnnexBuilder
         $this->glpiSheet($book, $payload['glpi_tickets'] ?? []);
         $this->trendSheet($book, $payload['trend'] ?? []);
         $this->dispatchSheet($book, $payload['dispatch'] ?? []);
-        $this->qualitySheet($book, $payload['quality'] ?? []);
-        $this->agentsSheet($book, $payload['agents'] ?? []);
 
         if ($book->getSheetCount() === 0) {
             $book->createSheet()->setTitle('Sin datos');
@@ -115,42 +113,6 @@ class XlsxAnnexBuilder
         $r = 6;
         foreach ($d['by_agent'] as $row) {
             $sheet->fromArray([$row['agent_name'], $row['open'], $row['closed'], $row['actions'], $row['replies']], null, "A{$r}");
-            $r++;
-        }
-    }
-
-    private function qualitySheet(Spreadsheet $book, array $q): void
-    {
-        if (! ($q['available'] ?? false)) {
-            return;
-        }
-        $sheet = $book->createSheet();
-        $sheet->setTitle('Calidad Documental');
-        $sheet->fromArray(['Tickets auditados', 'Desviaciones', 'Agentes auditados', 'Escalaciones válidas'], null, 'A1');
-        $sheet->fromArray([$q['run']['total_tickets_audited'], $q['run']['total_deviations_found'], $q['run']['total_agents_audited'], $q['valid_escalations']], null, 'A2');
-
-        $sheet->fromArray(['Regla', 'Severidad', 'Conteo'], null, 'A5');
-        $r = 6;
-        foreach ($q['rules'] as $row) {
-            $sheet->fromArray([$row['rule_name'], $row['severity'], $row['count']], null, "A{$r}");
-            $r++;
-        }
-    }
-
-    private function agentsSheet(Spreadsheet $book, array $a): void
-    {
-        if (! ($a['available'] ?? false)) {
-            return;
-        }
-        $sheet = $book->createSheet();
-        $sheet->setTitle('Desempeño Agentes');
-        $sheet->fromArray(['Agente', 'Tickets', 'KPIs cumplidos', 'Score final', 'Estatus', 'Bloqueado'], null, 'A1');
-        $r = 2;
-        foreach ($a['agents'] as $row) {
-            $sheet->fromArray([
-                $row['agent_name'], $row['total_tickets'], $row['kpis_met_count'],
-                $row['final_score'], $row['final_status'], $row['is_blocked'] ? 'Sí' : 'No',
-            ], null, "A{$r}");
             $r++;
         }
     }

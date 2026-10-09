@@ -108,10 +108,8 @@ use App\Modules\Reports\Models\ReportSettingsModel;
 use App\Modules\Reports\Models\ReportSnapshotModel;
 use App\Modules\Reports\Models\ReportSnapshotVersionModel;
 use App\Modules\Reports\Services\ExecutiveNarrativeService;
-use App\Modules\Reports\Services\Providers\AgentPerformanceProvider;
 use App\Modules\Reports\Services\Providers\DispatchProvider;
 use App\Modules\Reports\Services\Providers\GlpiTicketsProvider;
-use App\Modules\Reports\Services\Providers\QualityProvider;
 use App\Modules\Reports\Services\Providers\TrendProvider;
 use App\Modules\Reports\Services\Export\PptxDeckBuilder;
 use App\Modules\Reports\Services\Export\SlideKit;
@@ -1157,8 +1155,6 @@ class Services extends BaseService
                 $glpiTickets,
                 new TrendProvider($glpiTickets, self::glpiDbConnection(), self::reportsSettings()),
                 new DispatchProvider(self::mailDispatchMetrics()),
-                new QualityProvider(self::helpdeskBridge()),
-                new AgentPerformanceProvider(self::agentKpisBridge()),
             ],
         );
     }

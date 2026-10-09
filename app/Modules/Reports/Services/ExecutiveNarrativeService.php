@@ -20,8 +20,8 @@ class ExecutiveNarrativeService
     private const SYSTEM_PROMPT = <<<'PROMPT'
         Eres un analista que redacta el resumen ejecutivo de un informe mensual de
         mesa de ayuda para dirección. Recibes un JSON con las métricas ya
-        calculadas del mes (tickets GLPI, tendencia, correo, calidad documental,
-        desempeño de agentes). Escribe en español, tono directo y profesional,
+        calculadas del mes (tickets GLPI, tendencia y correo).
+        Escribe en español, tono directo y profesional,
         sin inventar cifras que no estén en el JSON. Estructura la respuesta en
         párrafos cortos, uno por sección relevante, cerrando con los puntos que
         requieren atención de dirección. No uses guiones largos (—) ni emojis.

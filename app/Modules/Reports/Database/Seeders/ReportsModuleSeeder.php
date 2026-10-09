@@ -25,7 +25,7 @@ class ReportsModuleSeeder extends Seeder
             $this->db->table('core_modules')->insert([
                 'key'         => 'reports',
                 'name'        => 'Informes',
-                'description' => 'Informe ejecutivo mensual: mesa de ayuda, correo, calidad y desempeño de agentes.',
+                'description' => 'Informe ejecutivo mensual: mesa de ayuda, tendencia y correo.',
                 'route_base'  => 'reports',
                 'icon'        => 'presentation-chart',
                 'is_active'   => 1,
