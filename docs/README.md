@@ -38,6 +38,7 @@ qué** algo se hizo así. Para el estado actual, el código manda.
 | Provisioning | [brief-aprovisionamiento.md](modulos/provisioning/brief-aprovisionamiento.md) : orquestador del ciclo de vida de identidades hacia GLPI, Mailcow e Intranet |
 | Mailboxes | [integracion-mailcow.md](modulos/mailboxes/integracion-mailcow.md) : cómo generar y configurar la API key de Mailcow |
 | MailDispatch | [spec.md](modulos/maildispatch/spec.md) : despacho del buzón compartido de M365. Ver también `pendiente/` |
+| Presentations | [README.md](../app/Modules/Presentations/README.md) : HTML mensual de Operaciones que sube un usuario externo y ven los roles con acceso; permiso `presentations.upload` |
 | TechBot | [spec.md](modulos/techbot/spec.md) : bot de Telegram para que técnicos de campo documenten tickets de GLPI |
 | ServiceDesk | [actualizacion-masiva.md](modulos/servicedesk/actualizacion-masiva.md) : actualización y cierre masivo de tickets con el mismo Excel del importador |
 | ServiceDesk | [asignaciones.md](modulos/servicedesk/asignaciones.md) : matriz de quién atiende cada categoría, en qué etapa y por qué canal |

@@ -22,3 +22,4 @@ require APPPATH . 'Modules/TechBot/Routes.php';
 require APPPATH . 'Modules/HelpdeskSupervisor/Routes.php';
 require APPPATH . 'Modules/AgentKpis/Routes.php';
 require APPPATH . 'Modules/Reports/Routes.php';
+require APPPATH . 'Modules/Presentations/Routes.php';

@@ -13,6 +13,7 @@ class AccessService
     private ?bool  $isSuperAdmin   = null;
     private ?array $userRoles      = null;
     private ?array $activeRole     = null;
+    private array  $permissionCache = [];
 
     public function isSuperAdmin(): bool
     {
@@ -42,8 +43,27 @@ class AccessService
             return false;
         }
 
-        // TODO: implement fine-grained permission check in Etapa 2
-        return false;
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (isset($this->permissionCache[$permissionKey])) {
+            return $this->permissionCache[$permissionKey];
+        }
+
+        $roleId = $this->getActiveRoleId();
+
+        if ($roleId === null) {
+            return $this->permissionCache[$permissionKey] = false;
+        }
+
+        $row = \Config\Database::connect()->table('core_role_permissions rp')
+            ->join('core_permissions p', 'p.id = rp.permission_id')
+            ->where('rp.role_id', $roleId)
+            ->where('p.key', $permissionKey)
+            ->countAllResults();
+
+        return $this->permissionCache[$permissionKey] = $row > 0;
     }
 
     public function getAccessibleModules(): array
@@ -138,6 +158,7 @@ class AccessService
                 $this->activeRole     = $role;
                 $this->userModuleKeys = null;
                 $this->isSuperAdmin   = null;
+                $this->permissionCache = [];
 
                 return true;
             }

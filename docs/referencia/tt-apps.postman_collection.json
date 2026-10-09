@@ -6543,6 +6543,161 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Presentations — Versiones",
+      "item": [
+        {
+          "name": "List versions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/presentations/versions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presentations",
+                "versions"
+              ]
+            },
+            "description": "Historial de versiones, la más reciente primero."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n{\n    \"id\": 3,\n    \"original_name\": \"presentacion.html\",\n    \"size_bytes\": 41666467,\n    \"sha256\": \"<sha256>\",\n    \"notes\": \"Cierre de septiembre\",\n    \"uploaded_by\": \"Nombre\",\n    \"created_at\": \"2026-10-08 12:00:00\"\n  }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Current version",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/presentations/versions/current",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presentations",
+                "versions",
+                "current"
+              ]
+            },
+            "description": "Metadatos de la versión vigente. 404 si aún no hay ninguna."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 3,\n    \"original_name\": \"presentacion.html\",\n    \"size_bytes\": 41666467,\n    \"sha256\": \"<sha256>\",\n    \"notes\": \"Cierre de septiembre\",\n    \"uploaded_by\": \"Nombre\",\n    \"created_at\": \"2026-10-08 12:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Raw HTML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/presentations/versions/:id/raw",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presentations",
+                "versions",
+                ":id",
+                "raw"
+              ]
+            },
+            "description": "Devuelve el HTML tal cual (text/html con CSP sandbox)."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "<html>...</html>"
+            }
+          ]
+        },
+        {
+          "name": "Upload new version",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/presentations/versions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presentations",
+                "versions"
+              ]
+            },
+            "description": "Requiere el permiso presentations.upload. multipart/form-data: file (.html, máx 100 MB) y notes (opcional). 422 si es duplicado o no es HTML; 403 sin permiso.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "notes",
+                  "value": "Cierre de septiembre",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "OK",
+              "code": 201,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 3,\n    \"original_name\": \"presentacion.html\",\n    \"size_bytes\": 41666467,\n    \"sha256\": \"<sha256>\",\n    \"notes\": \"Cierre de septiembre\",\n    \"uploaded_by\": \"Nombre\",\n    \"created_at\": \"2026-10-08 12:00:00\"\n  }\n}"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

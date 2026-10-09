@@ -51,6 +51,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\HelpdeskSupervisor' => APPPATH . 'Modules/HelpdeskSupervisor',
         'App\Modules\AgentKpis'          => APPPATH . 'Modules/AgentKpis',
         'App\Modules\Reports'            => APPPATH . 'Modules/Reports',
+        'App\Modules\Presentations'      => APPPATH . 'Modules/Presentations',
     ];
 
     /**

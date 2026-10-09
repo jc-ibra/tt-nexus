@@ -216,6 +216,9 @@ run_seeder "App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder"         
 # Reports
 run_seeder "App\Modules\Reports\Database\Seeders\ReportsModuleSeeder"             "ReportsModuleSeeder"
 
+# Presentations
+run_seeder "App\Modules\Presentations\Database\Seeders\PresentationsModuleSeeder" "PresentationsModuleSeeder"
+
 # ServiceDesk
 run_seeder "App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder"     "ServiceDeskModuleSeeder"
 
