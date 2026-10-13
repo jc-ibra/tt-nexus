@@ -269,6 +269,35 @@ $embedSnippet = '<script src="' . base_url('servicedesk/widget/embed.js?key=' . 
       </div>
     </div>
   </form>
+  <form id="sd-trash" action="<?= route_to('servicedesk.trash.save') ?>" method="post" style="max-width: 760px;">
+    <?= csrf_field() ?>
+
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 class="card-title">Papelera masiva</h2>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted text-sm" style="margin-top:0; margin-bottom: var(--space-4);">
+          Permite subir un Excel con la columna TICKET_ID para mandar tickets a la papelera de GLPI en bloque.
+          Los tickets no se borran: quedan en la papelera y se pueden restaurar desde el detalle del lote.
+        </p>
+
+        <div class="banner banner-warning" role="alert" style="margin-bottom: var(--space-4);">
+          <div class="banner-body">
+            El usuario de la API de GLPI necesita el permiso Ticket: Eliminar; sin él, los tickets se
+            reportan como DESVIACION y no se mueven. Si GLPI tiene activa la notificación de ticket
+            eliminado, enviará una por cada ticket.
+          </div>
+        </div>
+
+        <label class="field-check">
+          <input type="checkbox" name="trash_enabled" value="1" <?= ($s['trash_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+          <span>Habilitar la sección Papelera masiva para el rol Service Desk</span>
+        </label>
+      </div>
+    </div>
+  </form>
 </div><!-- /sd-panel-update -->
 
 <!-- Tab: Auto-seguimiento -->

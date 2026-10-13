@@ -55,11 +55,18 @@ class ProcessImports extends BaseCommand
             while (($job = $imports->nextPending()) !== null) {
                 $id     = (int) $job['id'];
                 $mode   = (string) ($job['mode'] ?? 'create');
-                $isUpd  = $mode === 'update';
-                $engine = $isUpd ? service('serviceDeskUpdater') : service('serviceDeskImporter');
-                $label  = $isUpd
-                    ? ((int) ($job['dry_run'] ?? 0) === 1 ? 'simulación' : 'actualización')
-                    : 'importación';
+                $isDry  = (int) ($job['dry_run'] ?? 0) === 1;
+                $engine = match ($mode) {
+                    'update'           => service('serviceDeskUpdater'),
+                    'trash', 'restore' => service('serviceDeskTrasher'),
+                    default            => service('serviceDeskImporter'),
+                };
+                $label = match ($mode) {
+                    'update'  => $isDry ? 'simulación' : 'actualización',
+                    'trash'   => $isDry ? 'simulación de papelera' : 'envío a papelera',
+                    'restore' => 'restauración de papelera',
+                    default   => 'importación',
+                };
 
                 CLI::write(sprintf('[%s] Procesando %s #%d (%s)…', date('H:i:s'), $label, $id, $job['source_filename'] ?? ''), 'cyan');
 

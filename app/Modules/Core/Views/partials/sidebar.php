@@ -271,6 +271,18 @@ if ($canSeeDispatchTeam) {
     ]]);
 }
 
+// Bulk trash is switched off by default (it needs a GLPI permission and fires
+// notifications), so its entry only shows once a SuperAdmin enabled it. Gated on
+// module access first so the settings lookup never runs for everyone else.
+if (in_array('servicedesk', array_column($modules, 'key'), true)
+    && service('serviceDeskSettings')->trashEnabled()) {
+    array_splice($moduleSubnav['servicedesk'], 3, 0, [[
+        'label'  => 'Papelera',
+        'url'    => base_url('servicedesk/papelera'),
+        'active' => str_starts_with($currentPath, '/servicedesk/papelera'),
+    ]]);
+}
+
 // Auditable agents (glpi_user_id set) get a self-view inside Service Desk: the
 // audited detail plus their own monthly KPI evaluation, which is captured in
 // the AgentKpis module but read here, scoped to themselves.

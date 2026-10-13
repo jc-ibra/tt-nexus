@@ -240,6 +240,29 @@ TXT;
     }
 
     // ------------------------------------------------------------------
+    // Bulk TRASH / restore (papelera de GLPI)
+    // ------------------------------------------------------------------
+
+    /**
+     * Apagado por default (sin fila en settings): mandar tickets a la papelera
+     * en masa dispara notificaciones de GLPI y requiere permiso de eliminar en
+     * el usuario de API, así que el SuperAdmin lo habilita a conciencia.
+     */
+    public function trashEnabled(): bool
+    {
+        return $this->model->get('trash_enabled', '0') === '1';
+    }
+
+    public function saveTrash(array $input): ServiceResult
+    {
+        $this->model->setMany([
+            'trash_enabled' => ! empty($input['trash_enabled']) ? '1' : '0',
+        ]);
+
+        return ServiceResult::ok(null, 'Configuración de papelera masiva guardada.');
+    }
+
+    // ------------------------------------------------------------------
     // AI ticket creator (Claude API)
     // ------------------------------------------------------------------
 

@@ -61,6 +61,7 @@ $originBadge = static function (?string $source): string {
   </div>
   <div class="page-actions">
     <a href="<?= route_to('servicedesk.update') ?>" class="btn btn-secondary">Actualizar y cerrar</a>
+    <a href="<?= route_to('servicedesk.trash') ?>" class="btn btn-secondary">Papelera</a>
     <a href="<?= route_to('servicedesk.imports.index') ?>" class="btn btn-secondary">Historial</a>
   </div>
 </div>

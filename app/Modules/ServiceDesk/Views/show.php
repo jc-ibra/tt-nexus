@@ -2,19 +2,27 @@
 <?= $this->section('content') ?>
 
 <?php
-$isUpdate = $isUpdate ?? ((string) ($import['mode'] ?? 'create') === 'update');
+$mode     = $mode ?? (string) ($import['mode'] ?? 'create');
+$isUpdate = $mode === 'update';
+$isTrash  = in_array($mode, ['trash', 'restore'], true);
 $dryRun   = (int) ($import['dry_run'] ?? 0) === 1;
-// El actualizador reporta tres desenlaces por fila, no dos: aplicado, sin nada
-// que aplicar y con problema. Las etiquetas cambian para no llamar "exitoso" a
-// un ticket que solo se leyó.
-$okLabel  = $isUpdate ? ($dryRun ? 'Con cambios' : 'Aplicados') : 'Exitosos';
-$errLabel = $isUpdate ? 'Con problema' : 'Errores';
+// El actualizador y la papelera reportan tres desenlaces por fila, no dos:
+// aplicado, sin nada que aplicar y con problema. Las etiquetas cambian para no
+// llamar "exitoso" a un ticket que solo se leyó.
+$isFlow   = $isUpdate || $isTrash;
+if ($isTrash) {
+    $okLabel = $mode === 'restore' ? 'Restaurados' : ($dryRun ? 'Irían a papelera' : 'En papelera');
+} else {
+    $okLabel = $isUpdate ? ($dryRun ? 'Con cambios' : 'Aplicados') : 'Exitosos';
+}
+$errLabel = $isFlow ? 'Con problema' : 'Errores';
+$titles   = ['update' => 'Actualización', 'trash' => 'Papelera', 'restore' => 'Restauración'];
 $isReady  = (string) ($import['status'] ?? '') === 'ready';
 ?>
 
 <div class="page-header">
   <div class="page-header-content">
-    <h1 class="page-title"><?= $isUpdate ? 'Actualización' : 'Importación' ?> #<?= (int) $import['id'] ?></h1>
+    <h1 class="page-title"><?= esc($titles[$mode] ?? 'Importación') ?> #<?= (int) $import['id'] ?></h1>
     <p class="page-subtitle">
       <?= esc($import['name'] ?: $import['source_filename']) ?>
       <?php if (! empty($import['uploaded_by_name'])): ?>
@@ -25,21 +33,55 @@ $isReady  = (string) ($import['status'] ?? '') === 'ready';
   <div class="page-actions">
     <a href="<?= route_to('servicedesk.imports.index') ?>" class="btn btn-secondary">Volver</a>
     <a id="download-output" href="<?= route_to('servicedesk.imports.output', $import['id']) ?>"
-       class="btn <?= $isUpdate && $dryRun ? 'btn-secondary' : 'btn-primary' ?>"
+       class="btn <?= $isFlow && $dryRun ? 'btn-secondary' : 'btn-primary' ?>"
        style="<?= empty($import['output_path']) ? 'display:none;' : '' ?>">
       Descargar resultado
     </a>
-    <?php if ($isUpdate && $dryRun && $isReady && $canApply): ?>
+    <?php if ($isFlow && $dryRun && $isReady && $canApply): ?>
       <form action="<?= route_to('servicedesk.imports.apply', $import['id']) ?>" method="post"
             style="display:inline;" data-confirm-apply>
         <?= csrf_field() ?>
         <button type="submit" class="btn btn-primary">Aplicar en GLPI</button>
       </form>
     <?php endif; ?>
+    <?php if (! empty($canRestore)): ?>
+      <form action="<?= route_to('servicedesk.imports.restore', $import['id']) ?>" method="post"
+            style="display:inline;" data-confirm-restore>
+        <?= csrf_field() ?>
+        <button type="submit" class="btn btn-secondary">Restaurar lote</button>
+      </form>
+    <?php endif; ?>
   </div>
 </div>
 
-<?php if ($isUpdate && $dryRun): ?>
+<?php if ($isTrash && $dryRun): ?>
+  <div class="banner banner-info" style="margin-bottom: var(--space-4);">
+    <div class="banner-body">
+      <strong>Esto es un ensayo: los tickets de GLPI siguen donde estaban.</strong>
+      Nexus revisó cada ticket y calculó cuáles irían a la papelera, pero no movió nada.
+      <?php if ($isReady): ?>
+        Abajo, <em><?= esc($okLabel) ?></em> es cuántos tickets se moverían y <em>sin cambios</em> cuántos
+        ya estaban en la papelera. Descarga el resultado para ver el detalle por ticket y, cuando estés
+        conforme, pulsa <strong>Aplicar en GLPI</strong>: se corre el mismo archivo, ahora de verdad.
+      <?php else: ?>
+        Cuando termine podrás revisar el detalle y aplicarlo con un botón, sin volver a subir nada.
+      <?php endif; ?>
+    </div>
+  </div>
+<?php elseif ($isTrash): ?>
+  <div class="banner banner-info" style="margin-bottom: var(--space-4);">
+    <div class="banner-body">
+      <?php if ($mode === 'restore'): ?>
+        Los tickets de este lote salieron de la papelera de GLPI y vuelven a estar activos.
+      <?php else: ?>
+        Los tickets ya están en la papelera de GLPI; no se borraron. Si algo salió mal, usa
+        <strong>Restaurar lote</strong> para devolver a la bandeja los que este lote movió.
+      <?php endif; ?>
+      Una fila sale como <strong>DESVIACION</strong> cuando GLPI respondió sin error pero el ticket no
+      cambió, normalmente porque al usuario de la API le falta el permiso de eliminar tickets.
+    </div>
+  </div>
+<?php elseif ($isUpdate && $dryRun): ?>
   <div class="banner banner-info" style="margin-bottom: var(--space-4);">
     <div class="banner-body">
       <strong>Esto es un ensayo: los tickets de GLPI siguen intactos.</strong>
@@ -77,7 +119,7 @@ $isReady  = (string) ($import['status'] ?? '') === 'ready';
     <p class="text-muted text-sm"><?= esc($okLabel) ?></p>
     <p id="stat-ok" style="font-size:1.8rem; font-weight:600; margin:var(--space-1) 0 0; color: var(--status-success-text);">0</p>
   </div></div>
-  <?php if ($isUpdate): ?>
+  <?php if ($isFlow): ?>
     <div class="card"><div class="card-body">
       <p class="text-muted text-sm">Sin cambios</p>
       <p id="stat-skip" style="font-size:1.8rem; font-weight:600; margin:var(--space-1) 0 0;">0</p>
@@ -115,12 +157,25 @@ $isReady  = (string) ($import['status'] ?? '') === 'ready';
 <script>
 // Aplicar escribe de verdad en GLPI y, al cerrar tickets, dispara sus
 // notificaciones por correo. Se confirma una vez, con el número a la vista.
+const isTrash = <?= json_encode($isTrash) ?>;
 document.querySelectorAll('[data-confirm-apply]').forEach((form) => {
   form.addEventListener('submit', (e) => {
     const n = document.getElementById('stat-ok')?.textContent || '';
-    const msg = 'Se van a aplicar en GLPI los cambios de ' + n + ' ticket(s).\n\n'
-      + 'Los tickets que se cierren enviaran las notificaciones de GLPI a sus solicitantes.\n\n'
-      + 'Esta accion no tiene deshacer. Continuar?';
+    const msg = isTrash
+      ? 'Se van a mandar a la papelera de GLPI ' + n + ' ticket(s).\n\n'
+        + 'Si GLPI tiene activa la notificacion de ticket eliminado, enviara un correo por cada uno.\n\n'
+        + 'Puedes restaurarlos despues desde este lote. Continuar?'
+      : 'Se van a aplicar en GLPI los cambios de ' + n + ' ticket(s).\n\n'
+        + 'Los tickets que se cierren enviaran las notificaciones de GLPI a sus solicitantes.\n\n'
+        + 'Esta accion no tiene deshacer. Continuar?';
+    if (! window.confirm(msg)) e.preventDefault();
+  });
+});
+
+document.querySelectorAll('[data-confirm-restore]').forEach((form) => {
+  form.addEventListener('submit', (e) => {
+    const n = document.getElementById('stat-ok')?.textContent || '';
+    const msg = 'Se van a sacar de la papelera ' + n + ' ticket(s) que este lote movio.\n\nContinuar?';
     if (! window.confirm(msg)) e.preventDefault();
   });
 });

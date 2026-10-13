@@ -16,6 +16,7 @@ use CodeIgniter\HTTP\ResponseInterface;
  * Two flows share this controller, the queue and the history:
  *   alta masiva      - upload()       -> mode 'create', TICKET_ID lo llena el sistema
  *   plancha + cierre - uploadUpdate() -> mode 'update', TICKET_ID lo llenas tú
+ *   papelera masiva  - uploadTrash()  -> mode 'trash' (y 'restore' desde su detalle)
  */
 class ServiceDesk extends BaseController
 {
@@ -245,10 +246,101 @@ class ServiceDesk extends BaseController
         return redirect()->to(route_to('servicedesk.imports.show', $importId))->with('success', $msg);
     }
 
+    /**
+     * Papelera masiva: se sube un Excel con TICKET_ID y los tickets van a la
+     * papelera de GLPI (reversible). Misma cola y mismo worker que los demás.
+     */
+    public function trashForm(): string
+    {
+        return view('App\Modules\ServiceDesk\Views\trash', [
+            'pageTitle' => 'Enviar tickets a la papelera',
+            'settings'  => $this->settings(),
+            'imports'   => (new ServiceDeskImportModel())->recent(10, null, 'trash'),
+        ]);
+    }
+
+    public function trashTemplate(): ResponseInterface
+    {
+        $path = WRITEPATH . 'servicedesk/tmp/papelera_' . bin2hex(random_bytes(4)) . '.xlsx';
+        $this->ensureDir(dirname($path));
+        service('trashJobService')->buildTemplate($path);
+
+        return $this->response->download($path, null)->setFileName('template_papelera_' . date('Ymd_His') . '.xlsx');
+    }
+
+    public function uploadTrash(): ResponseInterface
+    {
+        $redirect = route_to('servicedesk.trash');
+
+        if (! $this->settings()->trashEnabled()) {
+            return redirect()->to($redirect)
+                ->with('error', 'La papelera masiva está deshabilitada por el administrador.');
+        }
+
+        $name = trim((string) $this->request->getPost('name'));
+        if ($name === '') {
+            return redirect()->to($redirect)->withInput()
+                ->with('error', 'Indica un nombre para la carga (ej. el motivo de la limpieza).');
+        }
+
+        $file = $this->request->getFile('file');
+        if ($file === null || ! $file->isValid()) {
+            return redirect()->to($redirect)->with('error', 'Selecciona un archivo .xlsx válido.');
+        }
+        if (strtolower($file->getExtension()) !== 'xlsx') {
+            return redirect()->to($redirect)->with('error', 'El archivo debe ser .xlsx.');
+        }
+
+        $tmpDir = WRITEPATH . 'servicedesk/tmp';
+        $this->ensureDir($tmpDir);
+        $tmpPath = $tmpDir . '/upload_' . bin2hex(random_bytes(6)) . '.xlsx';
+        $file->move($tmpDir, basename($tmpPath));
+
+        $dryRun = (bool) $this->request->getPost('dry_run');
+        $result = service('trashJobService')->enqueueUpload(
+            $tmpPath,
+            $file->getClientName(),
+            $name,
+            $dryRun,
+            session()->get('user_id') !== null ? (int) session()->get('user_id') : null,
+        );
+        if (! $result->success) {
+            return redirect()->to($redirect)
+                ->with('error', 'La validación falló. Corrige el archivo e inténtalo de nuevo.')
+                ->with('rowErrors', $result->errors);
+        }
+
+        $id        = (int) $result->data['id'];
+        $warnCount = count($result->data['warnings']);
+        $msg = ($dryRun ? "Simulación #{$id} encolada" : "Envío a papelera #{$id} encolado")
+            . ": {$result->data['total']} ticket(s)."
+            . ($warnCount > 0 ? " {$warnCount} aviso(s), revísalos en el detalle." : '');
+
+        return redirect()->to(route_to('servicedesk.imports.show', $id))->with('success', $msg);
+    }
+
+    /** Restaura los tickets que un lote de papelera ya aplicado dejó en la papelera. */
+    public function restoreBatch(int $id): ResponseInterface
+    {
+        $back = route_to('servicedesk.imports.show', $id);
+
+        if (! $this->settings()->trashEnabled()) {
+            return redirect()->to($back)->with('error', 'La papelera masiva está deshabilitada por el administrador.');
+        }
+
+        $result = service('trashJobService')->restoreBatch($id, $this->currentUserId());
+        if (! $result->success) {
+            return redirect()->to($back)->with('error', $result->message);
+        }
+
+        return redirect()->to(route_to('servicedesk.imports.show', $result->data['id']))
+            ->with('success', "Restauración #{$result->data['id']} encolada: {$result->data['total']} ticket(s) del lote #{$id}.");
+    }
+
     public function imports(): string
     {
         $mode = $this->request->getGet('modo');
-        $mode = in_array($mode, ['create', 'update'], true) ? $mode : null;
+        $mode = in_array($mode, ['create', 'update', 'trash', 'restore'], true) ? $mode : null;
 
         return view('App\Modules\ServiceDesk\Views\imports', [
             'pageTitle' => 'Historial de cargas',
@@ -263,13 +355,24 @@ class ServiceDesk extends BaseController
         if ($import === null) {
             return redirect()->to(route_to('servicedesk.imports.index'))->with('error', 'Importación no encontrada.');
         }
-        $isUpdate = (string) ($import['mode'] ?? 'create') === 'update';
+        $mode      = (string) ($import['mode'] ?? 'create');
+        $isTrash   = in_array($mode, ['trash', 'restore'], true);
+        $isUpdate  = $mode === 'update';
+        $settings  = $this->settings();
+        $titles    = ['update' => 'Actualización #', 'trash' => 'Papelera #', 'restore' => 'Restauración #'];
 
         return view('App\Modules\ServiceDesk\Views\show', [
-            'pageTitle' => ($isUpdate ? 'Actualización #' : 'Importación #') . $id,
-            'import'    => $import,
-            'isUpdate'  => $isUpdate,
-            'canApply'  => $this->settings()->updateEnabled(),
+            'pageTitle'  => ($titles[$mode] ?? 'Importación #') . $id,
+            'import'     => $import,
+            'isUpdate'   => $isUpdate,
+            'isTrash'    => $isTrash,
+            'mode'       => $mode,
+            'canApply'   => $isTrash ? $settings->trashEnabled() : $settings->updateEnabled(),
+            // Restaurar solo tiene sentido sobre un lote de papelera ya aplicado y terminado.
+            'canRestore' => $mode === 'trash'
+                && (int) ($import['dry_run'] ?? 0) === 0
+                && (string) $import['status'] === 'ready'
+                && $settings->trashEnabled(),
         ]);
     }
 
@@ -289,6 +392,9 @@ class ServiceDesk extends BaseController
         if ($job === null) {
             return redirect()->to(route_to('servicedesk.imports.index'))
                 ->with('error', 'Carga no encontrada.');
+        }
+        if ((string) ($job['mode'] ?? '') === 'trash') {
+            return $this->applyTrashSimulation($id);
         }
         if (! $this->settings()->updateEnabled()) {
             return redirect()->to(route_to('servicedesk.imports.show', $id))
@@ -392,12 +498,40 @@ class ServiceDesk extends BaseController
             return redirect()->to(route_to('servicedesk.imports.show', $id))
                 ->with('error', 'Aún no hay archivo de resultado disponible.');
         }
-        $prefix = (string) ($import['mode'] ?? 'create') === 'update' ? 'resultado_actualizacion_' : 'resultado_import_';
+        $prefix = match ((string) ($import['mode'] ?? 'create')) {
+            'update'  => 'resultado_actualizacion_',
+            'trash'   => 'resultado_papelera_',
+            'restore' => 'resultado_restauracion_',
+            default   => 'resultado_import_',
+        };
 
         return $this->response->download($path, null)->setFileName($prefix . $id . '.xlsx');
     }
 
     // ------------------------------------------------------------------
+
+    private function applyTrashSimulation(int $id): ResponseInterface
+    {
+        $back = route_to('servicedesk.imports.show', $id);
+        if (! $this->settings()->trashEnabled()) {
+            return redirect()->to($back)->with('error', 'La papelera masiva está deshabilitada por el administrador.');
+        }
+
+        $result = service('trashJobService')->applySimulation($id, $this->currentUserId());
+        if (! $result->success) {
+            return redirect()->to($back)->with('error', $result->message);
+        }
+
+        return redirect()->to(route_to('servicedesk.imports.show', $result->data['id']))
+            ->with('success', "Envío a papelera #{$result->data['id']} encolado con el mismo archivo de la simulación #{$id}.");
+    }
+
+    private function currentUserId(): ?int
+    {
+        $uid = session()->get('user_id');
+
+        return $uid !== null ? (int) $uid : null;
+    }
 
     /**
      * Reads and validates the requested container ids against admin-allowed,

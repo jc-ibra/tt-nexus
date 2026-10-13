@@ -41,6 +41,7 @@ qué** algo se hizo así. Para el estado actual, el código manda.
 | Presentations | [README.md](../app/Modules/Presentations/README.md) : HTML mensual de Operaciones que sube un usuario externo y ven los roles con acceso; permiso `presentations.upload` |
 | TechBot | [spec.md](modulos/techbot/spec.md) : bot de Telegram para que técnicos de campo documenten tickets de GLPI |
 | ServiceDesk | [actualizacion-masiva.md](modulos/servicedesk/actualizacion-masiva.md) : actualización y cierre masivo de tickets con el mismo Excel del importador |
+| ServiceDesk | [papelera-masiva.md](modulos/servicedesk/papelera-masiva.md) : envío masivo de tickets a la papelera de GLPI (y restauración de lotes) |
 | ServiceDesk | [asignaciones.md](modulos/servicedesk/asignaciones.md) : matriz de quién atiende cada categoría, en qué etapa y por qué canal |
 | HelpdeskSupervisor | [fase-1-supervisor.md](modulos/helpdesk-supervisor/fase-1-supervisor.md) : auditoría de GLPI contra el Manual MAC |
 | HelpdeskSupervisor | [fase-2-notificaciones-ia.md](modulos/helpdesk-supervisor/fase-2-notificaciones-ia.md) : notificaciones IA y envío de reportes |

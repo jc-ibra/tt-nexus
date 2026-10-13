@@ -638,6 +638,70 @@ class GlpiConnector implements SystemConnector
         return ConnectorResult::ok("Actor {$relationId} eliminado del ticket.");
     }
 
+    /**
+     * Moves a ticket to GLPI's trash (is_deleted = 1).
+     *
+     * `DELETE Ticket/{id}` WITHOUT `force_purge` is a soft delete: the row stays
+     * in glpi_tickets and can be restored. Purging is deliberately not exposed
+     * here, so no caller can destroy a ticket permanently by mistake.
+     */
+    public function trashTicket(int $ticketId, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $resp = $this->request('DELETE', "Ticket/{$ticketId}", null, $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_TICKET_TRASH_FAILED', $this->buildDebug($resp));
+        }
+
+        // Como en updateTicket: GLPI puede responder 200 y rechazar la operación
+        // (p. ej. sin permiso de eliminar). El llamador debe releer is_deleted.
+        return ConnectorResult::ok("Ticket {$ticketId} enviado a la papelera.", (string) $ticketId, [
+            'response'    => $resp['data'],
+            'glpiMessage' => $this->extractApiMessage($resp['data']),
+        ]);
+    }
+
+    /** Restores a trashed ticket (is_deleted = 0). */
+    public function restoreTicket(int $ticketId, ?string $sessionToken = null): ConnectorResult
+    {
+        $ownSession = $sessionToken === null;
+        if ($ownSession) {
+            $session = $this->initSession();
+            if (! $session['success']) {
+                return ConnectorResult::fail($session['error'], 'GLPI_AUTH_FAILED');
+            }
+            $sessionToken = $session['token'];
+        }
+
+        $resp = $this->request('PUT', "Ticket/{$ticketId}", ['input' => ['id' => $ticketId, 'is_deleted' => 0]], $sessionToken);
+
+        if ($ownSession) {
+            $this->killSession($sessionToken);
+        }
+
+        if (! $resp['success']) {
+            return ConnectorResult::fail($resp['error'], 'GLPI_TICKET_RESTORE_FAILED', $this->buildDebug($resp));
+        }
+
+        return ConnectorResult::ok("Ticket {$ticketId} restaurado.", (string) $ticketId, [
+            'response'    => $resp['data'],
+            'glpiMessage' => $this->extractApiMessage($resp['data']),
+        ]);
+    }
+
     // -----------------------------------------------------------------------
     // Session
     // -----------------------------------------------------------------------

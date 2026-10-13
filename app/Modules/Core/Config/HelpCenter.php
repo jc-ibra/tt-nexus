@@ -70,6 +70,23 @@ final class HelpCenter
                     ['id' => 'faq',         'label' => 'Preguntas frecuentes'],
                 ],
             ],
+            'papelera-masiva' => [
+                'key'     => 'papelera-masiva',
+                'title'   => 'Enviar tickets a la papelera',
+                'module'  => 'servicedesk',
+                'icon'    => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+                'summary' => 'Manda a la papelera de GLPI, en bloque, los tickets listados en un Excel con la columna TICKET_ID, y restáuralos si hace falta.',
+                'view'    => 'App\Modules\ServiceDesk\Views\help\papelera-masiva',
+                'sections' => [
+                    ['id' => 'intro',      'label' => 'Para qué sirve'],
+                    ['id' => 'archivo',    'label' => 'Cómo se llena el archivo'],
+                    ['id' => 'proceso',    'label' => 'Cómo se aplica un lote'],
+                    ['id' => 'resultados', 'label' => 'Qué significa cada resultado'],
+                    ['id' => 'restaurar',  'label' => 'Cómo deshacer un lote'],
+                    ['id' => 'cuidados',   'label' => 'Antes de un lote grande'],
+                    ['id' => 'faq',        'label' => 'Preguntas frecuentes'],
+                ],
+            ],
             'evaluacion-kpis' => [
                 'key'     => 'evaluacion-kpis',
                 'title'   => 'Cómo se calcula tu evaluación',

@@ -30,6 +30,8 @@ class TicketImportValidator
 {
     public const MODE_CREATE = 'create';
     public const MODE_UPDATE = 'update';
+    public const MODE_TRASH   = 'trash';
+    public const MODE_RESTORE = 'restore';
 
     private const SHEET = 'DATOS';
 
@@ -313,6 +315,195 @@ class TicketImportValidator
                 ? "Validación correcta: {$dataCount} ticket(s) listos para actualizar."
                 : "Validación correcta: {$dataCount} tickets listos para importar.",
         );
+    }
+
+    /**
+     * Validates a file for the trash / restore flows. The only thing that matters
+     * is TICKET_ID, so unlike validateFile() this needs neither `_META` nor the
+     * column plan: it accepts the downloaded template, the importer/updater
+     * result workbook, or any xlsx that carries a TICKET_ID header.
+     *
+     * Data carries: totalRows, warnings, ticketIds, skipIds (already in the
+     * target state, the engine will skip them) and openIds (trash only: tickets
+     * not yet solved/closed, flagged as a warning, never blocked).
+     */
+    public function validateTrashFile(string $path, string $mode = self::MODE_TRASH): ServiceResult
+    {
+        $toTrash = $mode === self::MODE_TRASH;
+
+        if (! is_file($path)) {
+            return ServiceResult::fail('No se encontró el archivo cargado.');
+        }
+
+        try {
+            $spreadsheet = IOFactory::load($path);
+        } catch (\Throwable $e) {
+            return ServiceResult::fail('No se pudo leer el Excel: ' . $e->getMessage());
+        }
+
+        $sheet = $spreadsheet->getSheetByName(self::SHEET) ?? $spreadsheet->getSheet(0);
+        $rows  = $sheet->toArray(null, true, false, false);
+        if (count($rows) < 1) {
+            return ServiceResult::fail('El Excel está vacío.');
+        }
+
+        $idHeader = $this->config->ticketIdHeader;
+        $idCol    = null;
+        foreach ($rows[0] as $i => $name) {
+            if (mb_strtoupper(trim((string) ($name ?? ''))) === mb_strtoupper($idHeader)) {
+                $idCol = $i;
+                break;
+            }
+        }
+        if ($idCol === null) {
+            return ServiceResult::fail("El Excel no tiene la columna «{$idHeader}» en la primera fila.");
+        }
+
+        $rowErrors = [];
+        $warnings  = [];
+        $ticketIds = [];   // excelRow => ticketId
+        $seenIds   = [];   // ticketId => first excelRow
+        $dataCount = 0;
+
+        for ($r = 1; $r < count($rows); $r++) {
+            $excelRow = $r + 1;
+            $rawId    = trim((string) ($rows[$r][$idCol] ?? ''));
+
+            // Una fila sin TICKET_ID pero con otros datos es un error; una fila
+            // totalmente vacía se ignora.
+            if ($rawId === '') {
+                foreach ($rows[$r] as $v) {
+                    if (trim((string) ($v ?? '')) !== '') {
+                        $dataCount++;
+                        $rowErrors[] = ['row' => $excelRow, 'column' => $idHeader, 'message' => 'Requerido: indica el id del ticket.'];
+                        break;
+                    }
+                }
+                continue;
+            }
+            $dataCount++;
+
+            if (! ctype_digit($rawId) || (int) $rawId <= 0) {
+                $rowErrors[] = ['row' => $excelRow, 'column' => $idHeader, 'message' => 'Debe ser el id numérico del ticket en GLPI, no «' . $rawId . '».'];
+                continue;
+            }
+            $ticketId = (int) $rawId;
+            if (isset($seenIds[$ticketId])) {
+                $rowErrors[] = ['row' => $excelRow, 'column' => $idHeader, 'message' => "El ticket {$ticketId} ya venía en la fila {$seenIds[$ticketId]}."];
+                continue;
+            }
+            $seenIds[$ticketId]   = $excelRow;
+            $ticketIds[$excelRow] = $ticketId;
+        }
+
+        if ($dataCount === 0) {
+            return ServiceResult::fail('El Excel no tiene tickets en la columna ' . $idHeader . '.');
+        }
+        $maxRows = $this->settings->importMaxRows();
+        if ($maxRows > 0 && $dataCount > $maxRows) {
+            return ServiceResult::fail(
+                "El archivo tiene {$dataCount} tickets y el máximo permitido es {$maxRows}. "
+                . 'Divide el archivo o pide al administrador aumentar el límite.'
+            );
+        }
+
+        $skipIds = [];
+        $openIds = [];
+        if ($ticketIds !== []) {
+            $check = $this->checkTicketsState($ticketIds);
+            foreach ($check['missing'] as $excelRow => $ticketId) {
+                $rowErrors[] = ['row' => $excelRow, 'column' => $idHeader, 'message' => "El ticket {$ticketId} no existe en GLPI."];
+            }
+            if ($toTrash) {
+                $skipIds = array_values($check['trashed']);
+                $openIds = array_values($check['open']);
+                if ($skipIds !== []) {
+                    $warnings[] = count($skipIds) . ' ticket(s) ya están en la papelera: se omitirán.';
+                }
+                if ($openIds !== []) {
+                    $warnings[] = count($openIds) . ' ticket(s) siguen abiertos (no resueltos ni cerrados) y también irán a la papelera.';
+                }
+            } else {
+                $skipIds = array_values($check['active']);
+                if ($skipIds !== []) {
+                    $warnings[] = count($skipIds) . ' ticket(s) no están en la papelera: se omitirán.';
+                }
+            }
+        }
+
+        if ($rowErrors !== []) {
+            $preview = array_slice(array_map(
+                static fn($e) => "Fila {$e['row']} · {$e['column']}: {$e['message']}",
+                $rowErrors,
+            ), 0, 50);
+            return ServiceResult::fail($preview, [
+                'totalRows' => $dataCount,
+                'rowErrors' => $rowErrors,
+                'warnings'  => $warnings,
+            ]);
+        }
+
+        return ServiceResult::ok(
+            [
+                'totalRows' => $dataCount,
+                'warnings'  => $warnings,
+                'ticketIds' => array_values($ticketIds),
+                'skipIds'   => $skipIds,
+                'openIds'   => $openIds,
+            ],
+            $toTrash
+                ? "Validación correcta: {$dataCount} ticket(s) listos para enviar a la papelera."
+                : "Validación correcta: {$dataCount} ticket(s) listos para restaurar.",
+        );
+    }
+
+    /**
+     * Like checkTicketsExist() but trash-aware: a trashed ticket is NOT missing
+     * here, it is classified. Without the GLPI DB nothing is asserted.
+     *
+     * @param array<int,int> $ticketIds excelRow => ticketId
+     * @return array{missing:array<int,int>,trashed:array<int,int>,open:array<int,int>,active:array<int,int>}
+     */
+    private function checkTicketsState(array $ticketIds): array
+    {
+        $out = ['missing' => [], 'trashed' => [], 'open' => [], 'active' => []];
+
+        $db = $this->glpiDb->connection();
+        if (! $db->tableExists('glpi_tickets')) {
+            return $out;
+        }
+
+        $found = [];
+        foreach (array_chunk(array_values(array_unique($ticketIds)), self::ID_CHUNK) as $chunk) {
+            $rows = $db->table('glpi_tickets')
+                ->select('id, status, is_deleted')
+                ->whereIn('id', $chunk)
+                ->get()->getResultArray();
+            foreach ($rows as $row) {
+                $found[(int) $row['id']] = $row;
+            }
+        }
+
+        $closedStatusIds = array_values(array_intersect_key(
+            $this->config->ticketStatuses,
+            array_flip($this->config->closedStatuses),
+        ));
+
+        foreach ($ticketIds as $excelRow => $ticketId) {
+            $row = $found[$ticketId] ?? null;
+            if ($row === null) {
+                $out['missing'][$excelRow] = $ticketId;
+            } elseif ((int) ($row['is_deleted'] ?? 0) === 1) {
+                $out['trashed'][$excelRow] = $ticketId;
+            } else {
+                $out['active'][$excelRow] = $ticketId;
+                if (! in_array((int) $row['status'], $closedStatusIds, true)) {
+                    $out['open'][$excelRow] = $ticketId;
+                }
+            }
+        }
+
+        return $out;
     }
 
     /**

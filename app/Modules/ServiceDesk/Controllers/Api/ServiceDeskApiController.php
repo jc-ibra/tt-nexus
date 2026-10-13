@@ -285,6 +285,113 @@ class ServiceDeskApiController extends BaseApiController
     }
 
     /**
+     * GET /api/v1/servicedesk/trash
+     */
+    public function listTrash(): ResponseInterface
+    {
+        return $this->success((new ServiceDeskImportModel())->recent(100, null, 'trash'));
+    }
+
+    /**
+     * POST /api/v1/servicedesk/trash  (multipart: file, name?, dry_run?)
+     *
+     * Mirror of the web action: validates an Excel with TICKET_ID and enqueues a
+     * mode=trash job. Tickets go to GLPI's trash (reversible), never purged.
+     * dry_run=1 simulates without writing; callers should run it once first.
+     */
+    public function createTrash(): ResponseInterface
+    {
+        if (! service('serviceDeskSettings')->trashEnabled()) {
+            return $this->error('La papelera masiva está deshabilitada.', 403);
+        }
+
+        $file = $this->request->getFile('file');
+        if ($file === null || ! $file->isValid() || strtolower($file->getExtension()) !== 'xlsx') {
+            return $this->error('Adjunta un archivo .xlsx válido en el campo «file».', 422);
+        }
+
+        $tmpDir = WRITEPATH . 'servicedesk/tmp';
+        if (! is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0775, true);
+        }
+        $tmpPath = $tmpDir . '/api_trash_' . bin2hex(random_bytes(6)) . '.xlsx';
+        $file->move($tmpDir, basename($tmpPath));
+
+        $dryRun = (bool) $this->request->getPost('dry_run');
+        $result = service('trashJobService')->enqueueUpload(
+            $tmpPath,
+            $file->getClientName(),
+            trim((string) $this->request->getPost('name')),
+            $dryRun,
+            null,
+        );
+        if (! $result->success) {
+            return $this->validationError($result->errors);
+        }
+
+        return $this->successCreated([
+            'id'       => $result->data['id'],
+            'status'   => 'pending',
+            'mode'     => 'trash',
+            'dry_run'  => $dryRun,
+            'total'    => $result->data['total'],
+            'openIds'  => $result->data['openIds'],
+            'skipIds'  => $result->data['skipIds'],
+            'warnings' => $result->data['warnings'],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/servicedesk/trash/{id}/apply
+     * Takes a FINISHED simulation and enqueues the same workbook for real.
+     */
+    public function applyTrash(int $id): ResponseInterface
+    {
+        if (! service('serviceDeskSettings')->trashEnabled()) {
+            return $this->error('La papelera masiva está deshabilitada.', 403);
+        }
+
+        $result = service('trashJobService')->applySimulation($id, null);
+        if (! $result->success) {
+            return $this->error($result->message, (int) ($result->data['code'] ?? 422));
+        }
+
+        return $this->successCreated([
+            'id'          => $result->data['id'],
+            'status'      => 'pending',
+            'mode'        => 'trash',
+            'dry_run'     => false,
+            'simulatedBy' => $id,
+            'total'       => $result->data['total'],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/servicedesk/trash/{id}/restore
+     * Enqueues a restore job for the tickets an applied trash batch sent to the trash.
+     */
+    public function restoreTrash(int $id): ResponseInterface
+    {
+        if (! service('serviceDeskSettings')->trashEnabled()) {
+            return $this->error('La papelera masiva está deshabilitada.', 403);
+        }
+
+        $result = service('trashJobService')->restoreBatch($id, null);
+        if (! $result->success) {
+            return $this->error($result->message, (int) ($result->data['code'] ?? 422));
+        }
+
+        return $this->successCreated([
+            'id'           => $result->data['id'],
+            'status'       => 'pending',
+            'mode'         => 'restore',
+            'dry_run'      => false,
+            'restoredFrom' => $id,
+            'total'        => $result->data['total'],
+        ]);
+    }
+
+    /**
      * GET /api/v1/servicedesk/backlog/preview
      * Returns the aggregated backlog report data (KPIs, areas, buckets) as JSON,
      * without sending anything. Mirrors what the emailed report contains.

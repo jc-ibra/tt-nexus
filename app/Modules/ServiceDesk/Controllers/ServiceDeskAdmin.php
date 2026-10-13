@@ -247,6 +247,14 @@ class ServiceDeskAdmin extends BaseController
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 
+    /** Papelera masiva: solo el interruptor; vive en la pestaña de actualización. */
+    public function saveTrash(): ResponseInterface
+    {
+        $result = service('serviceDeskSettings')->saveTrash($this->request->getPost());
+        return redirect()->to(route_to('servicedesk.settings') . '#update')
+            ->with($result->success ? 'success' : 'error', $result->message);
+    }
+
     public function saveAi(): ResponseInterface
     {
         $result = service('serviceDeskSettings')->saveAi($this->request->getPost());

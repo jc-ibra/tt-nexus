@@ -3442,6 +3442,163 @@
           "response": []
         },
         {
+          "name": "Bulk trash — enqueue (upload xlsx con TICKET_ID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Excel con la columna TICKET_ID (una fila por ticket). MOTIVO es opcional y no se envía a GLPI."
+                },
+                {
+                  "key": "name",
+                  "value": "Tickets duplicados de septiembre",
+                  "type": "text"
+                },
+                {
+                  "key": "dry_run",
+                  "value": "1",
+                  "type": "text",
+                  "description": "1 = simular: reporta cuáles irían a la papelera sin tocar GLPI. Recomendado antes de aplicar."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/trash",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "trash"
+              ]
+            },
+            "description": "Valida el Excel y encola un trabajo mode=trash en la MISMA cola del importador. Los tickets van a la papelera de GLPI (reversible, nunca se purgan).\n\nRequiere que el SuperAdmin haya habilitado la papelera masiva (trash_enabled), si no responde 403. El usuario de la API de GLPI necesita el permiso Ticket: Eliminar.\n\nReglas:\n- TICKET_ID es la única columna obligatoria; debe existir en GLPI y no repetirse.\n- Tickets ya en la papelera se omiten (skipIds); tickets abiertos se avisan (openIds) pero se aceptan.\n\nRespuesta: id, total, openIds, skipIds y warnings."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk trash — list jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/trash",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "trash"
+              ]
+            },
+            "description": "Historial de trabajos mode=trash. Las restauraciones (mode=restore) se consultan por su id en trash/{id}."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk trash — show job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/trash/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "trash",
+                "1"
+              ]
+            },
+            "description": "Progreso y contadores: succeeded_rows (a papelera / restaurados), skipped_rows (ya estaban en el estado destino), failed_rows (errores y DESVIACION)."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk trash — apply a finished simulation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/trash/1/apply",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "trash",
+                "1",
+                "apply"
+              ]
+            },
+            "description": "Toma una simulación TERMINADA (mode=trash, dry_run=1, status=ready) y encola el MISMO archivo para aplicarlo de verdad (dry_run=0). La simulación original queda como evidencia.\n\nErrores: 403 si la papelera masiva está deshabilitada, 404 si no existe, 422 si no es una simulación de papelera, 409 si aún no termina, 410 si ya no está su archivo."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk trash — restore a batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/servicedesk/trash/1/restore",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "servicedesk",
+                "trash",
+                "1",
+                "restore"
+              ]
+            },
+            "description": "Encola un trabajo mode=restore para sacar de la papelera los tickets que un lote de papelera YA APLICADO movió (filas con RESULTADO = PAPELERA). Los omitidos o con error no se tocan.\n\nErrores: 403 si la papelera masiva está deshabilitada, 404 si no existe, 422 si el lote es una simulación o no dejó tickets en la papelera, 409 si aún no termina, 410 si ya no está su archivo de resultado."
+          },
+          "response": []
+        },
+        {
           "name": "AI creator — chat (propose tickets)",
           "request": {
             "method": "POST",

@@ -51,6 +51,12 @@ $routes->group('servicedesk', [
     $routes->get('actualizar',  'ServiceDesk::updateForm',   ['as' => 'servicedesk.update']);
     $routes->post('actualizar', 'ServiceDesk::uploadUpdate', ['as' => 'servicedesk.update.upload']);
 
+    // Bulk trash (papelera de GLPI): TICKET_ID -> papelera, reversible. 'restore' sale del detalle del lote.
+    $routes->get('papelera',            'ServiceDesk::trashForm',     ['as' => 'servicedesk.trash']);
+    $routes->get('papelera/plantilla',  'ServiceDesk::trashTemplate', ['as' => 'servicedesk.trash.template']);
+    $routes->post('papelera',           'ServiceDesk::uploadTrash',   ['as' => 'servicedesk.trash.upload']);
+    $routes->post('imports/(:num)/restaurar', 'ServiceDesk::restoreBatch/$1', ['as' => 'servicedesk.imports.restore']);
+
     // Import history + monitoring
     $routes->get('imports',                'ServiceDesk::imports',        ['as' => 'servicedesk.imports.index']);
     $routes->get('imports/(:num)',         'ServiceDesk::show/$1',        ['as' => 'servicedesk.imports.show']);
@@ -77,6 +83,7 @@ $routes->group('admin/servicedesk', [
     $routes->post('widget',        'ServiceDeskAdmin::saveWidget',    ['as' => 'servicedesk.widget.save']);
     // Bulk update + close: enable, reopen/verify toggles, default solution text.
     $routes->post('update',        'ServiceDeskAdmin::saveUpdate',    ['as' => 'servicedesk.update.save']);
+    $routes->post('trash',         'ServiceDeskAdmin::saveTrash',     ['as' => 'servicedesk.trash.save']);
     // Category -> CLIENTE mapping + supported categories for the template.
     $routes->get('categories',     'ServiceDeskAdmin::categories',     ['as' => 'servicedesk.categories']);
     $routes->post('categories',    'ServiceDeskAdmin::saveCategories', ['as' => 'servicedesk.categories.save']);
@@ -148,6 +155,13 @@ $routes->group('api/v1/servicedesk', [
     $routes->post('updates',        'ServiceDeskApiController::createUpdate');
     $routes->get('updates/(:num)',  'ServiceDeskApiController::showImport/$1');
     $routes->post('updates/(:num)/apply', 'ServiceDeskApiController::applyUpdate/$1');
+
+    // Bulk trash (mirror of the web actions). Same job table, mode=trash / restore.
+    $routes->get('trash',                   'ServiceDeskApiController::listTrash');
+    $routes->post('trash',                  'ServiceDeskApiController::createTrash');
+    $routes->get('trash/(:num)',            'ServiceDeskApiController::showImport/$1');
+    $routes->post('trash/(:num)/apply',     'ServiceDeskApiController::applyTrash/$1');
+    $routes->post('trash/(:num)/restore',   'ServiceDeskApiController::restoreTrash/$1');
 
     // Daily backlog report (mirror of the web action): preview data + trigger send.
     $routes->get('backlog/preview', 'ServiceDeskApiController::backlogPreview');

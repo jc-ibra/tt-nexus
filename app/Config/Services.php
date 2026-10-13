@@ -549,6 +549,37 @@ class Services extends BaseService
         );
     }
 
+    /**
+     * Motor de papelera masiva: manda a la papelera de GLPI (mode 'trash') o
+     * restaura (mode 'restore') los tickets listados. Mismo trabajo y worker.
+     */
+    public static function serviceDeskTrasher(bool $getShared = true): \App\Modules\ServiceDesk\Services\TicketBulkTrasher
+    {
+        if ($getShared) {
+            return static::getSharedInstance('serviceDeskTrasher');
+        }
+        return new \App\Modules\ServiceDesk\Services\TicketBulkTrasher(
+            self::glpiDbConnection(),
+            self::connectorFactory(),
+            self::serviceDeskSettings(),
+            new ServiceDeskImportModel(),
+            new ServiceDeskConfig(),
+        );
+    }
+
+    /** Encolado/aplicación/restauración de la papelera masiva (web y API comparten esto). */
+    public static function trashJobService(bool $getShared = true): \App\Modules\ServiceDesk\Services\TrashJobService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('trashJobService');
+        }
+        return new \App\Modules\ServiceDesk\Services\TrashJobService(
+            self::ticketImportValidator(),
+            new ServiceDeskImportModel(),
+            new ServiceDeskConfig(),
+        );
+    }
+
     public static function ticketCreatorService(bool $getShared = true): TicketCreatorService
     {
         if ($getShared) {

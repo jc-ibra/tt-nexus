@@ -22,10 +22,20 @@ $originBadge = static function (?string $source): string {
 // Alta masiva y plancha comparten cola, worker e historial; el modo es lo que
 // distingue qué motor corrió la carga.
 $modeBadge = static function (array $imp): string {
-    if ((string) ($imp['mode'] ?? 'create') !== 'update') {
+    $mode   = (string) ($imp['mode'] ?? 'create');
+    $dryRun = (int) ($imp['dry_run'] ?? 0) === 1;
+    if ($mode === 'restore') {
+        return '<span class="badge badge-warning">Restauración</span>';
+    }
+    if ($mode === 'trash') {
+        return $dryRun
+            ? '<span class="badge badge-info">Simulación</span>'
+            : '<span class="badge badge-critical">Papelera</span>';
+    }
+    if ($mode !== 'update') {
         return '<span class="badge badge-neutral">Alta</span>';
     }
-    return (int) ($imp['dry_run'] ?? 0) === 1
+    return $dryRun
         ? '<span class="badge badge-info">Simulación</span>'
         : '<span class="badge badge-warning">Actualización</span>';
 };
@@ -34,18 +44,19 @@ $modeBadge = static function (array $imp): string {
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">Historial de cargas</h1>
-    <p class="page-subtitle">Altas masivas y actualizaciones de tickets, en orden de encolado.</p>
+    <p class="page-subtitle">Altas, actualizaciones y papelera de tickets, en orden de encolado.</p>
   </div>
   <div class="page-actions">
     <a href="<?= route_to('servicedesk.index') ?>" class="btn btn-primary">Nueva alta</a>
     <a href="<?= route_to('servicedesk.update') ?>" class="btn btn-secondary">Actualizar y cerrar</a>
+    <a href="<?= route_to('servicedesk.trash') ?>" class="btn btn-secondary">Papelera</a>
   </div>
 </div>
 
 <div style="display:flex; gap: var(--space-2); margin-bottom: var(--space-4);">
   <?php
   $base    = route_to('servicedesk.imports.index');
-  $filters = [null => 'Todas', 'create' => 'Altas', 'update' => 'Actualizaciones'];
+  $filters = [null => 'Todas', 'create' => 'Altas', 'update' => 'Actualizaciones', 'trash' => 'Papelera', 'restore' => 'Restauraciones'];
   ?>
   <?php foreach ($filters as $key => $label): ?>
     <a href="<?= $base . ($key === null ? '' : '?modo=' . $key) ?>"
