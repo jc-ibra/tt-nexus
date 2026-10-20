@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\MailDispatch\Services;
 
+use App\Modules\MailDispatch\Models\AgentModel;
 use App\Modules\MailDispatch\Models\ConversationModel;
 use App\Modules\MailDispatch\Models\MessageModel;
 use CodeIgniter\Database\BaseConnection;
@@ -36,16 +37,22 @@ class MailDispatchMetrics
     {
         [$fromDt, $toDt] = $this->range($from, $to);
 
+        // People kept out of the team metrics (the supervisor who also takes
+        // threads). Asking for one person explicitly shows them in full, so the
+        // exclusion only applies to the team-wide view.
+        $excluded = $agentId ? [] : (new AgentModel())->excludedUserIds();
+
         return [
             'range'                 => ['from' => $fromDt, 'to' => $toDt, 'agent_id' => $agentId],
+            'excluded_names'        => $this->namesOf($excluded),
             'backlog_unassigned'    => $this->conversations->countUnassigned(),
             'received'              => $this->countReceived($fromDt, $toDt, $agentId),
-            'closed'               => $this->countClosed($fromDt, $toDt, $agentId),
-            'avg_first_assignment_min' => $this->avgMinutes('received_at', 'assigned_at', $fromDt, $toDt, $agentId),
-            'avg_first_response_min'   => $this->avgMinutes('received_at', 'first_response_at', $fromDt, $toDt, $agentId),
-            'by_agent'              => $agents = $this->byAgent($fromDt, $toDt),
+            'closed'               => $this->countClosed($fromDt, $toDt, $agentId, $excluded),
+            'avg_first_assignment_min' => $this->avgMinutes('received_at', 'assigned_at', $fromDt, $toDt, $agentId, $excluded),
+            'avg_first_response_min'   => $this->avgMinutes('received_at', 'first_response_at', $fromDt, $toDt, $agentId, $excluded),
+            'by_agent'              => $agents = $this->byAgent($fromDt, $toDt, $excluded),
             'highlights'            => $this->highlights($agents),
-            'dispositions'          => $this->dispositionDistribution($fromDt, $toDt, $agentId),
+            'dispositions'          => $this->dispositionDistribution($fromDt, $toDt, $agentId, $excluded),
             'daily_volume'          => $this->dailyVolume($fromDt, $toDt, $agentId),
             'sla'                   => [
                 'unassigned_minutes'     => $this->settings->slaUnassignedMinutes(),
@@ -70,12 +77,13 @@ class MailDispatchMetrics
         return $b->countAllResults();
     }
 
-    private function countClosed(string $from, string $to, ?int $agentId): int
+    private function countClosed(string $from, string $to, ?int $agentId, array $excluded = []): int
     {
         $b = $this->db->table('maildispatch_conversations')
             ->where('status', 'cerrada')
             ->where('closed_at >=', $from)->where('closed_at <=', $to);
         $this->applyAgent($b, $agentId);
+        $this->applyExclusion($b, $excluded);
         return $b->countAllResults();
     }
 
@@ -87,7 +95,7 @@ class MailDispatchMetrics
      * SQL knows nothing about. Only the two columns are pulled, so the extra
      * cost is one narrow scan of the range instead of an aggregate.
      */
-    private function avgMinutes(string $startCol, string $endCol, string $from, string $to, ?int $agentId): ?float
+    private function avgMinutes(string $startCol, string $endCol, string $from, string $to, ?int $agentId, array $excluded = []): ?float
     {
         if (! $this->calendar->isEnabled()) {
             $b = $this->db->table('maildispatch_conversations')
@@ -95,6 +103,7 @@ class MailDispatchMetrics
                 ->where("{$endCol} IS NOT NULL", null, false)
                 ->where('received_at >=', $from)->where('received_at <=', $to);
             $this->applyAgent($b, $agentId);
+            $this->applyExclusion($b, $excluded);
             $row = $b->get()->getRow();
             return $row && $row->avg_min !== null ? round((float) $row->avg_min, 1) : null;
         }
@@ -105,6 +114,7 @@ class MailDispatchMetrics
             ->where("{$startCol} IS NOT NULL", null, false)
             ->where('received_at >=', $from)->where('received_at <=', $to);
         $this->applyAgent($b, $agentId);
+        $this->applyExclusion($b, $excluded);
         $rows = $b->get()->getResultArray();
 
         if ($rows === []) {
@@ -128,7 +138,7 @@ class MailDispatchMetrics
      * first answers "who is loaded today", the second "who moved work". They
      * are labelled that way in the table so the mix cannot be misread.
      */
-    private function byAgent(string $from, string $to): array
+    private function byAgent(string $from, string $to, array $excluded = []): array
     {
         // Open conversations currently owned by each agent. Same exclusions as
         // the team board so "abiertas ahora" and its "en curso" never disagree:
@@ -182,6 +192,10 @@ class MailDispatchMetrics
                 $map[$id]['first_response_min'] = $avg['avg'];
                 $map[$id]['first_response_n']   = $avg['n'];
             }
+        }
+
+        foreach ($excluded as $id) {
+            unset($map[$id]);
         }
 
         $out = array_values($map);
@@ -313,7 +327,7 @@ class MailDispatchMetrics
     }
 
     /** Distribution of dispositions among conversations closed in range. */
-    private function dispositionDistribution(string $from, string $to, ?int $agentId): array
+    private function dispositionDistribution(string $from, string $to, ?int $agentId, array $excluded = []): array
     {
         $b = $this->db->table('maildispatch_conversations c')
             ->select('d.name AS disposition, COUNT(*) AS total')
@@ -322,6 +336,7 @@ class MailDispatchMetrics
             ->where('c.closed_at >=', $from)->where('c.closed_at <=', $to)
             ->groupBy('c.disposition_id');
         $this->applyAgent($b, $agentId, 'c');
+        $this->applyExclusion($b, $excluded, 'c');
         $rows = $b->get()->getResultArray();
 
         return array_map(static fn($r) => [
@@ -415,6 +430,40 @@ class MailDispatchMetrics
         $fromDt = $from && strtotime($from) ? date('Y-m-d 00:00:00', strtotime($from)) : date('Y-m-d 00:00:00', strtotime('-30 days'));
         $toDt   = $to && strtotime($to) ? date('Y-m-d 23:59:59', strtotime($to)) : date('Y-m-d 23:59:59');
         return [$fromDt, $toDt];
+    }
+
+    /**
+     * Leaves out conversations owned by excluded people. Unassigned ones
+     * (agent_id NULL) stay: NOT IN alone would silently drop them.
+     *
+     * @param int[] $excluded
+     */
+    private function applyExclusion($builder, array $excluded, string $alias = ''): void
+    {
+        if ($excluded === []) {
+            return;
+        }
+
+        $col = ($alias !== '' ? $alias . '.' : '') . 'agent_id';
+        $builder->groupStart()
+            ->where("{$col} IS NULL", null, false)
+            ->orWhereNotIn($col, $excluded)
+            ->groupEnd();
+    }
+
+    /**
+     * @param  int[]    $ids
+     * @return string[]
+     */
+    private function namesOf(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $rows = $this->db->table('core_users')->select('name')->whereIn('id', $ids)->orderBy('name')->get()->getResultArray();
+
+        return array_map(static fn(array $r): string => (string) $r['name'], $rows);
     }
 
     private function applyAgent($builder, ?int $agentId, string $alias = ''): void

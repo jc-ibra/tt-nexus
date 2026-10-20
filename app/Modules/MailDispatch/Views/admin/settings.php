@@ -328,9 +328,9 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
         <button type="submit" class="btn btn-primary">Guardar agentes</button>
       </div>
       <div class="card-body" style="padding:0;">
-        <p class="md-hint" style="padding:var(--space-4);">Marca quién participa como agente del despacho y quién puede asignar/reasignar a otros (dispatcher). Esto es adicional al acceso por rol al módulo.</p>
+        <p class="md-hint" style="padding:var(--space-4);">Marca quién participa como agente del despacho y quién puede asignar/reasignar a otros (dispatcher). Esto es adicional al acceso por rol al módulo. "Fuera de métricas" aparta el trabajo de esa persona (cierres, tiempos de respuesta, disposiciones y tabla por agente) de las métricas generales del equipo, útil para supervisores que también toman conversaciones. Sus números propios siguen disponibles al filtrarla por agente.</p>
         <table class="table" style="width:100%;">
-          <thead><tr><th>Usuario</th><th>Correo</th><th style="text-align:center;">Agente</th><th style="text-align:center;">Dispatcher</th></tr></thead>
+          <thead><tr><th>Usuario</th><th>Correo</th><th style="text-align:center;">Agente</th><th style="text-align:center;">Dispatcher</th><th style="text-align:center;">Fuera de métricas</th></tr></thead>
           <tbody>
             <?php foreach ($users as $u): $uid = (int) $u['id']; $a = $agentMap[$uid] ?? null; ?>
               <tr>
@@ -341,6 +341,9 @@ $bool = fn(string $k, string $d = '0') => ($s[$k] ?? $d) === '1';
                 </td>
                 <td style="text-align:center;">
                   <input type="checkbox" name="agent[<?= $uid ?>][dispatcher]" value="1" <?= ($a && (int) $a['is_dispatcher'] === 1) ? 'checked' : '' ?>>
+                </td>
+                <td style="text-align:center;">
+                  <input type="checkbox" name="agent[<?= $uid ?>][exclude]" value="1" aria-label="Excluir a <?= esc($u['name'], 'attr') ?> de las métricas" <?= ($a && (int) ($a['exclude_from_metrics'] ?? 0) === 1) ? 'checked' : '' ?>>
                 </td>
               </tr>
             <?php endforeach; ?>

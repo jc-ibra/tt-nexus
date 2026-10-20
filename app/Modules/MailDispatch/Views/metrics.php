@@ -342,6 +342,12 @@ $qs = http_build_query($personal
   </p>
 <?php endif; ?>
 
+<?php if (! $personal && ! empty($excluded_names)): ?>
+  <p class="text-muted" style="margin:calc(-1 * var(--space-3)) 0 var(--space-5); font-size:var(--text-sm);">
+    Cerradas, promedios, disposiciones y la tabla por agente no incluyen a: <?= esc(implode(', ', $excluded_names)) ?> (se configura en Ajustes &gt; Agentes).
+  </p>
+<?php endif; ?>
+
 <?php if (! $personal): ?>
 <?php
 // Cuatro preguntas distintas, no un "mejor agente": quién carga más, quién se

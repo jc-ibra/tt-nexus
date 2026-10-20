@@ -458,27 +458,29 @@ class MailDispatchSettings
         $now    = date('Y-m-d H:i:s');
 
         // Deactivate everyone first; re-activate the checked ones below.
-        $agents->set('is_active', 0)->set('is_dispatcher', 0)->set('updated_at', $now)->where('id >', 0)->update();
+        $agents->set('is_active', 0)->set('is_dispatcher', 0)->set('exclude_from_metrics', 0)
+            ->set('updated_at', $now)->where('id >', 0)->update();
 
         foreach ($rows as $userId => $flags) {
-            $userId = (int) $userId;
-            if ($userId <= 0 || empty($flags['active'])) {
+            $userId  = (int) $userId;
+            $active  = ! empty($flags['active']);
+            $exclude = ! empty($flags['exclude']);
+            // An excluded person who is not an active agent still needs a row:
+            // they may hold events in the range that must stay out of the metrics.
+            if ($userId <= 0 || (! $active && ! $exclude)) {
                 continue;
             }
-            $isDispatcher = ! empty($flags['dispatcher']) ? 1 : 0;
-            $existing     = $agents->findByUser($userId);
+            $data = [
+                'is_active'            => $active ? 1 : 0,
+                'is_dispatcher'        => $active && ! empty($flags['dispatcher']) ? 1 : 0,
+                'exclude_from_metrics' => $exclude ? 1 : 0,
+            ];
+            $existing = $agents->findByUser($userId);
 
             if ($existing) {
-                $agents->update((int) $existing['id'], [
-                    'is_active'     => 1,
-                    'is_dispatcher' => $isDispatcher,
-                ]);
+                $agents->update((int) $existing['id'], $data);
             } else {
-                $agents->insert([
-                    'user_id'       => $userId,
-                    'is_active'     => 1,
-                    'is_dispatcher' => $isDispatcher,
-                ]);
+                $agents->insert(['user_id' => $userId] + $data);
             }
         }
 

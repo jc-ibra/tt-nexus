@@ -17,7 +17,21 @@ class AgentModel extends Model
         'user_id',
         'is_dispatcher',
         'is_active',
+        'exclude_from_metrics',
     ];
+
+    /**
+     * Users whose work stays out of the team metrics (active or not: someone
+     * deactivated as an agent can still have events in the range).
+     *
+     * @return int[]
+     */
+    public function excludedUserIds(): array
+    {
+        $rows = $this->select('user_id')->where('exclude_from_metrics', 1)->findAll();
+
+        return array_map(static fn(array $r): int => (int) $r['user_id'], $rows);
+    }
 
     /** Active agents joined with their Nexus user (for assign dropdowns). */
     public function activeAgents(): array
