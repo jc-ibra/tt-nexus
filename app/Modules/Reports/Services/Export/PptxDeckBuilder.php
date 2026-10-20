@@ -81,10 +81,11 @@ class PptxDeckBuilder
         }
         if ($payload['dispatch']['available'] ?? false) {
             $sections[] = ['title' => 'Mesa de ayuda por correo', 'pages' => 1, 'render' => fn () => $this->slideDispatch($pres->createSlide(), $payload['dispatch'])];
-            if (($payload['dispatch']['by_agent'] ?? []) !== []) {
-                $sections[] = ['title' => 'Detalle por agente', 'pages' => 1, 'render' => fn () => $this->slideDispatchAgentes($pres->createSlide(), $payload['dispatch'])];
+            if (($payload['dispatch']['by_agent'] ?? []) !== [] || ($payload['dispatch']['dispositions'] ?? []) !== []) {
+                $sections[] = ['title' => 'Disposiciones y detalle por agente', 'pages' => 1, 'render' => fn () => $this->slideDispatchAgentes($pres->createSlide(), $payload['dispatch'])];
             }
         }
+        $sections[] = ['title' => 'Cierre', 'pages' => 1, 'render' => fn () => $this->slideGracias($pres->createSlide(), $periodLabel, $this->buildInsights($glpi, $payload))];
 
         // Slide 1 = portada, slide 2 = índice: el contenido empieza en la 3.
         $indexEntries = [];
@@ -192,7 +193,6 @@ class PptxDeckBuilder
             ['v' => number_format($g['cerrados']), 'l' => 'Cerrados', 'sub' => number_format((float) $g['tasa_cierre'], 1) . '% tasa de cierre', 'c' => SlideKit::C_SUCCESS],
             ['v' => number_format((float) $g['sla_pct'], 1) . '%', 'l' => 'SLA Cumplido', 'sub' => '', 'c' => SlideKit::C_PRIMARY],
             ['v' => number_format((float) $g['prom_h'], 1) . 'h', 'l' => 'Tiempo Promedio', 'sub' => 'Resolución', 'c' => SlideKit::C_PRIMARY],
-            ['v' => number_format($g['sin_reg']), 'l' => 'Sin Regional', 'sub' => 'de ' . number_format($g['reg_universe']) . ' aplicables', 'c' => SlideKit::C_CRITICAL],
         ];
         $this->kpiGrid($slide, $cards, 3);
     }
@@ -387,28 +387,41 @@ class PptxDeckBuilder
         ];
         $this->kpiRow($slide, $cards, self::CONTENT_Y, 4);
 
-        $dispositions = [];
-        foreach ($d['dispositions'] as $row) {
-            $dispositions[$row['disposition']] = $row['total'];
+        $daily = [];
+        foreach ($d['daily_volume'] ?? [] as $row) {
+            // Etiqueta = día del mes; con 28-31 barras el número sobre cada una no cabe.
+            $daily[(string) (int) substr((string) $row['day'], 8, 2)] = (int) $row['total'];
         }
-        $y = self::CONTENT_Y + 130;
-        $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, self::CONTENT_H - 130, 'Disposiciones de conversaciones cerradas');
-        $k->horizontalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, self::CONTENT_H - 130 - 56, $dispositions);
+        if ($daily !== []) {
+            $y = self::CONTENT_Y + 130;
+            $h = self::CONTENT_H - 130;
+            $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, $h, 'Volumen diario de correos recibidos (día del mes)');
+            $k->verticalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, $h - 56, $daily, SlideKit::C_PRIMARY, false);
+        }
     }
 
     private function slideDispatchAgentes(Slide $slide, array $d): void
     {
         $k = $this->kit;
         $k->bg($slide);
-        $k->slideHeader($slide, 'Correo', 'Detalle por agente', 'Conversaciones abiertas, cerradas y acciones por agente en el período');
+        $k->slideHeader($slide, 'Correo', 'Disposiciones y detalle por agente', 'Cómo se cerraron las conversaciones y qué hizo cada agente en el período');
 
-        $rows = array_slice($d['by_agent'], 0, 8);
-        $k->cardHeader($slide, self::MARGIN_X, self::CONTENT_Y, self::CONTENT_W, self::CONTENT_H, 'Por agente');
+        [$leftX, $leftW, $rightX, $rightW] = $this->halves();
+
+        $dispositions = [];
+        foreach ($d['dispositions'] ?? [] as $row) {
+            $dispositions[$row['disposition']] = $row['total'];
+        }
+        $k->cardHeader($slide, $leftX, self::CONTENT_Y, $leftW, self::CONTENT_H, 'Disposiciones de conversaciones cerradas');
+        $k->horizontalBarChart($slide, $leftX + 10, self::CONTENT_Y + 46, $leftW - 20, self::CONTENT_H - 56, $dispositions);
+
+        $rows = array_slice($d['by_agent'] ?? [], 0, 8);
+        $k->cardHeader($slide, $rightX, self::CONTENT_Y, $rightW, self::CONTENT_H, 'Por agente');
 
         // Columnas numéricas de ancho fijo alineadas a la derecha; el agente toma el resto.
-        $numW  = 110;
-        $x0    = self::MARGIN_X + 16;
-        $inner = self::CONTENT_W - 32;
+        $numW  = 70;
+        $x0    = $rightX + 16;
+        $inner = $rightW - 32;
         $nameW = $inner - 3 * $numW;
         $cols  = [
             ['Abiertas', 'open'],
@@ -433,6 +446,89 @@ class PptxDeckBuilder
             $y += $rowH;
             $k->rect($slide, $x0, $y - 1, $inner, 1, SlideKit::C_BORDER);
         }
+    }
+
+    /**
+     * Lo más relevante del mes en frases cortas, armadas solo de conteos del
+     * snapshot (sin SLA ni tiempos). Cada línea aparece únicamente si su dato existe.
+     *
+     * @return list<string>
+     */
+    private function buildInsights(array $glpi, array $payload): array
+    {
+        $n   = static fn($v): string => number_format((int) $v);
+        $out = [];
+
+        if (($glpi['available'] ?? false) && ($glpi['total'] ?? 0) > 0) {
+            $out[] = $n($glpi['total']) . ' tickets en el período, ' . $n($glpi['cerrados']) . ' cerrados';
+
+            $vs = $payload['trend']['vs_previous_month']['total'] ?? null;
+            if ($vs !== null) {
+                $sign = $vs['delta_abs'] >= 0 ? '+' : '';
+                $pct  = $vs['delta_pct'] !== null ? ' (' . $sign . number_format((float) $vs['delta_pct'], 1) . '%)' : '';
+                $out[] = $sign . $n($vs['delta_abs']) . ' tickets vs. el mes anterior' . $pct;
+            }
+            if (($glpi['reg_top'] ?? []) !== []) {
+                $out[] = 'Regional con más tickets: ' . $glpi['reg_top'][0][0] . ' (' . $n($glpi['reg_top'][0][1]) . ')';
+            }
+            $groups = array_filter($glpi['cat_top'] ?? [], static fn($r) => $r['tier'] !== 'child');
+            if ($groups !== []) {
+                usort($groups, static fn($a, $b) => $b['value'] <=> $a['value']);
+                $out[] = 'Categoría principal: ' . $groups[0]['label'] . ' (' . $n($groups[0]['value']) . ')';
+            }
+            if (($glpi['ids_top'] ?? []) !== []) {
+                $out[] = 'Técnico con más tickets: ' . $glpi['ids_top'][0][0] . ' (' . $n($glpi['ids_top'][0][1]) . ')';
+            }
+        }
+
+        $d = $payload['dispatch'] ?? [];
+        if (($d['available'] ?? false) && ($d['received'] ?? 0) > 0) {
+            $line   = $n($d['received']) . ' correos recibidos';
+            $months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+            $peak   = null;
+            foreach ($d['daily_volume'] ?? [] as $row) {
+                if ($peak === null || $row['total'] > $peak['total']) {
+                    $peak = $row;
+                }
+            }
+            if ($peak !== null && $peak['total'] > 0) {
+                $line .= '; día pico: ' . (int) substr($peak['day'], 8, 2) . ' de ' . $months[(int) substr($peak['day'], 5, 2) - 1] . ' (' . $n($peak['total']) . ')';
+            }
+            $out[] = $line;
+
+            $best = $d['highlights']['closed'] ?? null;
+            if ($best !== null) {
+                $out[] = 'Agente con más cierres por correo: ' . $best['agent_name'] . ' (' . $n($best['value']) . ')';
+            }
+        }
+
+        return $out;
+    }
+
+    /** @param list<string> $insights */
+    private function slideGracias(Slide $slide, string $periodLabel, array $insights): void
+    {
+        $k = $this->kit;
+        $k->bg($slide);
+
+        $k->text($slide, 'Gracias', self::MARGIN_X, 150, 340, 64, ['size' => 38, 'bold' => true, 'color' => SlideKit::C_TEXT]);
+        $k->text($slide, $periodLabel, self::MARGIN_X, 214, 340, 24, ['size' => 13, 'color' => SlideKit::C_ACCENT]);
+
+        if ($insights !== []) {
+            $x = self::MARGIN_X + 380;
+            $w = self::CONTENT_W - 380;
+            $k->text($slide, 'Lo más relevante del mes', $x, 130, $w, 22, ['size' => 12, 'color' => SlideKit::C_TEXT_MUTED]);
+            $k->rect($slide, $x, 156, $w, 1, SlideKit::C_BORDER);
+            $y = 172;
+            foreach ($insights as $line) {
+                $k->dot($slide, $x + 4, $y + 9, 7, SlideKit::C_ACCENT);
+                $k->text($slide, $line, $x + 20, $y, $w - 20, 24, ['size' => 14, 'color' => SlideKit::C_TEXT]);
+                $y += 44;
+            }
+        }
+
+        $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, SlideKit::C_BORDER);
+        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => SlideKit::C_TEXT_FAINT]);
     }
 
     // ------------------------------------------------------------------
