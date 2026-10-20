@@ -59,7 +59,7 @@ class PptxDeckBuilder
         $pres->getLayout()->setDocumentLayout(DocumentLayout::LAYOUT_SCREEN_16X9);
         $pres->getDocumentProperties()
             ->setTitle('Informe Ejecutivo Mensual')
-            ->setCreator('Nexus / ibrastudio')
+            ->setCreator('Nexus')
             ->setSubject($periodLabel);
 
         $glpi = $payload['glpi_tickets'] ?? [];
@@ -139,6 +139,7 @@ class PptxDeckBuilder
 
         $k->bg($slide);
 
+        $k->logo($slide, self::MARGIN_X + 4, 52, 64);
         $k->text($slide, 'Informe ejecutivo mensual', self::MARGIN_X, 128, 700, 22, [
             'size' => 12, 'color' => $this->kit->textFaint,
         ]);
@@ -172,7 +173,7 @@ class PptxDeckBuilder
         }
 
         $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, $this->kit->border);
-        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => $this->kit->textFaint]);
+        $k->text($slide, 'Nexus', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => $this->kit->textFaint]);
         $k->text($slide, 'Generado el ' . (new \DateTimeImmutable())->format('d/m/Y'), self::MARGIN_X, 508, self::CONTENT_W, 20, [
             'size' => 9, 'color' => $this->kit->textFaint, 'align' => 'right',
         ]);
@@ -530,6 +531,7 @@ class PptxDeckBuilder
         $k = $this->kit;
         $k->bg($slide);
 
+        $k->logo($slide, self::MARGIN_X + 4, 90, 48);
         $k->text($slide, 'Gracias', self::MARGIN_X, 150, 340, 64, ['size' => 38, 'bold' => true, 'color' => $this->kit->text]);
         $k->text($slide, $periodLabel, self::MARGIN_X, 214, 340, 24, ['size' => 13, 'color' => $this->kit->accent]);
 
@@ -547,7 +549,7 @@ class PptxDeckBuilder
         }
 
         $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, $this->kit->border);
-        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => $this->kit->textFaint]);
+        $k->text($slide, 'Nexus', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => $this->kit->textFaint]);
     }
 
     // ------------------------------------------------------------------

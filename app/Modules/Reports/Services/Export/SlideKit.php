@@ -80,8 +80,26 @@ class SlideKit
         return new self($theme);
     }
 
+    /** Company mark (transparent PNG), same file on both themes. */
+    private const LOGO_REL = 'img/tt-icon.png';
+
     public const SLIDE_W = 960;
     public const SLIDE_H = 540;
+
+    /** Square logo; silently skipped if the file is missing so a report never fails over branding. */
+    public function logo(Slide $slide, int $x, int $y, int $size): void
+    {
+        $base = defined('FCPATH') ? FCPATH : ROOTPATH . 'public/';
+        $path = rtrim($base, '/') . '/' . self::LOGO_REL;
+        if (! is_file($path)) {
+            return;
+        }
+        $d = new \PhpOffice\PhpPresentation\Shape\Drawing\File();
+        $d->setName('Logo')->setDescription('Logo')->setPath($path)
+            ->setResizeProportional(false)->setWidth($size)->setHeight($size)
+            ->setOffsetX($x)->setOffsetY($y);
+        $slide->addShape($d);
+    }
 
     public function bg(Slide $slide, ?string $argbColor = null): void
     {
@@ -102,11 +120,12 @@ class SlideKit
         $this->text($slide, $section, 54, 26, 500, 18, [
             'size' => 11, 'color' => $this->textMuted,
         ]);
-        $this->text($slide, $title, 40, 46, 860, 36, [
+        $this->logo($slide, 888, 26, 32);
+        $this->text($slide, $title, 40, 46, 830, 36, [
             'size' => 22, 'bold' => true, 'color' => $this->text,
         ]);
         if ($subtitle !== '') {
-            $this->text($slide, $subtitle, 40, 80, 860, 20, [
+            $this->text($slide, $subtitle, 40, 80, 830, 20, [
                 'size' => 11, 'color' => $this->textMuted,
             ]);
         }
