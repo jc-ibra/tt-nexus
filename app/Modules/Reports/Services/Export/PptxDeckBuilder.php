@@ -81,8 +81,10 @@ class PptxDeckBuilder
         }
         if ($payload['dispatch']['available'] ?? false) {
             $sections[] = ['title' => 'Mesa de ayuda por correo', 'pages' => 1, 'render' => fn () => $this->slideDispatch($pres->createSlide(), $payload['dispatch'])];
+            if (($payload['dispatch']['by_agent'] ?? []) !== []) {
+                $sections[] = ['title' => 'Detalle por agente', 'pages' => 1, 'render' => fn () => $this->slideDispatchAgentes($pres->createSlide(), $payload['dispatch'])];
+            }
         }
-        $sections[] = ['title' => 'Conclusiones y próximos pasos', 'pages' => 1, 'render' => fn () => $this->slideConclusiones($pres->createSlide(), $periodLabel)];
 
         // Slide 1 = portada, slide 2 = índice: el contenido empieza en la 3.
         $indexEntries = [];
@@ -377,15 +379,13 @@ class PptxDeckBuilder
     {
         $k = $this->kit;
         $k->bg($slide);
-        $k->slideHeader($slide, 'Correo', 'Mesa de ayuda por correo', 'MailDispatch, indicadores del período');
+        $k->slideHeader($slide, 'Correo', 'Mesa de ayuda por correo', 'MailDispatch, volumen del período');
 
         $cards = [
             ['v' => number_format($d['received']), 'l' => 'Recibidos', 'c' => SlideKit::C_PRIMARY],
             ['v' => number_format($d['closed']), 'l' => 'Cerrados', 'c' => SlideKit::C_SUCCESS],
-            ['v' => number_format($d['backlog_unassigned']), 'l' => 'Sin asignar hoy', 'sub' => 'No es del período', 'c' => SlideKit::C_CRITICAL],
-            ['v' => ($d['avg_first_response_min'] !== null ? number_format($d['avg_first_response_min'], 0) . ' min' : '-'), 'l' => 'Primera respuesta', 'c' => SlideKit::C_PRIMARY],
         ];
-        $this->kpiRow($slide, $cards, self::CONTENT_Y);
+        $this->kpiRow($slide, $cards, self::CONTENT_Y, 4);
 
         $dispositions = [];
         foreach ($d['dispositions'] as $row) {
@@ -396,17 +396,43 @@ class PptxDeckBuilder
         $k->horizontalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, self::CONTENT_H - 130 - 56, $dispositions);
     }
 
-    private function slideConclusiones(Slide $slide, string $periodLabel): void
+    private function slideDispatchAgentes(Slide $slide, array $d): void
     {
         $k = $this->kit;
         $k->bg($slide);
-        $k->dot($slide, self::MARGIN_X, 226, 7, SlideKit::C_ACCENT);
-        $k->text($slide, 'Conclusiones y próximos pasos', self::MARGIN_X + 20, 210, 800, 46, [
-            'size' => 28, 'bold' => true, 'color' => SlideKit::C_TEXT,
-        ]);
-        $k->text($slide, $periodLabel, self::MARGIN_X, 264, 800, 24, [
-            'size' => 13, 'color' => SlideKit::C_TEXT_MUTED,
-        ]);
+        $k->slideHeader($slide, 'Correo', 'Detalle por agente', 'Conversaciones abiertas, cerradas y acciones por agente en el período');
+
+        $rows = array_slice($d['by_agent'], 0, 8);
+        $k->cardHeader($slide, self::MARGIN_X, self::CONTENT_Y, self::CONTENT_W, self::CONTENT_H, 'Por agente');
+
+        // Columnas numéricas de ancho fijo alineadas a la derecha; el agente toma el resto.
+        $numW  = 110;
+        $x0    = self::MARGIN_X + 16;
+        $inner = self::CONTENT_W - 32;
+        $nameW = $inner - 3 * $numW;
+        $cols  = [
+            ['Abiertas', 'open'],
+            ['Cerradas', 'closed'],
+            ['Acciones', 'actions'],
+        ];
+
+        $y = self::CONTENT_Y + 48;
+        $k->text($slide, 'Agente', $x0, $y, $nameW, 20, ['size' => 11, 'color' => SlideKit::C_TEXT_MUTED]);
+        foreach ($cols as $i => [$label]) {
+            $k->text($slide, $label, $x0 + $nameW + $i * $numW, $y, $numW, 20, ['size' => 11, 'color' => SlideKit::C_TEXT_MUTED, 'align' => 'right']);
+        }
+        $y += 26;
+        $k->rect($slide, $x0, $y, $inner, 1, SlideKit::C_BORDER);
+
+        $rowH = 36;
+        foreach ($rows as $row) {
+            $k->text($slide, (string) $row['agent_name'], $x0, $y + 8, $nameW, 22, ['size' => 13, 'color' => SlideKit::C_TEXT]);
+            foreach ($cols as $i => [, $key]) {
+                $k->text($slide, number_format((int) $row[$key]), $x0 + $nameW + $i * $numW, $y + 8, $numW, 22, ['size' => 13, 'color' => SlideKit::C_TEXT, 'align' => 'right']);
+            }
+            $y += $rowH;
+            $k->rect($slide, $x0, $y - 1, $inner, 1, SlideKit::C_BORDER);
+        }
     }
 
     // ------------------------------------------------------------------

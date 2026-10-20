@@ -46,6 +46,13 @@ class ExecutiveNarrativeService
             return ServiceResult::fail('La generación con IA no está configurada.');
         }
 
+        // Estos indicadores ya no se presentan en el informe; que el borrador no los retome.
+        unset(
+            $payload['dispatch']['backlog_unassigned'],
+            $payload['dispatch']['avg_first_response_min'],
+            $payload['dispatch']['avg_first_assignment_min'],
+        );
+
         $client = new AiClient($this->settings->aiApiKey());
         $result = $client->completeText(
             $this->settings->aiModel(),

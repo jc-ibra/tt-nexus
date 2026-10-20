@@ -327,24 +327,33 @@ if ($glpi['available'] ?? false) {
   <?php if ($dispatch['available'] ?? false): ?>
   <section class="op-slide" data-section="Correo">
     <h2 class="op-title">Mesa de ayuda por correo</h2>
-    <p class="op-subtitle">Indicadores del período en MailDispatch</p>
+    <p class="op-subtitle">Volumen del período en MailDispatch</p>
     <hr class="op-rule">
     <div class="op-score-row" style="margin-bottom: 32px;">
       <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['received']) ?></div><div class="op-score-label">Recibidos</div></div>
       <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['closed']) ?></div><div class="op-score-label">Cerrados</div></div>
-      <div class="op-score"><div class="op-score-value"><?= number_format($dispatch['backlog_unassigned']) ?></div><div class="op-score-label">Sin asignar hoy (no del período)</div></div>
-      <div class="op-score"><div class="op-score-value"><?= $dispatch['avg_first_response_min'] !== null ? number_format($dispatch['avg_first_response_min'], 0) . ' min' : '-' ?></div><div class="op-score-label">Primera respuesta</div></div>
     </div>
-    <p class="op-panel-title">Disposiciones de conversaciones cerradas</p>
-    <div class="op-chart"><canvas id="op-dispatch"></canvas></div>
+    <div class="op-grid">
+      <div>
+        <p class="op-panel-title">Disposiciones de conversaciones cerradas</p>
+        <div class="op-chart"><canvas id="op-dispatch"></canvas></div>
+      </div>
+      <?php if (($dispatch['by_agent'] ?? []) !== []): ?>
+      <div>
+        <p class="op-panel-title">Detalle por agente</p>
+        <table class="op-table">
+          <thead><tr><th>Agente</th><th>Abiertas</th><th>Cerradas</th><th>Acciones</th></tr></thead>
+          <tbody>
+            <?php foreach (array_slice($dispatch['by_agent'], 0, 8) as $row): ?>
+              <tr><td><?= esc($row['agent_name']) ?></td><td><?= number_format($row['open']) ?></td><td><?= number_format($row['closed']) ?></td><td><?= number_format($row['actions']) ?></td></tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
+    </div>
   </section>
   <?php endif; ?>
-
-  <section class="op-slide" data-section="Cierre">
-    <h2 class="op-title">Conclusiones y próximos pasos</h2>
-    <p class="op-subtitle"><?= esc($period->label) ?></p>
-    <hr class="op-rule">
-  </section>
 
 </div>
 
