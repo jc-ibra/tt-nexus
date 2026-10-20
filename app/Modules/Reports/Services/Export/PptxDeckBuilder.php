@@ -439,7 +439,7 @@ class PptxDeckBuilder
         $k->cardHeader($slide, $rightX, self::CONTENT_Y, $rightW, self::CONTENT_H, 'Por agente');
 
         // Columnas numéricas de ancho fijo alineadas a la derecha; el agente toma el resto.
-        $numW  = 70;
+        $numW  = 64;
         $x0    = $rightX + 16;
         $inner = $rightW - 32;
         $nameW = $inner - 3 * $numW;
@@ -452,14 +452,29 @@ class PptxDeckBuilder
         $y = self::CONTENT_Y + 48;
         $k->text($slide, 'Agente', $x0, $y, $nameW, 20, ['size' => 11, 'color' => $this->kit->textMuted]);
         foreach ($cols as $i => [$label]) {
-            $k->text($slide, $label, $x0 + $nameW + $i * $numW, $y, $numW, 20, ['size' => 11, 'color' => $this->kit->textMuted, 'align' => 'right']);
+            $k->text($slide, $label, $x0 + $nameW + $i * $numW, $y, $numW, 20, ['size' => 10, 'color' => $this->kit->textMuted, 'align' => 'right']);
         }
         $y += 26;
         $k->rect($slide, $x0, $y, $inner, 1, $this->kit->border);
 
         $rowH = 36;
         foreach ($rows as $row) {
-            $k->text($slide, (string) $row['agent_name'], $x0, $y + 8, $nameW, 22, ['size' => 13, 'color' => $this->kit->text]);
+            // Un nombre nunca debe pisar la fila siguiente: baja de 13 a 11 pt si
+            // no cabe en una línea (0.62 em/char cubre fuentes sustitutas más
+            // anchas que Calibri) y, si aun así no cabe, se parte en dos líneas
+            // contenidas dentro de la altura de su fila.
+            $name  = (string) $row['agent_name'];
+            $size  = 13;
+            $avail = $nameW - 8; // insets del cuadro de texto
+            while ($size > 11 && mb_strlen($name) * $size * 0.62 > $avail) {
+                $size--;
+            }
+            $twoLines = mb_strlen($name) * $size * 0.62 > $avail;
+            if ($twoLines) {
+                $k->text($slide, $name, $x0, $y + 2, $nameW, $rowH - 4, ['size' => 11, 'color' => $this->kit->text]);
+            } else {
+                $k->text($slide, $name, $x0, $y + 8, $nameW, 22, ['size' => $size, 'color' => $this->kit->text]);
+            }
             foreach ($cols as $i => [, $key]) {
                 $k->text($slide, number_format((int) $row[$key]), $x0 + $nameW + $i * $numW, $y + 8, $numW, 22, ['size' => 13, 'color' => $this->kit->text, 'align' => 'right']);
             }
