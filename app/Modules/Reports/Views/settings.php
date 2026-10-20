@@ -91,6 +91,13 @@
           <input type="text" name="email_recipients" id="email_recipients" class="input" value="<?= esc($settings['email_recipients']) ?>">
         </div>
         <div class="field">
+          <label class="field-label" for="pptx_theme">Tema del PPTX por correo</label>
+          <select name="pptx_theme" id="pptx_theme" class="input">
+            <option value="dark"<?= ($settings['pptx_theme'] ?? 'dark') !== 'light' ? ' selected' : '' ?>>Oscuro</option>
+            <option value="light"<?= ($settings['pptx_theme'] ?? 'dark') === 'light' ? ' selected' : '' ?>>Claro</option>
+          </select>
+        </div>
+        <div class="field">
           <label class="field-label" for="email_sender_name">Nombre del remitente</label>
           <input type="text" name="email_sender_name" id="email_sender_name" class="input" value="<?= esc($settings['email_sender_name']) ?>">
         </div>

@@ -65,6 +65,7 @@ class ReportsAdmin extends BaseController
             'ai_model'                     => trim((string) ($post['ai_model'] ?? 'claude-sonnet-5')),
             'ai_reuse_helpdesk_supervisor' => isset($post['ai_reuse_helpdesk_supervisor']) ? '1' : '0',
             'email_recipients'             => trim((string) ($post['email_recipients'] ?? '')),
+            'pptx_theme'                   => ($post['pptx_theme'] ?? 'dark') === 'light' ? 'light' : 'dark',
             'email_sender_name'            => trim((string) ($post['email_sender_name'] ?? 'Reportes tt-nexus')),
         ];
 

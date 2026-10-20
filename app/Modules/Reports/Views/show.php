@@ -119,7 +119,8 @@ if ($dispatch['available'] ?? false) {
   <div class="page-actions">
     <a href="<?= route_to('reports.drill', $period->year, $period->month) ?>" class="btn btn-tertiary">Detalle en vivo</a>
     <a href="<?= route_to('reports.present', $period->year, $period->month) ?>" class="btn btn-secondary">Presentar</a>
-    <a href="<?= route_to('reports.pptx', $period->year, $period->month) ?>" class="btn btn-secondary">Descargar PPTX</a>
+    <a href="<?= route_to('reports.pptx', $period->year, $period->month) ?>?theme=dark" class="btn btn-secondary">PPTX oscuro</a>
+    <a href="<?= route_to('reports.pptx', $period->year, $period->month) ?>?theme=light" class="btn btn-secondary">PPTX claro</a>
     <a href="<?= route_to('reports.xlsx', $period->year, $period->month) ?>" class="btn btn-secondary">Descargar XLSX</a>
     <form method="post" action="<?= route_to('reports.send', $period->year, $period->month) ?>" style="display:inline;">
       <?= csrf_field() ?>

@@ -97,6 +97,12 @@ class ReportsSettingsService
         return array_values(array_filter(array_map('trim', explode(',', $raw))));
     }
 
+    /** Default PPTX theme for emailed decks and API renders: 'dark' | 'light'. */
+    public function pptxTheme(): string
+    {
+        return $this->model->get('pptx_theme', 'dark') === 'light' ? 'light' : 'dark';
+    }
+
     public function emailSenderName(): string
     {
         return $this->model->get('email_sender_name', 'Reportes tt-nexus');

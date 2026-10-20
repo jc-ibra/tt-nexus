@@ -6639,8 +6639,16 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"theme\": \"light\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/reports/2026/8/pptx",
               "host": [

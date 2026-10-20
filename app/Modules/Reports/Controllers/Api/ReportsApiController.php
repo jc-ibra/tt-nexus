@@ -54,7 +54,9 @@ class ReportsApiController extends BaseApiController
         }
         $payload = json_decode((string) $row['payload_json'], true) ?: [];
         $period  = new \App\Modules\Reports\Services\ReportPeriod($year, $month);
-        $path    = service('reportsPptxBuilder')->render((int) $row['id'], $payload, $period->label);
+        $body    = $this->request->getJSON(true) ?: [];
+        $theme   = in_array($body['theme'] ?? null, ['light', 'dark'], true) ? $body['theme'] : service('reportsSettings')->pptxTheme();
+        $path    = service('reportsPptxBuilder')->render((int) $row['id'], $payload, $period->label, $theme);
         return $this->success(['path' => $path]);
     }
 
@@ -75,9 +77,7 @@ class ReportsApiController extends BaseApiController
         $payload = json_decode((string) $row['payload_json'], true) ?: [];
 
         try {
-            $pptx = $row['pptx_path'] && is_file($row['pptx_path'])
-                ? $row['pptx_path']
-                : service('reportsPptxBuilder')->render((int) $row['id'], $payload, $period->label);
+            $pptx = service('reportsPptxBuilder')->cachedOrRender((int) $row['id'], $payload, $period->label, $settings->pptxTheme());
 
             $mailer = new \App\Modules\Communications\Services\MailerService();
             $result = $mailer->sendReport(

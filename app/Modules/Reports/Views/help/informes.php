@@ -36,7 +36,8 @@
   <h2>Modo presentación y descargas</h2>
   <p>
     "Presentar" abre un deck de pantalla completa navegable con flechas o la barra espaciadora, listo
-    para proyectar en una junta. "Descargar PPTX" genera el mismo contenido como archivo de PowerPoint;
+    para proyectar en una junta. El deck abre en tema oscuro; con el botón de la barra o la tecla T cambia a claro (se recuerda).
+    "PPTX oscuro" y "PPTX claro" generan el mismo contenido como archivo de PowerPoint en cada tema;
     "Descargar XLSX" entrega los datos crudos de cada sección para quien quiera pivotearlos.
   </p>
 </section>

@@ -30,9 +30,26 @@ class PptxDeckBuilder
 
     public function __construct(private SlideKit $kit, private ReportSnapshotModel $snapshots) {}
 
-    /** @param array<string,mixed> $payload decoded reports_snapshots.payload_json */
-    public function render(int $snapshotId, array $payload, string $periodLabel): string
+    /** Dark keeps the legacy file name; other themes get a suffix. */
+    public function pathFor(int $snapshotId, string $periodLabel, string $theme = 'dark'): string
     {
+        $suffix = $theme === 'light' ? '_claro' : '';
+        return self::OUTPUT_DIR . '/' . $snapshotId . '/informe_' . preg_replace('/[^a-z0-9]+/i', '_', $periodLabel) . $suffix . '.pptx';
+    }
+
+    /** Cached file for the theme if present, else render it. */
+    public function cachedOrRender(int $snapshotId, array $payload, string $periodLabel, string $theme = 'dark'): string
+    {
+        $path = $this->pathFor($snapshotId, $periodLabel, $theme);
+        return is_file($path) ? $path : $this->render($snapshotId, $payload, $periodLabel, $theme);
+    }
+
+    /** @param array<string,mixed> $payload decoded reports_snapshots.payload_json */
+    public function render(int $snapshotId, array $payload, string $periodLabel, string $theme = 'dark'): string
+    {
+        $theme     = in_array($theme, SlideKit::THEMES, true) ? $theme : 'dark';
+        $this->kit = SlideKit::forTheme($theme);
+
         $dir = self::OUTPUT_DIR . '/' . $snapshotId;
         if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
             throw new RuntimeException("No se pudo crear directorio: {$dir}");
@@ -100,10 +117,12 @@ class PptxDeckBuilder
             ($s['render'])();
         }
 
-        $outPath = $dir . '/informe_' . preg_replace('/[^a-z0-9]+/i', '_', $periodLabel) . '.pptx';
+        $outPath = $this->pathFor($snapshotId, $periodLabel, $theme);
         IOFactory::createWriter($pres, 'PowerPoint2007')->save($outPath);
 
-        $this->snapshots->update($snapshotId, ['pptx_path' => $outPath]);
+        if ($theme === 'dark') {
+            $this->snapshots->update($snapshotId, ['pptx_path' => $outPath]);
+        }
 
         return $outPath;
     }
@@ -121,23 +140,23 @@ class PptxDeckBuilder
         $k->bg($slide);
 
         $k->text($slide, 'Informe ejecutivo mensual', self::MARGIN_X, 128, 700, 22, [
-            'size' => 12, 'color' => SlideKit::C_TEXT_FAINT,
+            'size' => 12, 'color' => $this->kit->textFaint,
         ]);
         $k->text($slide, $periodLabel, self::MARGIN_X, 152, 700, 64, [
-            'size' => 38, 'bold' => true, 'color' => SlideKit::C_TEXT,
+            'size' => 38, 'bold' => true, 'color' => $this->kit->text,
         ]);
         $k->text($slide, 'Mesa de ayuda, tendencia y correo', self::MARGIN_X, 216, 760, 24, [
-            'size' => 13, 'color' => SlideKit::C_ACCENT,
+            'size' => 13, 'color' => $this->kit->accent,
         ]);
 
         $stats = [];
         if ($g['available'] ?? false) {
-            $stats[] = ['v' => number_format((int) ($g['total'] ?? 0)), 'l' => 'Tickets GLPI', 'c' => SlideKit::C_PRIMARY];
-            $stats[] = ['v' => number_format((float) ($g['tasa_cierre'] ?? 0), 1) . '%', 'l' => 'Tasa de cierre', 'c' => SlideKit::C_SUCCESS];
-            $stats[] = ['v' => number_format((float) ($g['sla_pct'] ?? 0), 1) . '%', 'l' => 'SLA cumplido', 'c' => SlideKit::C_PRIMARY];
+            $stats[] = ['v' => number_format((int) ($g['total'] ?? 0)), 'l' => 'Tickets GLPI', 'c' => $this->kit->primary];
+            $stats[] = ['v' => number_format((float) ($g['tasa_cierre'] ?? 0), 1) . '%', 'l' => 'Tasa de cierre', 'c' => $this->kit->success];
+            $stats[] = ['v' => number_format((float) ($g['sla_pct'] ?? 0), 1) . '%', 'l' => 'SLA cumplido', 'c' => $this->kit->primary];
         }
         if ($d['available'] ?? false) {
-            $stats[] = ['v' => number_format((int) ($d['received'] ?? 0)), 'l' => 'Correos recibidos', 'c' => SlideKit::C_PRIMARY];
+            $stats[] = ['v' => number_format((int) ($d['received'] ?? 0)), 'l' => 'Correos recibidos', 'c' => $this->kit->primary];
         }
 
         $n = count($stats) ?: 1;
@@ -152,10 +171,10 @@ class PptxDeckBuilder
             }
         }
 
-        $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, SlideKit::C_BORDER);
-        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => SlideKit::C_TEXT_FAINT]);
+        $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, $this->kit->border);
+        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => $this->kit->textFaint]);
         $k->text($slide, 'Generado el ' . (new \DateTimeImmutable())->format('d/m/Y'), self::MARGIN_X, 508, self::CONTENT_W, 20, [
-            'size' => 9, 'color' => SlideKit::C_TEXT_FAINT, 'align' => 'right',
+            'size' => 9, 'color' => $this->kit->textFaint, 'align' => 'right',
         ]);
     }
 
@@ -172,10 +191,10 @@ class PptxDeckBuilder
         $rowH = $n > 0 ? (int) min(38, intdiv(self::CONTENT_H, $n)) : self::CONTENT_H;
         $y    = self::CONTENT_Y;
         foreach ($entries as $i => [$title, $slideNo]) {
-            $k->text($slide, $title, self::MARGIN_X, $y + 7, self::CONTENT_W - 60, 22, ['size' => 13, 'color' => SlideKit::C_TEXT]);
-            $k->text($slide, (string) $slideNo, self::MARGIN_X, $y + 7, self::CONTENT_W, 22, ['size' => 13, 'color' => SlideKit::C_TEXT_MUTED, 'align' => 'right']);
+            $k->text($slide, $title, self::MARGIN_X, $y + 7, self::CONTENT_W - 60, 22, ['size' => 13, 'color' => $this->kit->text]);
+            $k->text($slide, (string) $slideNo, self::MARGIN_X, $y + 7, self::CONTENT_W, 22, ['size' => 13, 'color' => $this->kit->textMuted, 'align' => 'right']);
             if ($i < $n - 1) {
-                $k->rect($slide, self::MARGIN_X, $y + $rowH - 1, self::CONTENT_W, 1, SlideKit::C_BORDER);
+                $k->rect($slide, self::MARGIN_X, $y + $rowH - 1, self::CONTENT_W, 1, $this->kit->border);
             }
             $y += $rowH;
         }
@@ -188,11 +207,11 @@ class PptxDeckBuilder
         $k->slideHeader($slide, 'Mesa de ayuda', 'Resumen ejecutivo', 'Indicadores principales del período (GLPI)');
 
         $cards = [
-            ['v' => number_format($g['total']), 'l' => 'Total Tickets', 'sub' => '', 'c' => SlideKit::C_PRIMARY],
-            ['v' => number_format($g['en_curso']), 'l' => 'En Curso', 'sub' => '', 'c' => SlideKit::C_WARNING],
-            ['v' => number_format($g['cerrados']), 'l' => 'Cerrados', 'sub' => number_format((float) $g['tasa_cierre'], 1) . '% tasa de cierre', 'c' => SlideKit::C_SUCCESS],
-            ['v' => number_format((float) $g['sla_pct'], 1) . '%', 'l' => 'SLA Cumplido', 'sub' => '', 'c' => SlideKit::C_PRIMARY],
-            ['v' => number_format((float) $g['prom_h'], 1) . 'h', 'l' => 'Tiempo Promedio', 'sub' => 'Resolución', 'c' => SlideKit::C_PRIMARY],
+            ['v' => number_format($g['total']), 'l' => 'Total Tickets', 'sub' => '', 'c' => $this->kit->primary],
+            ['v' => number_format($g['en_curso']), 'l' => 'En Curso', 'sub' => '', 'c' => $this->kit->warning],
+            ['v' => number_format($g['cerrados']), 'l' => 'Cerrados', 'sub' => number_format((float) $g['tasa_cierre'], 1) . '% tasa de cierre', 'c' => $this->kit->success],
+            ['v' => number_format((float) $g['sla_pct'], 1) . '%', 'l' => 'SLA Cumplido', 'sub' => '', 'c' => $this->kit->primary],
+            ['v' => number_format((float) $g['prom_h'], 1) . 'h', 'l' => 'Tiempo Promedio', 'sub' => 'Resolución', 'c' => $this->kit->primary],
         ];
         $this->kpiGrid($slide, $cards, 3);
     }
@@ -224,10 +243,10 @@ class PptxDeckBuilder
 
         [$leftX, $leftW, $rightX, $rightW] = $this->halves();
         $k->cardHeader($slide, $leftX, self::CONTENT_Y, $leftW, self::CONTENT_H, 'Mayor carga (Top 10)');
-        $k->horizontalBarChart($slide, $leftX + 10, self::CONTENT_Y + 46, $leftW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['est_top']), SlideKit::C_PRIMARY);
+        $k->horizontalBarChart($slide, $leftX + 10, self::CONTENT_Y + 46, $leftW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['est_top']), $this->kit->primary);
 
         $k->cardHeader($slide, $rightX, self::CONTENT_Y, $rightW, self::CONTENT_H, 'Menor carga (Bottom 10)');
-        $k->horizontalBarChart($slide, $rightX + 10, self::CONTENT_Y + 46, $rightW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['est_bottom']), SlideKit::C_WARNING);
+        $k->horizontalBarChart($slide, $rightX + 10, self::CONTENT_Y + 46, $rightW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['est_bottom']), $this->kit->warning);
     }
 
     /**
@@ -294,11 +313,11 @@ class PptxDeckBuilder
             // Grupo en el tono primario; hoja en el paso mudo de la misma
             // rampa ordinal (STAGE_RAMP[1]) — recede detrás del total, sin
             // introducir un tercer color con significado propio.
-            $colorsByIdx[] = $r['tier'] === 'child' ? SlideKit::STAGE_RAMP[1] : SlideKit::C_PRIMARY;
+            $colorsByIdx[] = $r['tier'] === 'child' ? $this->kit->stageRamp[1] : $this->kit->primary;
         }
 
         $k->cardHeader($slide, self::MARGIN_X, self::CONTENT_Y, self::CONTENT_W, self::CONTENT_H, 'Categoría GLPI');
-        $k->horizontalBarChart($slide, self::MARGIN_X + 10, self::CONTENT_Y + 46, self::CONTENT_W - 20, self::CONTENT_H - 56, $values, SlideKit::C_PRIMARY, $colorsByIdx);
+        $k->horizontalBarChart($slide, self::MARGIN_X + 10, self::CONTENT_Y + 46, self::CONTENT_W - 20, self::CONTENT_H - 56, $values, $this->kit->primary, $colorsByIdx);
     }
 
     private function slideRankingIds(Slide $slide, array $g): void
@@ -309,10 +328,10 @@ class PptxDeckBuilder
 
         [$leftX, $leftW, $rightX, $rightW] = $this->halves();
         $k->cardHeader($slide, $leftX, self::CONTENT_Y, $leftW, self::CONTENT_H, 'Mayor carga (Top 10)');
-        $k->horizontalBarChart($slide, $leftX + 10, self::CONTENT_Y + 46, $leftW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['ids_top']), SlideKit::C_PRIMARY);
+        $k->horizontalBarChart($slide, $leftX + 10, self::CONTENT_Y + 46, $leftW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['ids_top']), $this->kit->primary);
 
         $k->cardHeader($slide, $rightX, self::CONTENT_Y, $rightW, self::CONTENT_H, 'Menor carga (Bottom 10)');
-        $k->horizontalBarChart($slide, $rightX + 10, self::CONTENT_Y + 46, $rightW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['ids_bottom']), SlideKit::C_WARNING);
+        $k->horizontalBarChart($slide, $rightX + 10, self::CONTENT_Y + 46, $rightW - 20, self::CONTENT_H - 56, $k->tuplesToMap($g['ids_bottom']), $this->kit->warning);
     }
 
     private function slideEnvios(Slide $slide, array $g): void
@@ -322,9 +341,9 @@ class PptxDeckBuilder
         $k->slideHeader($slide, 'Mesa de ayuda', 'Control de envíos', 'Sub-pipeline de envíos y logística del período');
 
         $cards = [
-            ['v' => number_format($g['env_total']), 'l' => 'Total', 'sub' => '', 'c' => SlideKit::C_PRIMARY],
-            ['v' => number_format($g['env_cerr']), 'l' => 'Cerrados', 'sub' => number_format((float) $g['env_pct'], 1) . '% del total', 'c' => SlideKit::C_SUCCESS],
-            ['v' => number_format($g['env_pend']), 'l' => 'Pendientes', 'sub' => '', 'c' => SlideKit::C_WARNING],
+            ['v' => number_format($g['env_total']), 'l' => 'Total', 'sub' => '', 'c' => $this->kit->primary],
+            ['v' => number_format($g['env_cerr']), 'l' => 'Cerrados', 'sub' => number_format((float) $g['env_pct'], 1) . '% del total', 'c' => $this->kit->success],
+            ['v' => number_format($g['env_pend']), 'l' => 'Pendientes', 'sub' => '', 'c' => $this->kit->warning],
         ];
         $cardW = 270; $rowH = 90; $gap = 30; $y = self::CONTENT_Y;
         foreach ($cards as $i => $c) {
@@ -351,8 +370,8 @@ class PptxDeckBuilder
         $labels = array_map(static fn($r) => $r['period'], $trend['series']);
         $k->cardHeader($slide, self::MARGIN_X, self::CONTENT_Y, self::CONTENT_W, 260, 'Volumen mensual');
         $k->lineChart($slide, self::MARGIN_X + 10, self::CONTENT_Y + 46, self::CONTENT_W - 20, 200, $labels, [
-            ['label' => 'Total', 'values' => array_map(static fn($r) => $r['total'], $trend['series']), 'color' => SlideKit::C_PRIMARY],
-            ['label' => 'Cerrados', 'values' => array_map(static fn($r) => $r['cerrados'], $trend['series']), 'color' => SlideKit::C_SUCCESS],
+            ['label' => 'Total', 'values' => array_map(static fn($r) => $r['total'], $trend['series']), 'color' => $this->kit->primary],
+            ['label' => 'Cerrados', 'values' => array_map(static fn($r) => $r['cerrados'], $trend['series']), 'color' => $this->kit->success],
         ]);
 
         $vs = $trend['vs_previous_month'] ?? null;
@@ -366,7 +385,7 @@ class PptxDeckBuilder
                 $m    = $vs[$key];
                 $sign = $m['delta_abs'] >= 0 ? '+' : '';
                 $x    = self::MARGIN_X + $i * ($w + 12);
-                $k->kpiCard($slide, $x, $y, $w, 90, $fmt($m['current']), $label, "{$sign}{$fmt($m['delta_abs'])} vs. mes anterior", $m['delta_abs'] >= 0 ? SlideKit::C_SUCCESS : SlideKit::C_CRITICAL);
+                $k->kpiCard($slide, $x, $y, $w, 90, $fmt($m['current']), $label, "{$sign}{$fmt($m['delta_abs'])} vs. mes anterior", $m['delta_abs'] >= 0 ? $this->kit->success : $this->kit->critical);
                 if ($i < count($metrics) - 1) {
                     $k->scoreDivider($slide, $x + $w + 6, $y, 78);
                 }
@@ -382,8 +401,8 @@ class PptxDeckBuilder
         $k->slideHeader($slide, 'Correo', 'Mesa de ayuda por correo', 'MailDispatch, volumen del período');
 
         $cards = [
-            ['v' => number_format($d['received']), 'l' => 'Recibidos', 'c' => SlideKit::C_PRIMARY],
-            ['v' => number_format($d['closed']), 'l' => 'Cerrados', 'c' => SlideKit::C_SUCCESS],
+            ['v' => number_format($d['received']), 'l' => 'Recibidos', 'c' => $this->kit->primary],
+            ['v' => number_format($d['closed']), 'l' => 'Cerrados', 'c' => $this->kit->success],
         ];
         $this->kpiRow($slide, $cards, self::CONTENT_Y, 4);
 
@@ -396,7 +415,7 @@ class PptxDeckBuilder
             $y = self::CONTENT_Y + 130;
             $h = self::CONTENT_H - 130;
             $k->cardHeader($slide, self::MARGIN_X, $y, self::CONTENT_W, $h, 'Volumen diario de correos recibidos (día del mes)');
-            $k->verticalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, $h - 56, $daily, SlideKit::C_PRIMARY, false);
+            $k->verticalBarChart($slide, self::MARGIN_X + 10, $y + 46, self::CONTENT_W - 20, $h - 56, $daily, $this->kit->primary, false);
         }
     }
 
@@ -430,21 +449,21 @@ class PptxDeckBuilder
         ];
 
         $y = self::CONTENT_Y + 48;
-        $k->text($slide, 'Agente', $x0, $y, $nameW, 20, ['size' => 11, 'color' => SlideKit::C_TEXT_MUTED]);
+        $k->text($slide, 'Agente', $x0, $y, $nameW, 20, ['size' => 11, 'color' => $this->kit->textMuted]);
         foreach ($cols as $i => [$label]) {
-            $k->text($slide, $label, $x0 + $nameW + $i * $numW, $y, $numW, 20, ['size' => 11, 'color' => SlideKit::C_TEXT_MUTED, 'align' => 'right']);
+            $k->text($slide, $label, $x0 + $nameW + $i * $numW, $y, $numW, 20, ['size' => 11, 'color' => $this->kit->textMuted, 'align' => 'right']);
         }
         $y += 26;
-        $k->rect($slide, $x0, $y, $inner, 1, SlideKit::C_BORDER);
+        $k->rect($slide, $x0, $y, $inner, 1, $this->kit->border);
 
         $rowH = 36;
         foreach ($rows as $row) {
-            $k->text($slide, (string) $row['agent_name'], $x0, $y + 8, $nameW, 22, ['size' => 13, 'color' => SlideKit::C_TEXT]);
+            $k->text($slide, (string) $row['agent_name'], $x0, $y + 8, $nameW, 22, ['size' => 13, 'color' => $this->kit->text]);
             foreach ($cols as $i => [, $key]) {
-                $k->text($slide, number_format((int) $row[$key]), $x0 + $nameW + $i * $numW, $y + 8, $numW, 22, ['size' => 13, 'color' => SlideKit::C_TEXT, 'align' => 'right']);
+                $k->text($slide, number_format((int) $row[$key]), $x0 + $nameW + $i * $numW, $y + 8, $numW, 22, ['size' => 13, 'color' => $this->kit->text, 'align' => 'right']);
             }
             $y += $rowH;
-            $k->rect($slide, $x0, $y - 1, $inner, 1, SlideKit::C_BORDER);
+            $k->rect($slide, $x0, $y - 1, $inner, 1, $this->kit->border);
         }
     }
 
@@ -511,24 +530,24 @@ class PptxDeckBuilder
         $k = $this->kit;
         $k->bg($slide);
 
-        $k->text($slide, 'Gracias', self::MARGIN_X, 150, 340, 64, ['size' => 38, 'bold' => true, 'color' => SlideKit::C_TEXT]);
-        $k->text($slide, $periodLabel, self::MARGIN_X, 214, 340, 24, ['size' => 13, 'color' => SlideKit::C_ACCENT]);
+        $k->text($slide, 'Gracias', self::MARGIN_X, 150, 340, 64, ['size' => 38, 'bold' => true, 'color' => $this->kit->text]);
+        $k->text($slide, $periodLabel, self::MARGIN_X, 214, 340, 24, ['size' => 13, 'color' => $this->kit->accent]);
 
         if ($insights !== []) {
             $x = self::MARGIN_X + 380;
             $w = self::CONTENT_W - 380;
-            $k->text($slide, 'Lo más relevante del mes', $x, 130, $w, 22, ['size' => 12, 'color' => SlideKit::C_TEXT_MUTED]);
-            $k->rect($slide, $x, 156, $w, 1, SlideKit::C_BORDER);
+            $k->text($slide, 'Lo más relevante del mes', $x, 130, $w, 22, ['size' => 12, 'color' => $this->kit->textMuted]);
+            $k->rect($slide, $x, 156, $w, 1, $this->kit->border);
             $y = 172;
             foreach ($insights as $line) {
-                $k->dot($slide, $x + 4, $y + 9, 7, SlideKit::C_ACCENT);
-                $k->text($slide, $line, $x + 20, $y, $w - 20, 24, ['size' => 14, 'color' => SlideKit::C_TEXT]);
+                $k->dot($slide, $x + 4, $y + 9, 7, $this->kit->accent);
+                $k->text($slide, $line, $x + 20, $y, $w - 20, 24, ['size' => 14, 'color' => $this->kit->text]);
                 $y += 44;
             }
         }
 
-        $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, SlideKit::C_BORDER);
-        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => SlideKit::C_TEXT_FAINT]);
+        $k->rect($slide, self::MARGIN_X, 500, self::CONTENT_W, 1, $this->kit->border);
+        $k->text($slide, 'tt-nexus - ibrastudio', self::MARGIN_X, 508, 400, 20, ['size' => 9, 'color' => $this->kit->textFaint]);
     }
 
     // ------------------------------------------------------------------
@@ -576,7 +595,7 @@ class PptxDeckBuilder
         foreach ($items as [$label, $color]) {
             $k->rect($slide, $lx, $y + 3, 10, 10, $color);
             $w = 14 + (int) (mb_strlen($label) * 6.2);
-            $k->text($slide, $label, $lx + 14, $y, $w, 16, ['size' => 9, 'color' => SlideKit::C_TEXT_MUTED]);
+            $k->text($slide, $label, $lx + 14, $y, $w, 16, ['size' => 9, 'color' => $this->kit->textMuted]);
             $lx += $w + 18;
         }
     }

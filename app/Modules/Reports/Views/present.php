@@ -2,12 +2,10 @@
 /**
  * Modo presentación: deck de pantalla completa para proyectar en junta.
  *
- * Identidad propia, deliberadamente distinta del dashboard (claro) y del
- * PPTX (claro, para lectura de cerca / impresión): esta vista se consume
- * proyectada en una sala, a distancia. Un fondo de tinta oscura rinde mejor
- * ahí que uno claro, así que en vez de repetir la misma paleta corporativa
- * en las tres superficies, aquí se trata como una consola de operaciones:
- * la mesa de ayuda ES, literalmente, monitoreo de una cola de trabajo.
+ * Dos temas: oscuro (consola de operaciones, por defecto: la mesa de ayuda
+ * ES monitoreo de una cola de trabajo) y claro (tokens del dashboard, para
+ * proyectores lavados o impresión). Se elige con ?theme=light|dark, el botón
+ * de la barra o la tecla T, y se recuerda en localStorage ('nx_deck_theme').
  *
  * Color por el trabajo que hace (método dataviz), no por gusto: estado fijo
  * (bien/mal) nunca se reusa para una serie; identidad categórica en orden
@@ -23,6 +21,15 @@
   <title><?= esc($pageTitle) ?> - Nexus</title>
   <link rel="icon" type="image/png" href="<?= base_url('img/tt-icon.png') ?>">
   <script src="<?= asset_url('js/vendor/chart.umd.min.js') ?>" defer></script>
+  <script>
+    // Antes del primer pintado: ?theme > localStorage > oscuro.
+    (function () {
+      var t = null;
+      try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {}
+      if (t !== 'light' && t !== 'dark') { try { t = localStorage.getItem('nx_deck_theme'); } catch (e) {} }
+      document.documentElement.setAttribute('data-deck-theme', t === 'light' ? 'light' : 'dark');
+    })();
+  </script>
   <style>
     :root {
       color-scheme: dark;
@@ -37,6 +44,19 @@
       --warning:    #F0B429;
       --critical:   #F0544C;
       --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    :root[data-deck-theme="light"] {
+      color-scheme: light;
+      --ink:        #FFFFFF;
+      --panel:      #F6F6F7;
+      --border:     #E1E3E5;
+      --text:       #1A1C1E;
+      --text-muted: #6D7175;
+      --text-faint: #80868B;
+      --accent:     #1773C8;
+      --good:       #0CA30C;
+      --warning:    #FAB219;
+      --critical:   #D03B3B;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -148,6 +168,16 @@
       text-decoration: none; z-index: 6;
     }
     .op-exit:hover { color: var(--text-muted); }
+    .op-theme {
+      position: fixed; top: 8px; right: 84px; width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 6;
+    }
+    .op-theme:hover { border-color: var(--accent); color: var(--text); }
+    .op-theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .op-theme .i-sun { display: none; }
+    :root[data-deck-theme="light"] .op-theme .i-sun { display: block; }
+    :root[data-deck-theme="light"] .op-theme .i-moon { display: none; }
 
     @media (max-width: 760px) {
       .op-grid, .op-grid-3 { grid-template-columns: 1fr; }
@@ -162,6 +192,10 @@
   <span class="op-bar-section"><span class="op-bar-dot"></span><span id="op-bar-label">Informe ejecutivo</span><span class="op-bar-pos" id="op-bar-pos"></span></span>
   <a href="<?= route_to('reports.show', $period->year, $period->month) ?>" class="op-exit">Salir</a>
 </div>
+<button type="button" class="op-theme" id="op-theme" aria-label="Cambiar entre tema claro y oscuro" title="Tema (T)">
+  <svg class="i-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  <svg class="i-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+</button>
 
 <?php
 $glpi = $payload['glpi_tickets'] ?? ['available' => false];
@@ -357,7 +391,7 @@ if ($glpi['available'] ?? false) {
 
 </div>
 
-<p class="op-hint">&larr; &rarr; para navegar</p>
+<p class="op-hint">&larr; &rarr; para navegar · T cambia el tema</p>
 <div class="op-nav">
   <button type="button" id="op-prev" aria-label="Anterior">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
@@ -373,17 +407,35 @@ if ($glpi['available'] ?? false) {
 
   // Mismo método de color que el dashboard (dataviz): estado fijo nunca se
   // reusa para una serie; identidad en orden fijo; magnitud en un solo tono.
-  // Pasos oscuros (fondo #10131A): mismo slot 1 categórico que el resto del
-  // informe, aclarado para legibilidad sobre tinta oscura.
-  var CATEGORICAL = ['#3987e5', '#d95926', '#199e70'];
-  var STATUS = { good: '#34C77B', warning: '#F0B429', critical: '#F0544C', info: '#3987e5' };
-  // Rampa ordinal para el pipeline de estados: aquí se invierte a propósito
-  // (mudo -> vívido) porque sobre fondo oscuro un tono más saturado es el
-  // que "aparece": cerrado, el estado que importa resaltar, es el vívido.
-  var STAGE_RAMP = ['#3A4356', '#4A5C7A', '#3987E5', '#5CA8FF'];
+  // Dos paletas: oscuro (aclarado para tinta) y claro (tokens --chart-* del
+  // dashboard). La rampa de etapas se invierte entre temas a propósito: sobre
+  // oscuro el vívido "aparece"; sobre blanco lo hace el extremo oscuro.
+  var PALETTES = {
+    dark: {
+      categorical: ['#3987e5', '#d95926', '#199e70'],
+      status: { good: '#34C77B', warning: '#F0B429', critical: '#F0544C', info: '#3987e5' },
+      stageRamp: ['#3A4356', '#4A5C7A', '#3987E5', '#5CA8FF'],
+      child: '#4A5C7A', textMuted: '#8B93A3', text: '#F2F4F7',
+      grid: 'rgba(255,255,255,0.06)', tooltip: '#0A0C10', pointBg: '#10131A'
+    },
+    light: {
+      categorical: ['#2A78D6', '#EB6834', '#1BAF7A'],
+      status: { good: '#0CA30C', warning: '#FAB219', critical: '#D03B3B', info: '#2A78D6' },
+      stageRamp: ['#D5E8F7', '#9CCAEE', '#57A5E0', '#1773C8'],
+      child: '#9CCAEE', textMuted: '#6D7175', text: '#1A1C1E',
+      grid: '#E9EAEB', tooltip: '#1A1C1E', pointBg: '#FFFFFF'
+    }
+  };
+  var CATEGORICAL, STATUS, STAGE_RAMP, TEXT_MUTED, TEXT, GRID, TOOLTIP, POINT_BG, CHILD;
+  function applyPalette(name) {
+    var p = PALETTES[name] || PALETTES.dark;
+    CATEGORICAL = p.categorical; STATUS = p.status; STAGE_RAMP = p.stageRamp;
+    TEXT_MUTED = p.textMuted; TEXT = p.text; GRID = p.grid; TOOLTIP = p.tooltip;
+    POINT_BG = p.pointBg; CHILD = p.child;
+  }
+  function currentTheme() { return document.documentElement.getAttribute('data-deck-theme') === 'light' ? 'light' : 'dark'; }
+  applyPalette(currentTheme());
 
-  var TEXT_MUTED = '#8B93A3';
-  var GRID = 'rgba(255,255,255,0.06)';
   var FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
   function stepsFrom(ramp, n) {
@@ -399,7 +451,7 @@ if ($glpi['available'] ?? false) {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { backgroundColor: '#0A0C10', titleFont: { family: FONT }, bodyFont: { family: FONT }, padding: 10, cornerRadius: 6 },
+        tooltip: { backgroundColor: TOOLTIP, titleFont: { family: FONT }, bodyFont: { family: FONT }, padding: 10, cornerRadius: 6 },
       },
     }, extra || {});
   }
@@ -432,7 +484,7 @@ if ($glpi['available'] ?? false) {
         indexAxis: 'y',
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: '#0A0C10', titleFont: { family: FONT }, bodyFont: { family: FONT }, padding: 10, cornerRadius: 6,
+          tooltip: { backgroundColor: TOOLTIP, titleFont: { family: FONT }, bodyFont: { family: FONT }, padding: 10, cornerRadius: 6,
             callbacks: { label: function (c) { var pct = Math.round((c.parsed.x / total) * 100); return ' ' + c.dataset.label + ': ' + fmt(c.parsed.x) + ' (' + pct + '%)'; } } },
         },
         scales: { x: { stacked: true, display: false }, y: { stacked: true, display: false } },
@@ -465,7 +517,7 @@ if ($glpi['available'] ?? false) {
           x: { beginAtZero: true, ticks: { color: TEXT_MUTED, font: { family: FONT } }, grid: { color: GRID, drawTicks: false } },
           y: {
             ticks: {
-              color: tiers ? function (c) { return tiers[c.index] === 'child' ? TEXT_MUTED : '#F2F4F7'; } : '#F2F4F7',
+              color: tiers ? function (c) { return tiers[c.index] === 'child' ? TEXT_MUTED : TEXT; } : TEXT,
               font: tiers ? function (c) {
                 return tiers[c.index] === 'child' ? { family: FONT, size: 11 } : { family: FONT, size: 13, weight: '600' };
               } : { family: FONT },
@@ -485,12 +537,12 @@ if ($glpi['available'] ?? false) {
       data: {
         labels: PAYLOAD.trend.map(function (r) { return r.period; }),
         datasets: [
-          { label: 'Total', data: PAYLOAD.trend.map(function (r) { return r.total; }), borderColor: CATEGORICAL[0], backgroundColor: CATEGORICAL[0], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#10131A', pointBorderWidth: 2 },
-          { label: 'Cerrados', data: PAYLOAD.trend.map(function (r) { return r.cerrados; }), borderColor: CATEGORICAL[1], backgroundColor: CATEGORICAL[1], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#10131A', pointBorderWidth: 2 },
+          { label: 'Total', data: PAYLOAD.trend.map(function (r) { return r.total; }), borderColor: CATEGORICAL[0], backgroundColor: CATEGORICAL[0], borderWidth: 2, pointRadius: 3, pointBackgroundColor: POINT_BG, pointBorderWidth: 2 },
+          { label: 'Cerrados', data: PAYLOAD.trend.map(function (r) { return r.cerrados; }), borderColor: CATEGORICAL[1], backgroundColor: CATEGORICAL[1], borderWidth: 2, pointRadius: 3, pointBackgroundColor: POINT_BG, pointBorderWidth: 2 },
         ],
       },
       options: baseOptions({
-        plugins: { legend: { display: true, labels: { color: '#F2F4F7', font: { family: FONT }, boxWidth: 12, boxHeight: 12 } } },
+        plugins: { legend: { display: true, labels: { color: TEXT, font: { family: FONT }, boxWidth: 12, boxHeight: 12 } } },
         scales: {
           x: { ticks: { color: TEXT_MUTED, font: { family: FONT } }, grid: { display: false } },
           y: { beginAtZero: true, ticks: { color: TEXT_MUTED, font: { family: FONT } }, grid: { color: GRID, drawTicks: false } },
@@ -499,8 +551,14 @@ if ($glpi['available'] ?? false) {
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function renderAll() {
     if (typeof Chart === 'undefined') { return; }
+    Array.prototype.forEach.call(document.querySelectorAll('canvas'), function (cv) {
+      var c = Chart.getChart(cv);
+      if (c) { c.destroy(); }
+    });
+    var lg = document.getElementById('op-estados-legend');
+    if (lg) { lg.innerHTML = ''; }
     renderEstados();
     // Top/bottom del mismo ranking: mismo tono para "mayor carga" en todos los
     // paneles (CATEGORICAL[0]) y un segundo tono fijo para "menor carga"
@@ -512,12 +570,28 @@ if ($glpi['available'] ?? false) {
     renderHbar('op-categorias',
       PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '   - ' + r.label : r.label; }),
       PAYLOAD.categorias.map(function (r) { return r.value; }),
-      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? '#4A5C7A' : CATEGORICAL[0]; }),
+      PAYLOAD.categorias.map(function (r) { return r.tier === 'child' ? CHILD : CATEGORICAL[0]; }),
       PAYLOAD.categorias.map(function (r) { return r.tier; }));
     renderHbar('op-ids', PAYLOAD.ids.map(function (r) { return r[0]; }), PAYLOAD.ids.map(function (r) { return r[1]; }));
     renderHbar('op-ids-bottom', PAYLOAD.ids_bottom.map(function (r) { return r[0]; }), PAYLOAD.ids_bottom.map(function (r) { return r[1]; }), STATUS.warning);
     renderTrend();
     renderHbar('op-dispatch', PAYLOAD.dispositions.map(function (r) { return r.disposition; }), PAYLOAD.dispositions.map(function (r) { return r.total; }));
+  }
+
+  function setTheme(name) {
+    document.documentElement.setAttribute('data-deck-theme', name);
+    try { localStorage.setItem('nx_deck_theme', name); } catch (e) {}
+    applyPalette(name);
+    renderAll();
+  }
+  function toggleTheme() { setTheme(currentTheme() === 'light' ? 'dark' : 'light'); }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    renderAll();
+    document.getElementById('op-theme').addEventListener('click', toggleTheme);
+    document.addEventListener('keydown', function (e) {
+      if ((e.key === 't' || e.key === 'T') && ! e.ctrlKey && ! e.metaKey && ! e.altKey) { toggleTheme(); }
+    });
   });
 })();
 

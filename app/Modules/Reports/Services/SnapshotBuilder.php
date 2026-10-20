@@ -64,7 +64,12 @@ class SnapshotBuilder
             // their paths forces Reports::pptx()/xlsx() to re-render from the
             // new one instead of silently reusing stale files. Best-effort
             // delete the files themselves too, so disk doesn't accumulate them.
-            foreach ([$existing['pptx_path'], $existing['xlsx_path']] as $oldPath) {
+            $oldFiles = [$existing['pptx_path'], $existing['xlsx_path']];
+            // The light-theme PPTX isn't tracked in pptx_path; sweep the snapshot dir.
+            foreach (glob(WRITEPATH . 'reports/' . $snapshotId . '/*_claro.pptx') ?: [] as $light) {
+                $oldFiles[] = $light;
+            }
+            foreach ($oldFiles as $oldPath) {
                 if ($oldPath && is_file($oldPath)) {
                     @unlink($oldPath);
                 }

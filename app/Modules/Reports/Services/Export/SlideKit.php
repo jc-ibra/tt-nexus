@@ -32,44 +32,60 @@ use PhpOffice\PhpPresentation\Style\Outline;
  */
 class SlideKit
 {
-    // Neutral/surface tokens — same hex values as present.php's :root.
-    public const C_BG          = 'FF10131A'; // --ink, page background
-    public const C_SURFACE_ALT = 'FF171B24'; // --panel, grouped-content fill
-    public const C_BORDER      = 'FF262B37'; // --border
-    public const C_TEXT        = 'FFF2F4F7'; // --text
-    public const C_TEXT_MUTED  = 'FF8B93A3'; // --text-muted
-    public const C_TEXT_FAINT  = 'FF565D6B'; // --text-faint
+    public const THEMES = ['dark', 'light'];
 
-    // Color choices below follow the dataviz method: assigned by the job the
-    // color does (identity / magnitude / status), not picked by eye — the
-    // same dark-mode steps present.php uses (a saturated hue "pops" more on
-    // ink than on white, so these are lighter than the light-theme values).
-    public const C_ACCENT       = 'FF4C9FE8'; // chrome accent — rules, header dot
-    public const C_PRIMARY      = 'FF3987E5'; // categorical slot 1 / magnitude / info
-    public const C_PRIMARY_TINT = 'FF1B2333';
+    /** Palettes per theme (ARGB). Dark = present.php's console look; light = dashboard tokens. */
+    private const PALETTES = [
+        'dark' => [
+            'bg' => 'FF10131A', 'surfaceAlt' => 'FF171B24', 'border' => 'FF262B37',
+            'text' => 'FFF2F4F7', 'textMuted' => 'FF8B93A3', 'textFaint' => 'FF565D6B',
+            'accent' => 'FF4C9FE8', 'primary' => 'FF3987E5', 'primaryTint' => 'FF1B2333',
+            'success' => 'FF34C77B', 'warning' => 'FFF0B429', 'critical' => 'FFF0544C', 'info' => 'FF3987E5',
+            'gridline' => '1AFFFFFF',
+            'chartColors' => ['FF3987E5', 'FFD95926', 'FF199E70'],
+            // Muted -> vivid: on ink the saturated end pops (closed stage).
+            'stageRamp' => ['FF3A4356', 'FF4A5C7A', 'FF3987E5', 'FF5CA8FF'],
+        ],
+        'light' => [
+            'bg' => 'FFFFFFFF', 'surfaceAlt' => 'FFF6F6F7', 'border' => 'FFE1E3E5',
+            'text' => 'FF1A1C1E', 'textMuted' => 'FF6D7175', 'textFaint' => 'FF8C9196',
+            'accent' => 'FF1773C8', 'primary' => 'FF2A78D6', 'primaryTint' => 'FFEEF5FC',
+            'success' => 'FF0CA30C', 'warning' => 'FFFAB219', 'critical' => 'FFD03B3B', 'info' => 'FF2A78D6',
+            'gridline' => '1A000000',
+            'chartColors' => ['FF2A78D6', 'FFEB6834', 'FF1BAF7A'],
+            // Light -> dark: on white the darker end carries the weight.
+            'stageRamp' => ['FFD5E8F7', 'FF9CCAEE', 'FF57A5E0', 'FF1773C8'],
+        ],
+    ];
 
-    // Status palette — fixed, only used when the color means good/bad/warn.
-    public const C_SUCCESS  = 'FF34C77B';
-    public const C_WARNING  = 'FFF0B429';
-    public const C_CRITICAL = 'FFF0544C';
-    public const C_INFO     = 'FF3987E5';
+    public string $theme;
+    public string $bg, $surfaceAlt, $border, $text, $textMuted, $textFaint;
+    public string $accent, $primary, $primaryTint;
+    public string $success, $warning, $critical, $info, $gridline;
+    /** @var string[] */
+    public array $chartColors;
+    /** @var string[] */
+    public array $stageRamp;
 
-    /** Categorical series (identity) — fixed order, validated all-pairs for these 3 slots. */
-    public const CHART_COLORS = ['FF3987E5', 'FFD95926', 'FF199E70'];
+    public function __construct(string $theme = 'dark')
+    {
+        $this->theme = in_array($theme, self::THEMES, true) ? $theme : 'dark';
+        foreach (self::PALETTES[$this->theme] as $k => $v) {
+            $this->$k = $v;
+        }
+    }
 
-    /**
-     * Ordinal ramp for pipeline-stage encoding (see stageBar()), muted ->
-     * vivid: on a dark surface a more saturated step is what "pops", so
-     * (unlike the light theme's clara->oscura ramp) the vivid end is the one
-     * that should draw the eye — the closed/finished stage.
-     */
-    public const STAGE_RAMP = ['FF3A4356', 'FF4A5C7A', 'FF3987E5', 'FF5CA8FF'];
+    public static function forTheme(string $theme): self
+    {
+        return new self($theme);
+    }
 
     public const SLIDE_W = 960;
     public const SLIDE_H = 540;
 
-    public function bg(Slide $slide, string $argbColor = self::C_BG): void
+    public function bg(Slide $slide, ?string $argbColor = null): void
     {
+        $argbColor ??= $this->bg;
         $bg = new BgColor();
         $bg->setColor(new Color($argbColor));
         $slide->setBackground($bg);
@@ -82,19 +98,19 @@ class SlideKit
      */
     public function slideHeader(Slide $slide, string $section, string $title, string $subtitle = ''): void
     {
-        $this->dot($slide, 40, 32, 7, self::C_ACCENT);
+        $this->dot($slide, 40, 32, 7, $this->accent);
         $this->text($slide, $section, 54, 26, 500, 18, [
-            'size' => 11, 'color' => self::C_TEXT_MUTED,
+            'size' => 11, 'color' => $this->textMuted,
         ]);
         $this->text($slide, $title, 40, 46, 860, 36, [
-            'size' => 22, 'bold' => true, 'color' => self::C_TEXT,
+            'size' => 22, 'bold' => true, 'color' => $this->text,
         ]);
         if ($subtitle !== '') {
             $this->text($slide, $subtitle, 40, 80, 860, 20, [
-                'size' => 11, 'color' => self::C_TEXT_MUTED,
+                'size' => 11, 'color' => $this->textMuted,
             ]);
         }
-        $this->rect($slide, 40, 104, 880, 1, self::C_BORDER);
+        $this->rect($slide, 40, 104, 880, 1, $this->border);
     }
 
     /** Small filled circle — used for the instrument-bar-style section dot. */
@@ -117,8 +133,9 @@ class SlideKit
     }
 
     /** Rectangle with a simulated 1px border (a border-color rect underneath the fill). */
-    public function bordered(Slide $slide, int $x, int $y, int $w, int $h, string $fillColor, string $borderColor = self::C_BORDER): void
+    public function bordered(Slide $slide, int $x, int $y, int $w, int $h, string $fillColor, ?string $borderColor = null): void
     {
+        $borderColor ??= $this->border;
         $this->rect($slide, $x - 1, $y - 1, $w + 2, $h + 2, $borderColor);
         $this->rect($slide, $x, $y, $w, $h, $fillColor);
     }
@@ -143,7 +160,7 @@ class SlideKit
         $font->setName('Calibri');
         $font->setSize((int) ($opts['size'] ?? 12));
         $font->setBold(! empty($opts['bold']));
-        $font->setColor(new Color($opts['color'] ?? self::C_TEXT));
+        $font->setColor(new Color($opts['color'] ?? $this->text));
 
         return $shape;
     }
@@ -159,7 +176,7 @@ class SlideKit
             $axisY = $plot->getAxisY();
             $axisX->setTitle('');
             $axisY->setTitle('');
-            $tickFont = (new Font())->setColor(new Color(self::C_TEXT_MUTED))->setSize(10)->setName('Calibri');
+            $tickFont = (new Font())->setColor(new Color($this->textMuted))->setSize(10)->setName('Calibri');
             $axisX->setTickLabelFont(clone $tickFont);
             $axisY->setTickLabelFont(clone $tickFont);
 
@@ -167,14 +184,14 @@ class SlideKit
             // never competing with the data (same intent as the web/present
             // charts' rgba(255,255,255,.06) grid).
             $faintOutline = (new Outline())->setWidth(1);
-            $faintOutline->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('1AFFFFFF'));
+            $faintOutline->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($this->gridline));
             $axisX->setOutline(clone $faintOutline);
             $axisY->setOutline(clone $faintOutline);
             $axisX->setMajorGridlines((new Gridlines())->setOutline(clone $faintOutline));
             $axisY->setMajorGridlines((new Gridlines())->setOutline(clone $faintOutline));
         }
 
-        $chart->getLegend()->getFont()->setColor(new Color(self::C_TEXT_MUTED))->setSize(10)->setName('Calibri');
+        $chart->getLegend()->getFont()->setColor(new Color($this->textMuted))->setSize(10)->setName('Calibri');
     }
 
     /**
@@ -185,8 +202,9 @@ class SlideKit
      * @param array<string,int> $values label => count
      * @param string[]|null     $colorsByIndex parallel to $values, one ARGB per bar
      */
-    public function horizontalBarChart(Slide $slide, int $x, int $y, int $w, int $h, array $values, string $color = self::C_PRIMARY, ?array $colorsByIndex = null, bool $showValue = true): void
+    public function horizontalBarChart(Slide $slide, int $x, int $y, int $w, int $h, array $values, ?string $color = null, ?array $colorsByIndex = null, bool $showValue = true): void
     {
+        $color ??= $this->primary;
         if ($values === []) {
             return;
         }
@@ -198,7 +216,7 @@ class SlideKit
         $bar->setGapWidthPercent(60);
 
         $series = new Series('Tickets', $values);
-        $series->getFont()->setColor(new Color(self::C_TEXT))->setSize(9)->setName('Calibri');
+        $series->getFont()->setColor(new Color($this->text))->setSize(9)->setName('Calibri');
         $series->setShowValue($showValue);
         $series->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
 
@@ -216,8 +234,9 @@ class SlideKit
     }
 
     /** @param array<string,int> $values */
-    public function verticalBarChart(Slide $slide, int $x, int $y, int $w, int $h, array $values, string $color = self::C_PRIMARY, bool $showValue = true): void
+    public function verticalBarChart(Slide $slide, int $x, int $y, int $w, int $h, array $values, ?string $color = null, bool $showValue = true): void
     {
+        $color ??= $this->primary;
         if ($values === []) {
             return;
         }
@@ -229,7 +248,7 @@ class SlideKit
         $bar->setGapWidthPercent(50);
 
         $series = new Series('Tickets', $values);
-        $series->getFont()->setColor(new Color(self::C_TEXT))->setSize(9)->setName('Calibri');
+        $series->getFont()->setColor(new Color($this->text))->setSize(9)->setName('Calibri');
         $series->setShowValue($showValue);
         $series->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
 
@@ -257,9 +276,9 @@ class SlideKit
         foreach ($series as $i => $s) {
             $values = array_combine($labels, $s['values']);
             $lineSeries = new Series($s['label'], $values);
-            $lineSeries->getFont()->setColor(new Color(self::C_TEXT_MUTED))->setSize(9)->setName('Calibri');
+            $lineSeries->getFont()->setColor(new Color($this->textMuted))->setSize(9)->setName('Calibri');
             $lineSeries->setShowValue(false);
-            $color = $s['color'] ?? self::CHART_COLORS[$i % count(self::CHART_COLORS)];
+            $color = $s['color'] ?? $this->chartColors[$i % count($this->chartColors)];
 
             $outline = new \PhpOffice\PhpPresentation\Style\Outline();
             $outline->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color($color));
@@ -296,7 +315,7 @@ class SlideKit
         }
 
         $n      = count($values);
-        $colors = $this->rampSteps(self::STAGE_RAMP, $n);
+        $colors = $this->rampSteps($this->stageRamp, $n);
         $barH   = 28;
         $gap    = 2; // surface gap separates segments instead of a border
 
@@ -320,7 +339,7 @@ class SlideKit
             $this->rect($slide, $lx, $legendY + 3, 10, 10, $colors[$i]);
             $text = "{$label} ({$pct}%)";
             $tw   = 14 + (int) (mb_strlen($text) * 6.2);
-            $this->text($slide, $text, $lx + 14, $legendY, $tw, 18, ['size' => 9, 'color' => self::C_TEXT_MUTED]);
+            $this->text($slide, $text, $lx + 14, $legendY, $tw, 18, ['size' => 9, 'color' => $this->textMuted]);
             $lx += $tw + 18;
             $i++;
         }
@@ -332,16 +351,17 @@ class SlideKit
      * carries the value, big text states the number so nothing depends on
      * reading bar length precisely.
      */
-    public function meter(Slide $slide, int $x, int $y, int $w, string $valueText, string $subText, float $pct, string $fillColor = self::C_SUCCESS): void
+    public function meter(Slide $slide, int $x, int $y, int $w, string $valueText, string $subText, float $pct, ?string $fillColor = null): void
     {
+        $fillColor ??= $this->success;
         $h = 14;
-        $this->rect($slide, $x, $y, $w, $h, self::C_SURFACE_ALT);
+        $this->rect($slide, $x, $y, $w, $h, $this->surfaceAlt);
         $fillW = (int) round($w * max(0.0, min(100.0, $pct)) / 100);
         if ($fillW > 0) {
             $this->rect($slide, $x, $y, $fillW, $h, $fillColor);
         }
-        $this->text($slide, $valueText, $x, $y + $h + 10, $w, 30, ['size' => 20, 'bold' => true, 'color' => self::C_TEXT]);
-        $this->text($slide, $subText, $x, $y + $h + 42, $w, 20, ['size' => 10, 'color' => self::C_TEXT_MUTED]);
+        $this->text($slide, $valueText, $x, $y + $h + 10, $w, 30, ['size' => 20, 'bold' => true, 'color' => $this->text]);
+        $this->text($slide, $subText, $x, $y + $h + 42, $w, 20, ['size' => 10, 'color' => $this->textMuted]);
     }
 
     /** N colors evenly spaced across a ramp, lightest to darkest. */
@@ -365,18 +385,19 @@ class SlideKit
      * divider between consecutive items (not around each one) is drawn by
      * the caller's layout helper (see kpiRow/kpiGrid's $divider flag).
      */
-    public function kpiCard(Slide $slide, int $x, int $y, int $w, int $h, string $value, string $label, string $sub, string $accentColor = self::C_PRIMARY): void
+    public function kpiCard(Slide $slide, int $x, int $y, int $w, int $h, string $value, string $label, string $sub, ?string $accentColor = null): void
     {
+        $accentColor ??= $this->primary;
         $this->text($slide, $value, $x, $y, $w - 20, 40, [
-            'size' => 26, 'bold' => true, 'color' => self::C_TEXT,
+            'size' => 26, 'bold' => true, 'color' => $this->text,
         ]);
         $this->rect($slide, $x, $y + 42, 20, 3, $accentColor);
         $this->text($slide, $label, $x, $y + 50, $w - 20, 18, [
-            'size' => 10, 'color' => self::C_TEXT_MUTED,
+            'size' => 10, 'color' => $this->textMuted,
         ]);
         if ($sub !== '') {
             $this->text($slide, $sub, $x, $y + 68, $w - 20, 18, [
-                'size' => 9, 'color' => self::C_TEXT_FAINT,
+                'size' => 9, 'color' => $this->textFaint,
             ]);
         }
     }
@@ -384,14 +405,15 @@ class SlideKit
     /** 1px vertical divider drawn between scoreboard items — never around the last one. */
     public function scoreDivider(Slide $slide, int $x, int $yTop, int $h): void
     {
-        $this->rect($slide, $x, $yTop, 1, $h, self::C_BORDER);
+        $this->rect($slide, $x, $yTop, 1, $h, $this->border);
     }
 
     /** Small pill-style section label used above a chart card (e.g. "Top 8"). */
-    public function chip(Slide $slide, int $x, int $y, string $text, string $color = self::C_PRIMARY): void
+    public function chip(Slide $slide, int $x, int $y, string $text, ?string $color = null): void
     {
+        $color ??= $this->primary;
         $w = 10 + mb_strlen($text) * 7;
-        $this->rect($slide, $x, $y, $w, 18, self::C_PRIMARY_TINT);
+        $this->rect($slide, $x, $y, $w, 18, $this->primaryTint);
         $this->text($slide, $text, $x, $y + 2, $w, 14, [
             'size' => 9, 'bold' => true, 'color' => $color, 'align' => 'center',
         ]);
@@ -406,11 +428,11 @@ class SlideKit
      */
     public function cardHeader(Slide $slide, int $x, int $y, int $w, int $h, string $title): void
     {
-        $this->bordered($slide, $x, $y, $w, $h, self::C_SURFACE_ALT);
+        $this->bordered($slide, $x, $y, $w, $h, $this->surfaceAlt);
         $this->text($slide, $title, $x + 16, $y + 12, $w - 32, 20, [
-            'size' => 12, 'color' => self::C_TEXT_MUTED,
+            'size' => 12, 'color' => $this->textMuted,
         ]);
-        $this->rect($slide, $x + 16, $y + 36, $w - 32, 1, self::C_BORDER);
+        $this->rect($slide, $x + 16, $y + 36, $w - 32, 1, $this->border);
     }
 
     /** [[label, count], ...] -> ['label' => count, ...] */

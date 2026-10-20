@@ -80,12 +80,12 @@ class Reports extends BaseController
         $period   = new ReportPeriod($year, $month);
         $payload  = $this->decodePayload($snapshot);
 
-        $path = $snapshot['pptx_path'] && is_file($snapshot['pptx_path'])
-            ? $snapshot['pptx_path']
-            : service('reportsPptxBuilder')->render((int) $snapshot['id'], $payload, $period->label);
+        $requested = (string) $this->request->getGet('theme');
+        $theme     = in_array($requested, ['light', 'dark'], true) ? $requested : service('reportsSettings')->pptxTheme();
+        $path      = service('reportsPptxBuilder')->cachedOrRender((int) $snapshot['id'], $payload, $period->label, $theme);
 
         return $this->response->download($path, null)
-            ->setFileName('informe_' . $year . '_' . str_pad((string) $month, 2, '0', STR_PAD_LEFT) . '.pptx');
+            ->setFileName('informe_' . $year . '_' . str_pad((string) $month, 2, '0', STR_PAD_LEFT) . ($theme === 'light' ? '_claro' : '') . '.pptx');
     }
 
     public function xlsx(int $year, int $month)
@@ -152,9 +152,7 @@ class Reports extends BaseController
         $model   = new ReportDeliveryModel();
 
         try {
-            $pptx = $snapshot['pptx_path'] && is_file($snapshot['pptx_path'])
-                ? $snapshot['pptx_path']
-                : service('reportsPptxBuilder')->render((int) $snapshot['id'], $payload, $period->label);
+            $pptx = service('reportsPptxBuilder')->cachedOrRender((int) $snapshot['id'], $payload, $period->label, $settings->pptxTheme());
 
             $mailer = new \App\Modules\Communications\Services\MailerService();
             $result = $mailer->sendReport(
