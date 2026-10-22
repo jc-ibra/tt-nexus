@@ -7,6 +7,7 @@ namespace App\Modules\ServiceDesk\Services;
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\ServiceDesk\Models\AttendanceLogModel;
 use App\Modules\ServiceDesk\Models\AttendancePermitModel;
+use App\Modules\ServiceDesk\Models\AttendanceVacationModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use CodeIgniter\Database\BaseConnection;
 
@@ -29,6 +30,7 @@ class AttendanceService
         private AttendanceLogModel $logs,
         private AttendancePermitModel $permits,
         private ServiceDeskSettingsModel $settings,
+        private AttendanceVacationModel $vacations,
     ) {
         $this->db = \Config\Database::connect();
     }
@@ -248,6 +250,89 @@ class AttendanceService
     }
 
     // ------------------------------------------------------------------
+    // Vacation periods (supervisor)
+    // ------------------------------------------------------------------
+
+    /** Periods overlapping the range, with the agent's name. */
+    public function vacationsRange(string $start, string $end): array
+    {
+        return $this->vacations->overlapping($start, $end);
+    }
+
+    /**
+     * Supervisor-only: register a vacation period (inclusive, past or future,
+     * no limit). Weekdays in it are not absences. Overlaps are rejected.
+     *
+     * @param array{user_id?:mixed,start_date?:mixed,end_date?:mixed,notes?:mixed} $input
+     */
+    public function addVacation(array $input, int $supervisorId): ServiceResult
+    {
+        if (! $this->isSupervisor($supervisorId)) {
+            return ServiceResult::fail('No autorizado.');
+        }
+
+        $userId = (int) ($input['user_id'] ?? 0);
+        if (! in_array($userId, array_column($this->roster(), 'id'), true)) {
+            return ServiceResult::fail('El agente no pertenece al equipo.');
+        }
+
+        $start = trim((string) ($input['start_date'] ?? ''));
+        $end   = trim((string) ($input['end_date'] ?? ''));
+        foreach ([$start, $end] as $d) {
+            $dt = \DateTime::createFromFormat('Y-m-d', $d);
+            if ($dt === false || $dt->format('Y-m-d') !== $d) {
+                return ServiceResult::fail('Fechas inválidas.');
+            }
+        }
+        if ($end < $start) {
+            return ServiceResult::fail('La fecha final no puede ser anterior a la inicial.');
+        }
+        if ($this->vacations->userOverlaps($userId, $start, $end)) {
+            return ServiceResult::fail('Ya hay vacaciones registradas para esa persona en esas fechas.');
+        }
+
+        $notes = trim((string) ($input['notes'] ?? ''));
+        $this->vacations->insert([
+            'user_id'    => $userId,
+            'start_date' => $start,
+            'end_date'   => $end,
+            'notes'      => $notes !== '' ? mb_substr($notes, 0, 500) : null,
+            'created_by' => $supervisorId,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return ServiceResult::ok(null, 'Vacaciones registradas.');
+    }
+
+    public function deleteVacation(int $id, int $supervisorId): ServiceResult
+    {
+        if (! $this->isSupervisor($supervisorId)) {
+            return ServiceResult::fail('No autorizado.');
+        }
+        if ($this->vacations->find($id) === null) {
+            return ServiceResult::fail('Periodo no encontrado.');
+        }
+        $this->vacations->delete($id);
+
+        return ServiceResult::ok(null, 'Vacaciones eliminadas.');
+    }
+
+    /** @return array<int,array<string,bool>> [user_id][Y-m-d] => true for vacation days in the range. */
+    private function vacationDaysMap(string $start, string $end): array
+    {
+        $map = [];
+        foreach ($this->vacations->overlapping($start, $end) as $v) {
+            $from = max((string) $v['start_date'], $start);
+            $to   = min((string) $v['end_date'], $end);
+            for ($d = $from; $d <= $to; $d = date('Y-m-d', strtotime($d . ' +1 day'))) {
+                $map[(int) $v['user_id']][$d] = true;
+            }
+        }
+
+        return $map;
+    }
+
+    // ------------------------------------------------------------------
     // Roster (active users with ServiceDesk module access)
     // ------------------------------------------------------------------
 
@@ -292,8 +377,9 @@ class AttendanceService
             $days[] = $d;
         }
 
-        $roster = $this->roster();
-        $logs   = $this->logs->rangeWithUsers($monday, $sunday);
+        $roster    = $this->roster();
+        $logs      = $this->logs->rangeWithUsers($monday, $sunday);
+        $vacations = $this->vacationDaysMap($monday, $sunday);
 
         $byUserDay = [];
         foreach ($logs as $l) {
@@ -312,7 +398,8 @@ class AttendanceService
                     'check_in_at'  => $log['check_in_at'] ?? null,
                     'check_out_at' => $log['check_out_at'] ?? null,
                     'permit_status' => $log['permit_status'] ?? null,
-                    'is_absent'    => $log === null && $day < $today && $this->isWeekday($day),
+                    'on_vacation'  => $log === null && isset($vacations[$agent['id']][$day]),
+                    'is_absent'    => $log === null && $day < $today && $this->isWeekday($day) && ! isset($vacations[$agent['id']][$day]),
                     'is_future'    => $day > $today,
                 ];
             }
@@ -375,8 +462,9 @@ class AttendanceService
      */
     public function incidencesSummary(string $start, string $end): array
     {
-        $roster = $this->roster();
-        $logs   = $this->logs->rangeWithUsers($start, $end);
+        $roster    = $this->roster();
+        $logs      = $this->logs->rangeWithUsers($start, $end);
+        $vacations = $this->vacationDaysMap($start, $end);
 
         $byUserDay = [];
         foreach ($logs as $l) {
@@ -397,7 +485,7 @@ class AttendanceService
                 }
                 $log = $byUserDay[$agent['id']][$d] ?? null;
                 if ($log === null) {
-                    if ($this->isWeekday($d)) {
+                    if ($this->isWeekday($d) && ! isset($vacations[$agent['id']][$d])) {
                         $absent++;
                     }
                     continue;

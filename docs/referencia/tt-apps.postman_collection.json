@@ -6372,6 +6372,68 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Registrar vacaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/attendance/vacations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "attendance",
+                "vacations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"start_date\": \"2026-12-22\",\n  \"end_date\": \"2026-12-31\",\n  \"notes\": \"Vacaciones de fin de a\u00f1o\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar vacaciones",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/attendance/vacations/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "attendance",
+                "vacations",
+                "1"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },

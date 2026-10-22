@@ -175,7 +175,9 @@ $icons = [
                   <?php if ($cell['is_future']): ?>
                     <span class="att-cell-empty">·</span>
                   <?php elseif (! $cell['has_log']): ?>
-                    <?php if ($cell['is_absent']): ?>
+                    <?php if ($cell['on_vacation']): ?>
+                      <span class="badge badge-info">Vacaciones</span>
+                    <?php elseif ($cell['is_absent']): ?>
                       <span class="badge badge-critical">No reportó</span>
                     <?php elseif ($isTodayCell && $isWeekdayCell): ?>
                       <span class="badge badge-warning">Pendiente</span>

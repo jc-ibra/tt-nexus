@@ -30,6 +30,7 @@ class AttendanceApiController extends BaseApiController
             'pending'      => $attendance->pendingPermits(),
             'incidences'   => $attendance->incidencesSummary($start, $end),
             'history'      => $attendance->historyRange($start, $end),
+            'vacations'    => $attendance->vacationsRange($start, $end),
         ]);
     }
 
@@ -71,6 +72,35 @@ class AttendanceApiController extends BaseApiController
 
         $body   = $this->request->getJSON(true) ?? [];
         $result = service('serviceDeskAttendance')->manualEntry($body, (int) session()->get('user_id'));
+
+        if (! $result->success) {
+            return $this->error($result->message, 422);
+        }
+        return $this->success(['message' => $result->message]);
+    }
+
+    public function vacationSave(): ResponseInterface
+    {
+        if ($denied = $this->denyIfNotSupervisor()) {
+            return $denied;
+        }
+
+        $body   = $this->request->getJSON(true) ?? [];
+        $result = service('serviceDeskAttendance')->addVacation($body, (int) session()->get('user_id'));
+
+        if (! $result->success) {
+            return $this->error($result->message, 422);
+        }
+        return $this->success(['message' => $result->message]);
+    }
+
+    public function vacationDelete(int $id): ResponseInterface
+    {
+        if ($denied = $this->denyIfNotSupervisor()) {
+            return $denied;
+        }
+
+        $result = service('serviceDeskAttendance')->deleteVacation($id, (int) session()->get('user_id'));
 
         if (! $result->success) {
             return $this->error($result->message, 422);

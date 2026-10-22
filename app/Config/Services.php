@@ -65,6 +65,7 @@ use App\Modules\ServiceDesk\Models\ServiceDeskImportModel;
 use App\Modules\ServiceDesk\Models\ServiceDeskSettingsModel;
 use App\Modules\ServiceDesk\Models\AttendanceLogModel;
 use App\Modules\ServiceDesk\Models\AttendancePermitModel;
+use App\Modules\ServiceDesk\Models\AttendanceVacationModel;
 use App\Modules\ServiceDesk\Services\AssignmentMatrixImporter;
 use App\Modules\ServiceDesk\Services\AttendanceService;
 use App\Modules\ServiceDesk\Services\AutoFollowupService;
@@ -458,6 +459,7 @@ class Services extends BaseService
             new AttendanceLogModel(),
             new AttendancePermitModel(),
             new ServiceDeskSettingsModel(),
+            new AttendanceVacationModel(),
         );
     }
 

@@ -59,6 +59,8 @@ $routes->group('helpdesk-supervisor', [
     $routes->get('attendance/export',              'Attendance::export',       ['as' => 'helpdesk.attendance.export']);
     $routes->get('attendance/manual',              'Attendance::manualForm',   ['as' => 'helpdesk.attendance.manual']);
     $routes->post('attendance/manual',             'Attendance::manualSave',   ['as' => 'helpdesk.attendance.manual.save']);
+    $routes->post('attendance/vacations',          'Attendance::vacationSave', ['as' => 'helpdesk.attendance.vacations.save']);
+    $routes->post('attendance/vacations/(:num)/delete', 'Attendance::vacationDelete/$1', ['as' => 'helpdesk.attendance.vacations.delete']);
     $routes->post('attendance/permits/(:num)/approve', 'Attendance::approvePermit/$1', ['as' => 'helpdesk.attendance.permits.approve']);
     $routes->post('attendance/permits/(:num)/reject',  'Attendance::rejectPermit/$1',  ['as' => 'helpdesk.attendance.permits.reject']);
 
@@ -122,6 +124,8 @@ $routes->group('api/v1/helpdesk-supervisor', [
     $routes->post('attendance/permits/(:num)/approve',  'AttendanceApiController::approvePermit/$1');
     $routes->post('attendance/permits/(:num)/reject',   'AttendanceApiController::rejectPermit/$1');
     $routes->post('attendance/manual',                  'AttendanceApiController::manualEntry');
+    $routes->post('attendance/vacations',               'AttendanceApiController::vacationSave');
+    $routes->delete('attendance/vacations/(:num)',      'AttendanceApiController::vacationDelete/$1');
 
     // CSAT survey (mirror of the web satisfaction screen).
     $routes->get('satisfaction',        'HelpdeskSupervisorApiController::satisfaction');

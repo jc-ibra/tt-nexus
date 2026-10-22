@@ -36,6 +36,8 @@ class Attendance extends BaseController
             'pending'    => $attendance->pendingPermits(),
             'incidences' => $attendance->incidencesSummary($start, $end),
             'history'    => $attendance->historyRange($start, $end),
+            'vacations'  => $attendance->vacationsRange($start, $end),
+            'roster'     => $attendance->roster(),
         ]);
     }
 
@@ -96,6 +98,33 @@ class Attendance extends BaseController
 
         return redirect()->to(route_to('helpdesk.attendance.index') . '?period_start=' . $date . '&period_end=' . $date)
             ->with('success', $result->message);
+    }
+
+    public function vacationSave(): RedirectResponse
+    {
+        $this->denyIfNotSupervisor();
+
+        $input  = $this->request->getPost();
+        $result = service('serviceDeskAttendance')->addVacation($input, (int) session()->get('user_id'));
+
+        if (! $result->success) {
+            return redirect()->back()->withInput()->with('error', $result->message);
+        }
+
+        $start = (string) ($input['start_date'] ?? date('Y-m-d'));
+        $end   = (string) ($input['end_date'] ?? $start);
+
+        return redirect()->to(route_to('helpdesk.attendance.index') . '?period_start=' . $start . '&period_end=' . $end)
+            ->with('success', $result->message);
+    }
+
+    public function vacationDelete(int $id): RedirectResponse
+    {
+        $this->denyIfNotSupervisor();
+
+        $result = service('serviceDeskAttendance')->deleteVacation($id, (int) session()->get('user_id'));
+
+        return redirect()->back()->with($result->success ? 'success' : 'error', $result->message);
     }
 
     public function export(): ResponseInterface|RedirectResponse

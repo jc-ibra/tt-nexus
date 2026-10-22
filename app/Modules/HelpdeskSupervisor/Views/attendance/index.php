@@ -62,6 +62,62 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
 </div>
 
 <div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header"><h2 class="card-title">Vacaciones</h2></div>
+  <div class="card-body">
+    <p class="text-sm text-muted" style="margin-top:0;">Los días hábiles dentro de un periodo no cuentan como ausencia y aparecen como "Vacaciones" en el tablero del equipo.</p>
+    <form method="post" action="<?= route_to('helpdesk.attendance.vacations.save') ?>"
+          style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-4); align-items:end;">
+      <?= csrf_field() ?>
+      <div class="field">
+        <label class="field-label" for="vac-user">Agente <span class="required">*</span></label>
+        <select id="vac-user" name="user_id" class="select" required>
+          <option value="">Selecciona a una persona</option>
+          <?php foreach ($roster as $agent): ?>
+            <option value="<?= (int) $agent['id'] ?>" <?= (int) old('user_id') === (int) $agent['id'] ? 'selected' : '' ?>><?= esc($agent['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="vac-start">Desde <span class="required">*</span></label>
+        <input id="vac-start" name="start_date" type="date" class="input" required value="<?= esc((string) old('start_date'), 'attr') ?>">
+      </div>
+      <div class="field">
+        <label class="field-label" for="vac-end">Hasta <span class="required">*</span></label>
+        <input id="vac-end" name="end_date" type="date" class="input" required value="<?= esc((string) old('end_date'), 'attr') ?>">
+      </div>
+      <div class="field">
+        <label class="field-label" for="vac-notes">Nota</label>
+        <input id="vac-notes" name="notes" type="text" class="input" maxlength="500" value="<?= esc((string) old('notes'), 'attr') ?>">
+      </div>
+      <div><button type="submit" class="btn btn-primary">Registrar vacaciones</button></div>
+    </form>
+  </div>
+  <?php if ($vacations !== []): ?>
+  <div class="card-body" style="padding:0; border-top:1px solid var(--border-subtle);">
+    <table class="table" style="width:100%;">
+      <thead><tr><th>Agente</th><th>Desde</th><th>Hasta</th><th>Nota</th><th></th></tr></thead>
+      <tbody>
+        <?php foreach ($vacations as $v): ?>
+          <tr>
+            <td><?= esc($v['user_name']) ?></td>
+            <td><?= esc(date('d/m/Y', strtotime((string) $v['start_date']))) ?></td>
+            <td><?= esc(date('d/m/Y', strtotime((string) $v['end_date']))) ?></td>
+            <td class="text-sm"><?= esc((string) ($v['notes'] ?? '')) ?></td>
+            <td>
+              <form method="post" action="<?= route_to('helpdesk.attendance.vacations.delete', (int) $v['id']) ?>" onsubmit="return confirm('¿Eliminar este periodo de vacaciones?');">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-tertiary btn-sm btn-critical">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+  <?php endif; ?>
+</div>
+
+<div class="card" style="margin-bottom: var(--space-4);">
   <div class="card-header"><h2 class="card-title">Incidencias del período</h2></div>
   <div class="card-body" style="padding:0;">
     <table class="table" style="width:100%;">
