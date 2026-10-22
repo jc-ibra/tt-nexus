@@ -7,13 +7,13 @@ namespace App\Modules\ServiceDesk\Models;
 use CodeIgniter\Model;
 
 /**
- * Vacation periods (inclusive date ranges) per agent.
+ * Excused periods (inclusive date ranges) per agent: vacation or justified absence.
  */
 class AttendanceVacationModel extends Model
 {
     protected $table         = 'servicedesk_attendance_vacations';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['user_id', 'start_date', 'end_date', 'notes', 'created_by'];
+    protected $allowedFields = ['user_id', 'type', 'start_date', 'end_date', 'notes', 'created_by'];
     protected $useTimestamps = false; // created_at is set explicitly on insert
     protected $returnType    = 'array';
 

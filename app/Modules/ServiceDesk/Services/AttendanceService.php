@@ -24,6 +24,9 @@ class AttendanceService
 {
     public const SCHEMES = ['presencial', 'home_office', 'permiso'];
 
+    /** Excused period types the supervisor can register. */
+    public const EXCUSED_TYPES = ['vacation', 'justified'];
+
     private BaseConnection $db;
 
     public function __construct(
@@ -250,7 +253,7 @@ class AttendanceService
     }
 
     // ------------------------------------------------------------------
-    // Vacation periods (supervisor)
+    // Excused periods: vacations and justified absences (supervisor)
     // ------------------------------------------------------------------
 
     /** Periods overlapping the range, with the agent's name. */
@@ -260,10 +263,11 @@ class AttendanceService
     }
 
     /**
-     * Supervisor-only: register a vacation period (inclusive, past or future,
-     * no limit). Weekdays in it are not absences. Overlaps are rejected.
+     * Supervisor-only: register a vacation or justified-absence period
+     * (inclusive, past or future, no limit). Weekdays in it are not absences.
+     * Overlaps are rejected; a justified absence requires a reason.
      *
-     * @param array{user_id?:mixed,start_date?:mixed,end_date?:mixed,notes?:mixed} $input
+     * @param array{user_id?:mixed,type?:mixed,start_date?:mixed,end_date?:mixed,notes?:mixed} $input
      */
     public function addVacation(array $input, int $supervisorId): ServiceResult
     {
@@ -274,6 +278,11 @@ class AttendanceService
         $userId = (int) ($input['user_id'] ?? 0);
         if (! in_array($userId, array_column($this->roster(), 'id'), true)) {
             return ServiceResult::fail('El agente no pertenece al equipo.');
+        }
+
+        $type = (string) ($input['type'] ?? 'vacation');
+        if (! in_array($type, self::EXCUSED_TYPES, true)) {
+            return ServiceResult::fail('Tipo inválido.');
         }
 
         $start = trim((string) ($input['start_date'] ?? ''));
@@ -288,12 +297,16 @@ class AttendanceService
             return ServiceResult::fail('La fecha final no puede ser anterior a la inicial.');
         }
         if ($this->vacations->userOverlaps($userId, $start, $end)) {
-            return ServiceResult::fail('Ya hay vacaciones registradas para esa persona en esas fechas.');
+            return ServiceResult::fail('Ya hay vacaciones o una falta justificada para esa persona en esas fechas.');
         }
 
         $notes = trim((string) ($input['notes'] ?? ''));
+        if ($type === 'justified' && $notes === '') {
+            return ServiceResult::fail('Indica el motivo de la falta justificada.');
+        }
         $this->vacations->insert([
             'user_id'    => $userId,
+            'type'       => $type,
             'start_date' => $start,
             'end_date'   => $end,
             'notes'      => $notes !== '' ? mb_substr($notes, 0, 500) : null,
@@ -301,7 +314,7 @@ class AttendanceService
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        return ServiceResult::ok(null, 'Vacaciones registradas.');
+        return ServiceResult::ok(null, $type === 'justified' ? 'Falta justificada registrada.' : 'Vacaciones registradas.');
     }
 
     public function deleteVacation(int $id, int $supervisorId): ServiceResult
@@ -314,10 +327,10 @@ class AttendanceService
         }
         $this->vacations->delete($id);
 
-        return ServiceResult::ok(null, 'Vacaciones eliminadas.');
+        return ServiceResult::ok(null, 'Periodo eliminado.');
     }
 
-    /** @return array<int,array<string,bool>> [user_id][Y-m-d] => true for vacation days in the range. */
+    /** @return array<int,array<string,string>> [user_id][Y-m-d] => period type for excused days in the range. */
     private function vacationDaysMap(string $start, string $end): array
     {
         $map = [];
@@ -325,7 +338,7 @@ class AttendanceService
             $from = max((string) $v['start_date'], $start);
             $to   = min((string) $v['end_date'], $end);
             for ($d = $from; $d <= $to; $d = date('Y-m-d', strtotime($d . ' +1 day'))) {
-                $map[(int) $v['user_id']][$d] = true;
+                $map[(int) $v['user_id']][$d] = (string) $v['type'];
             }
         }
 
@@ -398,7 +411,7 @@ class AttendanceService
                     'check_in_at'  => $log['check_in_at'] ?? null,
                     'check_out_at' => $log['check_out_at'] ?? null,
                     'permit_status' => $log['permit_status'] ?? null,
-                    'on_vacation'  => $log === null && isset($vacations[$agent['id']][$day]),
+                    'excused_type' => $log === null ? ($vacations[$agent['id']][$day] ?? null) : null,
                     'is_absent'    => $log === null && $day < $today && $this->isWeekday($day) && ! isset($vacations[$agent['id']][$day]),
                     'is_future'    => $day > $today,
                 ];

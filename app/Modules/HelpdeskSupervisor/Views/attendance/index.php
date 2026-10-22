@@ -62,9 +62,9 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
 </div>
 
 <div class="card" style="margin-bottom: var(--space-4);">
-  <div class="card-header"><h2 class="card-title">Vacaciones</h2></div>
+  <div class="card-header"><h2 class="card-title">Vacaciones y faltas justificadas</h2></div>
   <div class="card-body">
-    <p class="text-sm text-muted" style="margin-top:0;">Los días hábiles dentro de un periodo no cuentan como ausencia y aparecen como "Vacaciones" en el tablero del equipo.</p>
+    <p class="text-sm text-muted" style="margin-top:0;">Los días hábiles dentro de un periodo no cuentan como ausencia y aparecen en el tablero del equipo con su tipo. Para una falta justificada indica el motivo en la nota.</p>
     <form method="post" action="<?= route_to('helpdesk.attendance.vacations.save') ?>"
           style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-4); align-items:end;">
       <?= csrf_field() ?>
@@ -75,6 +75,13 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
           <?php foreach ($roster as $agent): ?>
             <option value="<?= (int) $agent['id'] ?>" <?= (int) old('user_id') === (int) $agent['id'] ? 'selected' : '' ?>><?= esc($agent['name']) ?></option>
           <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="vac-type">Tipo</label>
+        <select id="vac-type" name="type" class="select">
+          <option value="vacation" <?= old('type') !== 'justified' ? 'selected' : '' ?>>Vacaciones</option>
+          <option value="justified" <?= old('type') === 'justified' ? 'selected' : '' ?>>Falta justificada</option>
         </select>
       </div>
       <div class="field">
@@ -89,22 +96,23 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
         <label class="field-label" for="vac-notes">Nota</label>
         <input id="vac-notes" name="notes" type="text" class="input" maxlength="500" value="<?= esc((string) old('notes'), 'attr') ?>">
       </div>
-      <div><button type="submit" class="btn btn-primary">Registrar vacaciones</button></div>
+      <div><button type="submit" class="btn btn-primary">Registrar periodo</button></div>
     </form>
   </div>
   <?php if ($vacations !== []): ?>
   <div class="card-body" style="padding:0; border-top:1px solid var(--border-subtle);">
     <table class="table" style="width:100%;">
-      <thead><tr><th>Agente</th><th>Desde</th><th>Hasta</th><th>Nota</th><th></th></tr></thead>
+      <thead><tr><th>Agente</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Nota</th><th></th></tr></thead>
       <tbody>
         <?php foreach ($vacations as $v): ?>
           <tr>
             <td><?= esc($v['user_name']) ?></td>
+            <td><?= ($v['type'] ?? 'vacation') === 'justified' ? 'Falta justificada' : 'Vacaciones' ?></td>
             <td><?= esc(date('d/m/Y', strtotime((string) $v['start_date']))) ?></td>
             <td><?= esc(date('d/m/Y', strtotime((string) $v['end_date']))) ?></td>
             <td class="text-sm"><?= esc((string) ($v['notes'] ?? '')) ?></td>
             <td>
-              <form method="post" action="<?= route_to('helpdesk.attendance.vacations.delete', (int) $v['id']) ?>" onsubmit="return confirm('¿Eliminar este periodo de vacaciones?');">
+              <form method="post" action="<?= route_to('helpdesk.attendance.vacations.delete', (int) $v['id']) ?>" onsubmit="return confirm('¿Eliminar este periodo?');">
                 <?= csrf_field() ?>
                 <button type="submit" class="btn btn-tertiary btn-sm btn-critical">Eliminar</button>
               </form>
