@@ -6337,6 +6337,41 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Registrar entrada/salida manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/helpdesk-supervisor/attendance/manual",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "helpdesk-supervisor",
+                "attendance",
+                "manual"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"work_date\": \"2026-09-30\",\n  \"scheme\": \"presencial\",\n  \"check_in\": \"09:05\",\n  \"check_out\": \"18:00\",\n  \"reason\": \"Olvidó marcar\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },

@@ -16,6 +16,7 @@ class AttendanceLogModel extends Model
     protected $primaryKey    = 'id';
     protected $allowedFields = [
         'user_id', 'work_date', 'scheme', 'check_in_at', 'check_out_at', 'permit_id',
+        'manual_by', 'manual_at', 'manual_reason',
     ];
     protected $useTimestamps = true;
     protected $returnType    = 'array';

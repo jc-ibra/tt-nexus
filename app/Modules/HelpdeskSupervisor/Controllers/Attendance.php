@@ -61,6 +61,43 @@ class Attendance extends BaseController
             ->with($result->success ? 'success' : 'error', $result->message);
     }
 
+    public function manualForm(): string
+    {
+        $this->denyIfNotSupervisor();
+
+        $attendance = service('serviceDeskAttendance');
+        $userId     = (int) ($this->request->getGet('user_id') ?? 0);
+        $date       = (string) ($this->request->getGet('date') ?? date('Y-m-d'));
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $date > date('Y-m-d')) {
+            $date = date('Y-m-d');
+        }
+
+        return view('App\Modules\HelpdeskSupervisor\Views\attendance\manual', [
+            'pageTitle' => 'Registrar entrada/salida',
+            'roster'    => $attendance->roster(),
+            'userId'    => $userId,
+            'workDate'  => $date,
+            'existing'  => $userId > 0 ? $attendance->logForUserDate($userId, $date) : null,
+        ]);
+    }
+
+    public function manualSave(): RedirectResponse
+    {
+        $this->denyIfNotSupervisor();
+
+        $input  = $this->request->getPost();
+        $result = service('serviceDeskAttendance')->manualEntry($input, (int) session()->get('user_id'));
+
+        if (! $result->success) {
+            return redirect()->back()->withInput()->with('error', $result->message);
+        }
+
+        $date = (string) ($input['work_date'] ?? date('Y-m-d'));
+
+        return redirect()->to(route_to('helpdesk.attendance.index') . '?period_start=' . $date . '&period_end=' . $date)
+            ->with('success', $result->message);
+    }
+
     public function export(): ResponseInterface|RedirectResponse
     {
         $this->denyIfNotSupervisor();

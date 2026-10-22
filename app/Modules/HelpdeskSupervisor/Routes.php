@@ -57,6 +57,8 @@ $routes->group('helpdesk-supervisor', [
     // pending permit approvals, incidence summary, full history + Excel export.
     $routes->get('attendance',                     'Attendance::index',        ['as' => 'helpdesk.attendance.index']);
     $routes->get('attendance/export',              'Attendance::export',       ['as' => 'helpdesk.attendance.export']);
+    $routes->get('attendance/manual',              'Attendance::manualForm',   ['as' => 'helpdesk.attendance.manual']);
+    $routes->post('attendance/manual',             'Attendance::manualSave',   ['as' => 'helpdesk.attendance.manual.save']);
     $routes->post('attendance/permits/(:num)/approve', 'Attendance::approvePermit/$1', ['as' => 'helpdesk.attendance.permits.approve']);
     $routes->post('attendance/permits/(:num)/reject',  'Attendance::rejectPermit/$1',  ['as' => 'helpdesk.attendance.permits.reject']);
 
@@ -119,6 +121,7 @@ $routes->group('api/v1/helpdesk-supervisor', [
     $routes->get('attendance',                          'AttendanceApiController::index');
     $routes->post('attendance/permits/(:num)/approve',  'AttendanceApiController::approvePermit/$1');
     $routes->post('attendance/permits/(:num)/reject',   'AttendanceApiController::rejectPermit/$1');
+    $routes->post('attendance/manual',                  'AttendanceApiController::manualEntry');
 
     // CSAT survey (mirror of the web satisfaction screen).
     $routes->get('satisfaction',        'HelpdeskSupervisorApiController::satisfaction');

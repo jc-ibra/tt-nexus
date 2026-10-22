@@ -153,6 +153,100 @@ class AttendanceService
         return $this->logs->todayForUser($userId, date('Y-m-d'));
     }
 
+    public function logForUserDate(int $userId, string $date): ?array
+    {
+        return $this->logs->todayForUser($userId, $date);
+    }
+
+    /**
+     * Supervisor-only: register or complete a forgotten check-in/out for any
+     * roster agent on any past (or current) date, with no look-back limit.
+     * Upserts on (user_id, work_date); only the times sent are touched, so a
+     * forgotten check-out can be added without altering the check-in.
+     *
+     * @param array{user_id?:mixed,work_date?:mixed,scheme?:mixed,check_in?:mixed,check_out?:mixed,reason?:mixed} $input
+     */
+    public function manualEntry(array $input, int $supervisorId): ServiceResult
+    {
+        if (! $this->isSupervisor($supervisorId)) {
+            return ServiceResult::fail('No autorizado.');
+        }
+
+        $userId = (int) ($input['user_id'] ?? 0);
+        if (! in_array($userId, array_column($this->roster(), 'id'), true)) {
+            return ServiceResult::fail('El agente no pertenece al equipo.');
+        }
+
+        $date = trim((string) ($input['work_date'] ?? ''));
+        $dt   = \DateTime::createFromFormat('Y-m-d', $date);
+        if ($dt === false || $dt->format('Y-m-d') !== $date) {
+            return ServiceResult::fail('Fecha inválida.');
+        }
+        $today = date('Y-m-d');
+        if ($date > $today) {
+            return ServiceResult::fail('No se pueden registrar fechas futuras.');
+        }
+
+        $scheme = (string) ($input['scheme'] ?? 'presencial');
+        if (! in_array($scheme, ['presencial', 'home_office'], true)) {
+            return ServiceResult::fail('Esquema inválido.');
+        }
+
+        $reason = trim((string) ($input['reason'] ?? ''));
+        if ($reason === '') {
+            return ServiceResult::fail('Indica el motivo del registro manual.');
+        }
+        $reason = mb_substr($reason, 0, 500);
+
+        $times = [];
+        foreach (['check_in' => 'entrada', 'check_out' => 'salida'] as $field => $label) {
+            $raw = trim((string) ($input[$field] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+            if (! preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $raw)) {
+                return ServiceResult::fail("Hora de {$label} inválida.");
+            }
+            $stamp = $date . ' ' . sprintf('%02d:%02d:00', ...array_map('intval', explode(':', $raw)));
+            if ($date === $today && strtotime($stamp) > time()) {
+                return ServiceResult::fail("La hora de {$label} no puede ser futura.");
+            }
+            $times[$field] = $stamp;
+        }
+
+        if ($times === []) {
+            return ServiceResult::fail('Captura al menos la hora de entrada o de salida.');
+        }
+
+        $existing = $this->logs->todayForUser($userId, $date);
+        $checkIn  = $times['check_in'] ?? ($existing['check_in_at'] ?? null);
+        $checkOut = $times['check_out'] ?? ($existing['check_out_at'] ?? null);
+
+        if ($checkIn === null) {
+            return ServiceResult::fail('Registra también la hora de entrada.');
+        }
+        if ($checkOut !== null && strtotime($checkOut) <= strtotime($checkIn)) {
+            return ServiceResult::fail('La salida debe ser posterior a la entrada.');
+        }
+
+        $data = [
+            'scheme'        => $scheme,
+            'check_in_at'   => $checkIn,
+            'check_out_at'  => $checkOut,
+            'manual_by'     => $supervisorId,
+            'manual_at'     => date('Y-m-d H:i:s'),
+            'manual_reason' => $reason,
+        ];
+
+        if ($existing !== null) {
+            $this->logs->update($existing['id'], $data);
+        } else {
+            $this->logs->insert($data + ['user_id' => $userId, 'work_date' => $date]);
+        }
+
+        return ServiceResult::ok(null, 'Registro guardado.');
+    }
+
     // ------------------------------------------------------------------
     // Roster (active users with ServiceDesk module access)
     // ------------------------------------------------------------------

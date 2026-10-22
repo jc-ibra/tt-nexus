@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class AttendanceExportService
 {
-    private const HEADERS = ['Fecha', 'Agente', 'Esquema', 'Entrada', 'Salida', 'Estatus permiso'];
+    private const HEADERS = ['Fecha', 'Agente', 'Esquema', 'Entrada', 'Salida', 'Estatus permiso', 'Registro manual', 'Motivo manual'];
 
     private const SCHEME_LABELS = [
         'presencial'  => 'Presencial',
@@ -34,7 +34,7 @@ class AttendanceExportService
         $sheet = $book->getActiveSheet();
         $sheet->setTitle('Asistencia');
         $sheet->fromArray(self::HEADERS, null, 'A1');
-        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:H1')->getFont()->setBold(true);
         $sheet->freezePane('A2');
 
         $line = 2;
@@ -45,7 +45,7 @@ class AttendanceExportService
             $line++;
         }
 
-        foreach (range('A', 'F') as $col) {
+        foreach (range('A', 'H') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -72,6 +72,8 @@ class AttendanceExportService
             $l['check_in_at'] ? date('H:i', strtotime((string) $l['check_in_at'])) : '',
             $l['check_out_at'] ? date('H:i', strtotime((string) $l['check_out_at'])) : '',
             $permitStatus !== '' ? (self::PERMIT_LABELS[$permitStatus] ?? $permitStatus) : '',
+            ! empty($l['manual_by']) ? 'Sí' : 'No',
+            (string) ($l['manual_reason'] ?? ''),
         ];
     }
 }

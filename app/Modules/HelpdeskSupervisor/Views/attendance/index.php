@@ -14,6 +14,7 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
     <p class="page-subtitle text-muted">Permisos por aprobar, incidencias del período y el historial completo del equipo.</p>
   </div>
   <div class="page-actions">
+    <a href="<?= route_to('helpdesk.attendance.manual') ?>" class="btn btn-primary">Registrar entrada/salida</a>
     <a href="<?= route_to('helpdesk.attendance.export') ?>?period_start=<?= esc($periodStart, 'attr') ?>&period_end=<?= esc($periodEnd, 'attr') ?>"
        class="btn btn-secondary">Exportar Excel</a>
   </div>
@@ -84,18 +85,19 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
   <div class="card-header"><h2 class="card-title">Historial completo</h2></div>
   <div class="card-body" style="padding:0;">
     <table class="table" style="width:100%;">
-      <thead><tr><th>Fecha</th><th>Agente</th><th>Esquema</th><th>Entrada</th><th>Salida</th><th>Permiso</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Agente</th><th>Esquema</th><th>Entrada</th><th>Salida</th><th>Permiso</th><th></th></tr></thead>
       <tbody>
         <?php if ($history === []): ?>
-          <tr><td colspan="6" class="text-muted text-sm" style="text-align:center; padding:var(--space-4);">Sin registros en este período.</td></tr>
+          <tr><td colspan="7" class="text-muted text-sm" style="text-align:center; padding:var(--space-4);">Sin registros en este período.</td></tr>
         <?php else: foreach ($history as $h): ?>
           <tr>
             <td><?= esc(date('d/m/Y', strtotime((string) $h['work_date']))) ?></td>
-            <td><?= esc($h['user_name']) ?></td>
+            <td><?= esc($h['user_name']) ?><?php if (! empty($h['manual_by'])): ?> <span class="badge badge-info" title="<?= esc((string) ($h['manual_reason'] ?? ''), 'attr') ?>">Manual</span><?php endif; ?></td>
             <td><?= esc($schemeLabels[$h['scheme']] ?? $h['scheme']) ?></td>
             <td><?= $h['check_in_at'] ? esc(date('H:i', strtotime((string) $h['check_in_at']))) : '—' ?></td>
             <td><?= $h['check_out_at'] ? esc(date('H:i', strtotime((string) $h['check_out_at']))) : '—' ?></td>
             <td><?= $h['permit_status'] !== null ? esc($permitLabel[$h['permit_status']] ?? $h['permit_status']) : '—' ?></td>
+            <td><a href="<?= route_to('helpdesk.attendance.manual') ?>?user_id=<?= (int) $h['user_id'] ?>&date=<?= esc((string) $h['work_date'], 'attr') ?>" class="btn btn-tertiary btn-sm">Corregir</a></td>
           </tr>
         <?php endforeach; endif; ?>
       </tbody>

@@ -63,6 +63,21 @@ class AttendanceApiController extends BaseApiController
         return $this->success(['message' => $result->message]);
     }
 
+    public function manualEntry(): ResponseInterface
+    {
+        if ($denied = $this->denyIfNotSupervisor()) {
+            return $denied;
+        }
+
+        $body   = $this->request->getJSON(true) ?? [];
+        $result = service('serviceDeskAttendance')->manualEntry($body, (int) session()->get('user_id'));
+
+        if (! $result->success) {
+            return $this->error($result->message, 422);
+        }
+        return $this->success(['message' => $result->message]);
+    }
+
     private function denyIfNotSupervisor(): ?ResponseInterface
     {
         $userId = (int) session()->get('user_id');
