@@ -39,6 +39,7 @@ qué** algo se hizo así. Para el estado actual, el código manda.
 | Mailboxes | [integracion-mailcow.md](modulos/mailboxes/integracion-mailcow.md) : cómo generar y configurar la API key de Mailcow |
 | MailDispatch | [spec.md](modulos/maildispatch/spec.md) : despacho del buzón compartido de M365. Ver también `pendiente/` |
 | Presentations | [README.md](../app/Modules/Presentations/README.md) : HTML mensual de Operaciones que sube un usuario externo y ven los roles con acceso; permiso `presentations.upload` |
+| Shares | [README.md](../app/Modules/Shares/README.md) : sube HTML y emite enlaces públicos `/s/{token}` con caducidad, límite de vistas, contraseña y revocación; cada usuario ve solo lo suyo |
 | TechBot | [spec.md](modulos/techbot/spec.md) : bot de Telegram para que técnicos de campo documenten tickets de GLPI |
 | ServiceDesk | [actualizacion-masiva.md](modulos/servicedesk/actualizacion-masiva.md) : actualización y cierre masivo de tickets con el mismo Excel del importador |
 | ServiceDesk | [papelera-masiva.md](modulos/servicedesk/papelera-masiva.md) : envío masivo de tickets a la papelera de GLPI (y restauración de lotes) |

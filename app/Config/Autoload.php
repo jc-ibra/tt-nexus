@@ -52,6 +52,7 @@ class Autoload extends AutoloadConfig
         'App\Modules\AgentKpis'          => APPPATH . 'Modules/AgentKpis',
         'App\Modules\Reports'            => APPPATH . 'Modules/Reports',
         'App\Modules\Presentations'      => APPPATH . 'Modules/Presentations',
+        'App\Modules\Shares'             => APPPATH . 'Modules/Shares',
     ];
 
     /**

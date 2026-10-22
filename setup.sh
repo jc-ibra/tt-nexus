@@ -219,6 +219,9 @@ run_seeder "App\Modules\Reports\Database\Seeders\ReportsModuleSeeder"           
 # Presentations
 run_seeder "App\Modules\Presentations\Database\Seeders\PresentationsModuleSeeder" "PresentationsModuleSeeder"
 
+# Shares
+run_seeder "App\Modules\Shares\Database\Seeders\SharesModuleSeeder"                     "SharesModuleSeeder"
+
 # ServiceDesk
 run_seeder "App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder"     "ServiceDeskModuleSeeder"
 

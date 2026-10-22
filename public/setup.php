@@ -78,6 +78,7 @@ $SEEDERS = [
     ['App\Modules\Provisioning\Database\Seeders\MsLicensesSeeder', 'MsLicensesSeeder'],
     ['App\Modules\Reports\Database\Seeders\ReportsModuleSeeder', 'ReportsModuleSeeder'],
     ['App\Modules\Presentations\Database\Seeders\PresentationsModuleSeeder', 'PresentationsModuleSeeder'],
+    ['App\Modules\Shares\Database\Seeders\SharesModuleSeeder', 'SharesModuleSeeder'],
     ['App\Modules\ServiceDesk\Database\Seeders\ServiceDeskModuleSeeder', 'ServiceDeskModuleSeeder'],
     ['App\Modules\MailDispatch\Database\Seeders\MailDispatchModuleSeeder', 'MailDispatchModuleSeeder'],
     ['App\Modules\TechBot\Database\Seeders\TechBotModuleSeeder', 'TechBotModuleSeeder'],

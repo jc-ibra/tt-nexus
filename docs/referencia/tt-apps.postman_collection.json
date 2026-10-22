@@ -6960,6 +6960,505 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Shares — Enlaces públicos",
+      "description": "Cada usuario gestiona solo sus archivos y enlaces (SuperAdmin: todos). La URL pública `/s/{token}` no requiere token Bearer.",
+      "item": [
+        {
+          "name": "List files",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files"
+              ]
+            },
+            "description": "Archivos del usuario, el más reciente primero."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [{\n    \"id\": 3,\n    \"title\": \"Propuesta Acme\",\n    \"original_name\": \"propuesta.html\",\n    \"size_bytes\": 482113,\n    \"sha256\": \"<sha256>\",\n    \"owner\": \"Nombre\",\n    \"link_count\": 2,\n    \"created_at\": \"2026-10-22 10:00:00\",\n    \"updated_at\": \"2026-10-22 10:00:00\"\n  }]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get file",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files",
+                ":id"
+              ]
+            },
+            "description": "Un archivo. 404 si no existe o no es del usuario."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 3,\n    \"title\": \"Propuesta Acme\",\n    \"original_name\": \"propuesta.html\",\n    \"size_bytes\": 482113,\n    \"sha256\": \"<sha256>\",\n    \"owner\": \"Nombre\",\n    \"link_count\": 2,\n    \"created_at\": \"2026-10-22 10:00:00\",\n    \"updated_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload file",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files"
+              ]
+            },
+            "description": "Sube un HTML (campo `file`, máx. 100 MB) y crea su primer enlace.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "title",
+                  "value": "Propuesta Acme",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"file\": {\n    \"id\": 3,\n    \"title\": \"Propuesta Acme\",\n    \"original_name\": \"propuesta.html\",\n    \"size_bytes\": 482113,\n    \"sha256\": \"<sha256>\",\n    \"owner\": \"Nombre\",\n    \"link_count\": 2,\n    \"created_at\": \"2026-10-22 10:00:00\",\n    \"updated_at\": \"2026-10-22 10:00:00\"\n  },\n    \"link\": {\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Replace file",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files/:id/replace",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files",
+                ":id",
+                "replace"
+              ]
+            },
+            "description": "Sustituye el HTML; los enlaces existentes se conservan.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 3,\n    \"title\": \"Propuesta Acme\",\n    \"original_name\": \"propuesta.html\",\n    \"size_bytes\": 482113,\n    \"sha256\": \"<sha256>\",\n    \"owner\": \"Nombre\",\n    \"link_count\": 2,\n    \"created_at\": \"2026-10-22 10:00:00\",\n    \"updated_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Rename file",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files",
+                ":id"
+              ]
+            },
+            "description": "Cambia el título.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Propuesta Acme v2\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 3,\n    \"title\": \"Propuesta Acme\",\n    \"original_name\": \"propuesta.html\",\n    \"size_bytes\": 482113,\n    \"sha256\": \"<sha256>\",\n    \"owner\": \"Nombre\",\n    \"link_count\": 2,\n    \"created_at\": \"2026-10-22 10:00:00\",\n    \"updated_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete file",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files",
+                ":id"
+              ]
+            },
+            "description": "Elimina el archivo y todos sus enlaces."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "List links",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/links",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "links"
+              ]
+            },
+            "description": "Enlaces del usuario con estado calculado: active, revoked, expired, exhausted."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [{\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/files/:id/links",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "files",
+                ":id",
+                "links"
+              ]
+            },
+            "description": "Crea otro enlace público para el archivo. Todos los campos son opcionales.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Cliente Acme\",\n  \"expires_at\": \"2026-12-31T23:59\",\n  \"max_views\": 10,\n  \"password\": \"secreto\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update link",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/links/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "links",
+                ":id"
+              ]
+            },
+            "description": "Edita etiqueta, caducidad, límite y contraseña. Solo cambian las claves enviadas. `clear_password: true` quita la contraseña; `reset_views: true` reinicia el contador.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Cliente Acme\",\n  \"expires_at\": \"\",\n  \"max_views\": \"\",\n  \"password\": \"\",\n  \"clear_password\": false,\n  \"reset_views\": true\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Revoke link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/links/:id/revoke",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "links",
+                ":id",
+                "revoke"
+              ]
+            },
+            "description": "Desactiva el enlace al instante."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Activate link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/links/:id/activate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "links",
+                ":id",
+                "activate"
+              ]
+            },
+            "description": "Reactiva un enlace desactivado."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Regenerate link URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/links/:id/regenerate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "links",
+                ":id",
+                "regenerate"
+              ]
+            },
+            "description": "Genera un token nuevo; la URL anterior deja de funcionar."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 7,\n    \"file_id\": 3,\n    \"file_title\": \"Propuesta Acme\",\n    \"url\": \"https://nexus.example.com/s/<token>\",\n    \"label\": \"Cliente Acme\",\n    \"status\": \"active\",\n    \"is_active\": true,\n    \"expires_at\": \"2026-12-31 23:59:00\",\n    \"max_views\": 10,\n    \"view_count\": 2,\n    \"has_password\": true,\n    \"last_viewed_at\": \"2026-10-22 12:00:00\",\n    \"created_at\": \"2026-10-22 10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete link",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shares/links/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shares",
+                "links",
+                ":id"
+              ]
+            },
+            "description": "Elimina el enlace."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
