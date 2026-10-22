@@ -4,7 +4,7 @@ Publica y visualiza el HTML mensual de Operaciones. Una persona (área externa) 
 
 - Rutas web `/presentations/*`, admin `/admin/presentations/permissions`, API `/api/v1/presentations/*`. Key `presentations`, tabla `presentations_versions`.
 - **Ver:** cualquier rol con acceso al módulo `presentations`.
-- **Reemplazar:** permiso `presentations.upload` (`core_permissions`), asignable por rol en `/admin/presentations/permissions` (SuperAdmin). `AccessService::can()` lo evalúa contra el rol activo.
+- **Reemplazar:** permiso `presentations.upload` (`core_permissions`), asignable por rol en `/admin/presentations/permissions` (SuperAdmin). `AccessService::can()` lo evalúa contra el rol activo. `PresentationsModuleSeeder` concede este permiso a todo rol que ya tenga el módulo (re-correrlo para roles nuevos).
 - **Historial:** cada carga crea una versión nueva; la vigente es la de mayor `id`. Un archivo idéntico (sha256) a la vigente se rechaza.
 - Archivos en `writable/uploads/presentations/` (nombre aleatorio), nunca públicos.
 

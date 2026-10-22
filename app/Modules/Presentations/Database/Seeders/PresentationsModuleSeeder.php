@@ -58,13 +58,24 @@ class PresentationsModuleSeeder extends Seeder
                 echo "PresentationsModuleSeeder: granted access to SuperAdmin.\n";
             }
 
+        }
+
+        // Every role with module access can also replace the presentation.
+        $granted = 0;
+        $roleIds = array_column(
+            $this->db->table('core_role_modules')->select('role_id')->where('module_id', $moduleId)->get()->getResultArray(),
+            'role_id'
+        );
+        foreach ($roleIds as $roleId) {
             $pl = $this->db->table('core_role_permissions')
-                ->where('role_id', $superAdmin->id)->where('permission_id', $permId)->get()->getRow();
+                ->where('role_id', $roleId)->where('permission_id', $permId)->get()->getRow();
             if (! $pl) {
                 $this->db->table('core_role_permissions')->insert([
-                    'role_id' => $superAdmin->id, 'permission_id' => $permId,
+                    'role_id' => $roleId, 'permission_id' => $permId,
                 ]);
+                $granted++;
             }
         }
+        echo "PresentationsModuleSeeder: upload permission granted to {$granted} new role(s).\n";
     }
 }
