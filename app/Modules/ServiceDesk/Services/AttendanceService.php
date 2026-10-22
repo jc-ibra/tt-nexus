@@ -471,7 +471,10 @@ class AttendanceService
      * expected time + tolerance) and ausencias (no log at all on a weekday
      * already past).
      *
-     * @return array<int,array{user_id:int,name:string,late_count:int,absence_count:int}>
+     * Each row also carries the day-by-day detail: late_days (date, check_in
+     * H:i, minutes_late over the expected time) and absence_days (dates).
+     *
+     * @return array<int,array{user_id:int,name:string,late_count:int,absence_count:int,late_days:array<int,array{date:string,check_in:string,minutes_late:int}>,absence_days:string[]}>
      */
     public function incidencesSummary(string $start, string $end): array
     {
@@ -490,8 +493,8 @@ class AttendanceService
 
         $out = [];
         foreach ($roster as $agent) {
-            $late = 0;
-            $absent = 0;
+            $lateDays   = [];
+            $absentDays = [];
             for ($d = $start; $d <= $end; $d = date('Y-m-d', strtotime($d . ' +1 day'))) {
                 if ($d > $today) {
                     continue;
@@ -499,7 +502,7 @@ class AttendanceService
                 $log = $byUserDay[$agent['id']][$d] ?? null;
                 if ($log === null) {
                     if ($this->isWeekday($d) && ! isset($vacations[$agent['id']][$d])) {
-                        $absent++;
+                        $absentDays[] = $d;
                     }
                     continue;
                 }
@@ -509,11 +512,23 @@ class AttendanceService
                 $checkInTs = strtotime($log['check_in_at']);
                 $limitTs   = strtotime($d . sprintf(' %02d:%02d:00', $expH, $expM)) + $toleranceSec;
                 if ($checkInTs > $limitTs) {
-                    $late++;
+                    $expectedTs = $limitTs - $toleranceSec;
+                    $lateDays[] = [
+                        'date'         => $d,
+                        'check_in'     => date('H:i', $checkInTs),
+                        'minutes_late' => (int) round(($checkInTs - $expectedTs) / 60),
+                    ];
                 }
             }
-            if ($late > 0 || $absent > 0) {
-                $out[] = ['user_id' => $agent['id'], 'name' => $agent['name'], 'late_count' => $late, 'absence_count' => $absent];
+            if ($lateDays !== [] || $absentDays !== []) {
+                $out[] = [
+                    'user_id'       => $agent['id'],
+                    'name'          => $agent['name'],
+                    'late_count'    => count($lateDays),
+                    'absence_count' => count($absentDays),
+                    'late_days'     => $lateDays,
+                    'absence_days'  => $absentDays,
+                ];
             }
         }
 

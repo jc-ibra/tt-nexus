@@ -5,6 +5,7 @@
 
 <?php
 $schemeLabels = ['presencial' => 'Presencial', 'home_office' => 'Home office', 'permiso' => 'Con permiso'];
+$dayNames     = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' => 'Rechazado'];
 ?>
 
@@ -125,6 +126,15 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
   <?php endif; ?>
 </div>
 
+<style>
+  .inc-details > summary { display: inline-block; cursor: pointer; list-style: none; border-radius: var(--radius-sm, 4px); }
+  .inc-details > summary::-webkit-details-marker { display: none; }
+  .inc-details > summary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .inc-details[open] > summary .badge { box-shadow: 0 0 0 2px var(--accent-text); }
+  .inc-days { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+  .inc-days li { display: flex; align-items: baseline; gap: var(--space-2); }
+</style>
+
 <div class="card" style="margin-bottom: var(--space-4);">
   <div class="card-header"><h2 class="card-title">Incidencias del período</h2></div>
   <div class="card-body" style="padding:0;">
@@ -136,8 +146,37 @@ $permitLabel  = ['pending' => 'Pendiente', 'approved' => 'Aprobado', 'rejected' 
         <?php else: foreach ($incidences as $i): ?>
           <tr>
             <td><?= esc($i['name']) ?></td>
-            <td><?= $i['late_count'] > 0 ? '<span class="badge badge-warning">' . (int) $i['late_count'] . '</span>' : '0' ?></td>
-            <td><?= $i['absence_count'] > 0 ? '<span class="badge badge-critical">' . (int) $i['absence_count'] . '</span>' : '0' ?></td>
+            <td>
+              <?php if ($i['late_count'] > 0): ?>
+                <details class="inc-details">
+                  <summary aria-label="Ver los <?= (int) $i['late_count'] ?> retardos de <?= esc($i['name'], 'attr') ?>"><span class="badge badge-warning"><?= (int) $i['late_count'] ?></span></summary>
+                  <ul class="inc-days">
+                    <?php foreach ($i['late_days'] as $day): ?>
+                      <li class="text-sm">
+                        <?= esc($dayNames[(int) date('N', strtotime($day['date'])) - 1] . ' ' . date('d/m/Y', strtotime($day['date']))) ?>
+                        <span class="text-muted">entrada <?= esc($day['check_in']) ?> (+<?= (int) $day['minutes_late'] ?> min)</span>
+                        <a href="<?= route_to('helpdesk.attendance.manual') ?>?user_id=<?= (int) $i['user_id'] ?>&date=<?= esc($day['date'], 'attr') ?>" class="text-sm">Corregir</a>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                </details>
+              <?php else: ?>0<?php endif; ?>
+            </td>
+            <td>
+              <?php if ($i['absence_count'] > 0): ?>
+                <details class="inc-details">
+                  <summary aria-label="Ver las <?= (int) $i['absence_count'] ?> ausencias de <?= esc($i['name'], 'attr') ?>"><span class="badge badge-critical"><?= (int) $i['absence_count'] ?></span></summary>
+                  <ul class="inc-days">
+                    <?php foreach ($i['absence_days'] as $date): ?>
+                      <li class="text-sm">
+                        <?= esc($dayNames[(int) date('N', strtotime($date)) - 1] . ' ' . date('d/m/Y', strtotime($date))) ?>
+                        <a href="<?= route_to('helpdesk.attendance.manual') ?>?user_id=<?= (int) $i['user_id'] ?>&date=<?= esc($date, 'attr') ?>" class="text-sm">Registrar</a>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                </details>
+              <?php else: ?>0<?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; endif; ?>
       </tbody>
