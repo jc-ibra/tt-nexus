@@ -8,14 +8,16 @@
  * @var string|null $extendedError
  * @var \Closure $ticketDrill
  * @var string $glpiBaseUrl
+ * @var string $part  'top' (KPIs + age), 'rest' (everything after) or 'all'
  */
+$part = in_array($part ?? 'all', ['top', 'rest'], true) ? $part : 'all';
 $x       = is_array($extended ?? null) ? $extended : null;
 $xError  = (string) ($extendedError ?? '');
 $glpiUrl = rtrim((string) ($glpiBaseUrl ?? ''), '/');
 $settingsUrl = base_url('admin/servicedesk/settings') . '#backlog';
 
 if ($x === null) {
-    if ($xError !== '') {
+    if ($xError !== '' && $part !== 'rest') {
         echo '<div class="banner banner-warning" role="alert"><div class="banner-content">'
             . 'No se pudo cargar el detalle ampliado del backlog: ' . esc($xError) . '</div></div>';
     }
@@ -60,6 +62,7 @@ foreach ($areaOrder as $key) {
 }
 ?>
 
+<?php if ($part !== 'rest'): ?>
 <!-- KPIs ampliados -->
 <div class="hs-stat-grid">
   <div class="card"><div class="hs-stat">
@@ -123,64 +126,8 @@ foreach ($areaOrder as $key) {
   </div>
 </div>
 
-<!-- Más antiguos -->
-<div class="card hs-section">
-  <div class="card-header">
-    <h2 class="card-title">Tickets más antiguos</h2>
-    <span class="text-sm text-muted">Los 20 abiertos desde hace más tiempo</span>
-  </div>
-  <div class="card-body">
-    <?php if ($oldest === []): ?>
-      <p class="text-muted text-sm">Sin tickets abiertos en este alcance.</p>
-    <?php else: ?>
-      <div class="hs-table-scroll">
-        <table class="table hs-table-wide">
-          <thead><tr><th>Ticket</th><th>Título</th><th>Área</th><th>Estatus</th><th>Apertura</th><th style="text-align:right;">Días</th></tr></thead>
-          <tbody>
-          <?php foreach ($oldest as $t): $tid = (int) $t['id']; $link = $ticketLink($tid); ?>
-            <tr>
-              <td style="white-space:nowrap;">
-                <?php if ($link !== ''): ?><a href="<?= esc($link) ?>" target="_blank" rel="noopener">#<?= $tid ?></a><?php else: ?>#<?= $tid ?><?php endif; ?>
-              </td>
-              <td>
-                <div><?= esc($t['title']) ?></div>
-                <?php if ($t['category'] !== '' || $t['cliente'] !== '' || $t['regional'] !== ''): ?>
-                  <div class="text-sm text-muted"><?= esc(implode(' | ', array_filter([$t['category'], $t['cliente'], $t['regional']]))) ?></div>
-                <?php endif; ?>
-              </td>
-              <td><?= esc($t['area']) ?></td>
-              <td><?= esc($t['status']) ?></td>
-              <td style="white-space:nowrap;"><?= esc($t['open']) ?></td>
-              <td style="text-align:right;"><span class="badge <?= $ageBadge((int) $t['age']) ?>"><?= (int) $t['age'] ?> d</span></td>
-            </tr>
-          <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
-    <?php endif; ?>
-
-    <?php foreach ($visibleAreas as $a): if (empty($a['oldest'])) { continue; } ?>
-      <details class="hs-details">
-        <summary>Los 5 más antiguos en <?= esc($a['label']) ?></summary>
-        <table class="table" style="width:100%;">
-          <tbody>
-          <?php foreach ($a['oldest'] as $t): $tid = (int) $t['id']; $link = $ticketLink($tid); ?>
-            <tr>
-              <td style="white-space:nowrap;">
-                <?php if ($link !== ''): ?><a href="<?= esc($link) ?>" target="_blank" rel="noopener">#<?= $tid ?></a><?php else: ?>#<?= $tid ?><?php endif; ?>
-              </td>
-              <td><?= esc($t['title']) ?></td>
-              <td><?= esc($t['status']) ?></td>
-              <td style="text-align:right;"><span class="badge <?= $ageBadge((int) $t['age']) ?>"><?= (int) $t['age'] ?> d</span></td>
-            </tr>
-          <?php endforeach; ?>
-          </tbody>
-        </table>
-      </details>
-    <?php endforeach; ?>
-  </div>
-</div>
-
+<?php endif; ?>
+<?php if ($part !== 'top'): ?>
 <!-- Por área -->
 <?php if ($visibleAreas !== []): ?>
 <div class="card hs-section">
@@ -317,3 +264,62 @@ foreach ($areaOrder as $key) {
     </div>
   </div>
 </div>
+
+<!-- Más antiguos -->
+<div class="card hs-section">
+  <div class="card-header">
+    <h2 class="card-title">Tickets más antiguos</h2>
+    <span class="text-sm text-muted">Los 20 abiertos desde hace más tiempo</span>
+  </div>
+  <div class="card-body">
+    <?php if ($oldest === []): ?>
+      <p class="text-muted text-sm">Sin tickets abiertos en este alcance.</p>
+    <?php else: ?>
+      <div class="hs-table-scroll">
+        <table class="table hs-table-wide">
+          <thead><tr><th>Ticket</th><th>Título</th><th>Área</th><th>Estatus</th><th>Apertura</th><th style="text-align:right;">Días</th></tr></thead>
+          <tbody>
+          <?php foreach ($oldest as $t): $tid = (int) $t['id']; $link = $ticketLink($tid); ?>
+            <tr>
+              <td style="white-space:nowrap;">
+                <?php if ($link !== ''): ?><a href="<?= esc($link) ?>" target="_blank" rel="noopener">#<?= $tid ?></a><?php else: ?>#<?= $tid ?><?php endif; ?>
+              </td>
+              <td>
+                <div><?= esc($t['title']) ?></div>
+                <?php if ($t['category'] !== '' || $t['cliente'] !== '' || $t['regional'] !== ''): ?>
+                  <div class="text-sm text-muted"><?= esc(implode(' | ', array_filter([$t['category'], $t['cliente'], $t['regional']]))) ?></div>
+                <?php endif; ?>
+              </td>
+              <td><?= esc($t['area']) ?></td>
+              <td><?= esc($t['status']) ?></td>
+              <td style="white-space:nowrap;"><?= esc($t['open']) ?></td>
+              <td style="text-align:right;"><span class="badge <?= $ageBadge((int) $t['age']) ?>"><?= (int) $t['age'] ?> d</span></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+
+    <?php foreach ($visibleAreas as $a): if (empty($a['oldest'])) { continue; } ?>
+      <details class="hs-details">
+        <summary>Los 5 más antiguos en <?= esc($a['label']) ?></summary>
+        <table class="table" style="width:100%;">
+          <tbody>
+          <?php foreach ($a['oldest'] as $t): $tid = (int) $t['id']; $link = $ticketLink($tid); ?>
+            <tr>
+              <td style="white-space:nowrap;">
+                <?php if ($link !== ''): ?><a href="<?= esc($link) ?>" target="_blank" rel="noopener">#<?= $tid ?></a><?php else: ?>#<?= $tid ?><?php endif; ?>
+              </td>
+              <td><?= esc($t['title']) ?></td>
+              <td><?= esc($t['status']) ?></td>
+              <td style="text-align:right;"><span class="badge <?= $ageBadge((int) $t['age']) ?>"><?= (int) $t['age'] ?> d</span></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </details>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>

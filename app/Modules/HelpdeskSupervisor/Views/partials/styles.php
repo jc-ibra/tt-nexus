@@ -63,7 +63,7 @@
 .hs-type-chip.is-disabled { opacity:0.55; }
 .hs-type-chip strong { font-size:1.125rem; }
 
-.hs-lists { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--space-4); }
+.hs-lists { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--space-4); margin-bottom:var(--space-4); }
 .hs-bar { height:4px; background: var(--bg-surface-alt); border-radius:2px; margin-top:4px; }
 .hs-bar > span { display:block; height:4px; background:var(--color-primary); border-radius:2px; }
 

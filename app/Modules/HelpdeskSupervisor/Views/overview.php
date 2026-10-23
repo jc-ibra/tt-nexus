@@ -194,6 +194,7 @@ $ticketDrill = static function (string $dimension, int $id, string $label) use (
 
   <?php if (! $isPeriod): ?>
     <?= view('App\Modules\HelpdeskSupervisor\Views\partials\overview_backlog_extended', [
+        'part'          => 'top',
         'extended'      => $data['extended'] ?? null,
         'extendedError' => $data['extended_error'] ?? null,
         'ticketDrill'   => $ticketDrill,
@@ -314,6 +315,16 @@ $ticketDrill = static function (string $dimension, int $id, string $label) use (
       </div>
     </div>
   </div>
+
+  <?php if (! $isPeriod): ?>
+    <?= view('App\Modules\HelpdeskSupervisor\Views\partials\overview_backlog_extended', [
+        'part'          => 'rest',
+        'extended'      => $data['extended'] ?? null,
+        'extendedError' => $data['extended_error'] ?? null,
+        'ticketDrill'   => $ticketDrill,
+        'glpiBaseUrl'   => $glpiBaseUrl ?? '',
+    ]) ?>
+  <?php endif; ?>
 
 <?php endif; ?>
 
