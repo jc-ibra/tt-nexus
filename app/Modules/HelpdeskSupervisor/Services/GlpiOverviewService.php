@@ -6,6 +6,7 @@ namespace App\Modules\HelpdeskSupervisor\Services;
 
 use App\Modules\Core\Services\ServiceResult;
 use App\Modules\Provisioning\Services\GlpiDbConnection;
+use App\Modules\ServiceDesk\Services\BacklogReportService;
 use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\Database\BaseBuilder;
 
@@ -38,6 +39,7 @@ class GlpiOverviewService
     public function __construct(
         private GlpiDbConnection $glpi,
         private HelpdeskSupervisorSettings $settings,
+        private ?BacklogReportService $backlog = null,
     ) {}
 
     public function isConfigured(): bool
@@ -177,14 +179,14 @@ class GlpiOverviewService
         if (! $this->isConfigured()) {
             return ServiceResult::fail('La conexión a GLPI no está configurada.');
         }
-        if (! in_array($dimension, ['category', 'source', 'requester', 'assignee', 'status', 'type', 'backlog', 'still_open', 'critical', 'period'], true)) {
+        if (! in_array($dimension, ['category', 'source', 'requester', 'assignee', 'status', 'type', 'backlog', 'still_open', 'critical', 'period', 'age'], true)) {
             return ServiceResult::fail('Dimensión de filtro no válida.');
         }
         $mode = $mode === 'period' ? 'period' : 'backlog';
         if ($dimension === 'still_open' && $mode !== 'period') {
             return ServiceResult::fail('El filtro "aún abiertos" solo aplica en modo período.');
         }
-        if ($dimension === 'backlog' && $mode !== 'backlog') {
+        if (in_array($dimension, ['backlog', 'age'], true) && $mode !== 'backlog') {
             return ServiceResult::fail('El filtro backlog solo aplica en modo backlog.');
         }
         if ($mode === 'period') {
@@ -256,7 +258,7 @@ class GlpiOverviewService
         $offset = ($page - 1) * $perPage;
 
         $rows = $this->ticketListBuilder($dimension, $filterId, $mode, $periodStart, $periodEnd)
-            ->orderBy('t.date', 'DESC')
+            ->orderBy('t.date', in_array($dimension, ['backlog', 'age', 'critical'], true) ? 'ASC' : 'DESC')
             ->limit($perPage, $offset)
             ->get()
             ->getResultArray();
@@ -347,6 +349,19 @@ class GlpiOverviewService
                     break;
                 case 'period':
                     $statusFilter = null;
+                    break;
+                case 'age':
+                    // $filterId = index into the Service Desk age buckets.
+                    $bucket = $this->backlog?->ageBuckets()[$filterId] ?? null;
+                    if ($bucket === null) {
+                        $builder->where('t.id', 0);
+                        break;
+                    }
+                    $builder->where('t.date <=', date('Y-m-d H:i:s', time() - ((int) $bucket['min'] * 86400)))
+                        ->where('t.date NOT LIKE \'0000-00-00%\'', null, false);
+                    if ($bucket['max'] !== null) {
+                        $builder->where('t.date >', date('Y-m-d H:i:s', time() - (((int) $bucket['max'] + 1) * 86400)));
+                    }
                     break;
                 case 'critical':
                     $criticalDays = $this->settings->overviewCriticalDays();
@@ -535,7 +550,15 @@ class GlpiOverviewService
             ];
         }
 
+        $extended      = null;
+        $extendedError = null;
+        if ($mode === 'backlog') {
+            [$extended, $extendedError] = $this->computeExtended($openStatuses, $types, $entityIds, $categoryIds);
+        }
+
         return [
+            'extended'       => $extended,
+            'extended_error' => $extendedError,
             'summary' => [
                 'total'         => $total,
                 'still_open'    => $stillOpen,
@@ -557,6 +580,37 @@ class GlpiOverviewService
             'filters'       => $filters,
             'cache_ttl'     => $this->settings->overviewCacheTtl(),
         ];
+    }
+
+    /**
+     * Rich backlog breakdown (age buckets, oldest tickets, areas, today's
+     * activity, plugin fields) reusing the Service Desk email report engine,
+     * restricted to this screen's scope. Failure never breaks the base screen.
+     *
+     * @param int[]      $openStatuses
+     * @param int[]      $types
+     * @param int[]|null $entityIds
+     * @param int[]|null $categoryIds
+     * @return array{0:?array,1:?string}
+     */
+    private function computeExtended(array $openStatuses, array $types, ?array $entityIds, ?array $categoryIds): array
+    {
+        if ($this->backlog === null) {
+            return [null, null];
+        }
+        try {
+            $scope = static function (BaseBuilder $b) use ($types, $entityIds, $categoryIds): void {
+                GlpiTicketScope::apply($b, null, $types, $entityIds, $categoryIds, null, null);
+            };
+            $data = $this->backlog->build($scope, $openStatuses);
+            unset($data['rows']);
+
+            return [$data, null];
+        } catch (\Throwable $e) {
+            log_message('error', '[HelpdeskSupervisor] extended backlog: ' . $e->getMessage());
+
+            return [null, $e->getMessage()];
+        }
     }
 
     /**

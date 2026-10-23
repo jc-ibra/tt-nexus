@@ -192,6 +192,15 @@ $ticketDrill = static function (string $dimension, int $id, string $label) use (
   </div>
   <?php endif; ?>
 
+  <?php if (! $isPeriod): ?>
+    <?= view('App\Modules\HelpdeskSupervisor\Views\partials\overview_backlog_extended', [
+        'extended'      => $data['extended'] ?? null,
+        'extendedError' => $data['extended_error'] ?? null,
+        'ticketDrill'   => $ticketDrill,
+        'glpiBaseUrl'   => $glpiBaseUrl ?? '',
+    ]) ?>
+  <?php endif; ?>
+
   <div class="hs-lists">
     <div class="card">
       <div class="card-header"><h2 class="card-title">Tickets por categoría</h2><span class="text-sm text-muted">Clic para ver lista</span></div>

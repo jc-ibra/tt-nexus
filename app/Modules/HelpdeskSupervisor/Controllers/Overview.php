@@ -69,6 +69,7 @@ class Overview extends BaseController
             'backlog'    => 'Backlog abierto',
             'still_open' => 'Aún abiertos',
             'critical'   => 'Críticos',
+            'age'        => 'Antigüedad',
             'period'     => 'Tickets del período',
         ];
 
@@ -163,7 +164,7 @@ class Overview extends BaseController
     {
         [$start, $end] = $this->period();
         $dimension = (string) $this->request->getGet('dimension');
-        $allowed   = ['category', 'source', 'requester', 'assignee', 'status', 'type', 'backlog', 'still_open', 'critical', 'period'];
+        $allowed   = ['category', 'source', 'requester', 'assignee', 'status', 'type', 'backlog', 'still_open', 'critical', 'period', 'age'];
         if (! in_array($dimension, $allowed, true)) {
             $dimension = 'category';
         }

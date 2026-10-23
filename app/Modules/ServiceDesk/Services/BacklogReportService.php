@@ -48,6 +48,12 @@ class BacklogReportService
         return $this->glpi->isConfigured();
     }
 
+    /** Age bucket definitions (key, label, min, max, color), youngest first. */
+    public function ageBuckets(): array
+    {
+        return $this->config->backlogAgeBuckets();
+    }
+
     // ------------------------------------------------------------------
     // Scheduling entry point (called by the cron command)
     // ------------------------------------------------------------------
@@ -164,14 +170,14 @@ class BacklogReportService
     /**
      * Reads GLPI and returns the full aggregated report data structure.
      */
-    public function build(): array
+    public function build(?\Closure $scope = null, ?array $openStatuses = null): array
     {
         $db  = $this->glpi->connection();
         $now = time();
 
         $statusLabels = $this->config->glpiStatusLabels;        // id => real GLPI label
         $typeLabels   = $this->config->glpiTypeLabels;          // id => Incidencia/Requerimiento
-        $statusIds    = array_values($this->config->backlogOpenStatuses);
+        $statusIds    = array_values($openStatuses ?? $this->config->backlogOpenStatuses);
         $criticalDays = $this->settings->backlogCriticalDays();
         $pendingId    = $this->config->backlogPendingStatus;
 
@@ -181,12 +187,15 @@ class BacklogReportService
         $hasExternalId = in_array('externalid', $ticketCols, true);
         $select = 'id, name, status, type, itilcategories_id, date'
             . ($hasExternalId ? ', externalid' : '');
-        $tickets = $db->table('glpi_tickets')
+        $ticketQuery = $db->table('glpi_tickets')
             ->select($select)
             ->where('is_deleted', 0)
-            ->whereIn('status', $statusIds)
-            ->orderBy('date', 'ASC')
-            ->get()->getResultArray();
+            ->whereIn('status', $statusIds);
+        if ($scope !== null) {
+            $scope($ticketQuery);
+        }
+        $tickets = $ticketQuery->orderBy('date', 'ASC')->get()->getResultArray();
+        $openIds = array_map(static fn(array $t): int => (int) $t['id'], $tickets);
 
         // 2) Category index (root + subcategory resolution).
         $catIndex = $this->loadCategoryIndex($db);
@@ -194,13 +203,13 @@ class BacklogReportService
 
         // 3) IDC values (ticket id => IDC label; presence = has IDC).
         $idcValues = $this->settings->backlogIdcConfigured()
-            ? $this->loadTicketFieldValues($db, $this->settings->backlogIdcContainerId(), $this->settings->backlogIdcField())
+            ? $this->loadTicketFieldValues($db, $this->settings->backlogIdcContainerId(), $this->settings->backlogIdcField(), $openIds)
             : null;
         $idcConfigured = $idcValues !== null;
 
         // 4) Regional values (ticket id => regional label) for the "POR REGIONAL" table.
         $regionalValues = $this->settings->backlogRegionalConfigured()
-            ? $this->loadTicketFieldValues($db, $this->settings->backlogRegionalContainerId(), $this->settings->backlogRegionalField())
+            ? $this->loadTicketFieldValues($db, $this->settings->backlogRegionalContainerId(), $this->settings->backlogRegionalField(), $openIds)
             : null;
         $regionalConfigured = $regionalValues !== null;
         // 4b) Estado / Municipio: export-only columns living in the same plugin
@@ -213,7 +222,7 @@ class BacklogReportService
             $this->settings->backlogEstadoField(),
             'estado'
         );
-        $estadoValues = $this->loadTicketFieldValues($db, $estCid, $estField);
+        $estadoValues = $this->loadTicketFieldValues($db, $estCid, $estField, $openIds);
 
         [$munCid, $munField] = $this->geoField(
             $this->settings->backlogMunicipioConfigured(),
@@ -221,7 +230,7 @@ class BacklogReportService
             $this->settings->backlogMunicipioField(),
             'municipio'
         );
-        $municipioValues = $this->loadTicketFieldValues($db, $munCid, $munField);
+        $municipioValues = $this->loadTicketFieldValues($db, $munCid, $munField, $openIds);
         $regAgg = []; // regional label => ['tickets','sumAge','sinIdc']
         // Categories the "POR REGIONAL" table is restricted to (subtree match).
         // Empty = no restriction (all categories count).
@@ -272,6 +281,10 @@ class BacklogReportService
         $backlogInc = 0;
         $backlogReq = 0;
         $rows = [];
+        $sumAge = 0;
+        $maxAge = 0;
+        $oldestGlobal = [];
+        $bucketsTotal = $emptyBuckets;
 
         foreach ($tickets as $t) {
             $id      = (int) $t['id'];
@@ -292,6 +305,8 @@ class BacklogReportService
             if ($ageDays >= $criticalDays) {
                 $critical++;
             }
+            $sumAge += $ageDays;
+            $maxAge  = max($maxAge, $ageDays);
 
             $type = (int) $t['type'];
             if ($type === 1) {
@@ -372,6 +387,7 @@ class BacklogReportService
             $bucketKey = $this->bucketFor($ageDays, $bucketDefs);
             $areas[$areaKey]['total']++;
             $areas[$areaKey]['buckets'][$bucketKey]++;
+            $bucketsTotal[$bucketKey]++;
             $sub = $subName !== '' ? $subName : ($leafName !== '' ? $leafName : 'Sin categoría');
             $areas[$areaKey]['subcategories'][$sub] = ($areas[$areaKey]['subcategories'][$sub] ?? 0) + 1;
 
@@ -402,6 +418,20 @@ class BacklogReportService
             $categoryFull = $catId > 0 && isset($catIndex[$catId])
                 ? ($catIndex[$catId]['completename'] ?: $leafName)
                 : '';
+
+            if (count($oldestGlobal) < 20) {
+                $oldestGlobal[] = [
+                    'id'       => $id,
+                    'title'    => (string) $t['name'],
+                    'status'   => $statusLabels[$status] ?? (string) $status,
+                    'area'     => $areas[$areaKey]['label'],
+                    'category' => $categoryFull,
+                    'cliente'  => $clienteName ?? '',
+                    'regional' => $regional,
+                    'age'      => $ageDays,
+                    'open'     => $open > 0 ? date('d/m/Y', $open) : '',
+                ];
+            }
 
             $rows[] = [
                 'id'         => $id,
@@ -466,10 +496,10 @@ class BacklogReportService
         unset($a);
 
         // Same-day activity per area (tickets created / closed today, net Δ).
-        $daily = $this->buildDailyActivity($db, $catIndex, $areaAssign, $now);
+        $daily = $this->buildDailyActivity($db, $catIndex, $areaAssign, $now, $scope);
 
         // Resumen por tipo (Folios/Incidencias/Requerimientos × Total/Atendidos/Backlog).
-        $typeSummary = $this->buildTypeSummary($db, $now, $backlogInc, $backlogReq);
+        $typeSummary = $this->buildTypeSummary($db, $now, $backlogInc, $backlogReq, $scope);
 
         return [
             'cutoffTs'      => $now,
@@ -491,6 +521,10 @@ class BacklogReportService
             'dailyLabel'    => date('d/m/Y', $now),
             'typeSummary'   => $typeSummary,
             'buckets'       => $bucketDefs,
+            'bucketsTotal'  => $bucketsTotal,
+            'avgAge'        => $total > 0 ? round($sumAge / $total, 1) : 0.0,
+            'maxAge'        => $maxAge,
+            'oldestGlobal'  => $oldestGlobal,
             'rows'          => $rows,
         ];
     }
@@ -637,7 +671,7 @@ class BacklogReportService
      * @param array<int,string> $areaAssign rootCategoryId => areaKey
      * @return array<string,array{label:string,created:int,closed:int,net:int}>
      */
-    private function buildDailyActivity($db, array $catIndex, array $areaAssign, int $now): array
+    private function buildDailyActivity($db, array $catIndex, array $areaAssign, int $now, ?\Closure $scope = null): array
     {
         $startStr = date('Y-m-d 00:00:00', $now);
         $endStr   = date('Y-m-d H:i:s', $now);
@@ -663,12 +697,15 @@ class BacklogReportService
         };
 
         // Created today (any status).
-        $created = $db->table('glpi_tickets')
+        $createdQ = $db->table('glpi_tickets')
             ->select('itilcategories_id')
             ->where('is_deleted', 0)
             ->where('date >=', $startStr)
-            ->where('date <=', $endStr)
-            ->get()->getResultArray();
+            ->where('date <=', $endStr);
+        if ($scope !== null) {
+            $scope($createdQ);
+        }
+        $created = $createdQ->get()->getResultArray();
         foreach ($created as $t) {
             $daily[$areaKeyFor((int) $t['itilcategories_id'])]['created']++;
         }
@@ -692,7 +729,11 @@ class BacklogReportService
                 $inner = $needOr ? $b->orGroupStart() : $b->groupStart();
                 $inner->where('closedate >=', $startStr)->where('closedate <=', $endStr)->groupEnd();
             }
-            $closed = $b->groupEnd()->get()->getResultArray();
+            $b->groupEnd();
+            if ($scope !== null) {
+                $scope($b);
+            }
+            $closed = $b->get()->getResultArray();
             foreach ($closed as $t) {
                 $daily[$areaKeyFor((int) $t['itilcategories_id'])]['closed']++;
             }
@@ -721,9 +762,9 @@ class BacklogReportService
      *   folios: array{label:string,total:int,atendidos:int,backlog:int}
      * }
      */
-    private function buildTypeSummary($db, int $now, int $backlogInc, int $backlogReq): array
+    private function buildTypeSummary($db, int $now, int $backlogInc, int $backlogReq, ?\Closure $scope = null): array
     {
-        $closed = $this->closedTodayByType($db, $now); // [1 => int, 2 => int]
+        $closed = $this->closedTodayByType($db, $now, $scope); // [1 => int, 2 => int]
         $incAtt = $closed[1];
         $reqAtt = $closed[2];
 
@@ -763,7 +804,7 @@ class BacklogReportService
      *
      * @return array{1:int,2:int}  tipo => cerrados hoy
      */
-    private function closedTodayByType($db, int $now): array
+    private function closedTodayByType($db, int $now, ?\Closure $scope = null): array
     {
         $out = [1 => 0, 2 => 0];
 
@@ -791,7 +832,11 @@ class BacklogReportService
             $inner = $needOr ? $b->orGroupStart() : $b->groupStart();
             $inner->where('closedate >=', $startStr)->where('closedate <=', $endStr)->groupEnd();
         }
-        $rows = $b->groupEnd()->get()->getResultArray();
+        $b->groupEnd();
+        if ($scope !== null) {
+            $scope($b);
+        }
+        $rows = $b->get()->getResultArray();
         foreach ($rows as $r) {
             $type = (int) $r['type'];
             if (isset($out[$type])) {
@@ -862,7 +907,7 @@ class BacklogReportService
      *
      * @return array<int,string>|null  ticket id => label
      */
-    private function loadTicketFieldValues($db, int $containerId, string $fieldName): ?array
+    private function loadTicketFieldValues($db, int $containerId, string $fieldName, ?array $ticketIds = null): ?array
     {
         if ($containerId <= 0 || $fieldName === '') {
             return null;
@@ -887,10 +932,18 @@ class BacklogReportService
         }
 
         $column = $field['column'];
-        $rows   = $db->table($container['dataTable'])
-            ->select("items_id, {$column} AS val")
-            ->where('itemtype', 'Ticket')
-            ->get()->getResultArray();
+        $rows = [];
+        // Restrict to the given tickets (chunked) instead of reading the whole table.
+        $chunks = $ticketIds === null ? [null] : array_chunk($ticketIds, 1000);
+        foreach ($chunks as $chunk) {
+            $q = $db->table($container['dataTable'])
+                ->select("items_id, {$column} AS val")
+                ->where('itemtype', 'Ticket');
+            if ($chunk !== null) {
+                $q->whereIn('items_id', $chunk);
+            }
+            array_push($rows, ...$q->get()->getResultArray());
+        }
 
         // Dropdown -> resolve FK id to its label once.
         $labels = null;

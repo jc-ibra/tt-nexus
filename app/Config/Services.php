@@ -1016,7 +1016,7 @@ class Services extends BaseService
         if ($getShared) {
             return static::getSharedInstance('helpdeskGlpiOverview');
         }
-        return new GlpiOverviewService(self::glpiDbConnection(), self::helpdeskSupervisorSettings());
+        return new GlpiOverviewService(self::glpiDbConnection(), self::helpdeskSupervisorSettings(), self::backlogReportService());
     }
 
     public static function helpdeskAuditRunner(bool $getShared = true): AuditRunnerService

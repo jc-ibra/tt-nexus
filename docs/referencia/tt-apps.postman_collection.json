@@ -5920,6 +5920,7 @@
         {
           "name": "Resumen GLPI (overview)",
           "request": {
+            "description": "En mode=backlog, data.extended trae antigüedad por rangos (bucketsTotal), tickets más antiguos (oldestGlobal), áreas, actividad de hoy (daily, typeSummary) y campos adicionales (regionals, clients). null si falla; ver extended_error.",
             "method": "GET",
             "header": [
               {
@@ -5967,6 +5968,7 @@
         {
           "name": "Resumen GLPI — tickets (drill-down)",
           "request": {
+            "description": "dimension: category|source|requester|assignee|status|type|backlog|still_open|critical|period|age. Con age, id es el índice del rango de antigüedad (0 = 0-3d ... 4 = +30d) y solo aplica en mode=backlog.",
             "method": "GET",
             "header": [
               {
