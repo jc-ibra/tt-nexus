@@ -43,7 +43,7 @@ class AuthApiController extends BaseApiController
         $ttlDays    = (int) env('API_TOKEN_TTL_DAYS', 30);
         $expiresAt  = $ttlDays > 0 ? date('Y-m-d H:i:s', strtotime("+{$ttlDays} days")) : null;
         $tokenModel = new PersonalAccessTokenModel();
-        $token      = $tokenModel->createToken($user['id'], 'api', $expiresAt);
+        $token      = $tokenModel->createToken((int) $user['id'], 'api', $expiresAt);
 
         return $this->success([
             'token'      => $token,
