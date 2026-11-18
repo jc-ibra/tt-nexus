@@ -108,6 +108,10 @@ $canManageEmployees = service('access')->canAccessModule('employees');
               aria-selected="false" aria-controls="emp-panel-prov" tabindex="-1" data-panel="emp-panel-prov">
         Aprovisionamiento
       </button>
+      <button type="button" class="emp-tab" id="emp-tab-docs" role="tab"
+              aria-selected="false" aria-controls="emp-panel-docs" tabindex="-1" data-panel="emp-panel-docs">
+        Documentos
+      </button>
       <button type="button" class="emp-tab" id="emp-tab-audit" role="tab"
               aria-selected="false" aria-controls="emp-panel-audit" tabindex="-1" data-panel="emp-panel-audit">
         Bitácora
@@ -309,6 +313,128 @@ $canManageEmployees = service('access')->canAccessModule('employees');
       <a href="<?= route_to('employees.audit') ?>?employee_id=<?= (int) $employee['id'] ?>">Ver bitácora completa</a>
     </p>
     </div><!-- /emp-panel-audit -->
+
+    <!-- Tab: Documentos RRHH -->
+    <div id="emp-panel-docs" class="emp-tab-panel" role="tabpanel" aria-labelledby="emp-tab-docs" style="display:none;" id-anchor="documentos">
+      <?php if ($canManageEmployees): ?>
+        <div class="card" style="margin-bottom: var(--space-4);">
+          <div class="card-header"><h2 class="card-title">Solicitar documento</h2></div>
+          <div class="card-body">
+            <form method="post" action="<?= route_to('employees.documents.request', $employee['id']) ?>" style="display:grid; grid-template-columns:1fr 2fr auto; gap:var(--space-3); align-items:end;">
+              <?= csrf_field() ?>
+              <div class="form-group">
+                <label for="document_type_id">Tipo</label>
+                <select id="document_type_id" name="document_type_id" class="form-control" required>
+                  <option value="">Selecciona…</option>
+                  <?php foreach ($documentTypes ?? [] as $dt): ?>
+                    <option value="<?= (int) $dt['id'] ?>"><?= esc($dt['name']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="notes">Notas (opcional)</label>
+                <input type="text" id="notes" name="notes" class="form-control" maxlength="500">
+              </div>
+              <button type="submit" class="btn btn-primary">Solicitar</button>
+            </form>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Solicitudes</h2></div>
+        <div class="card-body" style="padding:0;">
+          <?php
+            $docStatusLabel = [
+              'requested'    => 'Solicitado',
+              'uploaded'     => 'Cargado',
+              'under_review' => 'En revisión',
+              'accepted'     => 'Aceptado',
+              'rejected'     => 'Rechazado',
+              'cancelled'    => 'Cancelado',
+            ];
+            $docStatusBadge = [
+              'requested'    => 'badge-info',
+              'uploaded'     => 'badge-warning',
+              'under_review' => 'badge-warning',
+              'accepted'     => 'badge-success',
+              'rejected'     => 'badge-danger',
+              'cancelled'    => 'badge-neutral',
+            ];
+          ?>
+          <?php if (empty($documentRequests)): ?>
+            <div class="empty-state" style="padding:var(--space-5);">
+              <p class="empty-state-message">Aún no hay solicitudes de documentos para este empleado.</p>
+            </div>
+          <?php else: ?>
+            <table class="table" style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Documento</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                  <th>Archivo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($documentRequests as $dr): ?>
+                  <tr>
+                    <td>
+                      <strong><?= esc($dr['type_name'] ?? '') ?></strong>
+                      <?php if (! empty($dr['notes'])): ?>
+                        <div class="text-muted text-sm"><?= esc($dr['notes']) ?></div>
+                      <?php endif; ?>
+                      <?php if (! empty($dr['rejection_reason'])): ?>
+                        <div class="text-sm" style="color:var(--status-critical-text);">Motivo: <?= esc($dr['rejection_reason']) ?></div>
+                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <span class="badge <?= esc($docStatusBadge[$dr['status']] ?? 'badge-neutral') ?>">
+                        <?= esc($docStatusLabel[$dr['status']] ?? $dr['status']) ?>
+                      </span>
+                    </td>
+                    <td class="text-sm text-muted"><?= esc(date('d/m/Y H:i', strtotime($dr['created_at']))) ?></td>
+                    <td class="text-sm">
+                      <?php if (! empty($dr['stored_name'])): ?>
+                        <a href="<?= route_to('employees.documents.download', $employee['id'], $dr['id']) ?>">
+                          <?= esc($dr['original_name'] ?: $dr['stored_name']) ?>
+                        </a>
+                      <?php else: ?>
+                        <span class="text-muted">—</span>
+                      <?php endif; ?>
+                    </td>
+                    <td style="text-align:right; white-space:nowrap;">
+                      <?php if ($canManageEmployees && in_array($dr['status'], ['requested', 'rejected'], true)): ?>
+                        <form method="post" action="<?= route_to('employees.documents.cancel', $employee['id'], $dr['id']) ?>" style="display:inline;"
+                              onsubmit="return confirm('¿Cancelar esta solicitud?');">
+                          <?= csrf_field() ?>
+                          <button type="submit" class="btn btn-tertiary btn-sm">Cancelar</button>
+                        </form>
+                      <?php endif; ?>
+                      <?php if ($canManageEmployees && in_array($dr['status'], ['uploaded', 'under_review'], true)): ?>
+                        <form method="post" action="<?= route_to('employees.documents.review', $employee['id'], $dr['id']) ?>" style="display:inline;">
+                          <?= csrf_field() ?>
+                          <input type="hidden" name="decision" value="accepted">
+                          <button type="submit" class="btn btn-secondary btn-sm">Aceptar</button>
+                        </form>
+                        <form method="post" action="<?= route_to('employees.documents.review', $employee['id'], $dr['id']) ?>" style="display:inline;"
+                              onsubmit="var r=prompt('Motivo del rechazo:'); if(!r) return false; this.querySelector('[name=rejection_reason]').value=r; return true;">
+                          <?= csrf_field() ?>
+                          <input type="hidden" name="decision" value="rejected">
+                          <input type="hidden" name="rejection_reason" value="">
+                          <button type="submit" class="btn btn-tertiary btn-sm" style="color:var(--status-critical-text);">Rechazar</button>
+                        </form>
+                      <?php endif; ?>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div><!-- /emp-panel-docs -->
   </div>
 </div>
 
@@ -331,7 +457,6 @@ $canManageEmployees = service('access')->canAccessModule('employees');
 
   tabs.forEach((tab, i) => {
     tab.addEventListener('click', () => activate(tab));
-    // Arrow-key navigation between tabs (WCAG tablist pattern)
     tab.addEventListener('keydown', e => {
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       e.preventDefault();
@@ -342,6 +467,11 @@ $canManageEmployees = service('access')->canAccessModule('employees');
       next.focus();
     });
   });
+
+  if (location.hash === '#documentos') {
+    const docsTab = document.getElementById('emp-tab-docs');
+    if (docsTab) activate(docsTab);
+  }
 }());
 </script>
 

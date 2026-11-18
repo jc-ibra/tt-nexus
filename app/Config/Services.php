@@ -35,6 +35,7 @@ use App\Modules\Employees\Models\EmployeeStateModel;
 use App\Modules\Employees\Services\EmployeeAuditService;
 use App\Modules\Employees\Services\EmployeeCatalogService;
 use App\Modules\Employees\Services\EmployeeDashboardService;
+use App\Modules\Employees\Services\EmployeeDocumentService;
 use App\Modules\Employees\Services\EmployeeExportService;
 use App\Modules\Employees\Services\EmployeeService;
 use App\Modules\Provisioning\Models\MsLicenseModel;
@@ -333,6 +334,15 @@ class Services extends BaseService
             new EmployeeStateModel(),
             new EmployeeLocationModel(),
         );
+    }
+
+    public static function employeeDocumentService(bool $getShared = true): EmployeeDocumentService
+    {
+        if ($getShared) {
+            return static::getSharedInstance('employeeDocumentService');
+        }
+
+        return new EmployeeDocumentService();
     }
 
     // -----------------------------------------------------------------------

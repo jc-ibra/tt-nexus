@@ -53,6 +53,13 @@ class EmployeeCatalogs extends BaseController
                 'indexRoute'  => route_to('employees.locations.index'),
                 'newRoute'    => route_to('employees.locations.new'),
             ],
+            [
+                'name'        => 'Tipos de documento',
+                'description' => 'Documentos que RRHH puede solicitar vía la intranet',
+                'count'       => count(service('employeeDocumentService')->listTypes(false)),
+                'indexRoute'  => route_to('employees.document-types.index'),
+                'newRoute'    => route_to('employees.document-types.new'),
+            ],
         ];
 
         return view('App\Modules\Employees\Views\employees\catalogs\index', [

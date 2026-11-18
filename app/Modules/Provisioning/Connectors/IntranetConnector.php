@@ -95,6 +95,35 @@ class IntranetConnector implements SystemConnector
         return $this->wrap($resp, $externalId, "Usuario {$externalId} desactivado en Intranet.", 'INTRANET_DISABLE_FAILED');
     }
 
+    /**
+     * Notify Intranet about an HR document request lifecycle event.
+     * Intranet creates/updates a local mirror + Alert for the employee.
+     *
+     * @param array{
+     *   nexus_id:string,request_id:int,event:string,status:string,
+     *   document_name:string,document_key?:string,notes?:string,
+     *   rejection_reason?:string,employee_name?:string
+     * } $payload
+     */
+    public function notifyHrDocument(array $payload): ConnectorResult
+    {
+        $nexusId = trim((string) ($payload['nexus_id'] ?? ''));
+        if ($nexusId === '') {
+            return ConnectorResult::fail('Falta nexus_id para notificar documento RRHH.', 'INTRANET_HR_NO_NEXUS_ID');
+        }
+        if ((int) ($payload['request_id'] ?? 0) <= 0) {
+            return ConnectorResult::fail('Falta request_id para notificar documento RRHH.', 'INTRANET_HR_NO_REQUEST_ID');
+        }
+
+        $resp = $this->request('POST', '/api/v1/hr-documents/notify', $payload);
+        return $this->wrap(
+            $resp,
+            $nexusId,
+            'Notificación de documento RRHH enviada a la Intranet.',
+            'INTRANET_HR_NOTIFY_FAILED'
+        );
+    }
+
     public function enableUser(string $externalId, string $newPassword, array $userData = []): ConnectorResult
     {
         // The PUT accepts partial fields: re-enable and rotate the password at once.

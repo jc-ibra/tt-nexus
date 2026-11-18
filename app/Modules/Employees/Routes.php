@@ -76,6 +76,13 @@ $routes->group('employees', [
         $routes->get('locations/(:num)/edit',    'EmployeeLocations::edit/$1',    ['as' => 'employees.locations.edit']);
         $routes->post('locations/(:num)',        'EmployeeLocations::update/$1',  ['as' => 'employees.locations.update']);
         $routes->post('locations/(:num)/delete', 'EmployeeLocations::destroy/$1', ['as' => 'employees.locations.destroy']);
+
+        // Document types (RRHH requests)
+        $routes->get('document-types',             'EmployeeDocumentTypes::index',  ['as' => 'employees.document-types.index']);
+        $routes->get('document-types/new',         'EmployeeDocumentTypes::new',    ['as' => 'employees.document-types.new']);
+        $routes->post('document-types',            'EmployeeDocumentTypes::store',  ['as' => 'employees.document-types.store']);
+        $routes->get('document-types/(:num)/edit', 'EmployeeDocumentTypes::edit/$1', ['as' => 'employees.document-types.edit']);
+        $routes->post('document-types/(:num)',     'EmployeeDocumentTypes::update/$1', ['as' => 'employees.document-types.update']);
     });
 
     // Employees write actions (management)
@@ -86,6 +93,12 @@ $routes->group('employees', [
     $routes->post('(:num)/photo',          'Employees::uploadPhoto/$1',   ['as' => 'employees.photo.upload']);
     $routes->post('(:num)/link-mailbox',              'Employees::linkMailbox/$1',              ['as' => 'employees.link-mailbox']);
     $routes->post('(:num)/unlink-mailbox',            'Employees::unlinkMailbox/$1',            ['as' => 'employees.unlink-mailbox']);
+
+    // HR document requests on employee profile
+    $routes->post('(:num)/documents/request',                    'EmployeeDocuments::request/$1',        ['as' => 'employees.documents.request']);
+    $routes->post('(:num)/documents/(:num)/cancel',              'EmployeeDocuments::cancel/$1/$2',       ['as' => 'employees.documents.cancel']);
+    $routes->post('(:num)/documents/(:num)/review',              'EmployeeDocuments::review/$1/$2',       ['as' => 'employees.documents.review']);
+    $routes->get('(:num)/documents/(:num)/download',             'EmployeeDocuments::download/$1/$2',     ['as' => 'employees.documents.download']);
 });
 
 // -----------------------------------------------------------------------
@@ -159,6 +172,10 @@ $routes->group('api/v1/employees', [
     // Audit trail (bitácora) — literal must precede (:num).
     $routes->get('audit-log',           'EmployeesApiController::auditLog');
     $routes->get('(:num)/audit-log',    'EmployeesApiController::employeeAuditLog/$1');
+
+    // HR document requests (Intranet upload callback)
+    $routes->get('document-requests/(:num)',          'EmployeeDocumentsApiController::show/$1');
+    $routes->post('document-requests/(:num)/upload',  'EmployeeDocumentsApiController::upload/$1');
 
     // Employees CRUD
     $routes->get('/',                   'EmployeesApiController::index');

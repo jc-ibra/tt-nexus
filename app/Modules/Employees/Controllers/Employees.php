@@ -155,15 +155,19 @@ class Employees extends BaseController
         $msLicenses    = (new \App\Modules\Provisioning\Models\MsLicenseModel())->getAllActive();
         $emailAccounts = $svc->listEmailAccounts($id);
 
+        $docSvc = service('employeeDocumentService');
+
         return view('App\Modules\Employees\Views\employees\show', [
-            'pageTitle'     => trim($employee['name'] . ' ' . ($employee['lastname'] ?? '')),
-            'employee'      => $employee,
-            'reports'       => $svc->directReports($id),
-            'emailAccounts' => $emailAccounts,
-            'primaryEmail'  => $svc->primaryEmailOf($emailAccounts),
-            'msLicenses'    => $msLicenses,
-            'hasEmail'      => $svc->hasConfiguredEmail($id),
-            'auditEvents'   => (new \App\Modules\Employees\Models\EmployeeAuditLogModel())->listForEmployee($id, 100),
+            'pageTitle'         => trim($employee['name'] . ' ' . ($employee['lastname'] ?? '')),
+            'employee'          => $employee,
+            'reports'           => $svc->directReports($id),
+            'emailAccounts'     => $emailAccounts,
+            'primaryEmail'      => $svc->primaryEmailOf($emailAccounts),
+            'msLicenses'        => $msLicenses,
+            'hasEmail'          => $svc->hasConfiguredEmail($id),
+            'auditEvents'       => (new \App\Modules\Employees\Models\EmployeeAuditLogModel())->listForEmployee($id, 100),
+            'documentRequests'  => $docSvc->listForEmployee($id),
+            'documentTypes'     => $docSvc->listTypes(true),
         ]);
     }
 
